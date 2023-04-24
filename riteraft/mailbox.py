@@ -30,7 +30,7 @@ class Mailbox:
         if await self.__sender.put(MessagePropose(message, receiver)):
             data = await asyncio.wait_for(receiver.get(), 2)
             if isinstance(data, RaftRespResponse):
-                return
+                return data
             else:
                 raise Exception("Unknown error")
 
