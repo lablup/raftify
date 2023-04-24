@@ -1,0 +1,2 @@
+class GrpcConnectionError(Exception):
+    pass
