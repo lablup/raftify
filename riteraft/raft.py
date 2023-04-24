@@ -1,8 +1,8 @@
 import asyncio
 import logging
-import pickle
 from asyncio import Queue
 
+import msgpack
 from rraft import ConfChange, ConfChangeType, Logger_Ref
 
 from riteraft.mailbox import Mailbox
@@ -58,11 +58,11 @@ class Raft:
             response = await client.request_id()
             if response.code == raft_service_pb2.WrongLeader:
                 logging.info("This is the wrong leader")
-                _, leader_addr = pickle.loads(response.data)
+                _, leader_addr = msgpack.unpackb(response.data)
                 logging.info(f"Wrong leader, retrying with leader at {leader_addr}")
                 continue
             elif response.code == raft_service_pb2.Ok:
-                leader_id, node_id = pickle.loads(response.data)
+                leader_id, node_id = msgpack.unpackb(response.data)
                 break
             elif response.code == raft_service_pb2.Error:
                 logging.error("Error joining the cluster")
@@ -83,7 +83,7 @@ class Raft:
         change = ConfChange.default()
         change.set_node_id(node_id)
         change.set_change_type(ConfChangeType.AddNode)
-        change.set_context(pickle.dumps(self.addr))
+        change.set_context(msgpack.packb(self.addr))
 
         await client.change_config(change)
         await node_handle

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import pickle
 import time
 from asyncio import Queue
 from typing import Dict, Optional
@@ -205,7 +204,7 @@ class RaftNode:
                     )
                     self.seq.increase()
                     client_senders[self.seq] = message.chan
-                    context = pickle.dumps(encode_u64(self.seq.value))
+                    context = encode_u64(self.seq.value)
                     self.raw_node.propose_conf_change(context, message.change)
 
             elif isinstance(message, MessageRaft):
@@ -230,7 +229,7 @@ class RaftNode:
                 else:
                     self.seq.increase()
                     client_senders[self.seq] = message.chan
-                    context = pickle.dumps(encode_u64(self.seq.value))
+                    context = encode_u64(self.seq.value)
                     self.raw_node.propose(context, message.proposal)
 
             elif isinstance(message, MessageRequestId):
@@ -255,8 +254,8 @@ class RaftNode:
 
         ready = self.raw_node.ready()
 
-        if any(ready.entries()):
-            self.lmdb.append(ready.entries())
+        if entries := ready.entries():
+            self.lmdb.append(entries)
 
         if hs := ready.hs():
             # Raft HardState changed, and we need to persist it.
@@ -352,6 +351,9 @@ class RaftNode:
 
     async def handle_normal(self, entry: Entry_Ref, senders: Dict[int, Queue]) -> None:
         seq = decode_u64(entry.get_context())
+        print("entry", entry)
+        print("seqseq", entry.get_context())
+        print("senders", senders)
         data = await self.store.apply(entry.get_data())
 
         if sender := senders.pop(seq):

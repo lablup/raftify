@@ -1,13 +1,13 @@
-import pickle
 from multiprocessing import Queue
 from typing import Dict
 
+import msgpack
 from rraft import ConfChange, Message
 
 
 class Serializable:
     def dumps(self) -> bytes:
-        return pickle.dumps(self)
+        return msgpack.packb(self)
 
 
 class RaftRespWrongLeader(Serializable):

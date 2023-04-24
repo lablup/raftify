@@ -37,13 +37,16 @@ class InsertMessage:
 
     @classmethod
     def from_msgpack(cls, packed: bytes) -> "InsertMessage":
-        unpacked = msgpack.unpackb(packed, raw=False)
+        unpacked = msgpack.unpackb(packed)
         return cls(unpacked["key"], unpacked["value"])
 
 
 class Options:
     def __init__(
-        self, raft_addr: str, peer_addr: Optional[str], web_server: Optional[str]
+        self,
+        raft_addr: str,
+        peer_addr: Optional[str] = None,
+        web_server: Optional[str] = None,
     ):
         self.raft_addr = raft_addr
         self.peer_addr = peer_addr
@@ -63,18 +66,16 @@ class HashStore:
         with self._lock:
             message = InsertMessage.from_msgpack(msg)
             self._store[message.key] = message.value
-            logging.info(f"Inserted: ({message.key}, {message.value})")
-            return message.value.encode()
+            logging.info(f'Inserted: ({message.key}, "{message.value}")')
+            return msgpack.packb(message.value)
 
     async def snapshot(self) -> bytes:
         with self._lock:
-            snapshot = copy.deepcopy(self._store)
-            return msgpack.packb(snapshot)
+            return msgpack.packb(copy.deepcopy(self._store))
 
     async def restore(self, snapshot: bytes) -> None:
         with self._lock:
-            new = msgpack.unpackb(snapshot)
-            self._store = new
+            self._store = msgpack.unpackb(snapshot)
 
 
 @routes.get("/get/{id}")

@@ -1,9 +1,9 @@
 import asyncio
 import logging
-import pickle
 from asyncio import Queue
 
 import grpc
+import msgpack
 from rraft import ConfChange, Message
 
 from riteraft.message import (
@@ -36,13 +36,13 @@ class RaftService:
 
             return raft_service_pb2.IdRequestResponse(
                 code=raft_service_pb2.WrongLeader,
-                data=pickle.dumps(tuple([leader_id, leader_addr])),
+                data=msgpack.packb(tuple([leader_id, leader_addr])),
             )
         elif isinstance(response, RaftRespIdReserved):
             id = response.id
 
             return raft_service_pb2.IdRequestResponse(
-                code=raft_service_pb2.Ok, data=pickle.dumps(tuple([1, id]))
+                code=raft_service_pb2.Ok, data=msgpack.packb(tuple([1, id]))
             )
         else:
             assert False, "Unreachable"
@@ -68,7 +68,7 @@ class RaftService:
                     reply.inner = raft_response.dumps()
 
         except asyncio.TimeoutError:
-            reply.inner = pickle.dumps(RaftRespError())
+            reply.inner = msgpack.packb(RaftRespError())
             logging.error("Timeout waiting for reply")
 
         finally:
@@ -92,6 +92,8 @@ class RaftService:
         message.set_snapshot(request.snapshot)
         message.set_term(request.term)
         message.set_to(request.to)
+        # message.set_commit_term()
+        # message.set_from()
 
         await self.sender.put(MessageRaft(message))
-        return raft_service_pb2.RaftResponse(pickle.dumps(RaftRespOk()))
+        return raft_service_pb2.RaftResponse(msgpack.packb(RaftRespOk()))
