@@ -26,6 +26,7 @@ from riteraft.message import (
     RaftRespIdReserved,
     RaftRespJoinSuccess,
     RaftRespOk,
+    RaftRespResponse,
     RaftRespWrongLeader,
 )
 from riteraft.message_sender import MessageSender
@@ -351,13 +352,10 @@ class RaftNode:
 
     async def handle_normal(self, entry: Entry_Ref, senders: Dict[int, Queue]) -> None:
         seq = decode_u64(entry.get_context())
-        print("entry", entry)
-        print("seqseq", entry.get_context())
-        print("senders", senders)
         data = await self.store.apply(entry.get_data())
 
         if sender := senders.pop(seq):
-            await sender.put(data)
+            await sender.put(RaftRespResponse(data))
 
         if time.time() > self.last_snap_time + 15:
             logging.info("Creating snapshot...")

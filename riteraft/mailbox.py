@@ -27,12 +27,13 @@ class Mailbox:
 
         receiver = Queue()
         # TODO make timeout duration a variable
-        if await self.__sender.put(MessagePropose(message, receiver)):
-            data = await asyncio.wait_for(receiver.get(), 2)
-            if isinstance(data, RaftRespResponse):
-                return data
-            else:
-                raise Exception("Unknown error")
+        await self.__sender.put(MessagePropose(message, receiver))
+        print("below func is failing")
+        data = await asyncio.wait_for(receiver.get(), 2)
+        if isinstance(data, RaftRespResponse):
+            return data
+        else:
+            raise Exception("Unknown error")
 
     async def leave(self) -> None:
         change = ConfChange.default()

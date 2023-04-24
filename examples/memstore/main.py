@@ -90,8 +90,8 @@ async def put(request: web.Request) -> web.Response:
     mailbox = request.app["state"]["mailbox"]
     id, name = request.match_info["id"], request.match_info["name"]
     message = InsertMessage(int(id), name)
-    packed = await mailbox.send(message.to_msgpack())
-    return web.Response(text=str(packed))
+    result = await mailbox.send(message.to_msgpack())
+    return web.Response(text=str(result))
 
 
 @routes.get("/leave")
