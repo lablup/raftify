@@ -32,6 +32,14 @@ class InsertMessage:
         self.key = key
         self.value = value
 
+    def to_msgpack(self) -> bytes:
+        return msgpack.packb(self.__dict__)
+
+    @classmethod
+    def from_msgpack(cls, packed: bytes) -> "InsertMessage":
+        unpacked = msgpack.unpackb(packed, raw=False)
+        return cls(unpacked["key"], unpacked["value"])
+
 
 class Options:
     def __init__(
@@ -51,19 +59,19 @@ class HashStore:
         with self._lock:
             return self._store.get(key)
 
-    def apply(self, msg: bytes) -> bytes:
+    async def apply(self, msg: bytes) -> bytes:
         with self._lock:
-            message: InsertMessage = msgpack.unpackb(msg)
+            message = InsertMessage.from_msgpack(msg)
             self._store[message.key] = message.value
             logging.info(f"Inserted: ({message.key}, {message.value})")
             return message.value.encode()
 
-    def snapshot(self) -> bytes:
+    async def snapshot(self) -> bytes:
         with self._lock:
             snapshot = copy.deepcopy(self._store)
             return msgpack.packb(snapshot)
 
-    def restore(self, snapshot: bytes) -> None:
+    async def restore(self, snapshot: bytes) -> None:
         with self._lock:
             new = msgpack.unpackb(snapshot)
             self._store = new
@@ -81,7 +89,7 @@ async def put(request: web.Request) -> web.Response:
     mailbox = request.app["state"]["mailbox"]
     id, name = request.match_info["id"], request.match_info["name"]
     message = InsertMessage(int(id), name)
-    packed = await mailbox.send(msgpack.packb(message))
+    packed = await mailbox.send(message.to_msgpack())
     return web.Response(text=str(packed))
 
 
