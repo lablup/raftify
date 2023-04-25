@@ -29,7 +29,6 @@ class Mailbox:
         receiver = Queue()
         # TODO make timeout duration a variable
         await self.__sender.put(MessagePropose(message, receiver))
-        print("below func is failing")
 
         try:
             data = await asyncio.wait_for(receiver.get(), 2)

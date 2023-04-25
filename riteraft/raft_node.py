@@ -43,7 +43,7 @@ class RaftNode:
         peers: Dict[int, Optional[RaftClient]],
         chan: Queue,
         store: AbstractStore,
-        lmdb: LMDBStorage,
+        storage: Storage,
         should_quit: bool,
         seq: AtomicInteger,
         last_snap_time: float,
@@ -52,7 +52,7 @@ class RaftNode:
         self.peers = peers
         self.chan = chan
         self.store = store
-        self.lmdb = lmdb
+        self.storage = storage
         self.should_quit = should_quit
         self.seq = seq
         self.last_snap_time = last_snap_time
@@ -75,11 +75,10 @@ class RaftNode:
         snapshot.get_metadata().set_term(1)
         snapshot.get_metadata().get_conf_state().set_voters([1])
 
-        lmdb = LMDBStorage.create(".", 1)
-        lmdb.apply_snapshot(snapshot)
+        storage = Storage(LMDBStorage.create(".", 1))
+        storage.apply_snapshot(snapshot)
+        raw_node = RawNode(config, storage, logger)
 
-        lmdb_wrapper = Storage(lmdb)
-        raw_node = RawNode(config, lmdb_wrapper, logger)
         peers = {}
         seq = AtomicInteger(0)
         last_snap_time = time.time()
@@ -92,7 +91,7 @@ class RaftNode:
             peers,
             chan,
             store,
-            lmdb,
+            storage,
             False,
             seq,
             last_snap_time,
@@ -113,9 +112,9 @@ class RaftNode:
         config.set_heartbeat_tick(3)
         config.validate()
 
-        lmdb = LMDBStorage.create(".", id)
-        lmdb_wrapper = Storage(lmdb)
-        raw_node = RawNode(config, lmdb_wrapper, logger)
+        storage = Storage(LMDBStorage.create(".", id))
+        raw_node = RawNode(config, storage, logger)
+
         peers = {}
         seq = AtomicInteger(0)
         last_snap_time = 1000.0
@@ -125,7 +124,7 @@ class RaftNode:
             peers,
             chan,
             store,
-            lmdb,
+            storage,
             False,
             seq,
             last_snap_time,
@@ -204,7 +203,7 @@ class RaftNode:
                         f"Received request from: {message.change.get_node_id()}"
                     )
                     self.seq.increase()
-                    client_senders[self.seq] = message.chan
+                    client_senders[self.seq.value] = message.chan
                     context = encode_u64(self.seq.value)
                     self.raw_node.propose_conf_change(context, message.change)
 
@@ -229,7 +228,7 @@ class RaftNode:
                     )
                 else:
                     self.seq.increase()
-                    client_senders[self.seq] = message.chan
+                    client_senders[self.seq.value] = message.chan
                     context = encode_u64(self.seq.value)
                     self.raw_node.propose(context, message.proposal)
 
@@ -256,11 +255,11 @@ class RaftNode:
         ready = self.raw_node.ready()
 
         if entries := ready.entries():
-            self.lmdb.append(entries)
+            self.storage.append(entries)
 
         if hs := ready.hs():
             # Raft HardState changed, and we need to persist it.
-            self.lmdb.set_hard_state(hs)
+            self.storage.set_hardstate(hs)
 
         for message in ready.take_messages():
             logging.debug(f"Message from {message.get_from()} to {message.get_to()}")
@@ -279,11 +278,11 @@ class RaftNode:
 
         if snapshot := ready.snapshot():
             await self.store.restore(snapshot.get_data())
-            self.lmdb.apply_snapshot(snapshot)
+            self.storage.apply_snapshot(snapshot)
 
         if hs := ready.hs():
             # Raft HardState changed, and we need to persist it.
-            self.lmdb.set_hard_state(hs)
+            self.storage.set_hardstate(hs)
 
         if committed_entries := ready.committed_entries():
             # Mostly, you need to save the last apply index to resume applying
@@ -331,11 +330,11 @@ class RaftNode:
             last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
             snapshot = await self.store.snapshot()
 
-            self.lmdb.set_conf_state(cs)
-            self.lmdb.compact(last_applied)
-            self.lmdb.create_snapshot(snapshot)
+            self.storage.set_conf_state(cs)
+            self.storage.compact(last_applied)
+            self.storage.create_snapshot(snapshot)
 
-        if sender := senders.pop(seq):
+        if sender := senders.pop(seq, None):
             if change_type == ConfChangeType.AddNode:
                 response = RaftRespJoinSuccess(
                     assigned_id=id, peer_addrs=self.peer_addrs()
@@ -354,7 +353,7 @@ class RaftNode:
         seq = decode_u64(entry.get_context())
         data = await self.store.apply(entry.get_data())
 
-        if sender := senders.pop(seq):
+        if sender := senders.pop(seq, None):
             await sender.put(RaftRespResponse(data))
 
         if time.time() > self.last_snap_time + 15:
@@ -362,5 +361,5 @@ class RaftNode:
             self.last_snap_time = time.time()
             last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
             snapshot = await self.store.snapshot()
-            self.lmdb.compact(last_applied)
-            self.lmdb.create_snapshot(snapshot)
+            self.storage.compact(last_applied)
+            self.storage.create_snapshot(snapshot)
