@@ -1,5 +1,5 @@
 import logging
-from asyncio import Queue, sleep
+from asyncio import Queue
 
 from rraft import Message
 
@@ -15,7 +15,7 @@ class MessageSender:
         client_id: int,
         chan: Queue,
         max_retries: int,
-        timeout: float,
+        timeout: float = 5.0,
     ):
         self.message = message
         self.client = client
@@ -32,18 +32,15 @@ class MessageSender:
         current_retry = 0
         while True:
             try:
-                await self.client.send_message(self.message)
-                break
+                await self.client.send_message(self.message, self.timeout)
+                return
             except Exception as err:
                 if current_retry < self.max_retries:
                     current_retry += 1
-                    await sleep(self.timeout)
                 else:
                     logging.debug(
                         f"Error sending message after {self.max_retries} retries: {err}"
                     )
 
-                    await self.chan.send(
-                        MessageReportUnreachable(self.client_id)
-                    )
-                    break
+                    await self.chan.send(MessageReportUnreachable(self.client_id))
+                    return

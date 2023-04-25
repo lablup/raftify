@@ -117,7 +117,7 @@ class RaftNode:
 
         peers = {}
         seq = AtomicInteger(0)
-        last_snap_time = 1000.0
+        last_snap_time = time.time()
 
         return RaftNode(
             raw_node,
@@ -159,8 +159,8 @@ class RaftNode:
         # leader can't be an empty node
         leader_addr = self.peers[leader_id].addr
         raft_response = RaftRespWrongLeader(
-            leader_id=leader_id,
-            leader_addr=str(leader_addr),
+            leader_id,
+            str(leader_addr),
         )
         # TODO handle error here
         await channel.put(raft_response)
@@ -209,7 +209,7 @@ class RaftNode:
 
             elif isinstance(message, MessageRaft):
                 logging.debug(
-                    f"Raft message: to={self.get_raft().get_id()} from={message.msg.get_from()}"
+                    f"Raft message: to={self.id()} from={message.msg.get_from()}"
                 )
                 self.raw_node.step(message.msg)
 
@@ -222,8 +222,8 @@ class RaftNode:
 
                     await message.chan.put(
                         RaftRespWrongLeader(
-                            leader_id=leader_id,
-                            leader_addr=str(leader_addr),
+                            leader_id,
+                            str(leader_addr),
                         )
                     )
                 else:
@@ -239,7 +239,7 @@ class RaftNode:
                     await self.send_wrong_leader(message.chan)
                 else:
                     await message.chan.put(
-                        RaftRespIdReserved(id=self.reserve_next_peer_id())
+                        RaftRespIdReserved(self.reserve_next_peer_id())
                     )
 
             elif isinstance(message, MessageReportUnreachable):

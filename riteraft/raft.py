@@ -51,6 +51,7 @@ class Raft:
 
         # 1. try to discover the leader and obtain an id from it.
         logging.info(f"Attempting to join peer cluster at {str(addr)}")
+        leader_addr = str(addr)
 
         leader_id, node_id = None, None
         while True:

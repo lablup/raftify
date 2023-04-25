@@ -2,8 +2,8 @@ import asyncio
 from asyncio import Queue
 
 from rraft import ConfChange, ConfChangeType
-from riteraft.error import UnknownError
 
+from riteraft.error import UnknownError
 from riteraft.message import (
     MessageConfigChange,
     MessagePropose,
