@@ -147,8 +147,10 @@ class HardState(_message.Message):
 class Message(_message.Message):
     __slots__ = [
         "commit",
+        "commit_term",
         "context",
         "entries",
+        "from_",
         "index",
         "log_term",
         "msg_type",
@@ -161,9 +163,10 @@ class Message(_message.Message):
         "to",
     ]
     COMMIT_FIELD_NUMBER: _ClassVar[int]
+    COMMIT_TERM_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_FIELD_NUMBER: _ClassVar[int]
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
-    FROM_FIELD_NUMBER: _ClassVar[int]
+    FROM__FIELD_NUMBER: _ClassVar[int]
     INDEX_FIELD_NUMBER: _ClassVar[int]
     LOG_TERM_FIELD_NUMBER: _ClassVar[int]
     MSG_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -175,8 +178,10 @@ class Message(_message.Message):
     TERM_FIELD_NUMBER: _ClassVar[int]
     TO_FIELD_NUMBER: _ClassVar[int]
     commit: int
+    commit_term: int
     context: bytes
     entries: _containers.RepeatedCompositeFieldContainer[Entry]
+    from_: int
     index: int
     log_term: int
     msg_type: MessageType
@@ -191,6 +196,7 @@ class Message(_message.Message):
         self,
         msg_type: _Optional[_Union[MessageType, str]] = ...,
         to: _Optional[int] = ...,
+        from_: _Optional[int] = ...,
         term: _Optional[int] = ...,
         log_term: _Optional[int] = ...,
         index: _Optional[int] = ...,
@@ -202,7 +208,7 @@ class Message(_message.Message):
         reject_hint: _Optional[int] = ...,
         context: _Optional[bytes] = ...,
         priority: _Optional[int] = ...,
-        **kwargs
+        commit_term: _Optional[int] = ...,
     ) -> None: ...
 
 class Snapshot(_message.Message):

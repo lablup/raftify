@@ -68,7 +68,7 @@ enum MessageType {
 message Message {
     MessageType msg_type = 1;
     uint64 to = 2;
-    uint64 from = 3;
+    uint64 from_ = 3;
     uint64 term = 4;
     uint64 log_term = 5;
     uint64 index = 6;
@@ -80,6 +80,7 @@ message Message {
     uint64 reject_hint = 11;
     bytes context = 12;
     uint64 priority = 14;
+    uint64 commit_term = 15;
 }
 
 message HardState {
