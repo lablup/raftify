@@ -149,6 +149,7 @@ class Message(_message.Message):
         "commit",
         "commit_term",
         "context",
+        "deprecated_priority",
         "entries",
         "from_",
         "index",
@@ -165,6 +166,7 @@ class Message(_message.Message):
     COMMIT_FIELD_NUMBER: _ClassVar[int]
     COMMIT_TERM_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_FIELD_NUMBER: _ClassVar[int]
+    DEPRECATED_PRIORITY_FIELD_NUMBER: _ClassVar[int]
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
     FROM__FIELD_NUMBER: _ClassVar[int]
     INDEX_FIELD_NUMBER: _ClassVar[int]
@@ -180,6 +182,7 @@ class Message(_message.Message):
     commit: int
     commit_term: int
     context: bytes
+    deprecated_priority: int
     entries: _containers.RepeatedCompositeFieldContainer[Entry]
     from_: int
     index: int
@@ -202,13 +205,14 @@ class Message(_message.Message):
         index: _Optional[int] = ...,
         entries: _Optional[_Iterable[_Union[Entry, _Mapping]]] = ...,
         commit: _Optional[int] = ...,
+        commit_term: _Optional[int] = ...,
         snapshot: _Optional[_Union[Snapshot, _Mapping]] = ...,
         request_snapshot: _Optional[int] = ...,
         reject: bool = ...,
         reject_hint: _Optional[int] = ...,
         context: _Optional[bytes] = ...,
+        deprecated_priority: _Optional[int] = ...,
         priority: _Optional[int] = ...,
-        commit_term: _Optional[int] = ...,
     ) -> None: ...
 
 class Snapshot(_message.Message):

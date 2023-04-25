@@ -38,9 +38,12 @@ class RaftClient:
         self, msg: Message, timeout: float = 5.0
     ) -> raft_service_pb2.RaftResponse:
         request = eraftpb_pb2.Message(
+            commit_term=msg.get_commit_term(),
             commit=msg.get_commit(),
             context=msg.get_context(),
+            deprecated_priority=msg.get_deprecated_priority(),
             entries=msg.get_entries(),
+            from_=msg.get_from(),
             index=msg.get_index(),
             log_term=msg.get_log_term(),
             msg_type=msg.get_msg_type(),
