@@ -38,7 +38,7 @@ class Mailbox:
         if isinstance(resp, RaftRespResponse):
             return resp.data
         else:
-            raise Exception("Unknown error")
+            raise UnknownError("Unknown error")
 
     async def leave(self) -> None:
         change = ConfChange.default()
@@ -52,4 +52,4 @@ class Mailbox:
             if isinstance(data, RaftRespOk):
                 return
             else:
-                raise Exception("Unknown error")
+                raise UnknownError("Unknown error")
