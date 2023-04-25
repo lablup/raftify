@@ -2,7 +2,6 @@ import argparse
 import asyncio
 from contextlib import suppress
 import logging
-from collections import defaultdict
 from threading import Lock
 from typing import Optional
 import os
@@ -81,7 +80,7 @@ class HashStore:
 async def get(request: web.Request) -> web.Response:
     store = request.app["state"]["store"]
     id = request.match_info["id"]
-    return web.Response(text=str(store.get(int(id))))
+    return web.Response(text=store.get(int(id)))
 
 
 @routes.get("/put/{id}/{name}")

@@ -20,7 +20,7 @@ class Mailbox:
     def __init__(self, sender: Queue):
         self.__sender = sender
 
-    async def send(self, message: bytes) -> RaftRespResponse:
+    async def send(self, message: bytes) -> bytes:
         """
         Send a proposal message to commit to the node.
         This fails if the current node is not the leader.
@@ -31,12 +31,12 @@ class Mailbox:
         await self.__sender.put(MessagePropose(message, receiver))
 
         try:
-            data = await asyncio.wait_for(receiver.get(), 2)
+            resp = await asyncio.wait_for(receiver.get(), 2)
         except Exception as e:
             raise UnknownError(str(e))
 
-        if isinstance(data, RaftRespResponse):
-            return data
+        if isinstance(resp, RaftRespResponse):
+            return resp.data
         else:
             raise Exception("Unknown error")
 
