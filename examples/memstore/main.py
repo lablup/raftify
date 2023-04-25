@@ -1,7 +1,6 @@
 import argparse
 import asyncio
 from contextlib import suppress
-import copy
 import logging
 from collections import defaultdict
 from threading import Lock
@@ -55,7 +54,7 @@ class Options:
 
 class HashStore:
     def __init__(self):
-        self._store = defaultdict(str)
+        self._store = dict()
         self._lock = Lock()
 
     def get(self, key: int) -> Optional[str]:
@@ -71,7 +70,7 @@ class HashStore:
 
     async def snapshot(self) -> bytes:
         with self._lock:
-            return msgpack.packb(copy.deepcopy(self._store))
+            return msgpack.packb(self._store)
 
     async def restore(self, snapshot: bytes) -> None:
         with self._lock:
