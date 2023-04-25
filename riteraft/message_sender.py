@@ -44,6 +44,6 @@ class MessageSender:
                     )
 
                     await self.chan.send(
-                        MessageReportUnreachable(node_id=self.client_id)
+                        MessageReportUnreachable(self.client_id)
                     )
                     break

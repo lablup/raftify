@@ -2,6 +2,7 @@ import asyncio
 from asyncio import Queue
 
 from rraft import ConfChange, ConfChangeType
+from riteraft.error import UnknownError
 
 from riteraft.message import (
     MessageConfigChange,
@@ -29,7 +30,12 @@ class Mailbox:
         # TODO make timeout duration a variable
         await self.__sender.put(MessagePropose(message, receiver))
         print("below func is failing")
-        data = await asyncio.wait_for(receiver.get(), 2)
+
+        try:
+            data = await asyncio.wait_for(receiver.get(), 2)
+        except Exception as e:
+            raise UnknownError(str(e))
+
         if isinstance(data, RaftRespResponse):
             return data
         else:

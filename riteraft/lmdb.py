@@ -43,7 +43,6 @@ class LMDBStorageCore:
         db_pth = os.path.join(path, f"raft-{id}.mdb")
 
         env: lmdb.Environment = lmdb.open(db_pth, map_size=100 * 4096, max_dbs=3000)
-        # TODO: ISSUE 1: Resolve below function call does not return when already db exists.
         entries_db = env.open_db(b"entries")
         metadata_db = env.open_db(b"meta")
 
@@ -58,10 +57,6 @@ class LMDBStorageCore:
 
         return storage
 
-    def set_hard_state(self, hard_state: HardState | HardState_Ref) -> None:
-        with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
-            meta_writer.put(HARD_STATE_KEY, hard_state.encode())
-
     def hard_state(self) -> HardState:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
             hs = meta_reader.get(HARD_STATE_KEY)
@@ -69,9 +64,9 @@ class LMDBStorageCore:
                 raise "Missing hard state"
             return HardState.decode(hs)
 
-    def set_conf_state(self, conf_state: ConfState | ConfState_Ref) -> None:
+    def set_hard_state(self, hard_state: HardState | HardState_Ref) -> None:
         with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
-            meta_writer.put(CONF_STATE_KEY, conf_state.encode())
+            meta_writer.put(HARD_STATE_KEY, hard_state.encode())
 
     def conf_state(self) -> ConfState:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
@@ -80,32 +75,36 @@ class LMDBStorageCore:
                 raise "There should be a conf state"
             return ConfState.decode(cs)
 
-    def set_snapshot(self, snapshot: Snapshot | Snapshot_Ref) -> None:
+    def set_conf_state(self, conf_state: ConfState | ConfState_Ref) -> None:
         with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
-            meta_writer.put(SNAPSHOT_KEY, snapshot.encode())
+            meta_writer.put(CONF_STATE_KEY, conf_state.encode())
 
     def snapshot(self, _request_index: int) -> Optional[Snapshot]:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
             snapshot = meta_reader.get(SNAPSHOT_KEY)
             return Snapshot.decode(snapshot) if snapshot else None
 
-    def set_last_index(self, index: int) -> None:
+    def set_snapshot(self, snapshot: Snapshot | Snapshot_Ref) -> None:
         with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
-            meta_writer.put(LAST_INDEX_KEY, encode_u64(index))
+            meta_writer.put(SNAPSHOT_KEY, snapshot.encode())
+
+    def first_index(self) -> int:
+        with self.env.begin(write=False, db=self.entries_db) as entry_reader:
+            cursor = entry_reader.cursor()
+
+            if not cursor.first():
+                raise "There should always be at least one entry in the db"
+
+            return decode_u64(cursor.key()) + 1
 
     def last_index(self) -> int:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
             last_index = meta_reader.get(LAST_INDEX_KEY)
             return decode_u64(last_index) if last_index else 0
 
-    def first_index(self) -> int:
-        with self.env.begin(write=False, db=self.entries_db) as entry_reader:
-            cursor = entry_reader.cursor()
-            if cursor.first() is None:
-                raise "There should always be at least one entry in the db"
-            first_entry = cursor.item()
-
-        return decode_u64(first_entry[1]) + 1
+    def set_last_index(self, index: int) -> None:
+        with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
+            meta_writer.put(LAST_INDEX_KEY, encode_u64(index))
 
     def entry(self, index: int) -> Optional[Entry]:
         with self.env.begin(write=False, db=self.entries_db) as entry_reader:
@@ -123,7 +122,9 @@ class LMDBStorageCore:
             logging.info(f"Entries requested: {low}->{high}")
 
             cursor = entry_reader.cursor()
-            cursor.set_range(encode_u64(low))
+            if not cursor.set_range(encode_u64(low)):
+                return []
+
             size_count = 0
             entries = []
 
@@ -188,7 +189,7 @@ class LMDBStorage:
                 cursor = entry_writer.cursor()
 
                 for key, _ in cursor:
-                    if decode_u64(key) > index + 1:
+                    if decode_u64(key) >= index:
                         break
                     cursor.delete()
 
