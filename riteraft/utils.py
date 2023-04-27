@@ -2,6 +2,15 @@ import threading
 from typing import Union
 
 
+def encode_u64(v: int) -> bytes:
+    # TODO:: Add logic for checking value of v is fitted within the range of u64.
+    return v.to_bytes(8, byteorder="little", signed=True)
+
+
+def decode_u64(v: bytes) -> int:
+    return int.from_bytes(v, "little", signed=True)
+
+
 class SocketAddr:
     def __init__(self, host: str, port: str):
         self.host = host
@@ -51,12 +60,3 @@ class AtomicInteger:
     @property
     def value(self) -> int:
         return self.__value
-
-
-def encode_u64(v: int) -> bytes:
-    # TODO:: Add logic for checking value of v is fitted within the range of u64.
-    return v.to_bytes(8, byteorder="little", signed=True)
-
-
-def decode_u64(v: bytes) -> int:
-    return int.from_bytes(v, "little", signed=True)

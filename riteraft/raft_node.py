@@ -39,13 +39,13 @@ from riteraft.utils import AtomicInteger, decode_u64, encode_u64
 
 
 def persist(raft: Raft):
-    # if snapshot := raft.get_raft_log().unstable_snapshot():
-    #     snap = snapshot.clone()
-    #     index = snap.get_metadata().get_index()
-    #     raft.get_raft_log().stable_snap(index)
-    #     raft.get_raft_log().get_store().wl(lambda core: core.apply_snapshot(snap))
-    #     raft.on_persist_snap(index)
-    #     raft.commit_apply(index)
+    if snapshot := raft.get_raft_log().unstable_snapshot():
+        snap = snapshot.clone()
+        index = snap.get_metadata().get_index()
+        raft.get_raft_log().stable_snap(index)
+        raft.get_raft_log().get_store().wl(lambda core: core.apply_snapshot(snap))
+        raft.on_persist_snap(index)
+        raft.commit_apply(index)
 
     if unstable := raft.get_raft_log().unstable_entries():
         last_entry = unstable[-1]
@@ -183,100 +183,6 @@ class RaftNode:
         logging.info(f"Reserved peer id {next_id}")
         return next_id
 
-    async def send_wrong_leader(self, channel: Queue) -> None:
-        leader_id = self.leader()
-        # leader can't be an empty node
-        leader_addr = str(self.peers[leader_id].addr)
-        raft_response = RaftRespWrongLeader(
-            leader_id,
-            leader_addr,
-        )
-        # TODO handle error here
-        await channel.put(raft_response)
-
-    async def run(self) -> None:
-        heartbeat = 0.1
-
-        # A map to contain sender to client responses
-        client_senders: Dict[int, Queue] = {}
-
-        while True:
-            if self.should_quit:
-                logging.warning("Quitting raft")
-                return
-
-            message = None
-
-            try:
-                message = await asyncio.wait_for(self.chan.get(), heartbeat)
-            except asyncio.TimeoutError:
-                pass
-            except asyncio.CancelledError:
-                logging.warning("Cancelled error occurred!")
-                raise
-            except Exception:
-                raise
-
-            if isinstance(message, MessageConfigChange):
-                # whenever a change id is 0, it's a message to self.
-                if message.change.get_node_id() == 0:
-                    message.change.set_node_id(self.id())
-
-                if not self.is_leader():
-                    # wrong leader send client cluster data
-                    # TODO: retry strategy in case of failure
-                    await self.send_wrong_leader(channel=message.chan)
-                else:
-                    # leader assign new id to peer
-                    logging.debug(
-                        f"Received request from: {message.change.get_node_id()}"
-                    )
-                    self.seq.increase()
-                    client_senders[self.seq.value] = message.chan
-                    context = encode_u64(self.seq.value)
-                    self.raw_node.propose_conf_change(context, message.change)
-
-            elif isinstance(message, MessageRaft):
-                logging.debug(
-                    f"Raft message: to={self.id()} from={message.msg.get_from()}"
-                )
-                self.raw_node.step(message.msg)
-
-            elif isinstance(message, MessagePropose):
-                if not self.is_leader():
-                    # wrong leader send client cluster data
-                    leader_id = self.leader()
-                    # leader can't be an empty node
-                    leader_addr = str(self.peers[leader_id].addr)
-
-                    await message.chan.put(
-                        RaftRespWrongLeader(
-                            leader_id,
-                            leader_addr,
-                        )
-                    )
-                else:
-                    self.seq.increase()
-                    client_senders[self.seq.value] = message.chan
-                    context = encode_u64(self.seq.value)
-                    self.raw_node.propose(context, message.proposal)
-
-            elif isinstance(message, MessageRequestId):
-                if not self.is_leader():
-                    # TODO: retry strategy in case of failure
-                    logging.info("Requested Id, but not leader")
-                    await self.send_wrong_leader(message.chan)
-                else:
-                    await message.chan.put(
-                        RaftRespIdReserved(self.reserve_next_peer_id())
-                    )
-
-            elif isinstance(message, MessageReportUnreachable):
-                self.raw_node.report_unreachable(message.node_id)
-
-            self.raw_node.tick()
-            await self.on_ready(client_senders)
-
     def send_messages(self, msgs: List[Message]):
         for msg in msgs:
             logging.debug(
@@ -294,6 +200,17 @@ class RaftNode:
                         max_retries=5,
                     ).send()
                 )
+
+    async def send_wrong_leader(self, channel: Queue) -> None:
+        leader_id = self.leader()
+        # leader can't be an empty node
+        leader_addr = str(self.peers[leader_id].addr)
+        raft_response = RaftRespWrongLeader(
+            leader_id,
+            leader_addr,
+        )
+        # TODO handle error here
+        await channel.put(raft_response)
 
     async def handle_committed_entries(
         self, committed_entries: List[Entry], client_senders: Dict[int, Queue]
@@ -313,46 +230,20 @@ class RaftNode:
             elif entry.get_entry_type() == EntryType.EntryConfChangeV2:
                 raise NotImplementedError
 
-    async def on_ready(self, client_senders: Dict[int, Queue]) -> None:
-        if not self.raw_node.has_ready():
-            return
+    async def handle_normal(self, entry: Entry_Ref, senders: Dict[int, Queue]) -> None:
+        seq = decode_u64(entry.get_context())
+        data = await self.store.apply(entry.get_data())
 
-        ready = self.raw_node.ready()
+        if sender := senders.pop(seq, None):
+            await sender.put(RaftRespResponse(data))
 
-        # Send out the messages.
-        self.send_messages(ready.messages())
-
-        snapshot_default = Snapshot.default()
-        if ready.snapshot() != snapshot_default.make_ref():
-            snapshot = ready.snapshot()
-            await self.store.restore(snapshot.get_data())
-            self.storage.wl(lambda core: core.apply_snapshot(snapshot))
-
-        await self.handle_committed_entries(ready.committed_entries(), client_senders)
-
-        self.storage.wl(lambda core: core.append(ready.entries()))
-
-        if hs := ready.hs():
-            # Raft HardState changed, and we need to persist it.
-            self.storage.wl(lambda core: core.set_hard_state(hs))
-
-        if any(ready.persisted_messages()):
-            # Send out the persisted messages come from the node.
-            self.send_messages(ready.persisted_messages())
-
-        light_rd = self.raw_node.advance(ready.make_ref())
-
-        if commit := light_rd.commit_index():
-            self.storage.wl(lambda core: core.set_hard_state_comit(commit))
-
-        # Send out the messages.
-        self.send_messages(light_rd.messages())
-
-        # Apply all committed entries.
-        await self.handle_committed_entries(
-            light_rd.committed_entries(), client_senders
-        )
-        self.raw_node.advance_apply()
+        if time.time() > self.last_snap_time + 15:
+            logging.info("Creating snapshot...")
+            self.last_snap_time = time.time()
+            last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
+            snapshot = await self.store.snapshot()
+            self.storage.wl(lambda core: core.compact(last_applied))
+            self.storage.wl(lambda core: core.create_snapshot(snapshot))
 
     async def handle_config_change(
         self, entry: Entry_Ref, senders: Dict[int, Queue]
@@ -399,17 +290,116 @@ class RaftNode:
             except Exception:
                 logging.error("Error sending response")
 
-    async def handle_normal(self, entry: Entry_Ref, senders: Dict[int, Queue]) -> None:
-        seq = decode_u64(entry.get_context())
-        data = await self.store.apply(entry.get_data())
+    async def run(self) -> None:
+        heartbeat = 0.1
 
-        if sender := senders.pop(seq, None):
-            await sender.put(RaftRespResponse(data))
+        # A map to contain sender to client responses
+        client_senders: Dict[int, Queue] = {}
 
-        if time.time() > self.last_snap_time + 15:
-            logging.info("Creating snapshot...")
-            self.last_snap_time = time.time()
-            last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
-            snapshot = await self.store.snapshot()
-            self.storage.wl(lambda core: core.compact(last_applied))
-            self.storage.wl(lambda core: core.create_snapshot(snapshot))
+        while True:
+            if self.should_quit:
+                logging.warning("Quitting raft")
+                return
+
+            message = None
+
+            try:
+                message = await asyncio.wait_for(self.chan.get(), heartbeat)
+            except asyncio.TimeoutError:
+                pass
+            except asyncio.CancelledError:
+                logging.warning("Cancelled error occurred!")
+                raise
+            except Exception:
+                raise
+
+            if isinstance(message, MessageConfigChange):
+                # whenever a change id is 0, it's a message to self.
+                if message.change.get_node_id() == 0:
+                    message.change.set_node_id(self.id())
+
+                if not self.is_leader():
+                    # wrong leader send client cluster data
+                    # TODO: retry strategy in case of failure
+                    await self.send_wrong_leader(channel=message.chan)
+                else:
+                    # leader assign new id to peer
+                    logging.debug(
+                        f"Received request from: {message.change.get_node_id()}"
+                    )
+                    self.seq.increase()
+                    client_senders[self.seq.value] = message.chan
+                    context = encode_u64(self.seq.value)
+                    self.raw_node.propose_conf_change(context, message.change)
+
+            elif isinstance(message, MessagePropose):
+                if not self.is_leader():
+                    await self.send_wrong_leader(message.chan)
+                else:
+                    self.seq.increase()
+                    client_senders[self.seq.value] = message.chan
+                    context = encode_u64(self.seq.value)
+                    self.raw_node.propose(context, message.proposal)
+
+            elif isinstance(message, MessageRequestId):
+                if not self.is_leader():
+                    # TODO: retry strategy in case of failure
+                    logging.info("Requested Id, but not leader")
+                    await self.send_wrong_leader(message.chan)
+                else:
+                    await message.chan.put(
+                        RaftRespIdReserved(self.reserve_next_peer_id())
+                    )
+
+            elif isinstance(message, MessageRaft):
+                logging.debug(
+                    f"Raft message: to={self.id()} from={message.msg.get_from()}"
+                )
+                self.raw_node.step(message.msg)
+
+            elif isinstance(message, MessageReportUnreachable):
+                self.raw_node.report_unreachable(message.node_id)
+
+            self.raw_node.tick()
+            await self.on_ready(client_senders)
+
+    async def on_ready(self, client_senders: Dict[int, Queue]) -> None:
+        if not self.raw_node.has_ready():
+            return
+
+        ready = self.raw_node.ready()
+
+        # Send out the messages.
+        self.send_messages(ready.messages())
+
+        snapshot_default = Snapshot.default()
+        if ready.snapshot() != snapshot_default.make_ref():
+            snapshot = ready.snapshot()
+            await self.store.restore(snapshot.get_data())
+            self.storage.wl(lambda core: core.apply_snapshot(snapshot))
+
+        await self.handle_committed_entries(ready.committed_entries(), client_senders)
+
+        self.storage.wl(lambda core: core.append(ready.entries()))
+
+        if hs := ready.hs():
+            # Raft HardState changed, and we need to persist it.
+            self.storage.wl(lambda core: core.set_hard_state(hs))
+
+        if any(ready.persisted_messages()):
+            # Send out the persisted messages come from the node.
+            self.send_messages(ready.persisted_messages())
+
+        light_rd = self.raw_node.advance(ready.make_ref())
+
+        if commit := light_rd.commit_index():
+            self.storage.wl(lambda core: core.set_hard_state_comit(commit))
+
+        # Send out the messages.
+        self.send_messages(light_rd.messages())
+
+        # Apply all committed entries.
+        await self.handle_committed_entries(
+            light_rd.committed_entries(), client_senders
+        )
+        self.raw_node.advance_apply()

@@ -12,8 +12,8 @@ from riteraft.message import (
     MessageRequestId,
     RaftRespError,
     RaftRespIdReserved,
+    RaftRespJoinSuccess,
     RaftRespOk,
-    RaftResponse,
     RaftRespWrongLeader,
 )
 from riteraft.protos import eraftpb_pb2, raft_service_pb2
@@ -65,7 +65,9 @@ class RaftService:
 
         try:
             if raft_response := await asyncio.wait_for(chan.get(), 2):
-                if isinstance(raft_response, RaftResponse):
+                if isinstance(raft_response, RaftRespOk) or isinstance(
+                    raft_response, RaftRespJoinSuccess
+                ):
                     reply.inner = msgpack.packb(raft_response)
 
         except asyncio.TimeoutError:

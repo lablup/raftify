@@ -62,7 +62,6 @@ class Raft:
                 leader_id, node_id = msgpack.unpackb(resp.data)
                 break
             elif resp.code == raft_service_pb2.WrongLeader:
-                logging.info("This is the wrong leader")
                 _, leader_addr = msgpack.unpackb(resp.data)
                 logging.info(f"Wrong leader, retrying with leader at {leader_addr}")
                 continue

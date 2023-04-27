@@ -36,16 +36,6 @@ class RaftRespOk:
         pass
 
 
-RaftResponse = (
-    RaftRespWrongLeader
-    | RaftRespJoinSuccess
-    | RaftRespIdReserved
-    | RaftRespResponse
-    | RaftRespError
-    | RaftRespOk
-)
-
-
 class MessagePropose:
     def __init__(self, proposal: bytes, chan: Queue):
         self.proposal = proposal
@@ -71,12 +61,3 @@ class MessageReportUnreachable:
 class MessageRaft:
     def __init__(self, msg: Message):
         self.msg = msg
-
-
-Message = (
-    MessagePropose
-    | MessageConfigChange
-    | MessageRequestId
-    | MessageReportUnreachable
-    | MessageRaft
-)
