@@ -221,6 +221,10 @@ class RaftNode:
         # _last_apply_index = 0
 
         for entry in committed_entries:
+            # Empty entry, when the peer becomes Leader it will send an empty entry.
+            if not entry.get_data():
+                continue
+
             if entry.get_entry_type() == EntryType.EntryNormal:
                 await self.handle_normal(entry, client_senders)
 

@@ -10,6 +10,7 @@ import msgpack
 from aiohttp import web
 from aiohttp.web import Application, RouteTableDef
 from rraft import default_logger
+from riteraft.mailbox import Mailbox
 
 from riteraft.raft import Raft
 
@@ -78,14 +79,14 @@ class HashStore:
 
 @routes.get("/get/{id}")
 async def get(request: web.Request) -> web.Response:
-    store = request.app["state"]["store"]
+    store: HashStore = request.app["state"]["store"]
     id = request.match_info["id"]
     return web.Response(text=store.get(int(id)))
 
 
 @routes.get("/put/{id}/{name}")
 async def put(request: web.Request) -> web.Response:
-    mailbox = request.app["state"]["mailbox"]
+    mailbox: Mailbox = request.app["state"]["mailbox"]
     id, name = request.match_info["id"], request.match_info["name"]
     message = InsertMessage(int(id), name)
     result = await mailbox.send(message.to_msgpack())
@@ -94,7 +95,7 @@ async def put(request: web.Request) -> web.Response:
 
 @routes.get("/leave")
 async def leave(request: web.Request) -> web.Response:
-    mailbox = request.app["state"]["mailbox"]
+    mailbox: Mailbox = request.app["state"]["mailbox"]
     await mailbox.leave()
     return web.Response(text="OK")
 
