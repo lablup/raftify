@@ -30,6 +30,7 @@ class Mailbox:
         # TODO make timeout duration a variable
         await self.__sender.put(MessagePropose(message, receiver))
 
+        resp = None
         try:
             resp = await asyncio.wait_for(receiver.get(), 2)
         except Exception as e:
@@ -38,7 +39,7 @@ class Mailbox:
         if isinstance(resp, RaftRespResponse):
             return resp.data
         else:
-            raise UnknownError("Unknown error")
+            raise UnknownError(f"Unknown response data: {resp}")
 
     async def leave(self) -> None:
         change = ConfChange.default()
@@ -48,8 +49,8 @@ class Mailbox:
 
         receiver = Queue()
         if await self.__sender.put(MessageConfigChange(change, receiver)):
-            data = await receiver.get()
-            if isinstance(data, RaftRespOk):
+            resp = await receiver.get()
+            if isinstance(resp, RaftRespOk):
                 return
             else:
-                raise UnknownError("Unknown error")
+                raise UnknownError(f"Unknown response data: {resp}")

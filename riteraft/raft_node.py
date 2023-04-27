@@ -2,15 +2,18 @@ import asyncio
 import logging
 import time
 from asyncio import Queue
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from rraft import (
     ConfChange,
     ConfChangeType,
     Config,
+    Entry,
     Entry_Ref,
     EntryType,
     Logger_Ref,
+    Message,
+    Raft,
     RawNode,
     Snapshot,
     Storage,
@@ -33,6 +36,26 @@ from riteraft.message_sender import MessageSender
 from riteraft.raft_client import RaftClient
 from riteraft.store import AbstractStore
 from riteraft.utils import AtomicInteger, decode_u64, encode_u64
+
+
+def persist(raft: Raft):
+    # if snapshot := raft.get_raft_log().unstable_snapshot():
+    #     snap = snapshot.clone()
+    #     index = snap.get_metadata().get_index()
+    #     raft.get_raft_log().stable_snap(index)
+    #     raft.get_raft_log().get_store().wl(lambda core: core.apply_snapshot(snap))
+    #     raft.on_persist_snap(index)
+    #     raft.commit_apply(index)
+
+    if unstable := raft.get_raft_log().unstable_entries():
+        last_entry = unstable[-1]
+        cloned_unstable = list(map(lambda x: x.clone(), unstable))
+
+        last_idx, last_term = last_entry.get_index(), last_entry.get_term()
+        raft.get_raft_log().stable_entries(last_idx, last_term)
+
+        raft.get_raft_log().get_store().wl(lambda core: core.append(cloned_unstable))
+        raft.on_persist_entries(last_idx, last_term)
 
 
 class RaftNode:
@@ -75,8 +98,11 @@ class RaftNode:
         snapshot.get_metadata().set_term(1)
         snapshot.get_metadata().get_conf_state().set_voters([1])
 
-        storage = Storage(LMDBStorage.create(".", 1))
-        storage.apply_snapshot(snapshot)
+        lmdb = LMDBStorage.create(".", 1)
+        lmdb.apply_snapshot(snapshot)
+
+        storage = Storage(lmdb)
+        # storage.wl(lambda core: core.apply_snapshot(snapshot))
         raw_node = RawNode(config, storage, logger)
 
         peers = {}
@@ -85,6 +111,8 @@ class RaftNode:
 
         raw_node.get_raft().become_candidate()
         raw_node.get_raft().become_leader()
+
+        persist(raw_node.get_raft())
 
         return RaftNode(
             raw_node,
@@ -114,6 +142,7 @@ class RaftNode:
 
         storage = Storage(LMDBStorage.create(".", id))
         raw_node = RawNode(config, storage, logger)
+        persist(raw_node.get_raft())
 
         peers = {}
         seq = AtomicInteger(0)
@@ -157,10 +186,10 @@ class RaftNode:
     async def send_wrong_leader(self, channel: Queue) -> None:
         leader_id = self.leader()
         # leader can't be an empty node
-        leader_addr = self.peers[leader_id].addr
+        leader_addr = str(self.peers[leader_id].addr)
         raft_response = RaftRespWrongLeader(
             leader_id,
-            str(leader_addr),
+            leader_addr,
         )
         # TODO handle error here
         await channel.put(raft_response)
@@ -218,12 +247,12 @@ class RaftNode:
                     # wrong leader send client cluster data
                     leader_id = self.leader()
                     # leader can't be an empty node
-                    leader_addr = self.peers[leader_id].addr
+                    leader_addr = str(self.peers[leader_id].addr)
 
                     await message.chan.put(
                         RaftRespWrongLeader(
                             leader_id,
-                            str(leader_addr),
+                            leader_addr,
                         )
                     )
                 else:
@@ -248,61 +277,82 @@ class RaftNode:
             self.raw_node.tick()
             await self.on_ready(client_senders)
 
+    def send_messages(self, msgs: List[Message]):
+        for msg in msgs:
+            logging.debug(
+                f"light ready message from {msg.get_from()} to {msg.get_to()}"
+            )
+
+            if client := self.peers.get(msg.get_to()):
+                asyncio.create_task(
+                    MessageSender(
+                        client_id=msg.get_to(),
+                        client=client,
+                        chan=self.chan,
+                        message=msg,
+                        timeout=0.1,
+                        max_retries=5,
+                    ).send()
+                )
+
+    async def handle_committed_entries(
+        self, committed_entries: List[Entry], client_senders: Dict[int, Queue]
+    ) -> None:
+        # Mostly, you need to save the last apply index to resume applying
+        # after restart. Here we just ignore this because we use a Memory storage.
+
+        # _last_apply_index = 0
+
+        for entry in committed_entries:
+            if entry.get_entry_type() == EntryType.EntryNormal:
+                await self.handle_normal(entry, client_senders)
+
+            elif entry.get_entry_type() == EntryType.EntryConfChange:
+                await self.handle_config_change(entry, client_senders)
+
+            elif entry.get_entry_type() == EntryType.EntryConfChangeV2:
+                raise NotImplementedError
+
     async def on_ready(self, client_senders: Dict[int, Queue]) -> None:
         if not self.raw_node.has_ready():
             return
 
         ready = self.raw_node.ready()
 
-        if entries := ready.entries():
-            self.storage.append(entries)
+        # Send out the messages.
+        self.send_messages(ready.messages())
 
-        if hs := ready.hs():
-            # Raft HardState changed, and we need to persist it.
-            self.storage.set_hardstate(hs)
-
-        for message in ready.take_messages():
-            logging.debug(f"Message from {message.get_from()} to {message.get_to()}")
-
-            if client := self.peers.get(message.get_to()):
-                asyncio.create_task(
-                    MessageSender(
-                        client_id=message.get_to(),
-                        client=client,
-                        chan=self.chan,
-                        message=message,
-                        timeout=0.1,
-                        max_retries=5,
-                    ).send()
-                )
-
-        if snapshot := ready.snapshot():
+        snapshot_default = Snapshot.default()
+        if ready.snapshot() != snapshot_default.make_ref():
+            snapshot = ready.snapshot()
             await self.store.restore(snapshot.get_data())
-            self.storage.apply_snapshot(snapshot)
+            self.storage.wl(lambda core: core.apply_snapshot(snapshot))
+
+        await self.handle_committed_entries(ready.committed_entries(), client_senders)
+
+        self.storage.wl(lambda core: core.append(ready.entries()))
 
         if hs := ready.hs():
             # Raft HardState changed, and we need to persist it.
-            self.storage.set_hardstate(hs)
+            self.storage.wl(lambda core: core.set_hard_state(hs))
 
-        if committed_entries := ready.committed_entries():
-            # Mostly, you need to save the last apply index to resume applying
-            # after restart. Here we just ignore this because we use a Memory storage.
+        if any(ready.persisted_messages()):
+            # Send out the persisted messages come from the node.
+            self.send_messages(ready.persisted_messages())
 
-            # _last_apply_index = 0
+        light_rd = self.raw_node.advance(ready.make_ref())
 
-            for entry in committed_entries:
-                if not any(entry.get_data()):
-                    # Empty entry, when the peer becomes Leader it will send an empty entry.
-                    continue
+        if commit := light_rd.commit_index():
+            self.storage.wl(lambda core: core.set_hard_state_comit(commit))
 
-                if entry.get_entry_type() == EntryType.EntryNormal:
-                    await self.handle_normal(entry, client_senders)
-                elif entry.get_entry_type() == EntryType.EntryConfChange:
-                    await self.handle_config_change(entry, client_senders)
-                elif entry.get_entry_type() == EntryType.EntryConfChangeV2:
-                    raise NotImplementedError
+        # Send out the messages.
+        self.send_messages(light_rd.messages())
 
-        self.raw_node.advance(ready.make_ref())
+        # Apply all committed entries.
+        await self.handle_committed_entries(
+            light_rd.committed_entries(), client_senders
+        )
+        self.raw_node.advance_apply()
 
     async def handle_config_change(
         self, entry: Entry_Ref, senders: Dict[int, Queue]
@@ -330,9 +380,9 @@ class RaftNode:
             last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
             snapshot = await self.store.snapshot()
 
-            self.storage.set_conf_state(cs)
-            self.storage.compact(last_applied)
-            self.storage.create_snapshot(snapshot)
+            self.storage.wl(lambda core: core.set_conf_state(cs))
+            self.storage.wl(lambda core: core.compact(last_applied))
+            self.storage.wl(lambda core: core.create_snapshot(snapshot))
 
         if sender := senders.pop(seq, None):
             if change_type == ConfChangeType.AddNode:
@@ -361,5 +411,5 @@ class RaftNode:
             self.last_snap_time = time.time()
             last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
             snapshot = await self.store.snapshot()
-            self.storage.compact(last_applied)
-            self.storage.create_snapshot(snapshot)
+            self.storage.wl(lambda core: core.compact(last_applied))
+            self.storage.wl(lambda core: core.create_snapshot(snapshot))

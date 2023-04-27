@@ -35,10 +35,10 @@ class Raft:
         Create a new leader for the cluster, with id 1. There has to be exactly one node in the
         cluster that is initialized that way
         """
-        node = RaftNode.new_leader(self.chan, self.store, self.logger)
+        raft_node = RaftNode.new_leader(self.chan, self.store, self.logger)
         server = RaftServer(self.addr, self.chan)
         asyncio.create_task(server.run())
-        node_handle = asyncio.create_task(node.run())
+        node_handle = asyncio.create_task(raft_node.run())
         await node_handle
         # TODO: Resolve several issues on the console at first...
         logging.warning("Leaving leader node")
@@ -56,28 +56,29 @@ class Raft:
         leader_id, node_id = None, None
         while True:
             client = RaftClient(addr)
-            response = await client.request_id()
-            if response.code == raft_service_pb2.WrongLeader:
+            resp = await client.request_id()
+
+            if resp.code == raft_service_pb2.Ok:
+                leader_id, node_id = msgpack.unpackb(resp.data)
+                break
+            elif resp.code == raft_service_pb2.WrongLeader:
                 logging.info("This is the wrong leader")
-                _, leader_addr = msgpack.unpackb(response.data)
+                _, leader_addr = msgpack.unpackb(resp.data)
                 logging.info(f"Wrong leader, retrying with leader at {leader_addr}")
                 continue
-            elif response.code == raft_service_pb2.Ok:
-                leader_id, node_id = msgpack.unpackb(response.data)
-                break
-            elif response.code == raft_service_pb2.Error:
+            elif resp.code == raft_service_pb2.Error:
                 logging.error("Error joining the cluster")
                 return
 
         logging.info(f"Obtained ID from leader: {node_id}")
 
         # 2. run server and node to prepare for joining
-        node = RaftNode.new_follower(self.chan, node_id, self.store, self.logger)
+        raft_node = RaftNode.new_follower(self.chan, node_id, self.store, self.logger)
         client = RaftClient(leader_addr)
-        node.peers[leader_id] = client
+        raft_node.peers[leader_id] = client
         server = RaftServer(self.addr, self.chan)
         asyncio.create_task(server.run())
-        node_handle = asyncio.create_task(node.run())
+        raft_node_handle = asyncio.create_task(raft_node.run())
 
         # 3. Join the cluster
         # TODO: handle wrong leader
@@ -87,4 +88,4 @@ class Raft:
         change.set_context(msgpack.packb(self.addr))
 
         await client.change_config(change)
-        await node_handle
+        await raft_node_handle

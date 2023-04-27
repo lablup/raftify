@@ -154,6 +154,11 @@ class LMDBStorageCore:
 
         self.set_last_index(last_index)
 
+    def set_hard_state_comit(self, comit: int) -> None:
+        hs = self.hard_state()
+        hs.set_commit(comit)
+        self.set_hard_state(hs)
+
 
 class LMDBStorage:
     def __init__(self, core: LMDBStorageCore):
@@ -236,7 +241,7 @@ class LMDBStorage:
             conf_state = metadata.get_conf_state()
             hard_state = store.hard_state()
 
-            hard_state.set_term(metadata.get_term())
+            hard_state.set_term(max(hard_state.get_term(), metadata.get_term()))
             hard_state.set_commit(metadata.get_index())
 
             store.set_hard_state(hard_state)
@@ -310,3 +315,9 @@ class LMDBStorage:
             return store.snapshot(request_index)
 
         return self.rl(__snapshot)
+
+    def set_hard_state_comit(self, comit: int) -> None:
+        def __set_hard_state_comit(store: LMDBStorageCore):
+            return store.set_hard_state_comit(comit)
+
+        return self.wl(__set_hard_state_comit)

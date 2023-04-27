@@ -42,7 +42,8 @@ class RaftService:
             id = response.id
 
             return raft_service_pb2.IdRequestResponse(
-                code=raft_service_pb2.Ok, data=msgpack.packb(tuple([1, id]))
+                code=raft_service_pb2.Ok,
+                data=msgpack.packb(tuple([1, id])),
             )
         else:
             assert False, "Unreachable"
@@ -65,7 +66,7 @@ class RaftService:
         try:
             if raft_response := await asyncio.wait_for(chan.get(), 2):
                 if isinstance(raft_response, RaftResponse):
-                    reply.inner = raft_response.dumps()
+                    reply.inner = msgpack.packb(raft_response)
 
         except asyncio.TimeoutError:
             reply.inner = msgpack.packb(RaftRespError())
