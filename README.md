@@ -10,9 +10,9 @@ Also, if you want to build featureful Python Raft implementation, `rraft-py` cou
 
 ## Why?
 
-Since *[raft-rs](https://github.com/tikv/raft-rs)* only provides an implementation for the consensus module, some developers may face difficulties in figuring out how to use this library when they first faced with the problem.
+Since *[raft-rs](https://github.com/tikv/raft-rs)* only provides an implementation for the consensus module, it seems users are likely to [face to difficulties in figuring out how to use this library when they first faced with the problem](https://github.com/tikv/raft-rs/issues/402).
 
-Attempts to provide higher-level Raft implementation like *[riteraft](https://github.com/ritelabs/riteraft)* have been made to address [this issue](https://github.com/tikv/raft-rs/issues/402).
+Attempts to provide higher-level Raft implementation like *[riteraft](https://github.com/ritelabs/riteraft)* have been made to address this issue.
 
 This repository starts from `riteraft` for resolving the issue in Python language runtime.
 
@@ -33,29 +33,27 @@ In order to "raft" storage, we need to implement the Storage for it. Bellow is a
 ```py
 class HashStore:
     def __init__(self):
-        self._store = defaultdict(str)
+        self._store = dict()
         self._lock = Lock()
 
     def get(self, key: int) -> Optional[str]:
         with self._lock:
             return self._store.get(key)
 
-    def apply(self, msg: bytes) -> bytes:
+    async def apply(self, msg: bytes) -> bytes:
         with self._lock:
-            message: InsertMessage = msgpack.unpackb(msg)
+            message = InsertMessage.from_msgpack(msg)
             self._store[message.key] = message.value
-            logging.info(f"Inserted: ({message.key}, {message.value})")
-            return message.value.encode()
+            logging.info(f'Inserted: ({message.key}, "{message.value}")')
+            return msgpack.packb(message.value)
 
-    def snapshot(self) -> bytes:
+    async def snapshot(self) -> bytes:
         with self._lock:
-            snapshot = copy.deepcopy(self._store)
-            return msgpack.packb(snapshot)
+            return msgpack.packb(self._store)
 
-    def restore(self, snapshot: bytes) -> None:
+    async def restore(self, snapshot: bytes) -> None:
         with self._lock:
-            new = msgpack.unpackb(snapshot)
-            self._store = new
+            self._store = msgpack.unpackb(snapshot)
 ```
 
 Only 3 methods need to be implemented for the `Store`:
@@ -115,16 +113,11 @@ async def main() -> None:
         if runner:
             await runner.cleanup()
             await runner.shutdown()
-
-
-if __name__ == "__main__":
-    with suppress(KeyboardInterrupt):
-        asyncio.run(main())
 ```
 
 The `mailbox` gives you a way to interact with the raft, for sending a message, or leaving the cluster for example.
 
-For complete example code, please refer [this link](https://github.com/lablup/riteraft-py/blob/main/examples/memstore/main.py).
+For whole example code, consult [this link](https://github.com/lablup/riteraft-py/blob/main/examples/memstore/main.py).
 
 ## Reference
 
