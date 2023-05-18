@@ -14,11 +14,11 @@ Also, if you want to build featureful Raft implementation, *rraft-py* could be a
 
 ## Why?
 
-Since *[raft-rs](https://github.com/tikv/raft-rs)* only provides an implementation for the consensus module, it seems users are likely to [face to difficulties in figuring out how to use this library when they first faced with the problem](https://github.com/tikv/raft-rs/issues/402).
+Since *[raft-rs](https://github.com/tikv/raft-rs)* only offers an implementation for the consensus module, it appears that users may encounter difficulties figuring out how to utilize this library when they first encounter the problem. (Refer: https://github.com/tikv/raft-rs/issues/402)
 
-Attempts to provide higher-level Raft implementation like *[riteraft](https://github.com/ritelabs/riteraft)* have been made to address this issue.
+Attempts to provide a higher-level Raft implementation, such as *[riteraft](https://github.com/tikv/raft-rs/issues/402)*, have been made to address this issue.
 
-This repository starts from *riteraft* for resolving the issue in Python.
+This repository utilizes *riteraft* as a starting point to resolve the issue in Python.
 
 ## Getting started
 
@@ -32,7 +32,7 @@ $ pip install riteraft
 
 ### Example
 
-In order to "raft" storage, we need to implement the Storage for it. Bellow is an example with HashStore, which is a thread-safe wrapper around an HashMap:
+To use Raft storage, we need to implement Storage for it. Below is an example with HashStore, which is a thread-safe wrapper around a HashMap.
 
 ```py
 class HashStore:
@@ -119,9 +119,9 @@ async def main() -> None:
             await runner.shutdown()
 ```
 
-The `mailbox` gives you a way to interact with the raft, for sending a message, or leaving the cluster for example.
+The `mailbox` provides a method to interact with the raft, such as sending a message or leaving the cluster, for example.
 
-For whole example code, consult [this link](https://github.com/lablup/riteraft-py/blob/main/examples/memstore/main.py).
+For the complete example code, consult [this link](https://github.com/lablup/riteraft-py/blob/main/examples/memstore/main.py).
 
 ## Reference
 
