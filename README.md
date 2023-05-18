@@ -1,12 +1,16 @@
 # riteraft-py
 
-`riteraft-py` is an attempt to provide a *higher-level [Raft](https://en.wikipedia.org/wiki/Raft_(algorithm)) implementation* in Python based on *[rraft-py](https://github.com/lablup/rraft-py)*.
+⚠️ This repository is WIP and currently even not working. Do not use this lib yet unless you're interested in contributing to this project.
+
+---
+
+*riteraft-py* is an attempt to provide a *higher-level [Raft](https://en.wikipedia.org/wiki/Raft_(algorithm)) implementation* in Python based on *[rraft-py](https://github.com/lablup/rraft-py)*.
 
 Please note that this repository is still experimental and has not been tested thoroughly.
 
-Also, if you want to build featureful Python Raft implementation, `rraft-py` could be a good starting point instead of this lib.
+Also, if you want to build featureful Raft implementation, *rraft-py* could be a good starting point instead of this lib.
 
-> Note: Although this library originated from *ritelabs/riteraft*, it does not guarantee to provide the same API with *ritelabs/riteraft*.
+> Note: Although this library originated from *ritelabs/riteraft*, it does not guarantee to provide the same API with *ritelabs/riteraft*, API could change.
 
 ## Why?
 
@@ -14,7 +18,7 @@ Since *[raft-rs](https://github.com/tikv/raft-rs)* only provides an implementati
 
 Attempts to provide higher-level Raft implementation like *[riteraft](https://github.com/ritelabs/riteraft)* have been made to address this issue.
 
-This repository starts from `riteraft` for resolving the issue in Python language runtime.
+This repository starts from *riteraft* for resolving the issue in Python.
 
 ## Getting started
 
