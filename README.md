@@ -24,11 +24,13 @@ This repository utilizes *riteraft* as a starting point to resolve the issue in 
 
 ### Installation
 
-#### With pip
+TBU
+
+<!-- #### With pip
 
 ```
 $ pip install riteraft
-```
+``` -->
 
 ### Example
 
