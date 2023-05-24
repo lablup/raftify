@@ -215,7 +215,7 @@ class RaftNode:
         data = await self.store.apply(entry.get_data())
 
         if sender := senders.pop(seq, None):
-            await sender.put(RaftRespResponse(data))
+            sender.put_nowait(RaftRespResponse(data))
 
         if time.time() > self.last_snap_time + 15:
             logging.info("Creating snapshot...")
@@ -243,7 +243,8 @@ class RaftNode:
                 self.should_quit = True
                 logging.warning("Quitting the cluster")
             else:
-                self.peers.pop(change.get_node_id())
+                if not self.peers.pop(change.get_node_id(), None):
+                    logging.warning("Try to remove Node, but not found.")
         else:
             raise NotImplementedError
 
@@ -266,7 +267,7 @@ class RaftNode:
                 raise NotImplementedError
 
             try:
-                await sender.put(response)
+                sender.put_nowait(response)
             except Exception:
                 logging.error("Error sending response")
 
@@ -347,46 +348,37 @@ class RaftNode:
         if not self.raw_node.has_ready():
             return
 
-        # 1. Get Ready
         ready = self.raw_node.ready()
 
-        # 2. Send out the messages.
-        self.send_messages(ready.messages())
+        if msgs := ready.take_messages():
+            self.send_messages(msgs)
 
-        # 3. Apply snapshot.
         snapshot_default = Snapshot.default()
         if ready.snapshot() != snapshot_default.make_ref():
             snapshot = ready.snapshot()
             await self.store.restore(snapshot.get_data())
-            self.storage.wl(lambda core: core.apply_snapshot(snapshot))
+            self.storage.wl(lambda core: core.apply_snapshot(snapshot.clone()))
 
-        # 4. Apply committed entries
-        await self.handle_committed_entries(ready.committed_entries(), client_senders)
-        self.storage.wl(lambda core: core.append(ready.entries()))
+        await self.handle_committed_entries(ready.take_committed_entries(), client_senders)
 
-        # 5. Persist hardstate
+        if entries := ready.entries():
+            self.storage.wl(lambda core: core.append(entries))
+
         if hs := ready.hs():
-            # Raft HardState changed, and we need to persist it.
             self.storage.wl(lambda core: core.set_hard_state(hs))
 
-        # 6. Send out the persisted messages come from the node.
-        if any(ready.persisted_messages()):
-            self.send_messages(ready.persisted_messages())
+        if persisted_msgs := ready.take_persisted_messages():
+            self.send_messages(persisted_msgs)
 
-        # 7. Advance and Get LightReady
         light_rd = self.raw_node.advance(ready.make_ref())
 
-        # 8. Write last commit index
         if commit := light_rd.commit_index():
             self.storage.wl(lambda core: core.set_hard_state_comit(commit))
 
-        # 9. Send out the messages.
-        self.send_messages(light_rd.messages())
+        self.send_messages(light_rd.take_messages())
 
-        # 10. Apply all committed entries.
         await self.handle_committed_entries(
-            light_rd.committed_entries(), client_senders
+            light_rd.take_committed_entries(), client_senders
         )
 
-        # 11. Advance
         self.raw_node.advance_apply()
