@@ -129,7 +129,7 @@ class LMDBStorageCore:
             entries = []
 
             for key, entry in cursor:
-                if not decode_u64(key) >= high:
+                if decode_u64(key) >= high:
                     break
 
                 size_count += len(entry)
