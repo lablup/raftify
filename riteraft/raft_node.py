@@ -45,6 +45,7 @@ class RaftNode:
         peers: Dict[int, Optional[RaftClient]],
         chan: Queue,
         store: AbstractStore,
+        lmdb: LMDBStorage,
         storage: Storage,
         should_quit: bool,
         seq: AtomicInteger,
@@ -54,6 +55,7 @@ class RaftNode:
         self.peers = peers
         self.chan = chan
         self.store = store
+        self.lmdb = lmdb
         self.storage = storage
         self.should_quit = should_quit
         self.seq = seq
@@ -81,7 +83,6 @@ class RaftNode:
         lmdb.apply_snapshot(snapshot)
 
         storage = Storage(lmdb)
-        # storage.wl(lambda core: core.apply_snapshot(snapshot))
         raw_node = RawNode(config, storage, logger)
 
         peers = {}
@@ -96,6 +97,7 @@ class RaftNode:
             peers,
             chan,
             store,
+            lmdb,
             storage,
             False,
             seq,
@@ -117,7 +119,8 @@ class RaftNode:
         config.set_heartbeat_tick(3)
         config.validate()
 
-        storage = Storage(LMDBStorage.create(".", id))
+        lmdb = LMDBStorage.create(".", id)
+        storage = Storage(lmdb)
         raw_node = RawNode(config, storage, logger)
 
         peers = {}
@@ -129,6 +132,7 @@ class RaftNode:
             peers,
             chan,
             store,
+            lmdb,
             storage,
             False,
             seq,
@@ -222,8 +226,8 @@ class RaftNode:
             self.last_snap_time = time.time()
             last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
             snapshot = await self.store.snapshot()
-            self.storage.wl(lambda core: core.compact(last_applied))
-            self.storage.wl(lambda core: core.create_snapshot(snapshot))
+            self.lmdb.compact(last_applied)
+            self.lmdb.create_snapshot(snapshot)
 
     async def handle_config_change(
         self, entry: Entry_Ref, senders: Dict[int, Queue]
@@ -252,9 +256,9 @@ class RaftNode:
             last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
             snapshot = await self.store.snapshot()
 
-            self.storage.wl(lambda core: core.set_conf_state(cs))
-            self.storage.wl(lambda core: core.compact(last_applied))
-            self.storage.wl(lambda core: core.create_snapshot(snapshot))
+            self.lmdb.set_conf_state(cs)
+            self.lmdb.compact(last_applied)
+            self.lmdb.create_snapshot(snapshot)
 
         if sender := senders.pop(seq, None):
             if change_type == ConfChangeType.AddNode:
@@ -357,15 +361,15 @@ class RaftNode:
         if ready.snapshot() != snapshot_default.make_ref():
             snapshot = ready.snapshot()
             await self.store.restore(snapshot.get_data())
-            self.storage.wl(lambda core: core.apply_snapshot(snapshot.clone()))
+            self.lmdb.apply_snapshot(snapshot.clone())
 
         await self.handle_committed_entries(ready.take_committed_entries(), client_senders)
 
         if entries := ready.entries():
-            self.storage.wl(lambda core: core.append(entries))
+            self.lmdb.append(entries)
 
         if hs := ready.hs():
-            self.storage.wl(lambda core: core.set_hard_state(hs))
+            self.lmdb.set_hard_state(hs)
 
         if persisted_msgs := ready.take_persisted_messages():
             self.send_messages(persisted_msgs)
@@ -373,7 +377,7 @@ class RaftNode:
         light_rd = self.raw_node.advance(ready.make_ref())
 
         if commit := light_rd.commit_index():
-            self.storage.wl(lambda core: core.set_hard_state_comit(commit))
+            self.lmdb.set_hard_state_comit(commit)
 
         self.send_messages(light_rd.take_messages())
 
