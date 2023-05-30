@@ -15,3 +15,6 @@ venv
 # cache
 .mypy_cache
 .pytest_cache
+
+kill
+riteraft-py
