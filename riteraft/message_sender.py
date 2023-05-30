@@ -42,5 +42,5 @@ class MessageSender:
                         f"Error sending message after {self.max_retries} retries: {e}"
                     )
 
-                    await self.chan.send(MessageReportUnreachable(self.client_id))
+                    await self.chan.put(MessageReportUnreachable(self.client_id))
                     return
