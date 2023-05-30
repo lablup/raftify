@@ -4,7 +4,7 @@ from asyncio import Queue
 
 import grpc
 import msgpack
-from rraft import ConfChange, Message
+from rraft import ConfChange, ConfChangeType, Message, MessageType
 
 from riteraft.message import (
     MessageConfigChange,
@@ -56,12 +56,12 @@ class RaftService:
 
         change.set_id(request.id)
         change.set_node_id(request.node_id)
-        change.set_change_type(request.change_type)
+        change.set_change_type(ConfChangeType.from_int(request.change_type))
         change.set_context(request.context)
 
         chan = Queue()
         await self.sender.put(MessageConfigChange(change, chan))
-        reply = raft_service_pb2.RaftResponse(None)
+        reply = raft_service_pb2.RaftResponse()
 
         try:
             if raft_response := await asyncio.wait_for(chan.get(), 2):
@@ -89,7 +89,7 @@ class RaftService:
         message.set_from(request.from_)
         message.set_index(request.index)
         message.set_log_term(request.log_term)
-        message.set_msg_type(request.msg_type)
+        message.set_msg_type(MessageType.from_int(request.msg_type))
         message.set_priority(request.priority)
         message.set_reject_hint(request.reject_hint)
         message.set_reject(request.reject)

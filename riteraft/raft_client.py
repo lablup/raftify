@@ -24,7 +24,7 @@ class RaftClient:
         self, cc: ConfChange, timeout: float = 5.0
     ) -> raft_service_pb2.RaftResponse:
         request = eraftpb_pb2.ConfChange(
-            change_type=cc.get_change_type(),
+            change_type=int(cc.get_change_type()),
             context=cc.get_context(),
             id=cc.get_id(),
             node_id=cc.get_node_id(),
@@ -46,7 +46,7 @@ class RaftClient:
             from_=msg.get_from(),
             index=msg.get_index(),
             log_term=msg.get_log_term(),
-            msg_type=msg.get_msg_type(),
+            msg_type=int(msg.get_msg_type()),
             priority=msg.get_priority(),
             reject_hint=msg.get_reject_hint(),
             reject=msg.get_reject(),

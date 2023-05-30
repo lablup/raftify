@@ -3,6 +3,7 @@ import logging
 import time
 from asyncio import Queue
 from typing import Dict, List, Optional
+import msgpack
 
 from rraft import (
     ConfChange,
@@ -34,7 +35,7 @@ from riteraft.message import (
 from riteraft.message_sender import MessageSender
 from riteraft.raft_client import RaftClient
 from riteraft.store import AbstractStore
-from riteraft.utils import AtomicInteger, decode_u64, encode_u64
+from riteraft.utils import AtomicInteger
 
 
 class RaftNode:
@@ -215,7 +216,7 @@ class RaftNode:
                 raise NotImplementedError
 
     async def handle_normal(self, entry: Entry_Ref, senders: Dict[int, Queue]) -> None:
-        seq = decode_u64(entry.get_context())
+        seq = msgpack.unpackb(entry.get_context())
         data = await self.store.apply(entry.get_data())
 
         if sender := senders.pop(seq, None):
@@ -232,14 +233,14 @@ class RaftNode:
     async def handle_config_change(
         self, entry: Entry_Ref, senders: Dict[int, Queue]
     ) -> None:
-        seq = decode_u64(entry.get_context())
+        seq = msgpack.unpackb(entry.get_context())
         change = ConfChange.decode(entry.get_data())
         id = change.get_node_id()
 
         change_type = change.get_change_type()
 
         if change_type == ConfChangeType.AddNode:
-            addr = decode_u64(change.get_context())
+            addr = msgpack.unpackb(change.get_context())
             logging.info(f"Adding {addr} ({id}) to peers")
             self.peers[id] = RaftClient(addr)
         elif change_type == ConfChangeType.RemoveNode:
@@ -314,7 +315,7 @@ class RaftNode:
                     )
                     self.seq.increase()
                     client_senders[self.seq.value] = message.chan
-                    context = encode_u64(self.seq.value)
+                    context = msgpack.packb(self.seq.value)
                     self.raw_node.propose_conf_change(context, message.change)
 
             elif isinstance(message, MessagePropose):
@@ -323,7 +324,7 @@ class RaftNode:
                 else:
                     self.seq.increase()
                     client_senders[self.seq.value] = message.chan
-                    context = encode_u64(self.seq.value)
+                    context = msgpack.packb(self.seq.value)
                     self.raw_node.propose(context, message.proposal)
 
             elif isinstance(message, MessageRequestId):
@@ -363,7 +364,9 @@ class RaftNode:
             await self.store.restore(snapshot.get_data())
             self.lmdb.apply_snapshot(snapshot.clone())
 
-        await self.handle_committed_entries(ready.take_committed_entries(), client_senders)
+        await self.handle_committed_entries(
+            ready.take_committed_entries(), client_senders
+        )
 
         if entries := ready.entries():
             self.lmdb.append(entries)

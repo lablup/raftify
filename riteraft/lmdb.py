@@ -116,7 +116,7 @@ class LMDBStorageCore:
         low: int,
         high: int,
         _ctx: GetEntriesContext | GetEntriesContext_Ref,
-        max_size: Optional[int],
+        max_size: Optional[int] = None,
     ) -> List[Entry]:
         with self.env.begin(write=False, db=self.entries_db) as entry_reader:
             logging.info(f"Entries requested: {low}->{high}")
@@ -134,7 +134,7 @@ class LMDBStorageCore:
 
                 size_count += len(entry)
 
-                if max_size and size_count >= max_size:
+                if max_size is not None and size_count >= max_size:
                     break
 
                 entries.append(Entry.decode(entry))
