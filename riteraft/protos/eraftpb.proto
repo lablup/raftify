@@ -135,8 +135,8 @@ message ConfState {
 
 enum ConfChangeType {
     AddNode    = 0;
-    RemoveNode = 1;
-    AddLearnerNode = 2;
+    AddLearnerNode = 1;
+    RemoveNode = 2;
 }
 
 message ConfChange {
