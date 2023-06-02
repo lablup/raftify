@@ -31,11 +31,11 @@ class InsertMessage:
         self.key = key
         self.value = value
 
-    def decode(self) -> bytes:
+    def encode(self) -> bytes:
         return pickle.dumps(self.__dict__)
 
     @classmethod
-    def encode(cls, packed: bytes) -> "InsertMessage":
+    def decode(cls, packed: bytes) -> "InsertMessage":
         unpacked = pickle.loads(packed)
         return cls(unpacked["key"], unpacked["value"])
 
@@ -63,7 +63,7 @@ class HashStore:
 
     async def apply(self, msg: bytes) -> bytes:
         with self._lock:
-            message = InsertMessage.encode(msg)
+            message = InsertMessage.decode(msg)
             self._store[message.key] = message.value
             logging.info(f'Inserted: ({message.key}, "{message.value}")')
             return pickle.dumps(message.value)
@@ -89,7 +89,7 @@ async def put(request: web.Request) -> web.Response:
     mailbox: Mailbox = request.app["state"]["mailbox"]
     id, name = request.match_info["id"], request.match_info["name"]
     message = InsertMessage(int(id), name)
-    result = await mailbox.send(message.decode())
+    result = await mailbox.send(message.encode())
     return web.Response(text=str(result))
 
 

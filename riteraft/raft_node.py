@@ -195,7 +195,9 @@ class RaftNode:
         await channel.put(raft_response)
 
     async def handle_committed_entries(
-        self, committed_entries: List[Entry], client_senders: Dict[int, Queue]
+        self,
+        committed_entries: List[Entry] | List[Entry_Ref],
+        client_senders: Dict[int, Queue],
     ) -> None:
         # Mostly, you need to save the last apply index to resume applying
         # after restart. Here we just ignore this because we use a Memory storage.
@@ -216,7 +218,9 @@ class RaftNode:
             elif entry.get_entry_type() == EntryType.EntryConfChangeV2:
                 raise NotImplementedError
 
-    async def handle_normal(self, entry: Entry_Ref, senders: Dict[int, Queue]) -> None:
+    async def handle_normal(
+        self, entry: Entry | Entry_Ref, senders: Dict[int, Queue]
+    ) -> None:
         seq = pickle.loads(entry.get_context())
         data = await self.store.apply(entry.get_data())
 
@@ -232,7 +236,7 @@ class RaftNode:
             self.lmdb.create_snapshot(snapshot)
 
     async def handle_config_change(
-        self, entry: Entry_Ref, senders: Dict[int, Queue]
+        self, entry: Entry | Entry_Ref, senders: Dict[int, Queue]
     ) -> None:
         seq = pickle.loads(entry.get_context())
         change = ConfChange.decode(entry.get_data())
@@ -338,13 +342,15 @@ class RaftNode:
                         RaftRespIdReserved(self.reserve_next_peer_id())
                     )
 
-            # marking!!!!!!!!!!!!!!!!!!!
             elif isinstance(message, MessageRaft):
                 msg = MessageAdapter.from_pb(message.msg)
-                print("msg", msg)
 
                 logging.debug(f"Raft message: to={self.id()} from={msg.get_from()}")
-                self.raw_node.step(msg)
+
+                try:
+                    self.raw_node.step(msg)
+                except Exception:
+                    continue
 
             elif isinstance(message, MessageReportUnreachable):
                 self.raw_node.report_unreachable(message.node_id)

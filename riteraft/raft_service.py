@@ -59,10 +59,10 @@ class RaftService:
                 if isinstance(raft_response, RaftRespOk) or isinstance(
                     raft_response, RaftRespJoinSuccess
                 ):
-                    reply.inner = raft_response.decode()
+                    reply.inner = raft_response.encode()
 
         except asyncio.TimeoutError:
-            reply.inner = RaftRespError().decode()
+            reply.inner = RaftRespError().encode()
             logging.error("Timeout waiting for reply")
 
         finally:
@@ -72,4 +72,4 @@ class RaftService:
         self, request: eraftpb_pb2.Message, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.RaftResponse:
         await self.sender.put(MessageRaft(request))
-        return raft_service_pb2.RaftResponse(inner=RaftRespOk().decode())
+        return raft_service_pb2.RaftResponse(inner=RaftRespOk().encode())

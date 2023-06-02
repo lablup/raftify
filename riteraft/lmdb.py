@@ -149,8 +149,8 @@ class LMDBStorageCore:
             for entry in entries:
                 # assert entry.get_index() == last_index + 1
                 index = entry.get_index()
-                last_index = max(index, last_index)
                 entry_writer.put(encode_u64(index), entry.encode())
+                last_index = max(index, last_index)
 
         self.set_last_index(last_index)
 
