@@ -1,4 +1,5 @@
 import threading
+from typing import Union
 
 
 def encode_u64(v: int) -> bytes:
@@ -34,7 +35,7 @@ class AtomicInteger:
     def __hash__(self) -> int:
         return self.__value
 
-    def __eq__(self, other: "AtomicInteger" | int) -> bool:
+    def __eq__(self, other: Union["AtomicInteger", int]) -> bool:
         if isinstance(other, AtomicInteger):
             return self.__value == other.__value
         elif isinstance(other, int):
