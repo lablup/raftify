@@ -5,7 +5,7 @@ import logging
 from threading import Lock
 from typing import Optional
 import os
-import msgpack
+import pickle
 
 from aiohttp import web
 from aiohttp.web import Application, RouteTableDef
@@ -31,12 +31,12 @@ class InsertMessage:
         self.key = key
         self.value = value
 
-    def to_msgpack(self) -> bytes:
-        return msgpack.packb(self.__dict__)
+    def decode(self) -> bytes:
+        return pickle.dumps(self.__dict__)
 
     @classmethod
-    def from_msgpack(cls, packed: bytes) -> "InsertMessage":
-        unpacked = msgpack.unpackb(packed)
+    def encode(cls, packed: bytes) -> "InsertMessage":
+        unpacked = pickle.loads(packed)
         return cls(unpacked["key"], unpacked["value"])
 
 
@@ -63,18 +63,18 @@ class HashStore:
 
     async def apply(self, msg: bytes) -> bytes:
         with self._lock:
-            message = InsertMessage.from_msgpack(msg)
+            message = InsertMessage.encode(msg)
             self._store[message.key] = message.value
             logging.info(f'Inserted: ({message.key}, "{message.value}")')
-            return msgpack.packb(message.value)
+            return pickle.dumps(message.value)
 
     async def snapshot(self) -> bytes:
         with self._lock:
-            return msgpack.packb(self._store)
+            return pickle.dumps(self._store)
 
     async def restore(self, snapshot: bytes) -> None:
         with self._lock:
-            self._store = msgpack.unpackb(snapshot)
+            self._store = pickle.loads(snapshot)
 
 
 @routes.get("/get/{id}")
@@ -89,7 +89,7 @@ async def put(request: web.Request) -> web.Response:
     mailbox: Mailbox = request.app["state"]["mailbox"]
     id, name = request.match_info["id"], request.match_info["name"]
     message = InsertMessage(int(id), name)
-    result = await mailbox.send(message.to_msgpack())
+    result = await mailbox.send(message.decode())
     return web.Response(text=str(result))
 
 

@@ -1,8 +1,8 @@
 import asyncio
 import logging
+import pickle
 from asyncio import Queue
 
-import msgpack
 from rraft import ConfChange, ConfChangeType, Logger_Ref
 
 from riteraft.mailbox import Mailbox
@@ -59,10 +59,10 @@ class Raft:
             resp = await client.request_id()
 
             if resp.code == raft_service_pb2.Ok:
-                leader_id, node_id = msgpack.unpackb(resp.data)
+                leader_id, node_id = pickle.loads(resp.data)
                 break
             elif resp.code == raft_service_pb2.WrongLeader:
-                _, leader_addr = msgpack.unpackb(resp.data)
+                _, leader_addr = pickle.loads(resp.data)
                 logging.info(f"Wrong leader, retrying with leader at {leader_addr}")
                 continue
             elif resp.code == raft_service_pb2.Error:
@@ -84,7 +84,7 @@ class Raft:
         change = ConfChange.default()
         change.set_node_id(node_id)
         change.set_change_type(ConfChangeType.AddNode)
-        change.set_context(msgpack.packb(self.addr))
+        change.set_context(pickle.dumps(self.addr))
 
         await client.change_config(change)
         await raft_node_handle

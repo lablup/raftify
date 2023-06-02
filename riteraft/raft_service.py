@@ -1,10 +1,9 @@
 import asyncio
 import logging
+import pickle
 from asyncio import Queue
 
 import grpc
-import msgpack
-from rraft import ConfChange, ConfChangeType, Message, MessageType
 
 from riteraft.message import (
     MessageConfigChange,
@@ -36,14 +35,14 @@ class RaftService:
 
             return raft_service_pb2.IdRequestResponse(
                 code=raft_service_pb2.WrongLeader,
-                data=msgpack.packb(tuple([leader_id, leader_addr])),
+                data=pickle.dumps(tuple([leader_id, leader_addr])),
             )
         elif isinstance(response, RaftRespIdReserved):
             id = response.id
 
             return raft_service_pb2.IdRequestResponse(
                 code=raft_service_pb2.Ok,
-                data=msgpack.packb(tuple([1, id])),
+                data=pickle.dumps(tuple([1, id])),
             )
         else:
             assert False, "Unreachable"
@@ -51,16 +50,8 @@ class RaftService:
     async def ChangeConfig(
         self, request: eraftpb_pb2.ConfChange, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.RaftResponse:
-        # TODO: Avoid below manual object creations if possible
-        change = ConfChange.default()
-
-        change.set_id(request.id)
-        change.set_node_id(request.node_id)
-        change.set_change_type(ConfChangeType.from_int(request.change_type))
-        change.set_context(request.context)
-
         chan = Queue()
-        await self.sender.put(MessageConfigChange(change, chan))
+        await self.sender.put(MessageConfigChange(request, chan))
         reply = raft_service_pb2.RaftResponse()
 
         try:
@@ -68,10 +59,10 @@ class RaftService:
                 if isinstance(raft_response, RaftRespOk) or isinstance(
                     raft_response, RaftRespJoinSuccess
                 ):
-                    reply.inner = msgpack.packb(raft_response)
+                    reply.inner = raft_response.decode()
 
         except asyncio.TimeoutError:
-            reply.inner = msgpack.packb(RaftRespError())
+            reply.inner = RaftRespError().decode()
             logging.error("Timeout waiting for reply")
 
         finally:
@@ -80,23 +71,5 @@ class RaftService:
     async def SendMessage(
         self, request: eraftpb_pb2.Message, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.RaftResponse:
-        message = Message.default()
-
-        message.set_commit_term(request.commit_term)
-        message.set_commit(request.commit)
-        message.set_context(request.context)
-        message.set_entries(request.entries)
-        message.set_from(request.from_)
-        message.set_index(request.index)
-        message.set_log_term(request.log_term)
-        message.set_msg_type(MessageType.from_int(request.msg_type))
-        message.set_priority(request.priority)
-        message.set_reject_hint(request.reject_hint)
-        message.set_reject(request.reject)
-        message.set_request_snapshot(request.request_snapshot)
-        message.set_snapshot(request.snapshot)
-        message.set_term(request.term)
-        message.set_to(request.to)
-
-        await self.sender.put(MessageRaft(message))
-        return raft_service_pb2.RaftResponse(msgpack.packb(RaftRespOk()))
+        await self.sender.put(MessageRaft(request))
+        return raft_service_pb2.RaftResponse(inner=RaftRespOk().decode())

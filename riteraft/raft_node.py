@@ -1,9 +1,9 @@
 import asyncio
 import logging
+import pickle
 import time
 from asyncio import Queue
 from typing import Dict, List, Optional
-import msgpack
 
 from rraft import (
     ConfChange,
@@ -33,6 +33,7 @@ from riteraft.message import (
     RaftRespWrongLeader,
 )
 from riteraft.message_sender import MessageSender
+from riteraft.pb_adapter import ConfChangeAdapter, MessageAdapter
 from riteraft.raft_client import RaftClient
 from riteraft.store import AbstractStore
 from riteraft.utils import AtomicInteger
@@ -216,7 +217,7 @@ class RaftNode:
                 raise NotImplementedError
 
     async def handle_normal(self, entry: Entry_Ref, senders: Dict[int, Queue]) -> None:
-        seq = msgpack.unpackb(entry.get_context())
+        seq = pickle.loads(entry.get_context())
         data = await self.store.apply(entry.get_data())
 
         if sender := senders.pop(seq, None):
@@ -233,14 +234,14 @@ class RaftNode:
     async def handle_config_change(
         self, entry: Entry_Ref, senders: Dict[int, Queue]
     ) -> None:
-        seq = msgpack.unpackb(entry.get_context())
+        seq = pickle.loads(entry.get_context())
         change = ConfChange.decode(entry.get_data())
         id = change.get_node_id()
 
         change_type = change.get_change_type()
 
         if change_type == ConfChangeType.AddNode:
-            addr = msgpack.unpackb(change.get_context())
+            addr = pickle.loads(change.get_context())
             logging.info(f"Adding {addr} ({id}) to peers")
             self.peers[id] = RaftClient(addr)
         elif change_type == ConfChangeType.RemoveNode:
@@ -300,9 +301,11 @@ class RaftNode:
                 raise
 
             if isinstance(message, MessageConfigChange):
+                change = ConfChangeAdapter.from_pb(message.change)
+
                 # whenever a change id is 0, it's a message to self.
-                if message.change.get_node_id() == 0:
-                    message.change.set_node_id(self.id())
+                if change.get_node_id() == 0:
+                    change.set_node_id(self.id())
 
                 if not self.is_leader():
                     # wrong leader send client cluster data
@@ -310,13 +313,11 @@ class RaftNode:
                     await self.send_wrong_leader(channel=message.chan)
                 else:
                     # leader assign new id to peer
-                    logging.debug(
-                        f"Received request from: {message.change.get_node_id()}"
-                    )
+                    logging.debug(f"Received request from: {change.get_node_id()}")
                     self.seq.increase()
                     client_senders[self.seq.value] = message.chan
-                    context = msgpack.packb(self.seq.value)
-                    self.raw_node.propose_conf_change(context, message.change)
+                    context = pickle.dumps(self.seq.value)
+                    self.raw_node.propose_conf_change(context, change)
 
             elif isinstance(message, MessagePropose):
                 if not self.is_leader():
@@ -324,7 +325,7 @@ class RaftNode:
                 else:
                     self.seq.increase()
                     client_senders[self.seq.value] = message.chan
-                    context = msgpack.packb(self.seq.value)
+                    context = pickle.dumps(self.seq.value)
                     self.raw_node.propose(context, message.proposal)
 
             elif isinstance(message, MessageRequestId):
@@ -337,11 +338,13 @@ class RaftNode:
                         RaftRespIdReserved(self.reserve_next_peer_id())
                     )
 
+            # marking!!!!!!!!!!!!!!!!!!!
             elif isinstance(message, MessageRaft):
-                logging.debug(
-                    f"Raft message: to={self.id()} from={message.msg.get_from()}"
-                )
-                self.raw_node.step(message.msg)
+                msg = MessageAdapter.from_pb(message.msg)
+                print("msg", msg)
+
+                logging.debug(f"Raft message: to={self.id()} from={msg.get_from()}")
+                self.raw_node.step(msg)
 
             elif isinstance(message, MessageReportUnreachable):
                 self.raw_node.report_unreachable(message.node_id)

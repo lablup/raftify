@@ -49,13 +49,13 @@ class LMDBStorageCore:
         hard_state = HardState.default()
         conf_state = ConfState.default()
 
-        storage = LMDBStorageCore(env, entries_db, metadata_db)
+        core = LMDBStorageCore(env, entries_db, metadata_db)
 
-        storage.set_hard_state(hard_state)
-        storage.set_conf_state(conf_state)
-        storage.append([Entry.default()])
+        core.set_hard_state(hard_state)
+        core.set_conf_state(conf_state)
+        core.append([Entry.default()])
 
-        return storage
+        return core
 
     def hard_state(self) -> HardState:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
@@ -132,12 +132,12 @@ class LMDBStorageCore:
                 if decode_u64(key) >= high:
                     break
 
-                size_count += len(entry)
-
                 if max_size is not None and size_count >= max_size:
                     break
 
                 entries.append(Entry.decode(entry))
+
+                size_count += len(entry)
 
             return entries
 
@@ -282,6 +282,10 @@ class LMDBStorage:
 
             if idx == hard_state.get_commit():
                 return hard_state.get_term()
+
+            print("idx", idx)
+            print("first_index", first_index)
+            print("last_index", last_index)
 
             if idx < first_index:
                 raise Exception("Compacted Error")

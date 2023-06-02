@@ -4,7 +4,8 @@ from typing import Optional
 import grpc
 from rraft import ConfChange, Message
 
-from riteraft.protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
+from riteraft.pb_adapter import ConfChangeAdapter, MessageAdapter
+from riteraft.protos import raft_service_pb2, raft_service_pb2_grpc
 from riteraft.utils import SocketAddr
 
 
@@ -23,12 +24,7 @@ class RaftClient:
     async def change_config(
         self, cc: ConfChange, timeout: float = 5.0
     ) -> raft_service_pb2.RaftResponse:
-        request = eraftpb_pb2.ConfChange(
-            change_type=int(cc.get_change_type()),
-            context=cc.get_context(),
-            id=cc.get_id(),
-            node_id=cc.get_node_id(),
-        )
+        request = ConfChangeAdapter.to_pb(cc)
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
@@ -37,24 +33,7 @@ class RaftClient:
     async def send_message(
         self, msg: Message, timeout: float = 5.0
     ) -> raft_service_pb2.RaftResponse:
-        request = eraftpb_pb2.Message(
-            commit_term=msg.get_commit_term(),
-            commit=msg.get_commit(),
-            context=msg.get_context(),
-            deprecated_priority=msg.get_deprecated_priority(),
-            entries=msg.get_entries(),
-            from_=msg.get_from(),
-            index=msg.get_index(),
-            log_term=msg.get_log_term(),
-            msg_type=int(msg.get_msg_type()),
-            priority=msg.get_priority(),
-            reject_hint=msg.get_reject_hint(),
-            reject=msg.get_reject(),
-            request_snapshot=msg.get_request_snapshot(),
-            snapshot=msg.get_snapshot(),
-            term=msg.get_term(),
-            to=msg.get_to(),
-        )
+        request = MessageAdapter.to_pb(msg)
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
