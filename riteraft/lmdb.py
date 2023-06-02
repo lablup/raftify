@@ -192,10 +192,9 @@ class LMDBStorage:
                 write=True, db=self.core.entries_db
             ) as entry_writer:
                 cursor = entry_writer.cursor()
+                cursor.first()
 
-                for key, _ in cursor:
-                    if decode_u64(key) >= index:
-                        break
+                while decode_u64(cursor.key()) < index:
                     cursor.delete()
 
         self.wl(__compact)
