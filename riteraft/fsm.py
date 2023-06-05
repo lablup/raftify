@@ -1,7 +1,7 @@
 import abc
 
 
-class AbstractStore(abc.ABC):
+class FSM(abc.ABC):
     @abc.abstractmethod
     async def apply(self, message: bytes) -> bytes:
         raise NotImplementedError

@@ -19,6 +19,7 @@ from rraft import (
     Storage,
 )
 
+from riteraft.fsm import FSM
 from riteraft.lmdb import LMDBStorage
 from riteraft.message import (
     MessageConfigChange,
@@ -35,7 +36,6 @@ from riteraft.message import (
 from riteraft.message_sender import MessageSender
 from riteraft.pb_adapter import ConfChangeAdapter, MessageAdapter
 from riteraft.raft_client import RaftClient
-from riteraft.store import AbstractStore
 from riteraft.utils import AtomicInteger
 
 
@@ -46,7 +46,7 @@ class RaftNode:
         # the peer client could be optional, because an id can be reserved and later populated
         peers: Dict[int, Optional[RaftClient]],
         chan: Queue,
-        store: AbstractStore,
+        fsm: FSM,
         lmdb: LMDBStorage,
         storage: Storage,
         should_quit: bool,
@@ -56,7 +56,7 @@ class RaftNode:
         self.raw_node = raw_node
         self.peers = peers
         self.chan = chan
-        self.store = store
+        self.fsm = fsm
         self.lmdb = lmdb
         self.storage = storage
         self.should_quit = should_quit
@@ -64,7 +64,7 @@ class RaftNode:
         self.last_snap_time = last_snap_time
 
     @staticmethod
-    def new_leader(chan: Queue, store: AbstractStore, logger: Logger_Ref) -> "RaftNode":
+    def new_leader(chan: Queue, fsm: FSM, logger: Logger_Ref) -> "RaftNode":
         config = Config.default()
         config.set_id(1)
         config.set_election_tick(10)
@@ -98,7 +98,7 @@ class RaftNode:
             raw_node,
             peers,
             chan,
-            store,
+            fsm,
             lmdb,
             storage,
             False,
@@ -110,7 +110,7 @@ class RaftNode:
     def new_follower(
         chan: Queue,
         id: int,
-        store: AbstractStore,
+        fsm: FSM,
         logger: Logger_Ref,
     ) -> "RaftNode":
         config = Config.default()
@@ -133,7 +133,7 @@ class RaftNode:
             raw_node,
             peers,
             chan,
-            store,
+            fsm,
             lmdb,
             storage,
             False,
@@ -222,7 +222,7 @@ class RaftNode:
         self, entry: Entry | Entry_Ref, senders: Dict[int, Queue]
     ) -> None:
         seq = pickle.loads(entry.get_context())
-        data = await self.store.apply(entry.get_data())
+        data = await self.fsm.apply(entry.get_data())
 
         if sender := senders.pop(seq, None):
             sender.put_nowait(RaftRespResponse(data))
@@ -231,7 +231,7 @@ class RaftNode:
             logging.info("Creating snapshot...")
             self.last_snap_time = time.time()
             last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
-            snapshot = await self.store.snapshot()
+            snapshot = await self.fsm.snapshot()
             self.lmdb.compact(last_applied)
             self.lmdb.create_snapshot(snapshot)
 
@@ -260,7 +260,7 @@ class RaftNode:
 
         if cs := self.raw_node.apply_conf_change(change):
             last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
-            snapshot = await self.store.snapshot()
+            snapshot = await self.fsm.snapshot()
 
             self.lmdb.set_conf_state(cs)
             self.lmdb.compact(last_applied)
@@ -370,7 +370,7 @@ class RaftNode:
         snapshot_default = Snapshot.default()
         if ready.snapshot() != snapshot_default.make_ref():
             snapshot = ready.snapshot()
-            await self.store.restore(snapshot.get_data())
+            await self.fsm.restore(snapshot.get_data())
             self.lmdb.apply_snapshot(snapshot.clone())
 
         await self.handle_committed_entries(

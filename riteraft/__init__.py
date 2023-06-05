@@ -7,7 +7,7 @@ from .raft import Raft  # noqa: F401
 from .raft_client import RaftClient  # noqa: F401
 from .raft_node import RaftNode  # noqa: F401
 from .raft_server import RaftServer  # noqa: F401
-from .store import AbstractStore  # noqa: F401
+from .fsm import FSM  # noqa: F401
 
 __all__ = [
     "lmdb",
@@ -19,7 +19,7 @@ __all__ = [
     "raft_node",
     "raft_server",
     "raft",
-    "store",
+    "fsm",
     "utils",
 ]
 
