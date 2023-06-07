@@ -32,7 +32,6 @@ class MessageSender:
         current_retry = 0
         while True:
             try:
-                print(f"{self.message = }")
                 await self.client.send_message(self.message, self.timeout)
                 return
             except Exception as e:
@@ -43,5 +42,8 @@ class MessageSender:
                         f"Error sending message after {self.max_retries} retries, Reason: {e}"
                     )
 
-                    await self.chan.put(MessageReportUnreachable(self.client_id))
+                    try:
+                        await self.chan.put(MessageReportUnreachable(self.client_id))
+                    except Exception:
+                        pass
                     return

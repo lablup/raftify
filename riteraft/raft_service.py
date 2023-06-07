@@ -26,7 +26,12 @@ class RaftService:
         self, request: raft_service_pb2.Empty, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.IdRequestResponse:
         chan = Queue()
-        await self.sender.put(MessageRequestId(chan))
+
+        try:
+            await self.sender.put(MessageRequestId(chan))
+        except Exception:
+            pass
+
         response = await chan.get()
 
         if isinstance(response, RaftRespWrongLeader):

@@ -191,8 +191,12 @@ class RaftNode:
             leader_id,
             leader_addr,
         )
-        # TODO handle error here
-        await channel.put(raft_response)
+
+        try:
+            # TODO handle error here
+            await channel.put(raft_response)
+        except Exception:
+            pass
 
     async def handle_committed_entries(
         self,
@@ -233,7 +237,11 @@ class RaftNode:
             last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
             snapshot = await self.fsm.snapshot()
             self.lmdb.compact(last_applied)
-            self.lmdb.create_snapshot(snapshot)
+
+            try:
+                self.lmdb.create_snapshot(snapshot)
+            except Exception:
+                pass
 
     async def handle_config_change(
         self, entry: Entry | Entry_Ref, senders: Dict[int, Queue]
@@ -264,7 +272,11 @@ class RaftNode:
 
             self.lmdb.set_conf_state(cs)
             self.lmdb.compact(last_applied)
-            self.lmdb.create_snapshot(snapshot)
+
+            try:
+                self.lmdb.create_snapshot(snapshot)
+            except Exception:
+                pass
 
         if sender := senders.pop(seq, None):
             if change_type == ConfChangeType.AddNode:
@@ -350,7 +362,7 @@ class RaftNode:
                 try:
                     self.raw_node.step(msg)
                 except Exception:
-                    continue
+                    pass
 
             elif isinstance(message, MessageReportUnreachable):
                 self.raw_node.report_unreachable(message.node_id)

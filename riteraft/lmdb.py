@@ -16,6 +16,9 @@ from rraft import (
     RaftState,
     Snapshot,
     Snapshot_Ref,
+    StoreError,
+    CompactedError,
+    UnavailableError,
 )
 
 from riteraft.utils import decode_u64, encode_u64
@@ -61,7 +64,7 @@ class LMDBStorageCore:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
             hs = meta_reader.get(HARD_STATE_KEY)
             if hs is None:
-                raise Exception("Missing hard state")
+                raise StoreError(UnavailableError("Missing hard_state"))
             return HardState.decode(hs)
 
     def set_hard_state(self, hard_state: HardState | HardState_Ref) -> None:
@@ -72,14 +75,14 @@ class LMDBStorageCore:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
             cs = meta_reader.get(CONF_STATE_KEY)
             if cs is None:
-                raise Exception("There should be a conf state")
+                raise StoreError(UnavailableError("There should be a conf state"))
             return ConfState.decode(cs)
 
     def set_conf_state(self, conf_state: ConfState | ConfState_Ref) -> None:
         with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
             meta_writer.put(CONF_STATE_KEY, conf_state.encode())
 
-    def snapshot(self, _request_index: int) -> Optional[Snapshot]:
+    def snapshot(self, _request_index: int, _to: int) -> Optional[Snapshot]:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
             snapshot = meta_reader.get(SNAPSHOT_KEY)
             return Snapshot.decode(snapshot) if snapshot else None
@@ -93,7 +96,7 @@ class LMDBStorageCore:
             cursor = entry_reader.cursor()
 
             if not cursor.first():
-                raise Exception("There should always be at least one entry in the db")
+                raise StoreError(UnavailableError("There should always be at least one entry in the db"))
 
             return decode_u64(cursor.key()) + 1
 
@@ -282,20 +285,16 @@ class LMDBStorage:
             if idx == hard_state.get_commit():
                 return hard_state.get_term()
 
-            print("idx", idx)
-            print("first_index", first_index)
-            print("last_index", last_index)
-
             if idx < first_index:
-                raise Exception("Compacted Error")
+                raise StoreError(CompactedError())
 
             if idx > last_index:
-                raise Exception("Unavailable Error")
+                raise StoreError(UnavailableError())
 
             try:
                 entry = store.entry(idx)
             except Exception:
-                raise Exception("Unavailable Error")
+                raise StoreError(UnavailableError())
 
             return entry.get_term() if entry else 0
 
@@ -313,9 +312,9 @@ class LMDBStorage:
 
         return self.rl(__last_index)
 
-    def snapshot(self, request_index: int) -> Optional[Snapshot]:
+    def snapshot(self, request_index: int, to: int) -> Optional[Snapshot]:
         def __snapshot(store: LMDBStorageCore):
-            return store.snapshot(request_index)
+            return store.snapshot(request_index, to)
 
         return self.rl(__snapshot)
 
