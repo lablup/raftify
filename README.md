@@ -48,18 +48,18 @@ class HashStore:
 
     async def apply(self, msg: bytes) -> bytes:
         with self._lock:
-            message = InsertMessage.from_msgpack(msg)
+            message = InsertMessage.decode(msg)
             self._store[message.key] = message.value
             logging.info(f'Inserted: ({message.key}, "{message.value}")')
-            return msgpack.packb(message.value)
+            return pickle.dumps(message.value)
 
     async def snapshot(self) -> bytes:
         with self._lock:
-            return msgpack.packb(self._store)
+            return pickle.dumps(self._store)
 
     async def restore(self, snapshot: bytes) -> None:
         with self._lock:
-            self._store = msgpack.unpackb(snapshot)
+            self._store = pickle.loads(snapshot)
 ```
 
 Only 3 methods need to be implemented for the `Store`:
