@@ -35,12 +35,10 @@ class Raft:
         Create a new leader for the cluster, with id 1. There has to be exactly one node in the
         cluster that is initialized that way
         """
-        raft_node = RaftNode.new_leader(self.chan, self.fsm, self.logger)
-        server = RaftServer(self.addr, self.chan)
-        asyncio.create_task(server.run())
-        node_handle = asyncio.create_task(raft_node.run())
-        await node_handle
-        # TODO: Resolve several issues on the console at first...
+        asyncio.create_task(RaftServer(self.addr, self.chan).run())
+        await asyncio.create_task(
+            RaftNode.new_leader(self.chan, self.fsm, self.logger).run()
+        )
         logging.warning("Leaving leader node")
 
     async def join(self, peer_addr: SocketAddr) -> None:
@@ -75,15 +73,16 @@ class Raft:
         # 2. Run server and node to prepare for joining
         raft_node = RaftNode.new_follower(self.chan, node_id, self.fsm, self.logger)
         raft_node.peers[leader_id] = client
+
+        # 3. Join the cluster
+        conf_change = ConfChange.default()
+        conf_change.set_node_id(node_id)
+        conf_change.set_change_type(ConfChangeType.AddNode)
+        conf_change.set_context(pickle.dumps(self.addr))
+
         asyncio.create_task(RaftServer(self.addr, self.chan).run())
         raft_node_handle = asyncio.create_task(raft_node.run())
 
-        # 3. Join the cluster
-        change = ConfChange.default()
-        change.set_node_id(node_id)
-        change.set_change_type(ConfChangeType.AddNode)
-        change.set_context(pickle.dumps(self.addr))
-
         # TODO: Should handle wrong leader error here because the leader might change in the meanwhile.
-        await client.change_config(change)
+        await client.change_config(conf_change)
         await raft_node_handle
