@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from .fsm import FSM  # noqa: F401
 from .lmdb import LMDBStorage, LMDBStorageCore  # noqa: F401
 from .mailbox import Mailbox  # noqa: F401
 from .message_sender import MessageSender  # noqa: F401
@@ -7,7 +8,6 @@ from .raft import Raft  # noqa: F401
 from .raft_client import RaftClient  # noqa: F401
 from .raft_node import RaftNode  # noqa: F401
 from .raft_server import RaftServer  # noqa: F401
-from .fsm import FSM  # noqa: F401
 
 __all__ = [
     "lmdb",

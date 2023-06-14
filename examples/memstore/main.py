@@ -12,7 +12,6 @@ from aiohttp.web import Application, RouteTableDef
 from rraft import default_logger
 from riteraft.fsm import FSM
 from riteraft.mailbox import Mailbox
-
 from riteraft.raft import Raft
 
 

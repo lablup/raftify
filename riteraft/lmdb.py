@@ -5,6 +5,7 @@ from typing import Any, Callable, List, Optional
 
 import lmdb
 from rraft import (
+    CompactedError,
     ConfState,
     ConfState_Ref,
     Entry,
@@ -17,7 +18,6 @@ from rraft import (
     Snapshot,
     Snapshot_Ref,
     StoreError,
-    CompactedError,
     UnavailableError,
 )
 
@@ -96,7 +96,11 @@ class LMDBStorageCore:
             cursor = entry_reader.cursor()
 
             if not cursor.first():
-                raise StoreError(UnavailableError("There should always be at least one entry in the db"))
+                raise StoreError(
+                    UnavailableError(
+                        "There should always be at least one entry in the db"
+                    )
+                )
 
             return decode_u64(cursor.key()) + 1
 

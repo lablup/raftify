@@ -43,22 +43,22 @@ class Raft:
         # TODO: Resolve several issues on the console at first...
         logging.warning("Leaving leader node")
 
-    async def join(self, addr: SocketAddr) -> None:
+    async def join(self, peer_addr: SocketAddr) -> None:
         """
         Try to join a new cluster at `addr`, getting an id from the leader, or finding it if
         `addr` is not the current leader of the cluster
         """
 
         # 1. try to discover the leader and obtain an id from it.
-        logging.info(f"Attempting to join peer cluster at {str(addr)}")
-        leader_addr = str(addr)
+        logging.info(f"Attempting to join peer cluster at {str(peer_addr)}")
 
-        leader_id, node_id = None, None
+        leader_addr, leader_id, node_id = None, None, None
         while True:
-            client = RaftClient(addr)
+            client = RaftClient(peer_addr)
             resp = await client.request_id()
 
             if resp.code == raft_service_pb2.Ok:
+                leader_addr = peer_addr
                 leader_id, node_id = pickle.loads(resp.data)
                 break
             elif resp.code == raft_service_pb2.WrongLeader:
