@@ -53,7 +53,6 @@ class Raft:
         logging.info(f"Attempting to join peer cluster at {str(peer_addr)}")
 
         leader_addr = None
-        leader_id, node_id = None, None
 
         while not leader_addr:
             client = RaftClient(peer_addr)
@@ -75,7 +74,6 @@ class Raft:
 
         # 2. run server and node to prepare for joining
         raft_node = RaftNode.new_follower(self.chan, node_id, self.fsm, self.logger)
-        client = RaftClient(leader_addr)
         raft_node.peers[leader_id] = client
         server = RaftServer(self.addr, self.chan)
         asyncio.create_task(server.run())
