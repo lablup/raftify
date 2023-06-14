@@ -52,8 +52,10 @@ class Raft:
         # 1. try to discover the leader and obtain an id from it.
         logging.info(f"Attempting to join peer cluster at {str(peer_addr)}")
 
-        leader_addr, leader_id, node_id = None, None, None
-        while True:
+        leader_addr = None
+        leader_id, node_id = None, None
+
+        while not leader_addr:
             client = RaftClient(peer_addr)
             resp = await client.request_id()
 
@@ -62,8 +64,8 @@ class Raft:
                 leader_id, node_id = pickle.loads(resp.data)
                 break
             elif resp.code == raft_service_pb2.WrongLeader:
-                _, leader_addr = pickle.loads(resp.data)
-                logging.info(f"Wrong leader, retrying with leader at {leader_addr}")
+                _, peer_addr = pickle.loads(resp.data)
+                logging.info(f"Wrong leader, retrying with leader at {peer_addr}")
                 continue
             elif resp.code == raft_service_pb2.Error:
                 logging.error("Error joining the cluster")
