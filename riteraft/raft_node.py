@@ -115,6 +115,8 @@ class RaftNode:
         logger: Logger | Logger_Ref,
     ) -> "RaftNode":
         config = Config.default()
+        assert id != 1, "Follower's id can't be 1"
+
         config.set_id(id)
         config.set_election_tick(10)
         # Heartbeat tick is for how long the leader needs to send
@@ -156,20 +158,20 @@ class RaftNode:
 
     def reserve_next_peer_id(self) -> int:
         """
-        Reserve a slot to insert node on next node addition commit
+        Reserve a slot to insert node on next node addition commit.
         """
         next_id = max(self.peers.keys()) if any(self.peers) else 1
         # if assigned id is ourself, return next one
         next_id = max(next_id + 1, self.id())
         self.peers[next_id] = None
 
-        logging.info(f"Reserved peer id {next_id}")
+        logging.info(f"Reserved peer id {next_id}.")
         return next_id
 
     def send_messages(self, msgs: List[Message]):
         for msg in msgs:
             logging.debug(
-                f"light ready message from {msg.get_from()} to {msg.get_to()}"
+                f"light ready message from {msg.get_from()} to {msg.get_to()}."
             )
 
             if client := self.peers.get(msg.get_to()):
@@ -185,12 +187,11 @@ class RaftNode:
                 )
 
     async def send_wrong_leader(self, channel: Queue) -> None:
-        leader_id = self.leader()
-        # leader can't be an empty node
-        leader_addr = str(self.peers[leader_id].addr)
+        assert self.leader() in self.peers
+
         raft_response = RaftRespWrongLeader(
-            leader_id,
-            leader_addr,
+            leader_id=self.leader(),
+            leader_addr=str(self.peers[self.leader()].addr),
         )
 
         try:
@@ -260,7 +261,7 @@ class RaftNode:
             case ConfChangeType.RemoveNode:
                 if change.get_node_id() == self.id():
                     self.should_quit = True
-                    logging.warning("Quitting the cluster")
+                    logging.warning("Quitting the cluster.")
                 else:
                     if not self.peers.pop(change.get_node_id(), None):
                         logging.warning("Tried to remove Node, but not found.")
