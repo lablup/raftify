@@ -45,11 +45,11 @@ class Raft:
 
     async def join(self, peer_addr: SocketAddr) -> None:
         """
-        Try to join a new cluster at `addr`, getting an id from the leader, or finding it if
-        `addr` is not the current leader of the cluster
+        Try to join a new cluster at `peer_addr`, getting an id from the leader, or finding it if
+        `peer_addr` is not the current leader of the cluster
         """
 
-        # 1. try to discover the leader and obtain an id from it.
+        # 1. Discover the leader of the cluster and obtain an 'node_id'.
         logging.info(f"Attempting to join peer cluster at {str(peer_addr)}")
 
         leader_addr = None
@@ -72,7 +72,7 @@ class Raft:
 
         logging.info(f"Obtained ID from leader: {node_id}")
 
-        # 2. run server and node to prepare for joining
+        # 2. Run server and node to prepare for joining
         raft_node = RaftNode.new_follower(self.chan, node_id, self.fsm, self.logger)
         raft_node.peers[leader_id] = client
         server = RaftServer(self.addr, self.chan)
