@@ -80,11 +80,11 @@ class Raft:
         raft_node_handle = asyncio.create_task(raft_node.run())
 
         # 3. Join the cluster
-        # TODO: handle wrong leader
         change = ConfChange.default()
         change.set_node_id(node_id)
         change.set_change_type(ConfChangeType.AddNode)
         change.set_context(pickle.dumps(self.addr))
 
+        # TODO: Should handle wrong leader error here because the leader might change in the meanwhile.
         await client.change_config(change)
         await raft_node_handle
