@@ -12,7 +12,7 @@ from aiohttp.web import Application, RouteTableDef
 from rraft import default_logger
 from riteraft.fsm import FSM
 from riteraft.mailbox import Mailbox
-from riteraft.raft import RaftClusterFacade
+from riteraft.raft_facade import RaftClusterFacade
 
 
 def setup_logger():
