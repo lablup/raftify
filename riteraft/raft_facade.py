@@ -14,7 +14,7 @@ from riteraft.raft_server import RaftServer
 from riteraft.utils import SocketAddr
 
 
-class Raft:
+class RaftClusterFacade:
     def __init__(self, addr: SocketAddr, fsm: FSM, logger: Logger_Ref):
         """
         Creates a new node with the given address and store.
@@ -73,15 +73,14 @@ class Raft:
         # 2. Run server and node to prepare for joining
         raft_node = RaftNode.new_follower(self.chan, node_id, self.fsm, self.logger)
         raft_node.peers[leader_id] = client
+        _ = asyncio.create_task(RaftServer(self.addr, self.chan).run())
+        raft_node_handle = asyncio.create_task(raft_node.run())
 
         # 3. Join the cluster
         conf_change = ConfChange.default()
         conf_change.set_node_id(node_id)
         conf_change.set_change_type(ConfChangeType.AddNode)
         conf_change.set_context(pickle.dumps(self.addr))
-
-        asyncio.create_task(RaftServer(self.addr, self.chan).run())
-        raft_node_handle = asyncio.create_task(raft_node.run())
 
         # TODO: Should handle wrong leader error here because the leader might change in the meanwhile.
         await client.change_config(conf_change)

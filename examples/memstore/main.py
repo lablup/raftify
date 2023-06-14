@@ -12,7 +12,7 @@ from aiohttp.web import Application, RouteTableDef
 from rraft import default_logger
 from riteraft.fsm import FSM
 from riteraft.mailbox import Mailbox
-from riteraft.raft import Raft
+from riteraft.raft import RaftClusterFacade
 
 
 def setup_logger():
@@ -116,16 +116,16 @@ async def main() -> None:
     )
 
     store = HashStore()
-    raft = Raft(options.raft_addr, store, logger)
-    mailbox = raft.mailbox()
+    raft_cluster = RaftClusterFacade(options.raft_addr, store, logger)
+    mailbox = raft_cluster.mailbox()
 
     tasks = []
     if options.peer_addr:
         logger.info("Running in follower mode")
-        tasks.append(raft.join(options.peer_addr))
+        tasks.append(raft_cluster.join(options.peer_addr))
     else:
         logger.info("Running in leader mode")
-        tasks.append(raft.lead())
+        tasks.append(raft_cluster.lead())
 
     runner = None
     if options.web_server:
