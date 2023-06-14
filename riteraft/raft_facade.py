@@ -3,7 +3,7 @@ import logging
 import pickle
 from asyncio import Queue
 
-from rraft import ConfChange, ConfChangeType, Logger_Ref
+from rraft import ConfChange, ConfChangeType, Logger, Logger_Ref
 
 from riteraft.fsm import FSM
 from riteraft.mailbox import Mailbox
@@ -15,7 +15,7 @@ from riteraft.utils import SocketAddr
 
 
 class RaftClusterFacade:
-    def __init__(self, addr: SocketAddr, fsm: FSM, logger: Logger_Ref):
+    def __init__(self, addr: SocketAddr, fsm: FSM, logger: Logger | Logger_Ref):
         """
         Creates a new node with the given address and store.
         """
@@ -56,17 +56,18 @@ class RaftClusterFacade:
             client = RaftClient(peer_addr)
             resp = await client.request_id()
 
-            if resp.code == raft_service_pb2.Ok:
-                leader_addr = peer_addr
-                leader_id, node_id = pickle.loads(resp.data)
-                break
-            elif resp.code == raft_service_pb2.WrongLeader:
-                _, peer_addr = pickle.loads(resp.data)
-                logging.info(f"Wrong leader, retrying with leader at {peer_addr}")
-                continue
-            elif resp.code == raft_service_pb2.Error:
-                logging.error("Failed to join the cluster!")
-                return
+            match resp.code:
+                case raft_service_pb2.Ok:
+                    leader_addr = peer_addr
+                    leader_id, node_id = pickle.loads(resp.data)
+                    break
+                case raft_service_pb2.WrongLeader:
+                    _, peer_addr = pickle.loads(resp.data)
+                    logging.info(f"Wrong leader, retrying with leader at {peer_addr}")
+                    continue
+                case raft_service_pb2.Error:
+                    logging.error("Failed to join the cluster!")
+                    return
 
         logging.info(f"Obtained ID from leader: {node_id}")
 

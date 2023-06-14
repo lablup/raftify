@@ -12,6 +12,7 @@ from rraft import (
     Entry,
     Entry_Ref,
     EntryType,
+    Logger,
     Logger_Ref,
     Message,
     RawNode,
@@ -64,7 +65,7 @@ class RaftNode:
         self.last_snap_time = last_snap_time
 
     @staticmethod
-    def new_leader(chan: Queue, fsm: FSM, logger: Logger_Ref) -> "RaftNode":
+    def new_leader(chan: Queue, fsm: FSM, logger: Logger | Logger_Ref) -> "RaftNode":
         config = Config.default()
         config.set_id(1)
         config.set_election_tick(10)
@@ -111,7 +112,7 @@ class RaftNode:
         chan: Queue,
         id: int,
         fsm: FSM,
-        logger: Logger_Ref,
+        logger: Logger | Logger_Ref,
     ) -> "RaftNode":
         config = Config.default()
         config.set_id(id)
@@ -213,14 +214,13 @@ class RaftNode:
             if not entry.get_data():
                 continue
 
-            if entry.get_entry_type() == EntryType.EntryNormal:
-                await self.handle_normal(entry, client_senders)
-
-            elif entry.get_entry_type() == EntryType.EntryConfChange:
-                await self.handle_config_change(entry, client_senders)
-
-            elif entry.get_entry_type() == EntryType.EntryConfChangeV2:
-                raise NotImplementedError
+            match entry.get_entry_type():
+                case EntryType.EntryNormal:
+                    await self.handle_normal(entry, client_senders)
+                case EntryType.EntryConfChange:
+                    await self.handle_config_change(entry, client_senders)
+                case _:
+                    raise NotImplementedError
 
     async def handle_normal(
         self, entry: Entry | Entry_Ref, senders: Dict[int, Queue]
@@ -248,23 +248,24 @@ class RaftNode:
     ) -> None:
         seq = pickle.loads(entry.get_context())
         change = ConfChange.decode(entry.get_data())
-        id = change.get_node_id()
+        node_id = change.get_node_id()
 
         change_type = change.get_change_type()
 
-        if change_type == ConfChangeType.AddNode:
-            addr = pickle.loads(change.get_context())
-            logging.info(f"Adding {addr} ({id}) to peers")
-            self.peers[id] = RaftClient(addr)
-        elif change_type == ConfChangeType.RemoveNode:
-            if change.get_node_id() == self.id():
-                self.should_quit = True
-                logging.warning("Quitting the cluster")
-            else:
-                if not self.peers.pop(change.get_node_id(), None):
-                    logging.warning("Try to remove Node, but not found.")
-        else:
-            raise NotImplementedError
+        match change_type:
+            case ConfChangeType.AddNode:
+                addr = pickle.loads(change.get_context())
+                logging.info(f"Peer {addr} ({node_id}) added to the cluster.")
+                self.peers[node_id] = RaftClient(addr)
+            case ConfChangeType.RemoveNode:
+                if change.get_node_id() == self.id():
+                    self.should_quit = True
+                    logging.warning("Quitting the cluster")
+                else:
+                    if not self.peers.pop(change.get_node_id(), None):
+                        logging.warning("Tried to remove Node, but not found.")
+            case _:
+                raise NotImplementedError
 
         if cs := self.raw_node.apply_conf_change(change):
             last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
@@ -279,14 +280,15 @@ class RaftNode:
                 pass
 
         if sender := senders.pop(seq, None):
-            if change_type == ConfChangeType.AddNode:
-                response = RaftRespJoinSuccess(
-                    assigned_id=id, peer_addrs=self.peer_addrs()
-                )
-            elif change_type == ConfChangeType.RemoveNode:
-                response = RaftRespOk()
-            else:
-                raise NotImplementedError
+            match change_type:
+                case ConfChangeType.AddNode:
+                    response = RaftRespJoinSuccess(
+                        assigned_id=node_id, peer_addrs=self.peer_addrs()
+                    )
+                case ConfChangeType.RemoveNode:
+                    response = RaftRespOk()
+                case _:
+                    raise NotImplementedError
 
             try:
                 sender.put_nowait(response)
