@@ -67,7 +67,7 @@ class Raft:
                 logging.info(f"Wrong leader, retrying with leader at {peer_addr}")
                 continue
             elif resp.code == raft_service_pb2.Error:
-                logging.error("Error joining the cluster")
+                logging.error("Failed to join the cluster!")
                 return
 
         logging.info(f"Obtained ID from leader: {node_id}")
@@ -75,8 +75,7 @@ class Raft:
         # 2. Run server and node to prepare for joining
         raft_node = RaftNode.new_follower(self.chan, node_id, self.fsm, self.logger)
         raft_node.peers[leader_id] = client
-        server = RaftServer(self.addr, self.chan)
-        asyncio.create_task(server.run())
+        asyncio.create_task(RaftServer(self.addr, self.chan).run())
         raft_node_handle = asyncio.create_task(raft_node.run())
 
         # 3. Join the cluster
