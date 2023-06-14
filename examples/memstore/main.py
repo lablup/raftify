@@ -26,7 +26,7 @@ logger = setup_logger()
 routes = RouteTableDef()
 
 
-class InsertMessage:
+class SetCommand:
     def __init__(self, key: int, value: str) -> None:
         self.key = key
         self.value = value
@@ -35,21 +35,9 @@ class InsertMessage:
         return pickle.dumps(self.__dict__)
 
     @classmethod
-    def decode(cls, packed: bytes) -> "InsertMessage":
+    def decode(cls, packed: bytes) -> "SetCommand":
         unpacked = pickle.loads(packed)
         return cls(unpacked["key"], unpacked["value"])
-
-
-class Options:
-    def __init__(
-        self,
-        raft_addr: str,
-        peer_addr: Optional[str] = None,
-        web_server: Optional[str] = None,
-    ):
-        self.raft_addr = raft_addr
-        self.peer_addr = peer_addr
-        self.web_server = web_server
 
 
 class HashStore(FSM):
@@ -63,7 +51,7 @@ class HashStore(FSM):
 
     async def apply(self, msg: bytes) -> bytes:
         with self._lock:
-            message = InsertMessage.decode(msg)
+            message = SetCommand.decode(msg)
             self._store[message.key] = message.value
             logging.info(f'Inserted: ({message.key}, "{message.value}")')
             return pickle.dumps(message.value)
@@ -88,7 +76,7 @@ async def get(request: web.Request) -> web.Response:
 async def put(request: web.Request) -> web.Response:
     mailbox: Mailbox = request.app["state"]["mailbox"]
     id, name = request.match_info["id"], request.match_info["name"]
-    message = InsertMessage(int(id), name)
+    message = SetCommand(int(id), name)
     result = await mailbox.send(message.encode())
     return web.Response(text=str(result))
 
@@ -109,26 +97,24 @@ async def main() -> None:
 
     args = parser.parse_args()
 
-    options = Options(
-        raft_addr=args.raft_addr,
-        peer_addr=args.peer_addr,
-        web_server=args.web_server,
-    )
+    raft_addr = args.raft_addr
+    peer_addr = args.peer_addr
+    web_server_addr = args.web_server
 
     store = HashStore()
-    raft_cluster = RaftClusterFacade(options.raft_addr, store, logger)
+    raft_cluster = RaftClusterFacade(raft_addr, store, logger)
     mailbox = raft_cluster.mailbox()
 
     tasks = []
-    if options.peer_addr:
+    if peer_addr:
         logger.info("Running in follower mode")
-        tasks.append(raft_cluster.join(options.peer_addr))
+        tasks.append(raft_cluster.join(peer_addr))
     else:
         logger.info("Running in leader mode")
         tasks.append(raft_cluster.lead())
 
     runner = None
-    if options.web_server:
+    if web_server_addr:
         app = Application()
         app.add_routes(routes)
         app["state"] = {
@@ -136,7 +122,7 @@ async def main() -> None:
             "mailbox": mailbox,
         }
 
-        host, port = options.web_server.split(":")
+        host, port = web_server_addr.split(":")
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, host, port)
