@@ -17,5 +17,5 @@ venv
 .pytest_cache
 
 kill
-riteraft-py
+exec
 .envrc
