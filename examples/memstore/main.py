@@ -10,6 +10,7 @@ import pickle
 from aiohttp import web
 from aiohttp.web import Application, RouteTableDef
 from rraft import default_logger
+from riteraft.fsm import FSM
 from riteraft.mailbox import Mailbox
 
 from riteraft.raft import Raft
@@ -52,7 +53,7 @@ class Options:
         self.web_server = web_server
 
 
-class HashStore:
+class HashStore(FSM):
     def __init__(self):
         self._store = dict()
         self._lock = Lock()

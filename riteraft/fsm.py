@@ -1,7 +1,7 @@
 import abc
 
 
-class FSM(abc.ABC):
+class FSM(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def apply(self, message: bytes) -> bytes:
         raise NotImplementedError
