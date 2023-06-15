@@ -69,8 +69,6 @@ class RaftNode:
         config = Config.default()
         config.set_id(1)
         config.set_election_tick(10)
-        # Heartbeat tick is for how long the leader needs to send
-        # a heartbeat to keep alive.
         config.set_heartbeat_tick(3)
         config.validate()
 
@@ -119,8 +117,6 @@ class RaftNode:
 
         config.set_id(id)
         config.set_election_tick(10)
-        # Heartbeat tick is for how long the leader needs to send
-        # a heartbeat to keep alive.
         config.set_heartbeat_tick(3)
         config.validate()
 
