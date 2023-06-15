@@ -262,7 +262,7 @@ class LMDBStorage:
             raft_state.set_hard_state(store.hard_state())
             raft_state.set_conf_state(store.conf_state())
 
-            logging.warning(f"Raft_state: {raft_state}")
+            logging.info(f"Initial RaftState: {raft_state}")
 
             return raft_state
 

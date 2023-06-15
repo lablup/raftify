@@ -69,7 +69,7 @@ class RaftClusterFacade:
                     logging.error("Failed to join the cluster!")
                     return
 
-        logging.info(f"Obtained ID from leader: {node_id}")
+        logging.info(f"Obtained node_id {node_id} from leader {leader_id}.")
 
         # 2. Run server and node to prepare for joining
         raft_node = RaftNode.new_follower(self.chan, node_id, self.fsm, self.logger)
