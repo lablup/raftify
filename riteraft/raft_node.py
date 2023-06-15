@@ -213,13 +213,13 @@ class RaftNode:
 
             match entry.get_entry_type():
                 case EntryType.EntryNormal:
-                    await self.handle_normal(entry, client_senders)
+                    await self.handle_normal_entry(entry, client_senders)
                 case EntryType.EntryConfChange:
-                    await self.handle_config_change(entry, client_senders)
+                    await self.handle_config_change_entry(entry, client_senders)
                 case _:
                     raise NotImplementedError
 
-    async def handle_normal(
+    async def handle_normal_entry(
         self, entry: Entry | Entry_Ref, senders: Dict[int, Queue]
     ) -> None:
         seq = pickle.loads(entry.get_context())
@@ -240,7 +240,7 @@ class RaftNode:
             except Exception:
                 pass
 
-    async def handle_config_change(
+    async def handle_config_change_entry(
         self, entry: Entry | Entry_Ref, senders: Dict[int, Queue]
     ) -> None:
         seq = pickle.loads(entry.get_context())
