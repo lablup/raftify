@@ -76,8 +76,8 @@ class RaftNode:
         # Because we don't use the same configuration to initialize every node, so we use
         # a non-zero index to force new followers catch up logs by snapshot first, which will
         # bring all nodes to the same initial state.
-        snapshot.get_metadata().set_index(1)
-        snapshot.get_metadata().set_term(1)
+        snapshot.get_metadata().set_index(0)
+        snapshot.get_metadata().set_term(0)
         snapshot.get_metadata().get_conf_state().set_voters([1])
 
         lmdb = LMDBStorage.create(".", 1)
@@ -183,7 +183,7 @@ class RaftNode:
                 )
 
     async def send_wrong_leader(self, channel: Queue) -> None:
-        assert self.leader() in self.peers
+        assert self.leader() in self.peers, "Leader can't be an empty node!"
 
         raft_response = RaftRespWrongLeader(
             leader_id=self.leader(),
@@ -259,8 +259,7 @@ class RaftNode:
                     self.should_quit = True
                     logging.warning("Quitting the cluster.")
                 else:
-                    if not self.peers.pop(change.get_node_id(), None):
-                        logging.warning("Tried to remove Node, but not found.")
+                    self.peers.pop(change.get_node_id(), None)
             case _:
                 raise NotImplementedError
 
