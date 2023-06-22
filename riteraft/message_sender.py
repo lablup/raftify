@@ -34,12 +34,12 @@ class MessageSender:
             try:
                 await self.client.send_message(self.message, self.timeout)
                 return
-            except Exception as e:
+            except Exception:
                 if current_retry < self.max_retries:
                     current_retry += 1
                 else:
                     logging.debug(
-                        f"Error sending message after {self.max_retries} retries, Reason: {e}"
+                        f"Error sending message after {self.max_retries} retries"
                     )
 
                     try:
