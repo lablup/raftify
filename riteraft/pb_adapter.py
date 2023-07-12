@@ -21,9 +21,9 @@ from rraft import (
     MessageRef,
     MessageType,
     Snapshot,
-    SnapshotRef,
     SnapshotMetadata,
     SnapshotMetadataRef,
+    SnapshotRef,
 )
 
 from riteraft.protos.eraftpb_pb2 import ConfChange as Pb_ConfChange

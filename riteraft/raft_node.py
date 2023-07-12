@@ -252,7 +252,9 @@ class RaftNode:
         match change_type:
             case ConfChangeType.AddNode:
                 addr = pickle.loads(change.get_context())
-                logging.info(f"Node '{addr} (node id: {node_id})' added to the cluster.")
+                logging.info(
+                    f"Node '{addr} (node id: {node_id})' added to the cluster."
+                )
                 self.peers[node_id] = RaftClient(addr)
             case ConfChangeType.RemoveNode:
                 if change.get_node_id() == self.id():
