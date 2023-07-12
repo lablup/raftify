@@ -10,10 +10,10 @@ from rraft import (
     ConfChangeType,
     Config,
     Entry,
-    Entry_Ref,
+    EntryRef,
     EntryType,
     Logger,
-    Logger_Ref,
+    LoggerRef,
     Message,
     RawNode,
     Snapshot,
@@ -65,7 +65,7 @@ class RaftNode:
         self.last_snap_time = last_snap_time
 
     @staticmethod
-    def new_leader(chan: Queue, fsm: FSM, logger: Logger | Logger_Ref) -> "RaftNode":
+    def new_leader(chan: Queue, fsm: FSM, logger: Logger | LoggerRef) -> "RaftNode":
         config = Config.default()
         config.set_id(1)
         config.set_election_tick(10)
@@ -110,7 +110,7 @@ class RaftNode:
         chan: Queue,
         id: int,
         fsm: FSM,
-        logger: Logger | Logger_Ref,
+        logger: Logger | LoggerRef,
     ) -> "RaftNode":
         config = Config.default()
         assert id != 1, "Follower's id can't be 1"
@@ -198,7 +198,7 @@ class RaftNode:
 
     async def handle_committed_entries(
         self,
-        committed_entries: List[Entry] | List[Entry_Ref],
+        committed_entries: List[Entry] | List[EntryRef],
         client_senders: Dict[int, Queue],
     ) -> None:
         # Mostly, you need to save the last apply index to resume applying
@@ -220,7 +220,7 @@ class RaftNode:
                     raise NotImplementedError
 
     async def handle_normal_entry(
-        self, entry: Entry | Entry_Ref, senders: Dict[int, Queue]
+        self, entry: Entry | EntryRef, senders: Dict[int, Queue]
     ) -> None:
         seq = pickle.loads(entry.get_context())
         data = await self.fsm.apply(entry.get_data())
@@ -241,7 +241,7 @@ class RaftNode:
                 pass
 
     async def handle_config_change_entry(
-        self, entry: Entry | Entry_Ref, senders: Dict[int, Queue]
+        self, entry: Entry | EntryRef, senders: Dict[int, Queue]
     ) -> None:
         seq = pickle.loads(entry.get_context())
         change = ConfChange.decode(entry.get_data())

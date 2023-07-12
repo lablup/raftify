@@ -3,27 +3,27 @@ from typing import Any
 
 from rraft import ConfChange as ConfChange
 from rraft import (
-    ConfChange_Ref,
+    ConfChangeRef,
     ConfChangeSingle,
-    ConfChangeSingle_Ref,
+    ConfChangeSingleRef,
     ConfChangeTransition,
     ConfChangeType,
     ConfChangeV2,
-    ConfChangeV2_Ref,
+    ConfChangeV2Ref,
     ConfState,
-    ConfState_Ref,
+    ConfStateRef,
     Entry,
-    Entry_Ref,
+    EntryRef,
     EntryType,
     HardState,
-    HardState_Ref,
+    HardStateRef,
     Message,
-    Message_Ref,
+    MessageRef,
     MessageType,
     Snapshot,
-    Snapshot_Ref,
+    SnapshotRef,
     SnapshotMetadata,
-    SnapshotMetadata_Ref,
+    SnapshotMetadataRef,
 )
 
 from riteraft.protos.eraftpb_pb2 import ConfChange as Pb_ConfChange
@@ -56,7 +56,7 @@ class ProtobufAdapter(metaclass=ABCMeta):
 
 class ConfChangeAdapter(ProtobufAdapter):
     @staticmethod
-    def to_pb(v: ConfChange | ConfChange_Ref) -> Pb_ConfChange:
+    def to_pb(v: ConfChange | ConfChangeRef) -> Pb_ConfChange:
         return Pb_ConfChange(
             id=v.get_id(),
             node_id=v.get_node_id(),
@@ -76,7 +76,7 @@ class ConfChangeAdapter(ProtobufAdapter):
 
 class ConfChangeSingleAdapter(ProtobufAdapter):
     @staticmethod
-    def to_pb(v: ConfChangeSingle | ConfChangeSingle_Ref) -> Pb_ConfChangeSingle:
+    def to_pb(v: ConfChangeSingle | ConfChangeSingleRef) -> Pb_ConfChangeSingle:
         return Pb_ConfChangeSingle(
             node_id=v.get_node_id(), change_type=int(v.get_change_type())
         )
@@ -91,7 +91,7 @@ class ConfChangeSingleAdapter(ProtobufAdapter):
 
 class ConfChangeV2Adapter(ProtobufAdapter):
     @staticmethod
-    def to_pb(v: ConfChangeV2 | ConfChangeV2_Ref) -> Pb_ConfChange:
+    def to_pb(v: ConfChangeV2 | ConfChangeV2Ref) -> Pb_ConfChange:
         return Pb_ConfChangeV2(
             transition=int(v.get_transition()),
             changes=list(map(ConfChangeSingleAdapter.to_pb, v.get_changes())),
@@ -109,7 +109,7 @@ class ConfChangeV2Adapter(ProtobufAdapter):
 
 class ConfStateAdapter(ProtobufAdapter):
     @staticmethod
-    def to_pb(v: ConfState | ConfState_Ref) -> Pb_ConfState:
+    def to_pb(v: ConfState | ConfStateRef) -> Pb_ConfState:
         return Pb_ConfState(
             auto_leave=v.get_auto_leave(),
             learners=v.get_learners(),
@@ -131,7 +131,7 @@ class ConfStateAdapter(ProtobufAdapter):
 
 class EntryAdapter(ProtobufAdapter):
     @staticmethod
-    def to_pb(v: Entry | Entry_Ref) -> Pb_Entry:
+    def to_pb(v: Entry | EntryRef) -> Pb_Entry:
         return Pb_Entry(
             context=v.get_context(),
             data=v.get_data(),
@@ -155,7 +155,7 @@ class EntryAdapter(ProtobufAdapter):
 
 class HardStateAdapter(ProtobufAdapter):
     @staticmethod
-    def to_pb(v: HardState | HardState_Ref) -> Pb_HardState:
+    def to_pb(v: HardState | HardStateRef) -> Pb_HardState:
         return Pb_HardState(
             commit=v.get_commit(),
             term=v.get_term(),
@@ -173,7 +173,7 @@ class HardStateAdapter(ProtobufAdapter):
 
 class MessageAdapter(ProtobufAdapter):
     @staticmethod
-    def to_pb(v: Message | Message_Ref) -> Pb_Message:
+    def to_pb(v: Message | MessageRef) -> Pb_Message:
         return Pb_Message(
             commit=v.get_commit(),
             commit_term=v.get_commit_term(),
@@ -217,7 +217,7 @@ class MessageAdapter(ProtobufAdapter):
 
 class SnapshotAdapter(ProtobufAdapter):
     @staticmethod
-    def to_pb(v: Snapshot | Snapshot_Ref) -> Pb_Snapshot:
+    def to_pb(v: Snapshot | SnapshotRef) -> Pb_Snapshot:
         return Pb_Snapshot(
             data=v.get_data(),
             metadata=SnapshotMetadataAdapter.to_pb(v.get_metadata()),
@@ -233,7 +233,7 @@ class SnapshotAdapter(ProtobufAdapter):
 
 class SnapshotMetadataAdapter(ProtobufAdapter):
     @staticmethod
-    def to_pb(v: SnapshotMetadata | SnapshotMetadata_Ref) -> Pb_SnapshotMetadata:
+    def to_pb(v: SnapshotMetadata | SnapshotMetadataRef) -> Pb_SnapshotMetadata:
         return Pb_SnapshotMetadata(
             conf_state=ConfStateAdapter.to_pb(v.get_conf_state()),
             index=v.get_index(),

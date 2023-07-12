@@ -7,16 +7,16 @@ import lmdb
 from rraft import (
     CompactedError,
     ConfState,
-    ConfState_Ref,
+    ConfStateRef,
     Entry,
-    Entry_Ref,
+    EntryRef,
     GetEntriesContext,
-    GetEntriesContext_Ref,
+    GetEntriesContextRef,
     HardState,
-    HardState_Ref,
+    HardStateRef,
     RaftState,
     Snapshot,
-    Snapshot_Ref,
+    SnapshotRef,
     StoreError,
     UnavailableError,
 )
@@ -67,7 +67,7 @@ class LMDBStorageCore:
                 raise StoreError(UnavailableError("Missing hard_state"))
             return HardState.decode(hs)
 
-    def set_hard_state(self, hard_state: HardState | HardState_Ref) -> None:
+    def set_hard_state(self, hard_state: HardState | HardStateRef) -> None:
         with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
             meta_writer.put(HARD_STATE_KEY, hard_state.encode())
 
@@ -78,7 +78,7 @@ class LMDBStorageCore:
                 raise StoreError(UnavailableError("There should be a conf state"))
             return ConfState.decode(cs)
 
-    def set_conf_state(self, conf_state: ConfState | ConfState_Ref) -> None:
+    def set_conf_state(self, conf_state: ConfState | ConfStateRef) -> None:
         with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
             meta_writer.put(CONF_STATE_KEY, conf_state.encode())
 
@@ -87,7 +87,7 @@ class LMDBStorageCore:
             snapshot = meta_reader.get(SNAPSHOT_KEY)
             return Snapshot.decode(snapshot) if snapshot else None
 
-    def set_snapshot(self, snapshot: Snapshot | Snapshot_Ref) -> None:
+    def set_snapshot(self, snapshot: Snapshot | SnapshotRef) -> None:
         with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
             meta_writer.put(SNAPSHOT_KEY, snapshot.encode())
 
@@ -122,7 +122,7 @@ class LMDBStorageCore:
         self,
         low: int,
         high: int,
-        _ctx: GetEntriesContext | GetEntriesContext_Ref,
+        _ctx: GetEntriesContext | GetEntriesContextRef,
         max_size: Optional[int] = None,
     ) -> List[Entry]:
         with self.env.begin(write=False, db=self.entries_db) as entry_reader:
@@ -148,7 +148,7 @@ class LMDBStorageCore:
 
             return entries
 
-    def append(self, entries: List[Entry] | List[Entry_Ref]) -> None:
+    def append(self, entries: List[Entry] | List[EntryRef]) -> None:
         last_index = self.last_index()
 
         with self.env.begin(write=True, db=self.entries_db) as entry_writer:
@@ -206,19 +206,19 @@ class LMDBStorage:
 
         self.wl(__compact)
 
-    def append(self, entries: List[Entry] | List[Entry_Ref]) -> None:
+    def append(self, entries: List[Entry] | List[EntryRef]) -> None:
         def __append(store: LMDBStorageCore):
             store.append(entries)
 
         self.wl(__append)
 
-    def set_hard_state(self, hard_state: HardState | HardState_Ref) -> None:
+    def set_hard_state(self, hard_state: HardState | HardStateRef) -> None:
         def __set_hard_state(store: LMDBStorageCore):
             store.set_hard_state(hard_state)
 
         self.wl(__set_hard_state)
 
-    def set_conf_state(self, conf_state: ConfState | ConfState_Ref) -> None:
+    def set_conf_state(self, conf_state: ConfState | ConfStateRef) -> None:
         def __set_conf_state(store: LMDBStorageCore):
             store.set_conf_state(conf_state)
 
@@ -241,7 +241,7 @@ class LMDBStorage:
 
         self.wl(__create_snapshot)
 
-    def apply_snapshot(self, snapshot: Snapshot | Snapshot_Ref) -> None:
+    def apply_snapshot(self, snapshot: Snapshot | SnapshotRef) -> None:
         def __apply_snapshot(store: LMDBStorageCore):
             metadata = snapshot.get_metadata()
             conf_state = metadata.get_conf_state()
@@ -272,7 +272,7 @@ class LMDBStorage:
         self,
         low: int,
         high: int,
-        ctx: GetEntriesContext | GetEntriesContext_Ref,
+        ctx: GetEntriesContext | GetEntriesContextRef,
         max_size: Optional[int] = None,
     ) -> List[Entry]:
         def __entries(store: LMDBStorageCore):

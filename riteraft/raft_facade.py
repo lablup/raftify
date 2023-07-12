@@ -3,7 +3,7 @@ import logging
 import pickle
 from asyncio import Queue
 
-from rraft import ConfChange, ConfChangeType, Logger, Logger_Ref
+from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
 
 from riteraft.fsm import FSM
 from riteraft.mailbox import Mailbox
@@ -15,7 +15,7 @@ from riteraft.utils import SocketAddr
 
 
 class RaftClusterFacade:
-    def __init__(self, addr: SocketAddr, fsm: FSM, logger: Logger | Logger_Ref):
+    def __init__(self, addr: SocketAddr, fsm: FSM, logger: Logger | LoggerRef):
         """
         Creates a new node with the given address and store.
         """
