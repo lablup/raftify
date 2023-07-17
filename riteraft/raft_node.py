@@ -236,7 +236,7 @@ class RaftNode:
             self.lmdb.compact(last_applied)
 
             try:
-                self.lmdb.create_snapshot(snapshot)
+                self.lmdb.create_snapshot(snapshot, entry.get_index(), entry.get_term())
             except Exception:
                 pass
 
@@ -273,7 +273,7 @@ class RaftNode:
             self.lmdb.compact(last_applied)
 
             try:
-                self.lmdb.create_snapshot(snapshot)
+                self.lmdb.create_snapshot(snapshot, entry.get_index(), entry.get_term())
             except Exception:
                 pass
 

@@ -224,9 +224,8 @@ class LMDBStorage:
 
         self.wl(__set_conf_state)
 
-    def create_snapshot(self, data: bytes) -> None:
+    def create_snapshot(self, data: bytes, index: int, term: int) -> None:
         def __create_snapshot(store: LMDBStorageCore):
-            hard_state = store.hard_state()
             conf_state = store.conf_state()
 
             snapshot = Snapshot.default()
@@ -234,8 +233,8 @@ class LMDBStorage:
 
             meta = snapshot.get_metadata()
             meta.set_conf_state(conf_state)
-            meta.set_index(hard_state.get_commit())
-            meta.set_term(hard_state.get_term())
+            meta.set_index(index)
+            meta.set_term(term)
 
             store.set_snapshot(snapshot)
 
