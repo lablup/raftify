@@ -78,7 +78,7 @@ async def put(request: web.Request) -> web.Response:
     id, name = request.match_info["id"], request.match_info["name"]
     message = SetCommand(int(id), name)
     result = await mailbox.send(message.encode())
-    return web.Response(text=str(result))
+    return web.Response(text=f'"{str(pickle.loads(result))}"')
 
 
 @routes.get("/leave")
