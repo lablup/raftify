@@ -298,6 +298,7 @@ class RaftNode:
 
         # A map to contain sender to client responses
         client_senders: Dict[int, Queue] = {}
+        timer = time.time()
 
         while True:
             if self.should_quit:
@@ -367,7 +368,16 @@ class RaftNode:
             elif isinstance(message, MessageReportUnreachable):
                 self.raw_node.report_unreachable(message.node_id)
 
-            self.raw_node.tick()
+            now = time.time()
+            elapsed = now - timer
+            timer = now
+
+            if elapsed > heartbeat:
+                heartbeat = 0.1
+                self.raw_node.tick()
+            else:
+                heartbeat -= elapsed
+
             await self.on_ready(client_senders)
 
     async def on_ready(self, client_senders: Dict[int, Queue]) -> None:
