@@ -73,9 +73,6 @@ class RaftNode:
         config.validate()
 
         snapshot = Snapshot.default()
-        # Because we don't use the same configuration to initialize every node, so we use
-        # a non-zero index to force new followers catch up logs by snapshot first, which will
-        # bring all nodes to the same initial state.
         snapshot.get_metadata().set_index(0)
         snapshot.get_metadata().set_term(0)
         snapshot.get_metadata().get_conf_state().set_voters([1])
