@@ -21,7 +21,7 @@ from rraft import (
     UnavailableError,
 )
 
-from riteraft.utils import decode_u64, encode_u64
+from riteraft.utils import decode_int, encode_int
 
 SNAPSHOT_KEY = b"snapshot"
 LAST_INDEX_KEY = b"last_index"
@@ -102,20 +102,20 @@ class LMDBStorageCore:
                     )
                 )
 
-            return decode_u64(cursor.key()) + 1
+            return decode_int(cursor.key()) + 1
 
     def last_index(self) -> int:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
             last_index = meta_reader.get(LAST_INDEX_KEY)
-            return decode_u64(last_index) if last_index else 0
+            return decode_int(last_index) if last_index else 0
 
     def set_last_index(self, index: int) -> None:
         with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
-            meta_writer.put(LAST_INDEX_KEY, encode_u64(index))
+            meta_writer.put(LAST_INDEX_KEY, encode_int(index))
 
     def entry(self, index: int) -> Optional[Entry]:
         with self.env.begin(write=False, db=self.entries_db) as entry_reader:
-            entry = entry_reader.get(encode_u64(index))
+            entry = entry_reader.get(encode_int(index))
             return Entry.decode(entry) if entry else None
 
     def entries(
@@ -129,14 +129,14 @@ class LMDBStorageCore:
             logging.info(f"Entries requested: {low}->{high}")
 
             cursor = entry_reader.cursor()
-            if not cursor.set_range(encode_u64(low)):
+            if not cursor.set_range(encode_int(low)):
                 return []
 
             size_count = 0
             entries = []
 
             for key, entry in cursor:
-                if decode_u64(key) >= high:
+                if decode_int(key) >= high:
                     break
 
                 if max_size is not None and size_count >= max_size:
@@ -156,7 +156,7 @@ class LMDBStorageCore:
             for entry in entries:
                 # assert entry.get_index() == last_index + 1
                 index = entry.get_index()
-                entry_writer.put(encode_u64(index), entry.encode())
+                entry_writer.put(encode_int(index), entry.encode())
                 last_index = max(index, last_index)
 
         self.set_last_index(last_index)
@@ -201,7 +201,7 @@ class LMDBStorage:
                 cursor = entry_writer.cursor()
                 cursor.first()
 
-                while decode_u64(cursor.key()) < index:
+                while decode_int(cursor.key()) < index:
                     cursor.delete()
 
         self.wl(__compact)
