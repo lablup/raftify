@@ -3,12 +3,11 @@ from typing import Union
 
 
 def encode_u64(v: int) -> bytes:
-    # TODO:: Add logic for checking value of v is fitted within the range of u64.
-    return v.to_bytes(8, byteorder="little", signed=True)
+    return str(v).zfill(8).encode()
 
 
 def decode_u64(v: bytes) -> int:
-    return int.from_bytes(v, "little", signed=True)
+    return int(v.decode())
 
 
 class SocketAddr:
