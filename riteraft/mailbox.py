@@ -10,6 +10,7 @@ from riteraft.message import (
     RaftRespOk,
     RaftRespResponse,
 )
+from riteraft.pb_adapter import ConfChangeAdapter
 
 
 class Mailbox:
@@ -48,7 +49,9 @@ class Mailbox:
         change.set_change_type(ConfChangeType.RemoveNode)
 
         receiver = Queue()
-        if await self.__sender.put(MessageConfigChange(change, receiver)):
+        if await self.__sender.put(
+            MessageConfigChange(ConfChangeAdapter.to_pb(change), receiver)
+        ):
             resp = await receiver.get()
             if isinstance(resp, RaftRespOk):
                 return

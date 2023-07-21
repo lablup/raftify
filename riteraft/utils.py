@@ -4,7 +4,7 @@ from typing import Union
 
 def encode_int(v: int) -> bytes:
     # TODO: Add exception handling logic when v is greater than 8 digits
-    assert v < 10 ** 8, "Value greater than 10 ** 8 not supported"
+    assert v < 10**8, "Value greater than 10 ** 8 not supported"
     return str(v).zfill(8).encode()
 
 
