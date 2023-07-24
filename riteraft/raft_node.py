@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import pickle
+import sys
 import time
 from asyncio import Queue
 from typing import Dict, List, Optional
@@ -50,7 +51,6 @@ class RaftNode:
         fsm: FSM,
         lmdb: LMDBStorage,
         storage: Storage,
-        should_quit: bool,
         seq: AtomicInteger,
         last_snap_time: float,
     ):
@@ -60,7 +60,6 @@ class RaftNode:
         self.fsm = fsm
         self.lmdb = lmdb
         self.storage = storage
-        self.should_quit = should_quit
         self.seq = seq
         self.last_snap_time = last_snap_time
 
@@ -97,7 +96,6 @@ class RaftNode:
             fsm,
             lmdb,
             storage,
-            False,
             seq,
             last_snap_time,
         )
@@ -132,7 +130,6 @@ class RaftNode:
             fsm,
             lmdb,
             storage,
-            False,
             seq,
             last_snap_time,
         )
@@ -255,8 +252,8 @@ class RaftNode:
                 self.peers[node_id] = RaftClient(addr)
             case ConfChangeType.RemoveNode:
                 if change.get_node_id() == self.id():
-                    self.should_quit = True
                     logging.warning("Quitting the cluster.")
+                    sys.exit(0)
                 else:
                     self.peers.pop(change.get_node_id(), None)
             case _:
@@ -298,10 +295,6 @@ class RaftNode:
         timer = time.time()
 
         while True:
-            if self.should_quit:
-                logging.warning("Quitting raft")
-                return
-
             message = None
 
             try:
