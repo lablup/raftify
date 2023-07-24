@@ -149,22 +149,20 @@ class RaftNode:
         """
         Reserve a slot to insert node on next node addition commit.
         """
-        prev_conns = [
-            (id, peer) for id, peer in self.peers.items() if addr == peer.addr
-        ]
+        prev_conns = [id for id, peer in self.peers.items() if addr == peer.addr]
 
         if len(prev_conns) > 0:
-            next_id = prev_conns[0][0]
-            self.peers[next_id] = None
-            logging.info(f"Reserved peer id {next_id}.")
-            return next_id
+            next_id = prev_conns[0]
+        else:
+            next_id = max(self.peers.keys()) if any(self.peers) else 1
+            next_id = max(next_id + 1, self.id())
 
-        next_id = max(self.peers.keys()) if any(self.peers) else 1
-        # if assigned id is ourself, return next one
-        next_id = max(next_id + 1, self.id())
-        self.peers[next_id] = None
+            # if assigned id is ourself, return next one
+            if next_id == self.id():
+                next_id += 1
 
         logging.info(f"Reserved peer id {next_id}.")
+        self.peers[next_id] = None
         return next_id
 
     def send_messages(self, msgs: List[Message]):
