@@ -54,15 +54,15 @@ class RaftClusterFacade:
 
         while not leader_addr:
             client = RaftClient(peer_addr)
-            resp = await client.request_id()
+            resp = await client.request_id(self.addr)
 
             match resp.code:
                 case raft_service_pb2.Ok:
                     leader_addr = peer_addr
-                    leader_id, node_id = pickle.loads(resp.data)
+                    leader_id, node_id, peer_addrs = pickle.loads(resp.data)
                     break
                 case raft_service_pb2.WrongLeader:
-                    _, peer_addr = pickle.loads(resp.data)
+                    _, peer_addr, _ = pickle.loads(resp.data)
                     logging.info(f"Wrong leader, retrying with leader at {peer_addr}")
                     continue
                 case raft_service_pb2.Error:
@@ -73,6 +73,10 @@ class RaftClusterFacade:
 
         # 2. Run server and node to prepare for joining
         raft_node = RaftNode.new_follower(self.chan, node_id, self.fsm, self.logger)
+        raft_node.peers = {
+            node_id: RaftClient(addr) for node_id, addr in peer_addrs.items()
+        }
+
         raft_node.peers[leader_id] = client
         _ = asyncio.create_task(RaftServer(self.addr, self.chan).run())
         raft_node_handle = asyncio.create_task(raft_node.run())

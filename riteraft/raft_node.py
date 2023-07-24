@@ -108,7 +108,6 @@ class RaftNode:
         logger: Logger | LoggerRef,
     ) -> "RaftNode":
         config = Config.default()
-        assert id != 1, "Follower's id can't be 1"
 
         config.set_id(id)
         config.set_election_tick(10)
@@ -144,12 +143,22 @@ class RaftNode:
         return self.id() == self.leader()
 
     def peer_addrs(self) -> Dict[int, str]:
-        return {k: str(v.addr) for k, v in self.peers.items()}
+        return {k: str(v.addr) for k, v in self.peers.items() if v is not None}
 
-    def reserve_next_peer_id(self) -> int:
+    def reserve_next_peer_id(self, addr: str) -> int:
         """
         Reserve a slot to insert node on next node addition commit.
         """
+        prev_conns = [
+            (id, peer) for id, peer in self.peers.items() if addr == peer.addr
+        ]
+
+        if len(prev_conns) > 0:
+            next_id = prev_conns[0][0]
+            self.peers[next_id] = None
+            logging.info(f"Reserved peer id {next_id}.")
+            return next_id
+
         next_id = max(self.peers.keys()) if any(self.peers) else 1
         # if assigned id is ourself, return next one
         next_id = max(next_id + 1, self.id())
@@ -179,14 +188,14 @@ class RaftNode:
     async def send_wrong_leader(self, channel: Queue) -> None:
         assert self.leader() in self.peers, "Leader can't be an empty node!"
 
-        raft_response = RaftRespWrongLeader(
-            leader_id=self.leader(),
-            leader_addr=str(self.peers[self.leader()].addr),
-        )
-
         try:
             # TODO handle error here
-            await channel.put(raft_response)
+            await channel.put(
+                RaftRespWrongLeader(
+                    leader_id=self.leader(),
+                    leader_addr=str(self.peers[self.leader()].addr),
+                )
+            )
         except Exception:
             pass
 
@@ -317,7 +326,7 @@ class RaftNode:
                 if not self.is_leader():
                     # wrong leader send client cluster data
                     # TODO: retry strategy in case of failure
-                    await self.send_wrong_leader(channel=message.chan)
+                    await self.send_wrong_leader(message.chan)
                 else:
                     # leader assign new id to peer
                     logging.debug(f"Received request from: {change.get_node_id()}")
@@ -342,13 +351,16 @@ class RaftNode:
                     await self.send_wrong_leader(message.chan)
                 else:
                     await message.chan.put(
-                        RaftRespIdReserved(self.reserve_next_peer_id())
+                        RaftRespIdReserved(
+                            leader_id=self.leader(),
+                            reserved_id=self.reserve_next_peer_id(message.addr),
+                            peer_addrs=self.peer_addrs(),
+                        )
                     )
 
             elif isinstance(message, MessageRaft):
                 msg = MessageAdapter.from_pb(message.msg)
-
-                logging.debug(f"Raft message: to={self.id()} from={msg.get_from()}")
+                logging.debug(f"Received Raft message from {msg.get_from()}")
 
                 try:
                     self.raw_node.step(msg)

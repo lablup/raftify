@@ -18,7 +18,7 @@ class RaftServiceStub(object):
         """
         self.RequestId = channel.unary_unary(
             "/raftservice.RaftService/RequestId",
-            request_serializer=raft__service__pb2.Empty.SerializeToString,
+            request_serializer=raft__service__pb2.RequestIdArgs.SerializeToString,
             response_deserializer=raft__service__pb2.IdRequestResponse.FromString,
         )
         self.ChangeConfig = channel.unary_unary(
@@ -59,7 +59,7 @@ def add_RaftServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
         "RequestId": grpc.unary_unary_rpc_method_handler(
             servicer.RequestId,
-            request_deserializer=raft__service__pb2.Empty.FromString,
+            request_deserializer=raft__service__pb2.RequestIdArgs.FromString,
             response_serializer=raft__service__pb2.IdRequestResponse.SerializeToString,
         ),
         "ChangeConfig": grpc.unary_unary_rpc_method_handler(
@@ -100,7 +100,7 @@ class RaftService(object):
             request,
             target,
             "/raftservice.RaftService/RequestId",
-            raft__service__pb2.Empty.SerializeToString,
+            raft__service__pb2.RequestIdArgs.SerializeToString,
             raft__service__pb2.IdRequestResponse.FromString,
             options,
             channel_credentials,

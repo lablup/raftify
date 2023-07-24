@@ -23,12 +23,13 @@ class RaftService:
         self.sender = sender
 
     async def RequestId(
-        self, request: raft_service_pb2.Empty, context: grpc.aio.ServicerContext
+        self, request: raft_service_pb2.RequestIdArgs, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.IdRequestResponse:
         chan = Queue()
+        addr = request.addr
 
         try:
-            await self.sender.put(MessageRequestId(chan))
+            await self.sender.put(MessageRequestId(addr, chan))
         except Exception:
             pass
 
@@ -40,14 +41,16 @@ class RaftService:
 
             return raft_service_pb2.IdRequestResponse(
                 code=raft_service_pb2.WrongLeader,
-                data=pickle.dumps(tuple([leader_id, leader_addr])),
+                data=pickle.dumps(tuple([leader_id, leader_addr, None])),
             )
         elif isinstance(response, RaftRespIdReserved):
-            id = response.id
+            reserved_id = response.reserved_id
+            peer_addrs = response.peer_addrs
+            leader_id = response.leader_id
 
             return raft_service_pb2.IdRequestResponse(
                 code=raft_service_pb2.Ok,
-                data=pickle.dumps(tuple([1, id])),
+                data=pickle.dumps(tuple([leader_id, reserved_id, peer_addrs])),
             )
         else:
             assert False, "Unreachable"

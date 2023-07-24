@@ -40,9 +40,9 @@ class RaftClient:
             return await asyncio.wait_for(stub.SendMessage(request), timeout)
 
     async def request_id(
-        self, timeout: float = 5.0
+        self, addr: SocketAddr, timeout: float = 5.0
     ) -> raft_service_pb2.IdRequestResponse:
-        request = raft_service_pb2.Empty()
+        request = raft_service_pb2.RequestIdArgs(addr=str(addr))
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
