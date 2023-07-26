@@ -133,7 +133,7 @@ async def main() -> None:
         for peer_addr in peer_addrs:
             try:
                 cluster = RaftClusterFacade(raft_addr, store, logger)
-                tasks.append(cluster.join(peer_addr))
+                tasks.append(cluster.join_cluster(peer_addr))
                 mailbox = cluster.mailbox()
                 break
             except ClusterJoinError:

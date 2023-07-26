@@ -42,7 +42,7 @@ class RaftClusterFacade:
         )
         logging.warning("Leaving leader node")
 
-    async def join(self, peer_addr: SocketAddr) -> None:
+    async def join_cluster(self, peer_addr: SocketAddr) -> None:
         """
         Try to join a new cluster at `peer_addr`, getting an id from the leader, or finding it if
         `peer_addr` is not the current leader of the cluster
