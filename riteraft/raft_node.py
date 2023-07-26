@@ -152,7 +152,9 @@ class RaftNode:
         """
         Reserve a slot to insert node on next node addition commit.
         """
-        prev_conns = [id for id, peer in self.peers.items() if addr == peer.addr]
+        prev_conns = [
+            id for id, peer in self.peers.items() if peer and addr == peer.addr
+        ]
 
         if len(prev_conns) > 0:
             next_id = prev_conns[0]

@@ -13,7 +13,6 @@ from aiohttp import web
 from aiohttp.web import Application, RouteTableDef
 from rraft import Logger, default_logger
 
-from riteraft.error import ClusterJoinError
 from riteraft.fsm import FSM
 from riteraft.mailbox import Mailbox
 from riteraft.raft_facade import RaftClusterFacade
@@ -135,19 +134,9 @@ async def main() -> None:
         tasks.append(cluster.bootstrap_cluster())
     else:
         logger.info("Running in follower mode")
-
-        for peer_addr in peer_addrs:
-            try:
-                cluster = RaftClusterFacade(raft_addr, store, logger)
-                tasks.append(cluster.join_cluster(peer_addr))
-                mailbox = cluster.mailbox()
-                break
-            except ClusterJoinError:
-                pass
-        else:
-            raise ClusterJoinError(
-                "Could not join the cluster. Check your raft configuration and check to make sure that any of them is alive."
-            )
+        cluster = RaftClusterFacade(raft_addr, store, logger)
+        tasks.append(cluster.join_cluster(peer_addrs))
+        mailbox = cluster.mailbox()
 
     runner = None
     if web_server_addr:
