@@ -12,6 +12,8 @@ build-pb:
 lint:
 	python -m black riteraft
 	python -m isort riteraft
+	python -m black examples
+	python -m isort examples
 
 install:
 	pip uninstall riteraft -y
