@@ -2,3 +2,4 @@ grpcio==1.54.2
 protobuf==4.23.2
 lmdb==1.4.0
 rraft-py==0.1.0  # https://github.com/lablup/rraft-py
+tomli~=2.0.1

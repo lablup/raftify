@@ -5,6 +5,7 @@ from asyncio import Queue
 
 from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
 
+from riteraft.error import ClusterJoinError
 from riteraft.fsm import FSM
 from riteraft.mailbox import Mailbox
 from riteraft.protos import raft_service_pb2
@@ -23,6 +24,7 @@ class RaftCluster:
         self.fsm = fsm
         self.logger = logger
         self.chan = Queue(maxsize=100)
+        self.raft_node = None
 
     def mailbox(self) -> Mailbox:
         """
@@ -30,31 +32,34 @@ class RaftCluster:
         """
         return Mailbox(self.chan)
 
-    async def lead(self) -> None:
+    def get_peers(self) -> dict[int, RaftClient]:
+        return self.raft_node.peers
+
+    async def bootstrap_cluster(self) -> None:
         """
         Create a new leader for the cluster, with id 1. There has to be exactly one node in the
         cluster that is initialized that way
         """
         asyncio.create_task(RaftServer(self.addr, self.chan).run())
-        await asyncio.create_task(
-            RaftNode.new_leader(self.chan, self.fsm, self.logger).run()
-        )
+        raft_node = RaftNode.bootstrap_leader(self.chan, self.fsm, self.logger)
+        self.raft_node = raft_node
+        await asyncio.create_task(raft_node.run())
         logging.warning("Leaving leader node")
 
-    async def join(self, peer_addr: SocketAddr) -> None:
+    async def join_cluster(self, peer_addr: SocketAddr) -> None:
         """
         Try to join a new cluster at `peer_addr`, getting an id from the leader, or finding it if
         `peer_addr` is not the current leader of the cluster
         """
 
         # 1. Discover the leader of the cluster and obtain an 'node_id'.
-        logging.info(f"Attempting to join peer cluster at {str(peer_addr)}")
+        logging.info(f'Attempting to join peer cluster at "{peer_addr}"')
 
         leader_addr = None
 
         while not leader_addr:
             client = RaftClient(peer_addr)
-            resp = await client.request_id(self.addr)
+            resp = await client.request_id(peer_addr)
 
             match resp.code:
                 case raft_service_pb2.Ok:
@@ -66,13 +71,14 @@ class RaftCluster:
                     logging.info(f"Wrong leader, retrying with leader at {peer_addr}")
                     continue
                 case raft_service_pb2.Error:
-                    logging.error("Failed to join the cluster!")
-                    return
+                    raise ClusterJoinError(f'Failed to connect "{peer_addr}"')
 
-        logging.info(f"Obtained node_id {node_id} from leader {leader_id}.")
+        logging.info(f"Obtained node id {node_id} from the leader {leader_id}.")
 
         # 2. Run server and node to prepare for joining
         raft_node = RaftNode.new_follower(self.chan, node_id, self.fsm, self.logger)
+        self.raft_node = raft_node
+
         raft_node.peers = {
             node_id: RaftClient(addr) for node_id, addr in peer_addrs.items()
         }

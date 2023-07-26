@@ -64,7 +64,9 @@ class RaftNode:
         self.last_snap_time = last_snap_time
 
     @staticmethod
-    def new_leader(chan: Queue, fsm: FSM, logger: Logger | LoggerRef) -> "RaftNode":
+    def bootstrap_leader(
+        chan: Queue, fsm: FSM, logger: Logger | LoggerRef
+    ) -> "RaftNode":
         config = Config.default()
         config.set_id(1)
         config.set_election_tick(10)
@@ -114,6 +116,7 @@ class RaftNode:
         config.set_heartbeat_tick(3)
         config.validate()
 
+        # TODO: Create mdb files in temp dir path. Now it create them in current dir for easy test and debugging.
         lmdb = LMDBStorage.create(".", id)
         storage = Storage(lmdb)
         raw_node = RawNode(config, storage, logger)
@@ -184,6 +187,7 @@ class RaftNode:
                 )
 
     async def send_wrong_leader(self, channel: Queue) -> None:
+        print("self.peers", self.peers)
         assert self.leader() in self.peers, "Leader can't be an empty node!"
 
         try:

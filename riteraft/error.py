@@ -4,3 +4,7 @@ class GrpcConnectionError(Exception):
 
 class UnknownError(Exception):
     pass
+
+
+class ClusterJoinError(Exception):
+    pass
