@@ -3,10 +3,11 @@ import logging
 import pickle
 from asyncio import Queue
 
+import grpc
 from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
 
 from riteraft.channel import Channel
-from riteraft.error import ClusterJoinError
+from riteraft.error import ClusterJoinError, UnknownError
 from riteraft.fsm import FSM
 from riteraft.protos import raft_service_pb2
 from riteraft.raft_client import RaftClient
@@ -41,51 +42,68 @@ class RaftCluster:
         cluster that is initialized that way
         """
         asyncio.create_task(RaftServer(self.addr, self.chan).run())
-        raft_node = RaftNode.bootstrap_leader(self.chan, self.fsm, self.logger)
-        self.raft_node = raft_node
-        await asyncio.create_task(raft_node.run())
+        self.raft_node = RaftNode.bootstrap_leader(self.chan, self.fsm, self.logger)
+        await asyncio.create_task(self.raft_node.run())
         logging.warning("Leaving leader node")
 
-    async def join_cluster(self, peer_addr: SocketAddr) -> None:
+    async def join_cluster(self, peer_candidates: list[SocketAddr]) -> None:
         """
         Try to join a new cluster at `peer_addr`, getting an id from the leader, or finding it if
         `peer_addr` is not the current leader of the cluster
         """
 
         # 1. Discover the leader of the cluster and obtain an 'node_id'.
-        logging.info(f'Attempting to join peer cluster at "{peer_addr}"')
+        for peer_addr in peer_candidates:
+            logging.info(f'Attempting to join peer cluster at "{peer_addr}"')
 
-        leader_addr = None
+            leader_addr = None
+            seek_next = False
 
-        while not leader_addr:
-            client = RaftClient(peer_addr)
-            resp = await client.request_id(peer_addr)
-
-            match resp.code:
-                case raft_service_pb2.Ok:
-                    leader_addr = peer_addr
-                    leader_id, node_id, peer_addrs = pickle.loads(resp.data)
+            while not leader_addr:
+                client = RaftClient(peer_addr)
+                try:
+                    resp = await client.request_id(peer_addr)
+                except grpc.aio.AioRpcError:
+                    seek_next = True
                     break
-                case raft_service_pb2.WrongLeader:
-                    _, peer_addr, _ = pickle.loads(resp.data)
-                    logging.info(f"Wrong leader, retrying with leader at {peer_addr}")
-                    continue
-                case raft_service_pb2.Error:
-                    raise ClusterJoinError(f'Failed to connect "{peer_addr}"')
+
+                match resp.code:
+                    case raft_service_pb2.Ok:
+                        leader_addr = peer_addr
+                        leader_id, node_id, peer_addrs = pickle.loads(resp.data)
+                        break
+                    case raft_service_pb2.WrongLeader:
+                        _, peer_addr, _ = pickle.loads(resp.data)
+                        logging.info(
+                            f"Wrong leader, retrying with leader at {peer_addr}"
+                        )
+                        continue
+                    case raft_service_pb2.Error | _:
+                        raise UnknownError("Failed to join the cluster!")
+
+            if not seek_next:
+                break
+        else:
+            raise ClusterJoinError(
+                "Could not join the cluster. Check your raft configuration and check to make sure that any of them is alive."
+            )
+
+        assert leader_id is not None and node_id is not None
 
         logging.info(f"Obtained node id {node_id} from the leader {leader_id}.")
 
         # 2. Run server and node to prepare for joining
-        raft_node = RaftNode.new_follower(self.chan, node_id, self.fsm, self.logger)
-        self.raft_node = raft_node
+        self.raft_node = RaftNode.new_follower(
+            self.chan, node_id, self.fsm, self.logger
+        )
 
-        raft_node.peers = {
+        self.raft_node.peers = {
             node_id: RaftClient(addr) for node_id, addr in peer_addrs.items()
         }
+        self.raft_node.peers[leader_id] = client
 
-        raft_node.peers[leader_id] = client
         _ = asyncio.create_task(RaftServer(self.addr, self.chan).run())
-        raft_node_handle = asyncio.create_task(raft_node.run())
+        raft_node_handle = asyncio.create_task(self.raft_node.run())
 
         # 3. Join the cluster
         conf_change = ConfChange.default()
