@@ -102,6 +102,12 @@ async def leave(request: web.Request) -> web.Response:
     return web.Response(text="OK")
 
 
+@routes.get("/peers")
+async def show_current_peers(request: web.Request) -> web.Response:
+    cluster: RaftClusterFacade = request.app["state"]["cluster"]
+    return web.Response(text=str(cluster.get_peers()))
+
+
 async def main() -> None:
     setup_logger()
     parser = argparse.ArgumentParser()
@@ -123,10 +129,10 @@ async def main() -> None:
 
     tasks = []
     if bootstrap:
-        new_cluster = RaftClusterFacade(peer_addrs[0], store, logger)
-        mailbox = new_cluster.mailbox()
+        cluster = RaftClusterFacade(peer_addrs[0], store, logger)
+        mailbox = cluster.mailbox()
         logger.info("Bootstrap cluster")
-        tasks.append(new_cluster.bootstrap_cluster())
+        tasks.append(cluster.bootstrap_cluster())
     else:
         logger.info("Running in follower mode")
 
@@ -150,6 +156,7 @@ async def main() -> None:
         app["state"] = {
             "store": store,
             "mailbox": mailbox,
+            "cluster": cluster,
         }
 
         host, port = web_server_addr.split(":")

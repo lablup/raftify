@@ -24,6 +24,7 @@ class RaftClusterFacade:
         self.fsm = fsm
         self.logger = logger
         self.chan = Queue(maxsize=100)
+        self.raft_node = None
 
     def mailbox(self) -> Mailbox:
         """
@@ -31,15 +32,18 @@ class RaftClusterFacade:
         """
         return Mailbox(self.chan)
 
+    def get_peers(self) -> dict[int, RaftClient]:
+        return self.raft_node.peers
+
     async def bootstrap_cluster(self) -> None:
         """
         Create a new leader for the cluster, with id 1. There has to be exactly one node in the
         cluster that is initialized that way
         """
         asyncio.create_task(RaftServer(self.addr, self.chan).run())
-        await asyncio.create_task(
-            RaftNode.bootstrap_leader(self.chan, self.fsm, self.logger).run()
-        )
+        raft_node = RaftNode.bootstrap_leader(self.chan, self.fsm, self.logger)
+        self.raft_node = raft_node
+        await asyncio.create_task(raft_node.run())
         logging.warning("Leaving leader node")
 
     async def join_cluster(self, peer_addr: SocketAddr) -> None:
@@ -73,6 +77,8 @@ class RaftClusterFacade:
 
         # 2. Run server and node to prepare for joining
         raft_node = RaftNode.new_follower(self.chan, node_id, self.fsm, self.logger)
+        self.raft_node = raft_node
+
         raft_node.peers = {
             node_id: RaftClient(addr) for node_id, addr in peer_addrs.items()
         }
