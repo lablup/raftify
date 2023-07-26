@@ -1,18 +1,19 @@
 import argparse
 import asyncio
-from contextlib import suppress
 import logging
-from threading import Lock
-from typing import Optional
 import os
 import pickle
+from contextlib import suppress
+from threading import Lock
+from typing import Optional
 
 from aiohttp import web
 from aiohttp.web import Application, RouteTableDef
 from rraft import default_logger
+
+from riteraft import RaftCluster
 from riteraft.fsm import FSM
 from riteraft.mailbox import Mailbox
-from riteraft.raft_facade import RaftClusterFacade
 
 
 def setup_logger():
@@ -102,7 +103,7 @@ async def main() -> None:
     web_server_addr = args.web_server
 
     store = HashStore()
-    raft_cluster = RaftClusterFacade(raft_addr, store, logger)
+    raft_cluster = RaftCluster(raft_addr, store, logger)
     mailbox = raft_cluster.mailbox()
 
     tasks = []
