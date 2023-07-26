@@ -52,8 +52,8 @@ class RaftClusterFacade:
         `peer_addr` is not the current leader of the cluster
         """
 
+        # 1. Discover the leader of the cluster and obtain an 'node_id'.
         for peer_addr in peer_candidates:
-            # 1. Discover the leader of the cluster and obtain an 'node_id'.
             logging.info(f'Attempting to join peer cluster at "{peer_addr}"')
 
             leader_addr = None
@@ -89,7 +89,7 @@ class RaftClusterFacade:
                 "Could not join the cluster. Check your raft configuration and check to make sure that any of them is alive."
             )
 
-        assert leader_id is not None, "leader id should not be None"
+        assert leader_id is not None and node_id is not None
 
         logging.info(f"Obtained node id {node_id} from the leader {leader_id}.")
 
@@ -101,8 +101,8 @@ class RaftClusterFacade:
         self.raft_node.peers = {
             node_id: RaftClient(addr) for node_id, addr in peer_addrs.items()
         }
-
         self.raft_node.peers[leader_id] = client
+
         _ = asyncio.create_task(RaftServer(self.addr, self.chan).run())
         raft_node_handle = asyncio.create_task(self.raft_node.run())
 

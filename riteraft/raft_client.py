@@ -16,6 +16,9 @@ class RaftClient:
         self.addr = addr
         self.credentials = credentials
 
+    def __repr__(self) -> str:
+        return f"RaftClient(addr={self.addr})"
+
     def __create_channel(self) -> grpc.aio.Channel:
         if credentials := self.credentials:
             return grpc.aio.secure_channel(str(self.addr), credentials)

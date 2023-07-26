@@ -189,7 +189,6 @@ class RaftNode:
                 )
 
     async def send_wrong_leader(self, channel: Queue) -> None:
-        print("self.peers", self.peers)
         assert self.leader() in self.peers, "Leader can't be an empty node!"
 
         try:
