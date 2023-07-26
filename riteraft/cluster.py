@@ -5,9 +5,9 @@ from asyncio import Queue
 
 from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
 
+from riteraft.channel import Channel
 from riteraft.error import ClusterJoinError
 from riteraft.fsm import FSM
-from riteraft.mailbox import Mailbox
 from riteraft.protos import raft_service_pb2
 from riteraft.raft_client import RaftClient
 from riteraft.raft_node import RaftNode
@@ -26,11 +26,11 @@ class RaftCluster:
         self.chan = Queue(maxsize=100)
         self.raft_node = None
 
-    def mailbox(self) -> Mailbox:
+    def channel(self) -> Channel:
         """
         Get the node's `Mailbox`.
         """
-        return Mailbox(self.chan)
+        return Channel(self.chan)
 
     def get_peers(self) -> dict[int, RaftClient]:
         return self.raft_node.peers

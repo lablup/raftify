@@ -16,7 +16,7 @@ from rraft import Logger, default_logger
 from riteraft import RaftCluster
 from riteraft.error import ClusterJoinError
 from riteraft.fsm import FSM
-from riteraft.mailbox import Mailbox
+from riteraft.channel import Channel
 from riteraft.utils import SocketAddr
 
 
@@ -88,17 +88,17 @@ async def get(request: web.Request) -> web.Response:
 
 @routes.get("/put/{id}/{name}")
 async def put(request: web.Request) -> web.Response:
-    mailbox: Mailbox = request.app["state"]["mailbox"]
+    channel: Channel = request.app["state"]["channel"]
     id, name = request.match_info["id"], request.match_info["name"]
     message = SetCommand(int(id), name)
-    result = await mailbox.send(message.encode())
+    result = await channel.send(message.encode())
     return web.Response(text=f'"{str(pickle.loads(result))}"')
 
 
 @routes.get("/leave")
 async def leave(request: web.Request) -> web.Response:
-    mailbox: Mailbox = request.app["state"]["mailbox"]
-    await mailbox.leave()
+    channel: Channel = request.app["state"]["channel"]
+    await channel.leave()
     return web.Response(text="OK")
 
 
@@ -130,7 +130,7 @@ async def main() -> None:
     tasks = []
     if bootstrap:
         cluster = RaftCluster(peer_addrs[0], store, logger)
-        mailbox = cluster.mailbox()
+        channel = cluster.channel()
         logger.info("Bootstrap cluster")
         tasks.append(cluster.bootstrap_cluster())
     else:
@@ -140,7 +140,7 @@ async def main() -> None:
             try:
                 cluster = RaftCluster(raft_addr, store, logger)
                 tasks.append(cluster.join_cluster(peer_addr))
-                mailbox = cluster.mailbox()
+                channel = cluster.channel()
                 break
             except ClusterJoinError:
                 pass
@@ -155,7 +155,7 @@ async def main() -> None:
         app.add_routes(routes)
         app["state"] = {
             "store": store,
-            "mailbox": mailbox,
+            "channel": channel,
             "cluster": cluster,
         }
 

@@ -13,7 +13,7 @@ from riteraft.message import (
 from riteraft.pb_adapter import ConfChangeAdapter
 
 
-class Mailbox:
+class Channel:
     """
     A mailbox to send messages to a running raft node.
     """
