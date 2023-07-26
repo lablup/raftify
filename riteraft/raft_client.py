@@ -18,8 +18,8 @@ class RaftClient:
 
     def __create_channel(self) -> grpc.aio.Channel:
         if credentials := self.credentials:
-            return grpc.aio.secure_channel(self.addr, credentials)
-        return grpc.aio.insecure_channel(self.addr)
+            return grpc.aio.secure_channel(str(self.addr), credentials)
+        return grpc.aio.insecure_channel(str(self.addr))
 
     async def change_config(
         self, cc: ConfChange, timeout: float = 5.0

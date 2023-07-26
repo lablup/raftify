@@ -1,25 +1,39 @@
 import argparse
 import asyncio
-from contextlib import suppress
 import logging
-from threading import Lock
-from typing import Optional
 import os
 import pickle
+from contextlib import suppress
+from pathlib import Path
+from threading import Lock
+from typing import Optional
 
+import tomli
 from aiohttp import web
 from aiohttp.web import Application, RouteTableDef
-from rraft import default_logger
+from rraft import Logger, default_logger
+
+from riteraft.error import ClusterJoinError
 from riteraft.fsm import FSM
 from riteraft.mailbox import Mailbox
 from riteraft.raft_facade import RaftClusterFacade
+from riteraft.utils import SocketAddr
 
 
-def setup_logger():
+def setup_logger() -> Logger:
     # Set up rraft-py's slog log-level to Debug.
+    # TODO: This method should be improved in rraft-py.
     os.environ["RUST_LOG"] = "debug"
     logging.basicConfig(level=logging.DEBUG)
     return default_logger()
+
+
+def load_peer_candidates() -> list[SocketAddr]:
+    path = Path(__file__).parent / "config.toml"
+    return [
+        SocketAddr.from_str(addr)
+        for addr in tomli.loads(path.read_text())["raft"]["peer-candidates"]
+    ]
 
 
 logger = setup_logger()
@@ -91,27 +105,43 @@ async def leave(request: web.Request) -> web.Response:
 async def main() -> None:
     setup_logger()
     parser = argparse.ArgumentParser()
-    parser.add_argument("--raft-addr", required=True)
-    parser.add_argument("--peer-addr", default=None)
+    parser.add_argument(
+        "--bootstrap", action=argparse.BooleanOptionalAction, default=None
+    )
+    parser.add_argument("--raft-addr", default=None)
     parser.add_argument("--web-server", default=None)
 
     args = parser.parse_args()
 
+    bootstrap = args.bootstrap
     raft_addr = args.raft_addr
-    peer_addr = args.peer_addr
     web_server_addr = args.web_server
 
+    peer_addrs = load_peer_candidates()
+
     store = HashStore()
-    raft_cluster = RaftClusterFacade(raft_addr, store, logger)
-    mailbox = raft_cluster.mailbox()
 
     tasks = []
-    if peer_addr:
-        logger.info("Running in follower mode")
-        tasks.append(raft_cluster.join(peer_addr))
+    if bootstrap:
+        new_cluster = RaftClusterFacade(peer_addrs[0], store, logger)
+        mailbox = new_cluster.mailbox()
+        logger.info("Bootstrap cluster")
+        tasks.append(new_cluster.bootstrap_cluster())
     else:
-        logger.info("Running in leader mode")
-        tasks.append(raft_cluster.lead())
+        logger.info("Running in follower mode")
+
+        for peer_addr in peer_addrs:
+            try:
+                cluster = RaftClusterFacade(raft_addr, store, logger)
+                tasks.append(cluster.join(peer_addr))
+                mailbox = cluster.mailbox()
+                break
+            except ClusterJoinError:
+                pass
+        else:
+            raise ClusterJoinError(
+                "Could not join the cluster. Check your raft configuration and check to make sure that any of them is alive."
+            )
 
     runner = None
     if web_server_addr:
