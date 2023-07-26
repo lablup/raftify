@@ -81,9 +81,8 @@ class RaftClusterFacade:
                     case raft_service_pb2.Error | _:
                         raise UnknownError("Failed to join the cluster!")
 
-            if seek_next:
-                continue
-            break
+            if not seek_next:
+                break
         else:
             raise ClusterJoinError(
                 "Could not join the cluster. Check your raft configuration and check to make sure that any of them is alive."
