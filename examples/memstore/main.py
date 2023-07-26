@@ -126,8 +126,6 @@ async def main() -> None:
     peer_addrs = load_peer_candidates()
 
     store = HashStore()
-    raft_cluster = RaftCluster(raft_addr, store, logger)
-    mailbox = raft_cluster.mailbox()
 
     tasks = []
     if bootstrap:
