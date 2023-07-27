@@ -45,7 +45,7 @@ class RaftCluster:
         self.raft_node = RaftNode.bootstrap_leader(self.chan, self.fsm, self.logger)
         await asyncio.create_task(self.raft_node.run())
 
-    async def join_cluster(self, peer_candidates: list[SocketAddr]) -> None:
+    async def join_cluster(self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]) -> None:
         """
         Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
         """
@@ -60,7 +60,7 @@ class RaftCluster:
             while not leader_addr:
                 client = RaftClient(peer_addr)
                 try:
-                    resp = await client.request_id(peer_addr)
+                    resp = await client.request_id(raft_addr)
                 except grpc.aio.AioRpcError:
                     seek_next = True
                     break
