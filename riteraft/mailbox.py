@@ -49,11 +49,12 @@ class Mailbox:
         change.set_change_type(ConfChangeType.RemoveNode)
 
         receiver = Queue()
-        if await self.__sender.put(
+        await self.__sender.put(
             MessageConfigChange(ConfChangeAdapter.to_pb(change), receiver)
-        ):
-            resp = await receiver.get()
-            if isinstance(resp, RaftRespOk):
-                return
-            else:
-                raise UnknownError(f"Unknown response data: {resp}")
+        )
+
+        resp = await receiver.get()
+        if isinstance(await receiver.get(), RaftRespOk):
+            return
+        else:
+            raise UnknownError(f"Unknown response data: {resp}")
