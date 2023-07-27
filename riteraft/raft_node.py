@@ -172,10 +172,6 @@ class RaftNode:
 
     def send_messages(self, msgs: list[Message]):
         for msg in msgs:
-            logging.debug(
-                f"light ready message from {msg.get_from()} to {msg.get_to()}."
-            )
-
             if client := self.peers.get(msg.get_to()):
                 asyncio.create_task(
                     MessageSender(
@@ -266,7 +262,7 @@ class RaftNode:
                 self.peers[node_id] = RaftClient(addr)
             case ConfChangeType.RemoveNode:
                 if change.get_node_id() == self.get_id():
-                    logging.warning(f"{self.get_id()} quit the cluster.")
+                    logging.info(f"{self.get_id()} quit the cluster.")
                     sys.exit(0)
                 else:
                     self.peers.pop(change.get_node_id(), None)
@@ -354,7 +350,6 @@ class RaftNode:
             elif isinstance(message, MessageRequestId):
                 if not self.is_leader():
                     # TODO: retry strategy in case of failure
-                    logging.info("Requested Id, but not leader.")
                     await self.send_wrongleader_response(message.chan)
                 else:
                     await message.chan.put(
@@ -367,7 +362,7 @@ class RaftNode:
 
             elif isinstance(message, MessageRaft):
                 msg = MessageAdapter.from_pb(message.msg)
-                logging.debug(f'Received raft message from the "node {msg.get_from()}"')
+                logging.debug(f'Received raft-rs internal message from the "node {msg.get_from()}"')
 
                 try:
                     self.raw_node.step(msg)
