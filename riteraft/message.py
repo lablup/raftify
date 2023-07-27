@@ -40,14 +40,12 @@ class RaftRespResponse(Serializer):
 
 @dataclass
 class RaftRespError(Serializer):
-    def __init__(self):
-        pass
+    pass
 
 
 @dataclass
 class RaftRespOk(Serializer):
-    def __init__(self):
-        pass
+    pass
 
 
 @dataclass

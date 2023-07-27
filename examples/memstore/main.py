@@ -106,7 +106,7 @@ async def leave(request: web.Request) -> web.Response:
 
 
 @routes.get("/peers")
-async def show_current_peers(request: web.Request) -> web.Response:
+async def peers(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
     return web.Response(text=str(cluster.get_peers()))
 
@@ -132,11 +132,17 @@ async def main() -> None:
 
     tasks = []
     if bootstrap:
+        assert raft_addr is None, "Cannot specify both --bootstrap and --raft-addr."
+
         cluster = RaftCluster(peer_addrs[0], store, logger)
         mailbox = cluster.mailbox()
-        logger.info("Bootstrap cluster")
+        logger.info("Bootstrap a cluster")
         tasks.append(cluster.bootstrap_cluster())
     else:
+        assert (
+            raft_addr is not None
+        ), "Follower node requires a --raft-addr option to join the cluster"
+
         logger.info("Running in follower mode")
         cluster = RaftCluster(raft_addr, store, logger)
         tasks.append(cluster.join_cluster(peer_addrs))
