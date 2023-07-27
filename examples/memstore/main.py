@@ -130,7 +130,9 @@ async def main() -> None:
     args = parser.parse_args()
 
     bootstrap = args.bootstrap
-    raft_addr = SocketAddr.from_str(args.raft_addr) if args.raft_addr is not None else None
+    raft_addr = (
+        SocketAddr.from_str(args.raft_addr) if args.raft_addr is not None else None
+    )
     web_server_addr = args.web_server
 
     peer_addrs = load_peer_candidates()

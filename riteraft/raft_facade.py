@@ -45,7 +45,9 @@ class RaftCluster:
         self.raft_node = RaftNode.bootstrap_leader(self.chan, self.fsm, self.logger)
         await asyncio.create_task(self.raft_node.run())
 
-    async def join_cluster(self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]) -> None:
+    async def join_cluster(
+        self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]
+    ) -> None:
         """
         Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
         """
