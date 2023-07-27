@@ -136,14 +136,14 @@ class RaftNode:
             last_snap_time,
         )
 
-    def id(self) -> int:
+    def get_id(self) -> int:
         return self.raw_node.get_raft().get_id()
 
-    def leader(self) -> int:
+    def get_leader_id(self) -> int:
         return self.raw_node.get_raft().get_leader_id()
 
     def is_leader(self) -> bool:
-        return self.id() == self.leader()
+        return self.get_id() == self.get_leader_id()
 
     def peer_addrs(self) -> dict[int, str]:
         return {k: str(v.addr) for k, v in self.peers.items() if v is not None}
@@ -160,10 +160,10 @@ class RaftNode:
             next_id = prev_conns[0]
         else:
             next_id = max(self.peers.keys()) if any(self.peers) else 1
-            next_id = max(next_id + 1, self.id())
+            next_id = max(next_id + 1, self.get_id())
 
             # if assigned id is ourself, return next one
-            if next_id == self.id():
+            if next_id == self.get_id():
                 next_id += 1
 
         logging.info(f"Reserved peer id {next_id}.")
@@ -190,14 +190,14 @@ class RaftNode:
 
     async def send_wrongleader_response(self, channel: Queue) -> None:
         # TODO: Make this follower to new cluster's leader
-        assert self.leader() in self.peers, "Leader can't be an empty node!"
+        assert self.get_leader_id() in self.peers, "Leader can't be an empty node!"
 
         try:
             # TODO: handle error here
             await channel.put(
                 RaftRespWrongLeader(
-                    leader_id=self.leader(),
-                    leader_addr=str(self.peers[self.leader()].addr),
+                    leader_id=self.get_leader_id(),
+                    leader_addr=str(self.peers[self.get_leader_id()].addr),
                 )
             )
         except Exception:
@@ -265,8 +265,8 @@ class RaftNode:
                 )
                 self.peers[node_id] = RaftClient(addr)
             case ConfChangeType.RemoveNode:
-                if change.get_node_id() == self.id():
-                    logging.warning(f"{self.id()} quit the cluster.")
+                if change.get_node_id() == self.get_id():
+                    logging.warning(f"{self.get_id()} quit the cluster.")
                     sys.exit(0)
                 else:
                     self.peers.pop(change.get_node_id(), None)
@@ -326,7 +326,7 @@ class RaftNode:
 
                 # whenever a change id is 0, it's a message to self.
                 if change.get_node_id() == 0:
-                    change.set_node_id(self.id())
+                    change.set_node_id(self.get_id())
 
                 if not self.is_leader():
                     # wrong leader send client cluster data
@@ -359,7 +359,7 @@ class RaftNode:
                 else:
                     await message.chan.put(
                         RaftRespIdReserved(
-                            leader_id=self.leader(),
+                            leader_id=self.get_leader_id(),
                             reserved_id=self.reserve_next_peer_id(message.addr),
                             peer_addrs=self.peer_addrs(),
                         )
