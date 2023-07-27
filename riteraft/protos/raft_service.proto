@@ -7,6 +7,7 @@ service RaftService {
   rpc RequestId(RequestIdArgs) returns (IdRequestResponse) {}
   rpc ChangeConfig(eraftpb.ConfChange) returns (RaftResponse) {}
   rpc SendMessage(eraftpb.Message) returns (RaftResponse) {}
+  rpc RerouteMessage(RerouteMessageArgs) returns (RaftResponse) {}
 }
 
 enum ResultCode {
@@ -35,4 +36,8 @@ message Entry {
 
 message RaftResponse {
   bytes inner = 2;
+}
+
+message RerouteMessageArgs {
+  bytes inner = 1;
 }

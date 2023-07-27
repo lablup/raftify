@@ -3,8 +3,8 @@ from asyncio import Queue
 
 from rraft import Message
 
-from riteraft.message import MessageReportUnreachable
 from riteraft.raft_client import RaftClient
+from riteraft.request_message import MessageReportUnreachable
 
 
 class MessageSender:

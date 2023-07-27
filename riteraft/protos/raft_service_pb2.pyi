@@ -58,3 +58,9 @@ class RaftResponse(_message.Message):
     INNER_FIELD_NUMBER: _ClassVar[int]
     inner: bytes
     def __init__(self, inner: _Optional[bytes] = ...) -> None: ...
+
+class RerouteMessageArgs(_message.Message):
+    __slots__ = ["inner"]
+    INNER_FIELD_NUMBER: _ClassVar[int]
+    inner: bytes
+    def __init__(self, inner: _Optional[bytes] = ...) -> None: ...

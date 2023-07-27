@@ -5,17 +5,21 @@ from asyncio import Queue
 
 import grpc
 
-from riteraft.message import (
+from riteraft.protos import eraftpb_pb2, raft_service_pb2
+from riteraft.request_message import (
     MessageConfigChange,
     MessageRaft,
     MessageRequestId,
+    MessageRerouteToLeader,
+)
+from riteraft.response_message import (
     RaftRespError,
     RaftRespIdReserved,
     RaftRespJoinSuccess,
     RaftRespOk,
+    RaftRespResponse,
     RaftRespWrongLeader,
 )
-from riteraft.protos import eraftpb_pb2, raft_service_pb2
 
 
 class RaftService:
@@ -78,3 +82,26 @@ class RaftService:
     ) -> raft_service_pb2.RaftResponse:
         await self.sender.put(MessageRaft(request))
         return raft_service_pb2.RaftResponse(inner=RaftRespOk().encode())
+
+    async def RerouteMessage(
+        self,
+        request: raft_service_pb2.RerouteMessageArgs,
+        context: grpc.aio.ServicerContext,
+    ) -> raft_service_pb2.RaftResponse:
+        receiver = Queue()
+
+        await self.sender.put(MessageRerouteToLeader(request.inner, receiver))
+        reply = raft_service_pb2.RaftResponse()
+
+        try:
+            if raft_response := await asyncio.wait_for(receiver.get(), 2):
+                if isinstance(raft_response, RaftRespResponse):
+                    print("yes!!!")
+                    reply.inner = raft_response.data
+
+        except asyncio.TimeoutError:
+            reply.inner = RaftRespError().encode()
+            logging.error("Timeout waiting for reply")
+
+        finally:
+            return reply

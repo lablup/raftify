@@ -23,21 +23,24 @@ from rraft import (
 
 from riteraft.fsm import FSM
 from riteraft.lmdb import LMDBStorage
-from riteraft.message import (
+from riteraft.message_sender import MessageSender
+from riteraft.pb_adapter import ConfChangeAdapter, MessageAdapter
+from riteraft.raft_client import RaftClient
+from riteraft.request_message import (
     MessageConfigChange,
     MessagePropose,
     MessageRaft,
     MessageReportUnreachable,
     MessageRequestId,
+    MessageRerouteToLeader,
+)
+from riteraft.response_message import (
     RaftRespIdReserved,
     RaftRespJoinSuccess,
     RaftRespOk,
     RaftRespResponse,
     RaftRespWrongLeader,
 )
-from riteraft.message_sender import MessageSender
-from riteraft.pb_adapter import ConfChangeAdapter, MessageAdapter
-from riteraft.raft_client import RaftClient
 from riteraft.utils import AtomicInteger
 
 
@@ -338,14 +341,17 @@ class RaftNode:
                     context = pickle.dumps(self.seq.value)
                     self.raw_node.propose_conf_change(context, change)
 
-            elif isinstance(message, MessagePropose):
+            elif isinstance(message, MessagePropose) or isinstance(
+                message, MessageRerouteToLeader
+            ):
                 if not self.is_leader():
+                    # TODO: retry strategy in case of failure
                     await self.send_wrongleader_response(message.chan)
                 else:
                     self.seq.increase()
                     client_senders[self.seq.value] = message.chan
                     context = pickle.dumps(self.seq.value)
-                    self.raw_node.propose(context, message.proposal)
+                    self.raw_node.propose(context, message.data)
 
             elif isinstance(message, MessageRequestId):
                 if not self.is_leader():
