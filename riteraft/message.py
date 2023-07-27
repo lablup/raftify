@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import pickle
 from multiprocessing import Queue
 
@@ -9,46 +10,47 @@ class Encoder:
         return pickle.dumps(self)
 
 
+@dataclass
 class RaftRespWrongLeader(Encoder):
-    def __init__(self, leader_id: int, leader_addr: str):
-        self.leader_id = leader_id
-        self.leader_addr = leader_addr
+    leader_id: int
+    leader_addr: str
 
     @classmethod
     def decode(cls, data: bytes) -> "RaftRespWrongLeader":
         return cls(pickle.loads(data))
 
 
+@dataclass
 class RaftRespJoinSuccess(Encoder):
-    def __init__(self, assigned_id: int, peer_addrs: dict[int, str]):
-        self.assigned_id = assigned_id
-        self.peer_addrs = peer_addrs
+    assigned_id: int
+    peer_addrs: dict[int, str]
 
     @classmethod
     def decode(cls, data: bytes) -> "RaftRespJoinSuccess":
         return cls(pickle.loads(data))
 
 
+@dataclass
 class RaftRespIdReserved(Encoder):
-    def __init__(self, leader_id: int, reserved_id: int, peer_addrs: dict[int, str]):
-        self.leader_id = leader_id
-        self.reserved_id = reserved_id
-        self.peer_addrs = peer_addrs
+    leader_id: int
+    reserved_id: int
+    peer_addrs: dict[int, str]
 
     @classmethod
     def decode(cls, data: bytes) -> "RaftRespIdReserved":
         return cls(pickle.loads(data))
 
 
+@dataclass
 class RaftRespResponse(Encoder):
-    def __init__(self, data: bytes):
-        self.data = data
+    data: bytes
 
     @classmethod
     def decode(cls, data: bytes) -> "RaftRespResponse":
         return cls(pickle.loads(data))
 
 
+@dataclass
 class RaftRespError(Encoder):
     def __init__(self):
         pass
@@ -58,6 +60,7 @@ class RaftRespError(Encoder):
         return cls(pickle.loads(data))
 
 
+@dataclass
 class RaftRespOk(Encoder):
     def __init__(self):
         pass
@@ -67,48 +70,48 @@ class RaftRespOk(Encoder):
         return cls(pickle.loads(data))
 
 
+@dataclass
 class MessagePropose(Encoder):
-    def __init__(self, proposal: bytes, chan: Queue):
-        self.proposal = proposal
-        self.chan = chan
+    proposal: bytes
+    chan: Queue
 
     @classmethod
     def decode(cls, data: bytes) -> "MessagePropose":
         return cls(pickle.loads(data))
 
 
+@dataclass
 class MessageConfigChange(Encoder):
-    def __init__(self, change: ConfChange, chan: Queue):
-        self.change = change
-        self.chan = chan
+    change: ConfChange
+    chan: Queue
 
     @classmethod
     def decode(cls, data: bytes) -> "MessageConfigChange":
         return cls(pickle.loads(data))
 
 
+@dataclass
 class MessageRequestId(Encoder):
-    def __init__(self, addr: str, chan: Queue):
-        self.addr = addr
-        self.chan = chan
+    addr: str
+    chan: Queue
 
     @classmethod
     def decode(cls, data: bytes) -> "MessageRequestId":
         return cls(pickle.loads(data))
 
 
+@dataclass
 class MessageReportUnreachable(Encoder):
-    def __init__(self, node_id: int):
-        self.node_id = node_id
+    node_id: int
 
     @classmethod
     def decode(cls, data: bytes) -> "MessageReportUnreachable":
         return cls(pickle.loads(data))
 
 
+@dataclass
 class MessageRaft(Encoder):
-    def __init__(self, msg: Message):
-        self.msg = msg
+    msg: Message
 
     @classmethod
     def decode(cls, data: bytes) -> "MessageRaft":
