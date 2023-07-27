@@ -101,7 +101,7 @@ async def leave(request: web.Request) -> web.Response:
 
     await mailbox.leave()
     return web.Response(
-        text=f'Removed "node {cluster.raft_node.id()}" from the cluster successfully.'
+        text=f'Removed "node {cluster.raft_node.get_id()}" from the cluster successfully.'
     )
 
 
