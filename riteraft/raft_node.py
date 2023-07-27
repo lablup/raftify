@@ -362,7 +362,9 @@ class RaftNode:
 
             elif isinstance(message, MessageRaft):
                 msg = MessageAdapter.from_pb(message.msg)
-                logging.debug(f'Received raft-rs internal message from the "node {msg.get_from()}"')
+                logging.debug(
+                    f'Received raft-rs internal message from the "node {msg.get_from()}"'
+                )
 
                 try:
                     self.raw_node.step(msg)

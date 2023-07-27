@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import pickle
+from dataclasses import dataclass
 from multiprocessing import Queue
 
 from riteraft.protos.eraftpb_pb2 import ConfChange, Message

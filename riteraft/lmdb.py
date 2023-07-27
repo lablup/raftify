@@ -21,12 +21,20 @@ from rraft import (
     UnavailableError,
 )
 
-from riteraft.utils import decode_int, encode_int
-
 SNAPSHOT_KEY = b"snapshot"
 LAST_INDEX_KEY = b"last_index"
 HARD_STATE_KEY = b"hard_state"
 CONF_STATE_KEY = b"conf_state"
+
+
+def encode_int(v: int) -> bytes:
+    # TODO: Add exception handling logic when v is greater than 8 digits
+    assert v < 10**8, "Value greater than 10 ** 8 not supported"
+    return str(v).zfill(8).encode()
+
+
+def decode_int(v: bytes) -> int:
+    return int(v.decode())
 
 
 class LMDBStorageCore:
