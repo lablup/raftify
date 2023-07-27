@@ -193,7 +193,7 @@ class RaftNode:
         assert self.leader() in self.peers, "Leader can't be an empty node!"
 
         try:
-            # TODO handle error here
+            # TODO: handle error here
             await channel.put(
                 RaftRespWrongLeader(
                     leader_id=self.leader(),

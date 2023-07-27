@@ -24,12 +24,12 @@ class Mailbox:
     async def send(self, message: bytes) -> bytes:
         """
         Send a proposal message to commit to the node.
-        #TODO: This should not fail. Instead it should reroute the message to the leader.
+        # TODO: This should not fail. Instead it should reroute the message to the leader.
         This fails if the current node is not the leader.
         """
 
         receiver = Queue()
-        # TODO make timeout duration a variable
+        # TODO: make timeout duration a variable
         await self.__sender.put(MessagePropose(message, receiver))
 
         resp = None

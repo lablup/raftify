@@ -190,7 +190,7 @@ class LMDBStorage:
 
     def compact(self, index: int) -> None:
         def __compact(_store: LMDBStorageCore):
-            # TODO, check that compaction is legal
+            # TODO: check that compaction is legal
             # let last_index = self.last_index(&writer)?;
             # there should always be at least one entry in the log
             # assert!(last_index > index + 1);

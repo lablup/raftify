@@ -87,7 +87,9 @@ class RaftClusterFacade:
 
         assert leader_id is not None and node_id is not None
 
-        logging.info(f"Cluster join succeeded. Obtained node id {node_id} from the leader node {leader_id}.")
+        logging.info(
+            f"Cluster join succeeded. Obtained node id {node_id} from the leader node {leader_id}."
+        )
 
         # 2. Run server and node to prepare for joining
         self.raft_node = RaftNode.new_follower(
