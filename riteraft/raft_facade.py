@@ -44,7 +44,6 @@ class RaftClusterFacade:
         asyncio.create_task(RaftServer(self.addr, self.chan).run())
         self.raft_node = RaftNode.bootstrap_leader(self.chan, self.fsm, self.logger)
         await asyncio.create_task(self.raft_node.run())
-        logging.warning("Leaving leader node")
 
     async def join_cluster(self, peer_candidates: list[SocketAddr]) -> None:
         """

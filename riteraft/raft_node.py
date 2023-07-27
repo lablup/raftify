@@ -188,7 +188,8 @@ class RaftNode:
                     ).send()
                 )
 
-    async def send_wrong_leader(self, channel: Queue) -> None:
+    async def send_wrongleader_response(self, channel: Queue) -> None:
+        # TODO: Make this follower to new cluster's leader
         assert self.leader() in self.peers, "Leader can't be an empty node!"
 
         try:
@@ -243,6 +244,7 @@ class RaftNode:
 
             try:
                 self.lmdb.create_snapshot(snapshot, entry.get_index(), entry.get_term())
+                logging.info("Snapshot created successfully.")
             except Exception:
                 pass
 
@@ -264,7 +266,7 @@ class RaftNode:
                 self.peers[node_id] = RaftClient(addr)
             case ConfChangeType.RemoveNode:
                 if change.get_node_id() == self.id():
-                    logging.warning("Quitting the cluster.")
+                    logging.warning(f'{self.id()} quit the cluster.')
                     sys.exit(0)
                 else:
                     self.peers.pop(change.get_node_id(), None)
@@ -329,7 +331,7 @@ class RaftNode:
                 if not self.is_leader():
                     # wrong leader send client cluster data
                     # TODO: retry strategy in case of failure
-                    await self.send_wrong_leader(message.chan)
+                    await self.send_wrongleader_response(message.chan)
                 else:
                     # leader assign new id to peer
                     logging.debug(f"Received request from: {change.get_node_id()}")
@@ -340,7 +342,7 @@ class RaftNode:
 
             elif isinstance(message, MessagePropose):
                 if not self.is_leader():
-                    await self.send_wrong_leader(message.chan)
+                    await self.send_wrongleader_response(message.chan)
                 else:
                     self.seq.increase()
                     client_senders[self.seq.value] = message.chan
@@ -351,7 +353,7 @@ class RaftNode:
                 if not self.is_leader():
                     # TODO: retry strategy in case of failure
                     logging.info("Requested Id, but not leader")
-                    await self.send_wrong_leader(message.chan)
+                    await self.send_wrongleader_response(message.chan)
                 else:
                     await message.chan.put(
                         RaftRespIdReserved(
@@ -363,7 +365,7 @@ class RaftNode:
 
             elif isinstance(message, MessageRaft):
                 msg = MessageAdapter.from_pb(message.msg)
-                logging.debug(f"Received Raft message from {msg.get_from()}")
+                logging.debug(f'Received Raft message from "{msg.get_from()}"')
 
                 try:
                     self.raw_node.step(msg)
