@@ -15,7 +15,7 @@ from rraft import Logger, default_logger
 
 from riteraft.fsm import FSM
 from riteraft.mailbox import Mailbox
-from riteraft.raft_facade import RaftClusterFacade
+from riteraft.raft_facade import RaftCluster
 from riteraft.utils import SocketAddr
 
 
@@ -97,7 +97,7 @@ async def put(request: web.Request) -> web.Response:
 @routes.get("/leave")
 async def leave(request: web.Request) -> web.Response:
     mailbox: Mailbox = request.app["state"]["mailbox"]
-    cluster: RaftClusterFacade = request.app["state"]["cluster"]
+    cluster: RaftCluster = request.app["state"]["cluster"]
 
     await mailbox.leave()
     return web.Response(
@@ -107,7 +107,7 @@ async def leave(request: web.Request) -> web.Response:
 
 @routes.get("/peers")
 async def show_current_peers(request: web.Request) -> web.Response:
-    cluster: RaftClusterFacade = request.app["state"]["cluster"]
+    cluster: RaftCluster = request.app["state"]["cluster"]
     return web.Response(text=str(cluster.get_peers()))
 
 
@@ -132,13 +132,13 @@ async def main() -> None:
 
     tasks = []
     if bootstrap:
-        cluster = RaftClusterFacade(peer_addrs[0], store, logger)
+        cluster = RaftCluster(peer_addrs[0], store, logger)
         mailbox = cluster.mailbox()
         logger.info("Bootstrap cluster")
         tasks.append(cluster.bootstrap_cluster())
     else:
         logger.info("Running in follower mode")
-        cluster = RaftClusterFacade(raft_addr, store, logger)
+        cluster = RaftCluster(raft_addr, store, logger)
         tasks.append(cluster.join_cluster(peer_addrs))
         mailbox = cluster.mailbox()
 

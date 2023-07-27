@@ -5,7 +5,7 @@ from .lmdb import LMDBStorage, LMDBStorageCore  # noqa: F401
 from .mailbox import Mailbox  # noqa: F401
 from .message_sender import MessageSender  # noqa: F401
 from .raft_client import RaftClient  # noqa: F401
-from .raft_facade import RaftClusterFacade  # noqa: F401
+from .raft_facade import RaftCluster  # noqa: F401
 from .raft_node import RaftNode  # noqa: F401
 from .raft_server import RaftServer  # noqa: F401
 

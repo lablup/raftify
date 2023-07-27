@@ -16,7 +16,7 @@ from riteraft.raft_server import RaftServer
 from riteraft.utils import SocketAddr
 
 
-class RaftClusterFacade:
+class RaftCluster:
     def __init__(self, addr: SocketAddr, fsm: FSM, logger: Logger | LoggerRef):
         """
         Creates a new node with the given address and store.
