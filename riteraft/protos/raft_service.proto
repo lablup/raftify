@@ -20,15 +20,6 @@ message Proposal {
   bytes inner = 1;
 }
 
-message IdRequestResponse {
-  ResultCode code = 1;
-  bytes data = 2;
-}
-
-message RequestIdArgs {
-  string addr = 1;
-}
-
 message Entry {
   uint64 key    = 1; 
   string value  = 2;
@@ -38,6 +29,26 @@ message RaftResponse {
   bytes inner = 2;
 }
 
+// IdRequest Message
+
+message IdRequestResponse {
+  ResultCode code = 1;
+  bytes data = 2;
+}
+
+message RequestIdArgs {
+  string addr = 1;
+}
+
+// Reroute Message
+
+enum RerouteMsgType {
+  ConfChange    = 0;
+  Propose       = 1;
+}
+
 message RerouteMessageArgs {
-  bytes inner = 1;
+  bytes proposed_data = 1;
+  eraftpb.ConfChange conf_change = 2;
+  RerouteMsgType type = 3;
 }

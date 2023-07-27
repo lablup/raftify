@@ -97,10 +97,19 @@ async def put(request: web.Request) -> web.Response:
 async def leave(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
 
-    await cluster.mailbox.leave()
+    await cluster.mailbox.leave(cluster.raft_node.get_id())
     return web.Response(
         text=f'Removed "node {cluster.raft_node.get_id()}" from the cluster successfully.'
     )
+
+
+@routes.get("/remove/{id}")
+async def remove(request: web.Request) -> web.Response:
+    cluster: RaftCluster = request.app["state"]["cluster"]
+    id = request.match_info["id"]
+
+    await cluster.mailbox.leave(int(id))
+    return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
 
 @routes.get("/peers")

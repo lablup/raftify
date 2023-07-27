@@ -90,13 +90,19 @@ class RaftService:
     ) -> raft_service_pb2.RaftResponse:
         receiver = Queue()
 
-        await self.sender.put(MessageRerouteToLeader(request.inner, receiver))
+        await self.sender.put(
+            MessageRerouteToLeader(
+                confchange=request.conf_change,
+                proposed_data=request.proposed_data,
+                type=request.type,
+                chan=receiver,
+            )
+        )
         reply = raft_service_pb2.RaftResponse()
 
         try:
             if raft_response := await asyncio.wait_for(receiver.get(), 2):
                 if isinstance(raft_response, RaftRespResponse):
-                    print("yes!!!")
                     reply.inner = raft_response.data
 
         except asyncio.TimeoutError:

@@ -52,9 +52,17 @@ class RaftClient:
             return await asyncio.wait_for(stub.RequestId(request), timeout)
 
     async def reroute_message(
-        self, msg_bytes: bytes, timeout: float = 5.0
+        self,
+        reroute_msg_type: raft_service_pb2.RerouteMsgType,
+        msg_bytes: Optional[bytes] = None,
+        confchange: Optional[raft_service_pb2.ConfChange] = None,
+        timeout: float = 5.0,
     ) -> raft_service_pb2.RaftResponse:
-        request = raft_service_pb2.RerouteMessageArgs(inner=msg_bytes)
+        request = raft_service_pb2.RerouteMessageArgs(
+            proposed_data=msg_bytes or b"",
+            conf_change=confchange,
+            type=reroute_msg_type,
+        )
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
