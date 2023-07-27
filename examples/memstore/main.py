@@ -66,7 +66,7 @@ class HashStore(FSM):
         with self._lock:
             message = SetCommand.decode(msg)
             self._store[message.key] = message.value
-            logging.info(f'Inserted: ({message.key}, "{message.value}")')
+            logging.info(f'SetCommand inserted: ({message.key}, "{message.value}")')
             return pickle.dumps(message.value)
 
     async def snapshot(self) -> bytes:
@@ -97,8 +97,12 @@ async def put(request: web.Request) -> web.Response:
 @routes.get("/leave")
 async def leave(request: web.Request) -> web.Response:
     mailbox: Mailbox = request.app["state"]["mailbox"]
+    cluster: RaftClusterFacade = request.app["state"]["cluster"]
+
     await mailbox.leave()
-    return web.Response(text="OK")
+    return web.Response(
+        text=f'Removed "node {cluster.raft_node.id()}" from the cluster successfully.'
+    )
 
 
 @routes.get("/peers")

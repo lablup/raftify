@@ -38,8 +38,7 @@ class RaftClusterFacade:
 
     async def bootstrap_cluster(self) -> None:
         """
-        Create a new leader for the cluster, with id 1. There has to be exactly one node in the
-        cluster that is initialized that way
+        Create a new leader for the cluster, with id 1.
         """
         asyncio.create_task(RaftServer(self.addr, self.chan).run())
         self.raft_node = RaftNode.bootstrap_leader(self.chan, self.fsm, self.logger)
@@ -47,13 +46,12 @@ class RaftClusterFacade:
 
     async def join_cluster(self, peer_candidates: list[SocketAddr]) -> None:
         """
-        Try to join a new cluster at `peer_addr`, getting an id from the leader, or finding it if
-        `peer_addr` is not the current leader of the cluster
+        Try to join a new cluster through `peer_candidates`, getting an id from the leader.
         """
 
         # 1. Discover the leader of the cluster and obtain an 'node_id'.
         for peer_addr in peer_candidates:
-            logging.info(f'Attempting to join peer cluster at "{peer_addr}"')
+            logging.info(f'Attempting to join the cluster through "{peer_addr}"...')
 
             leader_addr = None
             seek_next = False
@@ -74,7 +72,7 @@ class RaftClusterFacade:
                     case raft_service_pb2.WrongLeader:
                         _, peer_addr, _ = pickle.loads(resp.data)
                         logging.info(
-                            f"Wrong leader, retrying with leader at {peer_addr}"
+                            f"Sent message to the wrong leader, retrying with the leader at {peer_addr}"
                         )
                         continue
                     case raft_service_pb2.Error | _:
@@ -89,7 +87,7 @@ class RaftClusterFacade:
 
         assert leader_id is not None and node_id is not None
 
-        logging.info(f"Obtained node id {node_id} from the leader {leader_id}.")
+        logging.info(f"Cluster join succeeded. Obtained node id {node_id} from the leader node {leader_id}.")
 
         # 2. Run server and node to prepare for joining
         self.raft_node = RaftNode.new_follower(
@@ -97,11 +95,11 @@ class RaftClusterFacade:
         )
 
         self.raft_node.peers = {
-            node_id: RaftClient(addr) for node_id, addr in peer_addrs.items()
+            **{node_id: RaftClient(addr) for node_id, addr in peer_addrs.items()},
+            leader_id: client,
         }
-        self.raft_node.peers[leader_id] = client
 
-        _ = asyncio.create_task(RaftServer(self.addr, self.chan).run())
+        asyncio.create_task(RaftServer(self.addr, self.chan).run())
         raft_node_handle = asyncio.create_task(self.raft_node.run())
 
         # 3. Join the cluster

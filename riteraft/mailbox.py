@@ -24,6 +24,7 @@ class Mailbox:
     async def send(self, message: bytes) -> bytes:
         """
         Send a proposal message to commit to the node.
+        #TODO: This should not fail. Instead it should reroute the message to the leader.
         This fails if the current node is not the leader.
         """
 
@@ -54,7 +55,8 @@ class Mailbox:
         )
 
         resp = await receiver.get()
-        if isinstance(await receiver.get(), RaftRespOk):
+
+        if isinstance(resp, RaftRespOk):
             return
         else:
             raise UnknownError(f"Unknown response data: {resp}")

@@ -25,18 +25,15 @@ class RaftService:
     async def RequestId(
         self, request: raft_service_pb2.RequestIdArgs, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.IdRequestResponse:
-        chan = Queue()
-        addr = request.addr
-
+        receiver = Queue()
         try:
-            await self.sender.put(MessageRequestId(addr, chan))
+            await self.sender.put(MessageRequestId(request.addr, receiver))
         except Exception:
             pass
 
-        response = await chan.get()
+        response = await receiver.get()
 
         if isinstance(response, RaftRespWrongLeader):
-            logging.warning("Sending wrong leader")
             leader_id, leader_addr = response.leader_id, response.leader_addr
 
             return raft_service_pb2.IdRequestResponse(
@@ -58,12 +55,12 @@ class RaftService:
     async def ChangeConfig(
         self, request: eraftpb_pb2.ConfChange, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.RaftResponse:
-        chan = Queue()
-        await self.sender.put(MessageConfigChange(request, chan))
+        receiver = Queue()
+        await self.sender.put(MessageConfigChange(request, receiver))
         reply = raft_service_pb2.RaftResponse()
 
         try:
-            if raft_response := await asyncio.wait_for(chan.get(), 2):
+            if raft_response := await asyncio.wait_for(receiver.get(), 2):
                 if isinstance(raft_response, RaftRespOk) or isinstance(
                     raft_response, RaftRespJoinSuccess
                 ):

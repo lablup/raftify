@@ -1,6 +1,5 @@
 import pickle
 from multiprocessing import Queue
-from typing import Dict
 
 from riteraft.protos.eraftpb_pb2 import ConfChange, Message
 
@@ -21,7 +20,7 @@ class RaftRespWrongLeader(Encoder):
 
 
 class RaftRespJoinSuccess(Encoder):
-    def __init__(self, assigned_id: int, peer_addrs: Dict[int, str]):
+    def __init__(self, assigned_id: int, peer_addrs: dict[int, str]):
         self.assigned_id = assigned_id
         self.peer_addrs = peer_addrs
 
@@ -31,7 +30,7 @@ class RaftRespJoinSuccess(Encoder):
 
 
 class RaftRespIdReserved(Encoder):
-    def __init__(self, leader_id: int, reserved_id: int, peer_addrs: Dict[int, str]):
+    def __init__(self, leader_id: int, reserved_id: int, peer_addrs: dict[int, str]):
         self.leader_id = leader_id
         self.reserved_id = reserved_id
         self.peer_addrs = peer_addrs

@@ -98,7 +98,7 @@ class LMDBStorageCore:
             if not cursor.first():
                 raise StoreError(
                     UnavailableError(
-                        "There should always be at least one entry in the db"
+                        "There should always be at least one entry in the DB"
                     )
                 )
 
@@ -126,7 +126,7 @@ class LMDBStorageCore:
         max_size: Optional[int] = None,
     ) -> List[Entry]:
         with self.env.begin(write=False, db=self.entries_db) as entry_reader:
-            logging.info(f"Entries requested: {low}->{high}")
+            logging.info(f"Entries [{low}, {high}) requested")
 
             cursor = entry_reader.cursor()
             if not cursor.set_range(encode_int(low)):

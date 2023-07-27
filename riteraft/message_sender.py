@@ -39,7 +39,7 @@ class MessageSender:
                     current_retry += 1
                 else:
                     logging.debug(
-                        f"Error sending message after {self.max_retries} retries"
+                        f"Attempted to connect the {self.max_retries} retries, but were unable to establish a connection."
                     )
 
                     try:

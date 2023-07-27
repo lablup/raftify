@@ -4,7 +4,7 @@ import pickle
 import sys
 import time
 from asyncio import Queue
-from typing import Dict, List, Optional
+from typing import Optional
 
 from rraft import (
     ConfChange,
@@ -46,7 +46,7 @@ class RaftNode:
         self,
         raw_node: RawNode,
         # the peer client could be optional, because an id can be reserved and later populated
-        peers: Dict[int, Optional[RaftClient]],
+        peers: dict[int, Optional[RaftClient]],
         chan: Queue,
         fsm: FSM,
         lmdb: LMDBStorage,
@@ -145,7 +145,7 @@ class RaftNode:
     def is_leader(self) -> bool:
         return self.id() == self.leader()
 
-    def peer_addrs(self) -> Dict[int, str]:
+    def peer_addrs(self) -> dict[int, str]:
         return {k: str(v.addr) for k, v in self.peers.items() if v is not None}
 
     def reserve_next_peer_id(self, addr: str) -> int:
@@ -170,7 +170,7 @@ class RaftNode:
         self.peers[next_id] = None
         return next_id
 
-    def send_messages(self, msgs: List[Message]):
+    def send_messages(self, msgs: list[Message]):
         for msg in msgs:
             logging.debug(
                 f"light ready message from {msg.get_from()} to {msg.get_to()}."
@@ -205,8 +205,8 @@ class RaftNode:
 
     async def handle_committed_entries(
         self,
-        committed_entries: List[Entry] | List[EntryRef],
-        client_senders: Dict[int, Queue],
+        committed_entries: list[Entry] | list[EntryRef],
+        client_senders: dict[int, Queue],
     ) -> None:
         # Mostly, you need to save the last apply index to resume applying
         # after restart. Here we just ignore this because we use a Memory storage.
@@ -227,7 +227,7 @@ class RaftNode:
                     raise NotImplementedError
 
     async def handle_normal_entry(
-        self, entry: Entry | EntryRef, senders: Dict[int, Queue]
+        self, entry: Entry | EntryRef, senders: dict[int, Queue]
     ) -> None:
         seq = pickle.loads(entry.get_context())
         data = await self.fsm.apply(entry.get_data())
@@ -249,7 +249,7 @@ class RaftNode:
                 pass
 
     async def handle_config_change_entry(
-        self, entry: Entry | EntryRef, senders: Dict[int, Queue]
+        self, entry: Entry | EntryRef, senders: dict[int, Queue]
     ) -> None:
         seq = pickle.loads(entry.get_context())
         change = ConfChange.decode(entry.get_data())
@@ -266,7 +266,7 @@ class RaftNode:
                 self.peers[node_id] = RaftClient(addr)
             case ConfChangeType.RemoveNode:
                 if change.get_node_id() == self.id():
-                    logging.warning(f'{self.id()} quit the cluster.')
+                    logging.warning(f"{self.id()} quit the cluster.")
                     sys.exit(0)
                 else:
                     self.peers.pop(change.get_node_id(), None)
@@ -305,7 +305,7 @@ class RaftNode:
         heartbeat = 0.1
 
         # A map to contain sender to client responses
-        client_senders: Dict[int, Queue] = {}
+        client_senders: dict[int, Queue] = {}
         timer = time.time()
 
         while True:
@@ -334,7 +334,9 @@ class RaftNode:
                     await self.send_wrongleader_response(message.chan)
                 else:
                     # leader assign new id to peer
-                    logging.debug(f"Received request from: {change.get_node_id()}")
+                    logging.debug(
+                        f'Received request from the "node {change.get_node_id()}"'
+                    )
                     self.seq.increase()
                     client_senders[self.seq.value] = message.chan
                     context = pickle.dumps(self.seq.value)
@@ -352,7 +354,7 @@ class RaftNode:
             elif isinstance(message, MessageRequestId):
                 if not self.is_leader():
                     # TODO: retry strategy in case of failure
-                    logging.info("Requested Id, but not leader")
+                    logging.info("Requested Id, but not leader.")
                     await self.send_wrongleader_response(message.chan)
                 else:
                     await message.chan.put(
@@ -365,7 +367,7 @@ class RaftNode:
 
             elif isinstance(message, MessageRaft):
                 msg = MessageAdapter.from_pb(message.msg)
-                logging.debug(f'Received Raft message from "{msg.get_from()}"')
+                logging.debug(f'Received raft message from the "node {msg.get_from()}"')
 
                 try:
                     self.raw_node.step(msg)
@@ -387,7 +389,7 @@ class RaftNode:
 
             await self.on_ready(client_senders)
 
-    async def on_ready(self, client_senders: Dict[int, Queue]) -> None:
+    async def on_ready(self, client_senders: dict[int, Queue]) -> None:
         if not self.raw_node.has_ready():
             return
 

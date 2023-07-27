@@ -24,26 +24,26 @@ class RaftServer:
         self.cleanup_coroutines = cleanup_coroutines
 
     async def run(self) -> None:
-        server = grpc.aio.server()
+        grpc_server = grpc.aio.server()
 
         if self.credentials:
-            server.add_secure_port(str(self.addr), self.credentials)
+            grpc_server.add_secure_port(str(self.addr), self.credentials)
         else:
-            server.add_insecure_port(str(self.addr))
+            grpc_server.add_insecure_port(str(self.addr))
 
-        logging.info(f"Listening gRPC requests on: '{str(self.addr)}'")
+        logging.info(f'Start listening gRPC requests on "{self.addr}"...')
 
         raft_service_pb2_grpc.add_RaftServiceServicer_to_server(
-            RaftService(self.sender), server
+            RaftService(self.sender), grpc_server
         )
 
-        await server.start()
-        await server.wait_for_termination()
+        await grpc_server.start()
+        await grpc_server.wait_for_termination()
 
         async def server_graceful_shutdown():
-            await server.stop(5)
+            await grpc_server.stop(5)
 
         if self.cleanup_coroutines is not None:
             self.cleanup_coroutines.insert(0, server_graceful_shutdown())
 
-        logging.warning("Server has quit")
+        logging.warning("gRPC server has been terminated.")
