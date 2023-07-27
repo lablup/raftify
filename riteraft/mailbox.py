@@ -19,7 +19,7 @@ class Mailbox:
     """
 
     def __init__(self, sender: Queue):
-        self.__sender = sender
+        self.sender = sender
 
     async def send(self, message: bytes) -> bytes:
         """
@@ -30,7 +30,7 @@ class Mailbox:
 
         receiver = Queue()
         # TODO: make timeout duration a variable
-        await self.__sender.put(MessagePropose(message, receiver))
+        await self.sender.put(MessagePropose(message, receiver))
 
         resp = None
         try:
@@ -50,7 +50,7 @@ class Mailbox:
         change.set_change_type(ConfChangeType.RemoveNode)
 
         receiver = Queue()
-        await self.__sender.put(
+        await self.sender.put(
             MessageConfigChange(ConfChangeAdapter.to_pb(change), receiver)
         )
 
