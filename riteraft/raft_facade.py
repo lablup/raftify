@@ -27,18 +27,19 @@ class RaftCluster:
         self.chan = Queue(maxsize=100)
         self.raft_node = None
 
+    @property
     def mailbox(self) -> Mailbox:
         """
         Get the node's `Mailbox`.
         """
-        return Mailbox(self.chan)
+        return Mailbox(self.raft_node, self.chan)
 
     def get_peers(self) -> dict[int, RaftClient]:
         return self.raft_node.peers
 
     async def bootstrap_cluster(self) -> None:
         """
-        Create a new leader for the cluster, with id 1.
+        Create a new leader for the cluster with node id 1.
         """
         asyncio.create_task(RaftServer(self.addr, self.chan).run())
         self.raft_node = RaftNode.bootstrap_leader(self.chan, self.fsm, self.logger)
@@ -46,7 +47,7 @@ class RaftCluster:
 
     async def join_cluster(self, peer_candidates: list[SocketAddr]) -> None:
         """
-        Try to join a new cluster through `peer_candidates`, getting an id from the leader.
+        Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
         """
 
         # 1. Discover the leader of the cluster and obtain an 'node_id'.

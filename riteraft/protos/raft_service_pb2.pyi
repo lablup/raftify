@@ -1,4 +1,5 @@
 from typing import ClassVar as _ClassVar
+from typing import Mapping as _Mapping
 from typing import Optional as _Optional
 from typing import Union as _Union
 
@@ -15,11 +16,34 @@ class ResultCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Error: _ClassVar[ResultCode]
     WrongLeader: _ClassVar[ResultCode]
 
+class RerouteMsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = []
+    ConfChange: _ClassVar[RerouteMsgType]
+    Propose: _ClassVar[RerouteMsgType]
+
 Ok: ResultCode
 Error: ResultCode
 WrongLeader: ResultCode
+ConfChange: RerouteMsgType
+Propose: RerouteMsgType
 
 class Proposal(_message.Message):
+    __slots__ = ["inner"]
+    INNER_FIELD_NUMBER: _ClassVar[int]
+    inner: bytes
+    def __init__(self, inner: _Optional[bytes] = ...) -> None: ...
+
+class Entry(_message.Message):
+    __slots__ = ["key", "value"]
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    key: int
+    value: str
+    def __init__(
+        self, key: _Optional[int] = ..., value: _Optional[str] = ...
+    ) -> None: ...
+
+class RaftResponse(_message.Message):
     __slots__ = ["inner"]
     INNER_FIELD_NUMBER: _ClassVar[int]
     inner: bytes
@@ -43,18 +67,17 @@ class RequestIdArgs(_message.Message):
     addr: str
     def __init__(self, addr: _Optional[str] = ...) -> None: ...
 
-class Entry(_message.Message):
-    __slots__ = ["key", "value"]
-    KEY_FIELD_NUMBER: _ClassVar[int]
-    VALUE_FIELD_NUMBER: _ClassVar[int]
-    key: int
-    value: str
+class RerouteMessageArgs(_message.Message):
+    __slots__ = ["proposed_data", "conf_change", "type"]
+    PROPOSED_DATA_FIELD_NUMBER: _ClassVar[int]
+    CONF_CHANGE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    proposed_data: bytes
+    conf_change: _eraftpb_pb2.ConfChange
+    type: RerouteMsgType
     def __init__(
-        self, key: _Optional[int] = ..., value: _Optional[str] = ...
+        self,
+        proposed_data: _Optional[bytes] = ...,
+        conf_change: _Optional[_Union[_eraftpb_pb2.ConfChange, _Mapping]] = ...,
+        type: _Optional[_Union[RerouteMsgType, str]] = ...,
     ) -> None: ...
-
-class RaftResponse(_message.Message):
-    __slots__ = ["inner"]
-    INNER_FIELD_NUMBER: _ClassVar[int]
-    inner: bytes
-    def __init__(self, inner: _Optional[bytes] = ...) -> None: ...

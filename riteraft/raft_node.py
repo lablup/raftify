@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import pickle
-import sys
 import time
 from asyncio import Queue
 from typing import Optional
@@ -23,21 +22,25 @@ from rraft import (
 
 from riteraft.fsm import FSM
 from riteraft.lmdb import LMDBStorage
-from riteraft.message import (
+from riteraft.message_sender import MessageSender
+from riteraft.pb_adapter import ConfChangeAdapter, MessageAdapter
+from riteraft.protos.raft_service_pb2 import RerouteMsgType
+from riteraft.raft_client import RaftClient
+from riteraft.request_message import (
     MessageConfigChange,
     MessagePropose,
     MessageRaft,
     MessageReportUnreachable,
     MessageRequestId,
+    MessageRerouteToLeader,
+)
+from riteraft.response_message import (
     RaftRespIdReserved,
     RaftRespJoinSuccess,
     RaftRespOk,
     RaftRespResponse,
     RaftRespWrongLeader,
 )
-from riteraft.message_sender import MessageSender
-from riteraft.pb_adapter import ConfChangeAdapter, MessageAdapter
-from riteraft.raft_client import RaftClient
 from riteraft.utils import AtomicInteger
 
 
@@ -62,6 +65,7 @@ class RaftNode:
         self.storage = storage
         self.seq = seq
         self.last_snap_time = last_snap_time
+        self.should_exit = False
 
     @staticmethod
     def bootstrap_leader(
@@ -263,7 +267,7 @@ class RaftNode:
             case ConfChangeType.RemoveNode:
                 if change.get_node_id() == self.get_id():
                     logging.info(f"{self.get_id()} quit the cluster.")
-                    sys.exit(0)
+                    self.should_exit = True
                 else:
                     self.peers.pop(change.get_node_id(), None)
             case _:
@@ -304,7 +308,7 @@ class RaftNode:
         client_senders: dict[int, Queue] = {}
         timer = time.time()
 
-        while True:
+        while not self.should_exit:
             message = None
 
             try:
@@ -317,15 +321,21 @@ class RaftNode:
             except Exception:
                 raise
 
+            if isinstance(message, MessageRerouteToLeader):
+                match message.type:
+                    case RerouteMsgType.ConfChange:
+                        message = MessageConfigChange(
+                            change=message.confchange, chan=message.chan
+                        )
+                    case RerouteMsgType.Propose:
+                        message = MessagePropose(
+                            data=message.proposed_data, chan=message.chan
+                        )
+
             if isinstance(message, MessageConfigChange):
                 change = ConfChangeAdapter.from_pb(message.change)
 
-                # whenever a change id is 0, it's a message to self.
-                if change.get_node_id() == 0:
-                    change.set_node_id(self.get_id())
-
                 if not self.is_leader():
-                    # wrong leader send client cluster data
                     # TODO: retry strategy in case of failure
                     await self.send_wrongleader_response(message.chan)
                 else:
@@ -340,12 +350,13 @@ class RaftNode:
 
             elif isinstance(message, MessagePropose):
                 if not self.is_leader():
+                    # TODO: retry strategy in case of failure
                     await self.send_wrongleader_response(message.chan)
                 else:
                     self.seq.increase()
                     client_senders[self.seq.value] = message.chan
                     context = pickle.dumps(self.seq.value)
-                    self.raw_node.propose(context, message.proposal)
+                    self.raw_node.propose(context, message.data)
 
             elif isinstance(message, MessageRequestId):
                 if not self.is_leader():

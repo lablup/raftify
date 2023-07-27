@@ -31,6 +31,11 @@ class RaftServiceStub(object):
             request_serializer=eraftpb__pb2.Message.SerializeToString,
             response_deserializer=raft__service__pb2.RaftResponse.FromString,
         )
+        self.RerouteMessage = channel.unary_unary(
+            "/raftservice.RaftService/RerouteMessage",
+            request_serializer=raft__service__pb2.RerouteMessageArgs.SerializeToString,
+            response_deserializer=raft__service__pb2.RaftResponse.FromString,
+        )
 
 
 class RaftServiceServicer(object):
@@ -54,6 +59,12 @@ class RaftServiceServicer(object):
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
 
+    def RerouteMessage(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
 
 def add_RaftServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -70,6 +81,11 @@ def add_RaftServiceServicer_to_server(servicer, server):
         "SendMessage": grpc.unary_unary_rpc_method_handler(
             servicer.SendMessage,
             request_deserializer=eraftpb__pb2.Message.FromString,
+            response_serializer=raft__service__pb2.RaftResponse.SerializeToString,
+        ),
+        "RerouteMessage": grpc.unary_unary_rpc_method_handler(
+            servicer.RerouteMessage,
+            request_deserializer=raft__service__pb2.RerouteMessageArgs.FromString,
             response_serializer=raft__service__pb2.RaftResponse.SerializeToString,
         ),
     }
@@ -159,6 +175,35 @@ class RaftService(object):
             target,
             "/raftservice.RaftService/SendMessage",
             eraftpb__pb2.Message.SerializeToString,
+            raft__service__pb2.RaftResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
+
+    @staticmethod
+    def RerouteMessage(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/raftservice.RaftService/RerouteMessage",
+            raft__service__pb2.RerouteMessageArgs.SerializeToString,
             raft__service__pb2.RaftResponse.FromString,
             options,
             channel_credentials,

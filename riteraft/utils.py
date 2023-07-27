@@ -1,5 +1,15 @@
+import pickle
 import threading
 from typing import Union
+
+
+class PickleSerializer:
+    def encode(self):
+        return pickle.dumps(self)
+
+    @classmethod
+    def decode(cls, data: bytes):
+        return cls(*pickle.loads(data))
 
 
 class SocketAddr:
