@@ -5,114 +5,74 @@ from multiprocessing import Queue
 from riteraft.protos.eraftpb_pb2 import ConfChange, Message
 
 
-class Encoder:
+class Serializer:
     def encode(self):
         return pickle.dumps(self)
 
+    @classmethod
+    def decode(cls, data: bytes):
+        return cls(*pickle.loads(data))
+
 
 @dataclass
-class RaftRespWrongLeader(Encoder):
+class RaftRespWrongLeader(Serializer):
     leader_id: int
     leader_addr: str
 
-    @classmethod
-    def decode(cls, data: bytes) -> "RaftRespWrongLeader":
-        return cls(pickle.loads(data))
-
 
 @dataclass
-class RaftRespJoinSuccess(Encoder):
+class RaftRespJoinSuccess(Serializer):
     assigned_id: int
     peer_addrs: dict[int, str]
 
-    @classmethod
-    def decode(cls, data: bytes) -> "RaftRespJoinSuccess":
-        return cls(pickle.loads(data))
-
 
 @dataclass
-class RaftRespIdReserved(Encoder):
+class RaftRespIdReserved(Serializer):
     leader_id: int
     reserved_id: int
     peer_addrs: dict[int, str]
 
-    @classmethod
-    def decode(cls, data: bytes) -> "RaftRespIdReserved":
-        return cls(pickle.loads(data))
-
 
 @dataclass
-class RaftRespResponse(Encoder):
+class RaftRespResponse(Serializer):
     data: bytes
 
-    @classmethod
-    def decode(cls, data: bytes) -> "RaftRespResponse":
-        return cls(pickle.loads(data))
-
 
 @dataclass
-class RaftRespError(Encoder):
+class RaftRespError(Serializer):
     def __init__(self):
         pass
 
-    @classmethod
-    def decode(cls, data: bytes) -> "RaftRespError":
-        return cls(pickle.loads(data))
-
 
 @dataclass
-class RaftRespOk(Encoder):
+class RaftRespOk(Serializer):
     def __init__(self):
         pass
 
-    @classmethod
-    def decode(cls, data: bytes) -> "RaftRespOk":
-        return cls(pickle.loads(data))
-
 
 @dataclass
-class MessagePropose(Encoder):
+class MessagePropose(Serializer):
     proposal: bytes
     chan: Queue
 
-    @classmethod
-    def decode(cls, data: bytes) -> "MessagePropose":
-        return cls(pickle.loads(data))
-
 
 @dataclass
-class MessageConfigChange(Encoder):
+class MessageConfigChange(Serializer):
     change: ConfChange
     chan: Queue
 
-    @classmethod
-    def decode(cls, data: bytes) -> "MessageConfigChange":
-        return cls(pickle.loads(data))
-
 
 @dataclass
-class MessageRequestId(Encoder):
+class MessageRequestId(Serializer):
     addr: str
     chan: Queue
 
-    @classmethod
-    def decode(cls, data: bytes) -> "MessageRequestId":
-        return cls(pickle.loads(data))
-
 
 @dataclass
-class MessageReportUnreachable(Encoder):
+class MessageReportUnreachable(Serializer):
     node_id: int
 
-    @classmethod
-    def decode(cls, data: bytes) -> "MessageReportUnreachable":
-        return cls(pickle.loads(data))
-
 
 @dataclass
-class MessageRaft(Encoder):
+class MessageRaft(Serializer):
     msg: Message
-
-    @classmethod
-    def decode(cls, data: bytes) -> "MessageRaft":
-        return cls(pickle.loads(data))
