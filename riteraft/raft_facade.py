@@ -2,6 +2,7 @@ import asyncio
 import logging
 import pickle
 from asyncio import Queue
+from enum import Enum
 
 import grpc
 from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
@@ -14,6 +15,20 @@ from riteraft.raft_client import RaftClient
 from riteraft.raft_node import RaftNode
 from riteraft.raft_server import RaftServer
 from riteraft.utils import SocketAddr
+
+
+class FollowerRole(Enum):
+    Voter = ConfChangeType.AddNode
+    Learner = ConfChangeType.AddLearnerNode
+
+    def to_changetype(self) -> ConfChangeType:
+        match self.value:
+            case ConfChangeType.AddNode:
+                return ConfChangeType.AddNode
+            case ConfChangeType.AddLearnerNode:
+                return ConfChangeType.AddLearnerNode
+            case _:
+                assert "Unreachable"
 
 
 class RaftCluster:
@@ -46,7 +61,10 @@ class RaftCluster:
         await asyncio.create_task(self.raft_node.run())
 
     async def join_cluster(
-        self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]
+        self,
+        raft_addr: SocketAddr,
+        peer_candidates: list[SocketAddr],
+        role: FollowerRole = FollowerRole.Voter,
     ) -> None:
         """
         Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
@@ -110,7 +128,7 @@ class RaftCluster:
         # 3. Join the cluster
         conf_change = ConfChange.default()
         conf_change.set_node_id(node_id)
-        conf_change.set_change_type(ConfChangeType.AddNode)
+        conf_change.set_change_type(role.to_changetype())
         conf_change.set_context(pickle.dumps(self.addr))
 
         # TODO: Should handle wrong leader error here because the leader might change in the meanwhile.

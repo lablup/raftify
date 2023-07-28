@@ -258,7 +258,7 @@ class RaftNode:
         change_type = change.get_change_type()
 
         match change_type:
-            case ConfChangeType.AddNode:
+            case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
                 addr = pickle.loads(change.get_context())
                 logging.info(
                     f"Node '{addr} (node id: {node_id})' added to the cluster."
@@ -287,7 +287,7 @@ class RaftNode:
 
         if sender := senders.pop(seq, None):
             match change_type:
-                case ConfChangeType.AddNode:
+                case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
                     response = RaftRespJoinSuccess(
                         assigned_id=node_id, peer_addrs=self.peer_addrs()
                     )
