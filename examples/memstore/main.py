@@ -84,11 +84,11 @@ async def get(request: web.Request) -> web.Response:
     return web.Response(text=store.get(int(id)))
 
 
-@routes.get("/put/{id}/{name}")
+@routes.get("/put/{id}/{value}")
 async def put(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
-    id, name = request.match_info["id"], request.match_info["name"]
-    message = SetCommand(int(id), name)
+    id, value = request.match_info["id"], request.match_info["value"]
+    message = SetCommand(int(id), value)
     result = await cluster.mailbox.send(message.encode())
     return web.Response(text=f'"{str(pickle.loads(result))}"')
 
