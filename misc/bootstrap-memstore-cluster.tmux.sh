@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ -z "$1" ]; then
+  echo "Usage: $0 <number-of-panels>"
+  exit 1
+fi
+
 N=$1
 
 PANEL_NUM=1
