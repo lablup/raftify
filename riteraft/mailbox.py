@@ -41,7 +41,9 @@ class Mailbox:
         elif isinstance(response, RaftRespWrongLeader):
             leader_id = self.raft_node.get_leader_id()
             resp_from_leader = await self.raft_node.peers[leader_id].reroute_message(
-                proposed_data, reroute_msg_type, confchange
+                reroute_msg_type=reroute_msg_type,
+                confchange=confchange,
+                msg_bytes=proposed_data,
             )
             if isinstance(resp_from_leader, raft_service_pb2.RaftResponse):
                 return resp_from_leader.inner
