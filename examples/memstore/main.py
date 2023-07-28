@@ -15,7 +15,7 @@ from aiohttp.web import Application, RouteTableDef
 from rraft import Logger, default_logger
 
 from riteraft.fsm import FSM
-from riteraft.raft_facade import RaftCluster
+from riteraft.raft_facade import FollowerRole, RaftCluster
 from riteraft.utils import SocketAddr
 
 
@@ -142,6 +142,9 @@ async def main() -> None:
     )
     parser.add_argument("--raft-addr", default=None)
     parser.add_argument("--web-server", default=None)
+    parser.add_argument(
+        "--non-voter", action=argparse.BooleanOptionalAction, default=None
+    )
 
     args = parser.parse_args()
 
@@ -150,6 +153,7 @@ async def main() -> None:
         SocketAddr.from_str(args.raft_addr) if args.raft_addr is not None else None
     )
     web_server_addr = args.web_server
+    follower_role = FollowerRole.Learner if args.non_voter else FollowerRole.Voter
 
     peer_addrs = load_peer_candidates()
 
@@ -169,7 +173,7 @@ async def main() -> None:
 
         logger.info("Running in follower mode")
         cluster = RaftCluster(raft_addr, store, logger)
-        tasks.append(cluster.join_cluster(raft_addr, peer_addrs))
+        tasks.append(cluster.join_cluster(raft_addr, peer_addrs, follower_role))
 
     runner = None
     if web_server_addr:
