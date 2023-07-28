@@ -128,6 +128,12 @@ async def peers(request: web.Request) -> web.Response:
     return web.Response(text=str(cluster.get_peers()))
 
 
+@routes.get("/leader")
+async def leader(request: web.Request) -> web.Response:
+    cluster: RaftCluster = request.app["state"]["cluster"]
+    return web.Response(text=str(cluster.raft_node.get_leader_id()))
+
+
 async def main() -> None:
     setup_logger()
     parser = argparse.ArgumentParser()
