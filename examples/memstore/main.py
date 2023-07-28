@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import json
 import logging
 import os
 import pickle
@@ -61,6 +62,9 @@ class HashStore(FSM):
         with self._lock:
             return self._store.get(key)
 
+    def as_dict(self) -> dict:
+        return self._store
+
     async def apply(self, msg: bytes) -> bytes:
         with self._lock:
             message = SetCommand.decode(msg)
@@ -82,6 +86,12 @@ async def get(request: web.Request) -> web.Response:
     store: HashStore = request.app["state"]["store"]
     id = request.match_info["id"]
     return web.Response(text=store.get(int(id)))
+
+
+@routes.get("/all")
+async def all(request: web.Request) -> web.Response:
+    store: HashStore = request.app["state"]["store"]
+    return web.Response(text=json.dumps(store.as_dict()))
 
 
 @routes.get("/put/{id}/{value}")
