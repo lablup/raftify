@@ -104,5 +104,5 @@ Great thanks to all the relevant developers.
 - [ritelabs/riteraft](https://github.com/ritelabs/riteraft) - A raft framework, for regular people. Written in *Rust*.
 - [lablup/riteraft-py](https://github.com/ritelabs/riteraft-py) - Porting version of *riteraft*
 - [lablup/aioraft-ng](https://github.com/lablup/aioraft-ng) - Unofficial implementation of RAFT consensus algorithm written in asyncio-based *Python*.
-- [canonical/raft](https://github.com/canonical/raft) - C implementation of the Raft consensus protocol
-- [raft-frp](https://github.com/MarinPostma/raft-frp) - raft, for regular people
+- [canonical/raft](https://github.com/canonical/raft) - *C* implementation of the Raft consensus protocol
+- [MarinPostma/raft-frp](https://github.com/MarinPostma/raft-frp) - raft, for regular people
