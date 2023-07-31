@@ -10,7 +10,7 @@ It uses gRPC for the network layer and LMDB for the storage layer. If you prefer
 
 ## Features
 
-⚠️ `raftify` is still an very experimental and WIP. It supports the following features.
+⚠️ `raftify` is still an very experimental library and development is in progress. Currently, the following features are supported.
 
 - [x] Leader election
 - [x] Log replication
