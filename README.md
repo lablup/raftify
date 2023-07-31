@@ -24,7 +24,7 @@ It uses gRPC for the network layer and LMDB for the storage layer. If you prefer
 
 ## Quick guide
 
-I strongly recommend to read the [memstore example code]() to get how to use this library for starters, but here's a quick guide.
+I strongly recommend to read the [memstore example code](https://github.com/lablup/raftify/blob/main/examples/memstore/main.py) to get how to use this library for starters, but here's a quick guide.
 
 ### Define your own log entry
 
@@ -87,11 +87,11 @@ cluster = RaftCluster(raft_addr, store, logger)
 await cluster.join_cluster(raft_addr, peer_addrs, follower_role)
 ```
 
-## Installation
+<!-- ## Installation
 
 ```
 $ pip install raftify
-```
+``` -->
 
 ## References
 
@@ -99,10 +99,10 @@ This library was inspired by a wide variety of previous lift implementations.
 
 Great thanks to all the relevant developers.
 
+- [lablup/rraft-py](https://github.com/lablup/rraft-py) - Unofficial Python Binding of the *tikv/raft-rs*. API using in this lib under the hood.
+- [tikv/raft-rs](https://github.com/tikv/raft-rs) - Raft distributed consensus algorithm implemented in *Rust*.
 - [ritelabs/riteraft](https://github.com/ritelabs/riteraft) - A raft framework, for regular people. Written in *Rust*.
 - [lablup/riteraft-py](https://github.com/ritelabs/riteraft-py) - Porting version of *riteraft*
-- [lablup/rraft-py](https://github.com/lablup/rraft-py) - Unofficial Python Binding of the *tikv/raft-rs*. API using in this lib under the hood.
 - [lablup/aioraft-ng](https://github.com/lablup/aioraft-ng) - Unofficial implementation of RAFT consensus algorithm written in asyncio-based *Python*.
-- [tikv/raft-rs](https://github.com/tikv/raft-rs) - Raft distributed consensus algorithm implemented in *Rust*.
 - [canonical/raft](https://github.com/canonical/raft) - C implementation of the Raft consensus protocol
 - [raft-frp](https://github.com/MarinPostma/raft-frp) - raft, for regular people
