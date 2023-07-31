@@ -1,7 +1,7 @@
 import abc
 from dataclasses import dataclass
 
-from riteraft.utils import PickleSerializer
+from raftify.utils import PickleSerializer
 
 
 class RaftResponse(metaclass=abc.ABCMeta):

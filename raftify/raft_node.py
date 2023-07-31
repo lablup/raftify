@@ -20,13 +20,13 @@ from rraft import (
     Storage,
 )
 
-from riteraft.fsm import FSM
-from riteraft.lmdb import LMDBStorage
-from riteraft.message_sender import MessageSender
-from riteraft.pb_adapter import ConfChangeAdapter, MessageAdapter
-from riteraft.protos.raft_service_pb2 import RerouteMsgType
-from riteraft.raft_client import RaftClient
-from riteraft.request_message import (
+from raftify.fsm import FSM
+from raftify.lmdb import LMDBStorage
+from raftify.message_sender import MessageSender
+from raftify.pb_adapter import ConfChangeAdapter, MessageAdapter
+from raftify.protos.raft_service_pb2 import RerouteMsgType
+from raftify.raft_client import RaftClient
+from raftify.request_message import (
     MessageConfigChange,
     MessagePropose,
     MessageRaft,
@@ -34,14 +34,14 @@ from riteraft.request_message import (
     MessageRequestId,
     MessageRerouteToLeader,
 )
-from riteraft.response_message import (
+from raftify.response_message import (
     RaftRespIdReserved,
     RaftRespJoinSuccess,
     RaftRespOk,
     RaftRespResponse,
     RaftRespWrongLeader,
 )
-from riteraft.utils import AtomicInteger
+from raftify.utils import AtomicInteger
 
 
 class RaftNode:

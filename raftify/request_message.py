@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from multiprocessing import Queue
 from typing import Optional
 
-from riteraft.protos import eraftpb_pb2, raft_service_pb2
-from riteraft.utils import PickleSerializer
+from raftify.protos import eraftpb_pb2, raft_service_pb2
+from raftify.utils import PickleSerializer
 
 
 class RaftRequest(metaclass=abc.ABCMeta):

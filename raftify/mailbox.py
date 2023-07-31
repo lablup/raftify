@@ -4,12 +4,12 @@ from typing import Optional
 
 from rraft import ConfChange, ConfChangeType
 
-from riteraft.error import UnknownError
-from riteraft.pb_adapter import ConfChangeAdapter
-from riteraft.protos import raft_service_pb2
-from riteraft.raft_node import RaftNode
-from riteraft.request_message import MessageConfigChange, MessagePropose
-from riteraft.response_message import (
+from raftify.error import UnknownError
+from raftify.pb_adapter import ConfChangeAdapter
+from raftify.protos import raft_service_pb2
+from raftify.raft_node import RaftNode
+from raftify.request_message import MessageConfigChange, MessagePropose
+from raftify.response_message import (
     RaftRespOk,
     RaftResponse,
     RaftRespResponse,

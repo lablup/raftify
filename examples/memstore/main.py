@@ -14,9 +14,9 @@ from aiohttp import web
 from aiohttp.web import Application, RouteTableDef
 from rraft import Logger, default_logger
 
-from riteraft.fsm import FSM
-from riteraft.raft_facade import FollowerRole, RaftCluster
-from riteraft.utils import SocketAddr
+from raftify.fsm import FSM
+from raftify.raft_facade import FollowerRole, RaftCluster
+from raftify.utils import SocketAddr
 
 
 def setup_logger() -> Logger:

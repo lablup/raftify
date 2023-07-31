@@ -10,14 +10,14 @@ N=$1
 PANEL_NUM=1
 
 bootstrap() {
-	tmux send-keys "./riteraft.sh --bootstrap --web-server=127.0.0.1:8001" C-m
+	tmux send-keys "./raftify.sh --bootstrap --web-server=127.0.0.1:8001" C-m
 }
 
 join_cluster() {
 	if [ $PANEL_NUM -ne $N ]
 	then
 		sleep 0.5
-		tmux send-keys "sleep 2; and ./riteraft.sh --raft-addr=127.0.0.1:6006${PANEL_NUM} --web-server=127.0.0.1:800${PANEL_NUM}" C-m
+		tmux send-keys "sleep 2; and ./raftify.sh --raft-addr=127.0.0.1:6006${PANEL_NUM} --web-server=127.0.0.1:800${PANEL_NUM}" C-m
 	fi
 }
 

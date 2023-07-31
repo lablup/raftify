@@ -5,8 +5,6 @@ from asyncio import Queue
 from enum import Enum
 
 import grpc
-from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
-
 from riteraft.error import ClusterJoinError, UnknownError
 from riteraft.fsm import FSM
 from riteraft.mailbox import Mailbox
@@ -15,6 +13,7 @@ from riteraft.raft_client import RaftClient
 from riteraft.raft_node import RaftNode
 from riteraft.raft_server import RaftServer
 from riteraft.utils import SocketAddr
+from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
 
 
 class FollowerRole(Enum):

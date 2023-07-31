@@ -5,14 +5,14 @@ from asyncio import Queue
 
 import grpc
 
-from riteraft.protos import eraftpb_pb2, raft_service_pb2
-from riteraft.request_message import (
+from raftify.protos import eraftpb_pb2, raft_service_pb2
+from raftify.request_message import (
     MessageConfigChange,
     MessageRaft,
     MessageRequestId,
     MessageRerouteToLeader,
 )
-from riteraft.response_message import (
+from raftify.response_message import (
     RaftRespError,
     RaftRespIdReserved,
     RaftRespJoinSuccess,

@@ -1,4 +1,4 @@
-PROTO_PATH = ./riteraft/protos
+PROTO_PATH = ./raftify/protos
 
 build-pb:
 	python -m grpc_tools.protoc --proto_path=$(PROTO_PATH) --python_out=$(PROTO_PATH) --grpc_python_out=$(PROTO_PATH) $(PROTO_PATH)/*.proto
@@ -10,13 +10,13 @@ build-pb:
 	python -m isort $(PROTO_PATH)/*.{py,pyi}
 
 lint:
-	python -m black riteraft
-	python -m isort riteraft
+	python -m black raftify
+	python -m isort raftify
 	python -m black examples
 	python -m isort examples
 
 install:
-	pip uninstall riteraft -y
+	pip uninstall raftify -y
 	pip install .
 
 clean:
@@ -27,4 +27,4 @@ reinstall:
 	make install
 
 run-memstore-example:
-	python -m examples.riteraft-memstore.main
+	python -m examples.raftify-memstore.main

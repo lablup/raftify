@@ -4,7 +4,7 @@ from pathlib import Path
 from setuptools import setup
 
 ROOT_PATH = os.path.abspath(os.path.dirname(__file__))
-VERSION = (Path(__file__).parent / "riteraft" / "VERSION").read_text().strip()
+VERSION = (Path(__file__).parent / "raftify" / "VERSION").read_text().strip()
 description = (
     "A raft framework, for regular people. Written in Python."
 )
@@ -23,15 +23,15 @@ dev_requires = get_requirements("dev")
 
 
 setup(
-    name="riteraft",
+    name="raftify",
     version=VERSION,
     description=description,
     author="Lablup Inc.",
     maintainer="jopemachine",
     maintainer_email="gbl@lablup.com",
-    url="https://github.com/lablup/riteraft-py",
+    url="https://github.com/lablup/raftify",
     license="Apache License 2.0",
-    package_dir={"riteraft": "riteraft"},
+    package_dir={"raftify": "raftify"},
     package_data={"": ["VERSION"]},
     python_requires=">=3.10",
     install_requires=install_requires,

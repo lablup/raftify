@@ -26,15 +26,15 @@ from rraft import (
     SnapshotRef,
 )
 
-from riteraft.protos.eraftpb_pb2 import ConfChange as Pb_ConfChange
-from riteraft.protos.eraftpb_pb2 import ConfChangeSingle as Pb_ConfChangeSingle
-from riteraft.protos.eraftpb_pb2 import ConfChangeV2 as Pb_ConfChangeV2
-from riteraft.protos.eraftpb_pb2 import ConfState as Pb_ConfState
-from riteraft.protos.eraftpb_pb2 import Entry as Pb_Entry
-from riteraft.protos.eraftpb_pb2 import HardState as Pb_HardState
-from riteraft.protos.eraftpb_pb2 import Message as Pb_Message
-from riteraft.protos.eraftpb_pb2 import Snapshot as Pb_Snapshot
-from riteraft.protos.eraftpb_pb2 import SnapshotMetadata as Pb_SnapshotMetadata
+from raftify.protos.eraftpb_pb2 import ConfChange as Pb_ConfChange
+from raftify.protos.eraftpb_pb2 import ConfChangeSingle as Pb_ConfChangeSingle
+from raftify.protos.eraftpb_pb2 import ConfChangeV2 as Pb_ConfChangeV2
+from raftify.protos.eraftpb_pb2 import ConfState as Pb_ConfState
+from raftify.protos.eraftpb_pb2 import Entry as Pb_Entry
+from raftify.protos.eraftpb_pb2 import HardState as Pb_HardState
+from raftify.protos.eraftpb_pb2 import Message as Pb_Message
+from raftify.protos.eraftpb_pb2 import Snapshot as Pb_Snapshot
+from raftify.protos.eraftpb_pb2 import SnapshotMetadata as Pb_SnapshotMetadata
 
 
 class ProtobufAdapter(metaclass=ABCMeta):

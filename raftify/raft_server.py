@@ -4,9 +4,9 @@ from typing import Coroutine, List, Optional
 
 import grpc
 
-from riteraft.protos import raft_service_pb2_grpc
-from riteraft.raft_service import RaftService
-from riteraft.utils import SocketAddr
+from raftify.protos import raft_service_pb2_grpc
+from raftify.raft_service import RaftService
+from raftify.utils import SocketAddr
 
 
 class RaftServer:

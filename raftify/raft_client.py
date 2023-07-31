@@ -4,9 +4,9 @@ from typing import Optional
 import grpc
 from rraft import ConfChange, Message
 
-from riteraft.pb_adapter import ConfChangeAdapter, MessageAdapter
-from riteraft.protos import raft_service_pb2, raft_service_pb2_grpc
-from riteraft.utils import SocketAddr
+from raftify.pb_adapter import ConfChangeAdapter, MessageAdapter
+from raftify.protos import raft_service_pb2, raft_service_pb2_grpc
+from raftify.utils import SocketAddr
 
 
 class RaftClient:
