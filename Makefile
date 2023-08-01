@@ -1,6 +1,6 @@
 PROTO_PATH = ./raftify/protos
 
-build-pb:
+build-protoc:
 	python -m grpc_tools.protoc --proto_path=$(PROTO_PATH) --python_out=$(PROTO_PATH) --grpc_python_out=$(PROTO_PATH) $(PROTO_PATH)/*.proto
 	sed -i "" '1s/^/# type: ignore\n/' $(PROTO_PATH)/*.py
 	sed -i '' 's/import raft_service_pb2 as raft__service__pb2/from . import raft_service_pb2 as raft__service__pb2/' $(PROTO_PATH)/{raft_service_pb2,raft_service_pb2_grpc}.py
@@ -26,5 +26,8 @@ reinstall:
 	make clean
 	make install
 
-run-memstore-example:
-	python -m examples.raftify-memstore.main
+build-docker:
+	docker build -t raftify .
+
+run-docker:
+	docker run -it raftify /bin/bash
