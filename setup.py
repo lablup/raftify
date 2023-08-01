@@ -18,8 +18,9 @@ def get_requirements(env: str = None):
         return [x.strip() for x in fp.read().split("\n") if not x.startswith("#")]
 
 
-install_requires = get_requirements()
+default_requires = get_requirements()
 dev_requires = get_requirements("dev")
+build_requires = get_requirements("build")
 
 
 setup(
@@ -34,8 +35,8 @@ setup(
     package_dir={"raftify": "raftify"},
     package_data={"": ["VERSION"]},
     python_requires=">=3.10",
-    install_requires=install_requires,
-    extras_require={"dev": dev_requires},
+    install_requires=default_requires,
+    extras_require={"dev": dev_requires, "build": build_requires},
     zip_safe=False,
     include_package_data=True,
 )

@@ -1,12 +1,11 @@
 aiohttp==3.8.4
 argparse==1.4.0
-black
-flake8
 grpcio-tools==1.54.2
-isort
+grpcio==1.54.2
+lmdb==1.4.0
 msgpack==1.0.4
-mypy
-pytest-asyncio~=0.19.0
-pytest~=7.1.2
+protobuf==4.23.2
+rraft-py==0.1.0
+tomli~=2.0.1
 twine~=4.0.1
 types-protobuf
