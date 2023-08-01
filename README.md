@@ -22,6 +22,28 @@ It uses gRPC for the network layer and LMDB for the storage layer. If you prefer
 - [ ] Leadership transfer extension
 - [ ] Prevote protocol
 
+## Getting started
+
+You can create a containerized dev environment for testing raftify and launch a Raft cluster right away.
+
+```
+$ docker build -t raftify .
+$ docker run -it raftify /bin/bash
+```
+
+In the container, enter the following commands for creating a cluster with three nodes.
+
+```
+$ tmux
+$ ./misc/bootstrap-memstore-cluster.tmux.sh 4
+```
+
+And then you can use the `curl` command to test the cluster. For example, you can use the following command to put a key-value pair into the cluster.
+
+```
+$ curl http://localhost:8001/put/1/A
+```
+
 ## Quick guide
 
 I strongly recommend to read the [memstore example code](https://github.com/lablup/raftify/blob/main/examples/memstore/main.py) to get how to use this library for starters, but here's a quick guide.
