@@ -5,14 +5,14 @@ from asyncio import Queue
 from enum import Enum
 
 import grpc
-from riteraft.error import ClusterJoinError, UnknownError
-from riteraft.fsm import FSM
-from riteraft.mailbox import Mailbox
-from riteraft.protos import raft_service_pb2
-from riteraft.raft_client import RaftClient
-from riteraft.raft_node import RaftNode
-from riteraft.raft_server import RaftServer
-from riteraft.utils import SocketAddr
+from raftify.error import ClusterJoinError, UnknownError
+from raftify.fsm import FSM
+from raftify.mailbox import Mailbox
+from raftify.protos import raft_service_pb2
+from raftify.raft_client import RaftClient
+from raftify.raft_node import RaftNode
+from raftify.raft_server import RaftServer
+from raftify.utils import SocketAddr
 from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
 
 
