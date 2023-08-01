@@ -5,6 +5,8 @@ from asyncio import Queue
 from enum import Enum
 
 import grpc
+from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
+
 from raftify.error import ClusterJoinError, UnknownError
 from raftify.fsm import FSM
 from raftify.mailbox import Mailbox
@@ -13,7 +15,6 @@ from raftify.raft_client import RaftClient
 from raftify.raft_node import RaftNode
 from raftify.raft_server import RaftServer
 from raftify.utils import SocketAddr
-from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
 
 
 class FollowerRole(Enum):
