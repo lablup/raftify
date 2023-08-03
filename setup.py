@@ -5,9 +5,7 @@ from setuptools import setup
 
 ROOT_PATH = os.path.abspath(os.path.dirname(__file__))
 VERSION = (Path(__file__).parent / "raftify" / "VERSION").read_text().strip()
-description = (
-    "A raft framework, for regular people. Written in Python."
-)
+README = (Path(__file__).parent / "README.md").read_text().strip()
 
 
 def get_requirements(env: str = None):
@@ -26,7 +24,8 @@ build_requires = get_requirements("build")
 setup(
     name="raftify",
     version=VERSION,
-    description=description,
+    long_description=README,
+    long_description_content_type='text/markdown',
     author="Lablup Inc.",
     maintainer="jopemachine",
     maintainer_email="gbl@lablup.com",
