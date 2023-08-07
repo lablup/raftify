@@ -30,9 +30,9 @@ class Mailbox:
         self,
         response: RaftResponse,
         *,
+        reroute_msg_type: raft_service_pb2.RerouteMsgType,
         proposed_data: Optional[bytes] = None,
         confchange: Optional[raft_service_pb2.ConfChange] = None,
-        reroute_msg_type: raft_service_pb2.RerouteMsgType,
     ) -> Optional[bytes]:
         if isinstance(response, RaftRespOk):
             return None
@@ -45,8 +45,8 @@ class Mailbox:
                 confchange=confchange,
                 msg_bytes=proposed_data,
             )
-            if isinstance(resp_from_leader, raft_service_pb2.RaftResponse):
-                return resp_from_leader.inner
+            if isinstance(resp_from_leader, raft_service_pb2.RaftMessageResponse):
+                return resp_from_leader.data
             else:
                 # TODO: handle this case. The leader might change in the meanwhile.
                 assert False

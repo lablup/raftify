@@ -26,7 +26,7 @@ class RaftClient:
 
     async def change_config(
         self, cc: ConfChange, timeout: float = 5.0
-    ) -> raft_service_pb2.RaftResponse:
+    ) -> raft_service_pb2.ChangeConfigResponse:
         request = ConfChangeAdapter.to_pb(cc)
 
         async with self.__create_channel() as channel:
@@ -35,7 +35,7 @@ class RaftClient:
 
     async def send_message(
         self, msg: Message, timeout: float = 5.0
-    ) -> raft_service_pb2.RaftResponse:
+    ) -> raft_service_pb2.RaftMessageResponse:
         request = MessageAdapter.to_pb(msg)
 
         async with self.__create_channel() as channel:
@@ -45,7 +45,7 @@ class RaftClient:
     async def request_id(
         self, addr: SocketAddr, timeout: float = 5.0
     ) -> raft_service_pb2.IdRequestResponse:
-        request = raft_service_pb2.RequestIdArgs(addr=str(addr))
+        request = raft_service_pb2.IdRequestArgs(addr=str(addr))
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
@@ -57,7 +57,7 @@ class RaftClient:
         msg_bytes: Optional[bytes] = None,
         confchange: Optional[raft_service_pb2.ConfChange] = None,
         timeout: float = 5.0,
-    ) -> raft_service_pb2.RaftResponse:
+    ) -> raft_service_pb2.RaftMessageResponse:
         request = raft_service_pb2.RerouteMessageArgs(
             proposed_data=msg_bytes or b"",
             conf_change=confchange,

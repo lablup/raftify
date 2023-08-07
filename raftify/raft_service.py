@@ -27,7 +27,7 @@ class RaftService:
         self.sender = sender
 
     async def RequestId(
-        self, request: raft_service_pb2.RequestIdArgs, context: grpc.aio.ServicerContext
+        self, request: raft_service_pb2.IdRequestArgs, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.IdRequestResponse:
         receiver = Queue()
         try:
@@ -41,7 +41,7 @@ class RaftService:
             leader_id, leader_addr = response.leader_id, response.leader_addr
 
             return raft_service_pb2.IdRequestResponse(
-                code=raft_service_pb2.WrongLeader,
+                result=raft_service_pb2.IdRequest_WrongLeader,
                 data=pickle.dumps(tuple([leader_id, leader_addr, None])),
             )
         elif isinstance(response, RaftRespIdReserved):
@@ -50,7 +50,7 @@ class RaftService:
             leader_id = response.leader_id
 
             return raft_service_pb2.IdRequestResponse(
-                code=raft_service_pb2.Ok,
+                result=raft_service_pb2.IdRequest_Success,
                 data=pickle.dumps(tuple([leader_id, reserved_id, peer_addrs])),
             )
         else:
@@ -58,20 +58,27 @@ class RaftService:
 
     async def ChangeConfig(
         self, request: eraftpb_pb2.ConfChange, context: grpc.aio.ServicerContext
-    ) -> raft_service_pb2.RaftResponse:
+    ) -> raft_service_pb2.ChangeConfigResponse:
         receiver = Queue()
         await self.sender.put(MessageConfigChange(request, receiver))
-        reply = raft_service_pb2.RaftResponse()
+        reply = raft_service_pb2.ChangeConfigResponse()
 
         try:
             if raft_response := await asyncio.wait_for(receiver.get(), 2):
-                if isinstance(raft_response, RaftRespOk) or isinstance(
-                    raft_response, RaftRespJoinSuccess
-                ):
-                    reply.inner = raft_response.encode()
+                if isinstance(raft_response, RaftRespOk):
+                    reply.data = b""
+                if isinstance(raft_response, RaftRespJoinSuccess):
+                    reply.data = raft_response.encode()
+                elif isinstance(raft_response, RaftRespWrongLeader):
+                    leader_id, leader_addr = (
+                        raft_response.leader_id,
+                        raft_response.leader_addr,
+                    )
+                    reply.data = (pickle.dumps(tuple([leader_id, leader_addr, None])),)
 
         except asyncio.TimeoutError:
-            reply.inner = RaftRespError().encode()
+            reply.result = raft_service_pb2.ChangeConfig_TimeoutError
+            reply.data = RaftRespError().encode()
             logging.error("Timeout waiting for reply")
 
         finally:
@@ -79,15 +86,15 @@ class RaftService:
 
     async def SendMessage(
         self, request: eraftpb_pb2.Message, context: grpc.aio.ServicerContext
-    ) -> raft_service_pb2.RaftResponse:
+    ) -> raft_service_pb2.RaftMessageResponse:
         await self.sender.put(MessageRaft(request))
-        return raft_service_pb2.RaftResponse(inner=RaftRespOk().encode())
+        return raft_service_pb2.RaftMessageResponse(data=RaftRespOk().encode())
 
     async def RerouteMessage(
         self,
         request: raft_service_pb2.RerouteMessageArgs,
         context: grpc.aio.ServicerContext,
-    ) -> raft_service_pb2.RaftResponse:
+    ) -> raft_service_pb2.RaftMessageResponse:
         receiver = Queue()
 
         await self.sender.put(
@@ -98,15 +105,15 @@ class RaftService:
                 chan=receiver,
             )
         )
-        reply = raft_service_pb2.RaftResponse()
+        reply = raft_service_pb2.RaftMessageResponse()
 
         try:
             if raft_response := await asyncio.wait_for(receiver.get(), 2):
                 if isinstance(raft_response, RaftRespResponse):
-                    reply.inner = raft_response.data
+                    reply.data = raft_response.data
 
         except asyncio.TimeoutError:
-            reply.inner = RaftRespError().encode()
+            reply.data = RaftRespError().encode()
             logging.error("Timeout waiting for reply")
 
         finally:

@@ -85,25 +85,25 @@ class RaftCluster:
                     seek_next = True
                     break
 
-                match resp.code:
-                    case raft_service_pb2.Ok:
+                match resp.result:
+                    case raft_service_pb2.IdRequest_Success:
                         leader_addr = peer_addr
                         leader_id, node_id, peer_addrs = pickle.loads(resp.data)
                         break
-                    case raft_service_pb2.WrongLeader:
+                    case raft_service_pb2.IdRequest_WrongLeader:
                         _, peer_addr, _ = pickle.loads(resp.data)
                         logging.info(
                             f"Sent message to the wrong leader, retrying with the leader at {peer_addr}"
                         )
                         continue
-                    case raft_service_pb2.Error | _:
+                    case raft_service_pb2.IdRequest_Error | _:
                         raise UnknownError("Failed to join the cluster!")
 
             if not seek_next:
                 break
         else:
             raise ClusterJoinError(
-                "Could not join the cluster. Check your raft configuration and check to make sure that any of them is alive."
+                "Could not join the cluster. Check your Raft configuration and check to make sure that any of them is alive."
             )
 
         assert leader_id is not None and node_id is not None
@@ -132,5 +132,15 @@ class RaftCluster:
         conf_change.set_context(pickle.dumps(self.addr))
 
         # TODO: Should handle wrong leader error here because the leader might change in the meanwhile.
-        await client.change_config(conf_change)
+        # But it might be already handled by the rerouting logic. So, it should be tested first.
+        while True:
+            resp = await client.change_config(conf_change)
+
+            if resp.result == raft_service_pb2.ChangeConfig_Success:
+                break
+            elif resp.result == raft_service_pb2.ChangeConfig_TimeoutError:
+                logging.info("Join request timeout. Retrying...")
+                await asyncio.sleep(0.25)
+                continue
+
         await raft_node_handle

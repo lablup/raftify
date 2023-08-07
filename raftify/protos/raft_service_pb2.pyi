@@ -10,20 +10,29 @@ from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-class ResultCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class ChangeConfigResult(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []
-    Ok: _ClassVar[ResultCode]
-    Error: _ClassVar[ResultCode]
-    WrongLeader: _ClassVar[ResultCode]
+    ChangeConfig_Success: _ClassVar[ChangeConfigResult]
+    ChangeConfig_TimeoutError: _ClassVar[ChangeConfigResult]
+    ChangeConfig_WrongLeader: _ClassVar[ChangeConfigResult]
+
+class IdRequestResult(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = []
+    IdRequest_Success: _ClassVar[IdRequestResult]
+    IdRequest_Error: _ClassVar[IdRequestResult]
+    IdRequest_WrongLeader: _ClassVar[IdRequestResult]
 
 class RerouteMsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []
     ConfChange: _ClassVar[RerouteMsgType]
     Propose: _ClassVar[RerouteMsgType]
 
-Ok: ResultCode
-Error: ResultCode
-WrongLeader: ResultCode
+ChangeConfig_Success: ChangeConfigResult
+ChangeConfig_TimeoutError: ChangeConfigResult
+ChangeConfig_WrongLeader: ChangeConfigResult
+IdRequest_Success: IdRequestResult
+IdRequest_Error: IdRequestResult
+IdRequest_WrongLeader: IdRequestResult
 ConfChange: RerouteMsgType
 Propose: RerouteMsgType
 
@@ -43,25 +52,37 @@ class Entry(_message.Message):
         self, key: _Optional[int] = ..., value: _Optional[str] = ...
     ) -> None: ...
 
-class RaftResponse(_message.Message):
-    __slots__ = ["inner"]
-    INNER_FIELD_NUMBER: _ClassVar[int]
-    inner: bytes
-    def __init__(self, inner: _Optional[bytes] = ...) -> None: ...
-
-class IdRequestResponse(_message.Message):
-    __slots__ = ["code", "data"]
-    CODE_FIELD_NUMBER: _ClassVar[int]
+class RaftMessageResponse(_message.Message):
+    __slots__ = ["data"]
     DATA_FIELD_NUMBER: _ClassVar[int]
-    code: ResultCode
+    data: bytes
+    def __init__(self, data: _Optional[bytes] = ...) -> None: ...
+
+class ChangeConfigResponse(_message.Message):
+    __slots__ = ["result", "data"]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    result: ChangeConfigResult
     data: bytes
     def __init__(
         self,
-        code: _Optional[_Union[ResultCode, str]] = ...,
+        result: _Optional[_Union[ChangeConfigResult, str]] = ...,
         data: _Optional[bytes] = ...,
     ) -> None: ...
 
-class RequestIdArgs(_message.Message):
+class IdRequestResponse(_message.Message):
+    __slots__ = ["result", "data"]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    result: IdRequestResult
+    data: bytes
+    def __init__(
+        self,
+        result: _Optional[_Union[IdRequestResult, str]] = ...,
+        data: _Optional[bytes] = ...,
+    ) -> None: ...
+
+class IdRequestArgs(_message.Message):
     __slots__ = ["addr"]
     ADDR_FIELD_NUMBER: _ClassVar[int]
     addr: str

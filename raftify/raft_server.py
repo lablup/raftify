@@ -1,6 +1,6 @@
 import logging
 from asyncio import Queue
-from typing import Coroutine, List, Optional
+from typing import Optional
 
 import grpc
 
@@ -16,12 +16,10 @@ class RaftServer:
         sender: Queue,
         *,
         credentials: Optional[grpc.ServerCredentials] = None,
-        cleanup_coroutines: Optional[List[Coroutine]] = None,
     ):
         self.addr = addr
         self.sender = sender
         self.credentials = credentials
-        self.cleanup_coroutines = cleanup_coroutines
 
     async def run(self) -> None:
         grpc_server = grpc.aio.server()
@@ -39,11 +37,5 @@ class RaftServer:
 
         await grpc_server.start()
         await grpc_server.wait_for_termination()
-
-        async def server_graceful_shutdown():
-            await grpc_server.stop(5)
-
-        if self.cleanup_coroutines is not None:
-            self.cleanup_coroutines.insert(0, server_graceful_shutdown())
 
         logging.warning("gRPC server has been terminated.")

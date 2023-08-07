@@ -18,23 +18,23 @@ class RaftServiceStub(object):
         """
         self.RequestId = channel.unary_unary(
             "/raftservice.RaftService/RequestId",
-            request_serializer=raft__service__pb2.RequestIdArgs.SerializeToString,
+            request_serializer=raft__service__pb2.IdRequestArgs.SerializeToString,
             response_deserializer=raft__service__pb2.IdRequestResponse.FromString,
         )
         self.ChangeConfig = channel.unary_unary(
             "/raftservice.RaftService/ChangeConfig",
             request_serializer=eraftpb__pb2.ConfChange.SerializeToString,
-            response_deserializer=raft__service__pb2.RaftResponse.FromString,
+            response_deserializer=raft__service__pb2.ChangeConfigResponse.FromString,
         )
         self.SendMessage = channel.unary_unary(
             "/raftservice.RaftService/SendMessage",
             request_serializer=eraftpb__pb2.Message.SerializeToString,
-            response_deserializer=raft__service__pb2.RaftResponse.FromString,
+            response_deserializer=raft__service__pb2.RaftMessageResponse.FromString,
         )
         self.RerouteMessage = channel.unary_unary(
             "/raftservice.RaftService/RerouteMessage",
             request_serializer=raft__service__pb2.RerouteMessageArgs.SerializeToString,
-            response_deserializer=raft__service__pb2.RaftResponse.FromString,
+            response_deserializer=raft__service__pb2.RaftMessageResponse.FromString,
         )
 
 
@@ -70,23 +70,23 @@ def add_RaftServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
         "RequestId": grpc.unary_unary_rpc_method_handler(
             servicer.RequestId,
-            request_deserializer=raft__service__pb2.RequestIdArgs.FromString,
+            request_deserializer=raft__service__pb2.IdRequestArgs.FromString,
             response_serializer=raft__service__pb2.IdRequestResponse.SerializeToString,
         ),
         "ChangeConfig": grpc.unary_unary_rpc_method_handler(
             servicer.ChangeConfig,
             request_deserializer=eraftpb__pb2.ConfChange.FromString,
-            response_serializer=raft__service__pb2.RaftResponse.SerializeToString,
+            response_serializer=raft__service__pb2.ChangeConfigResponse.SerializeToString,
         ),
         "SendMessage": grpc.unary_unary_rpc_method_handler(
             servicer.SendMessage,
             request_deserializer=eraftpb__pb2.Message.FromString,
-            response_serializer=raft__service__pb2.RaftResponse.SerializeToString,
+            response_serializer=raft__service__pb2.RaftMessageResponse.SerializeToString,
         ),
         "RerouteMessage": grpc.unary_unary_rpc_method_handler(
             servicer.RerouteMessage,
             request_deserializer=raft__service__pb2.RerouteMessageArgs.FromString,
-            response_serializer=raft__service__pb2.RaftResponse.SerializeToString,
+            response_serializer=raft__service__pb2.RaftMessageResponse.SerializeToString,
         ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -116,7 +116,7 @@ class RaftService(object):
             request,
             target,
             "/raftservice.RaftService/RequestId",
-            raft__service__pb2.RequestIdArgs.SerializeToString,
+            raft__service__pb2.IdRequestArgs.SerializeToString,
             raft__service__pb2.IdRequestResponse.FromString,
             options,
             channel_credentials,
@@ -146,7 +146,7 @@ class RaftService(object):
             target,
             "/raftservice.RaftService/ChangeConfig",
             eraftpb__pb2.ConfChange.SerializeToString,
-            raft__service__pb2.RaftResponse.FromString,
+            raft__service__pb2.ChangeConfigResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -175,7 +175,7 @@ class RaftService(object):
             target,
             "/raftservice.RaftService/SendMessage",
             eraftpb__pb2.Message.SerializeToString,
-            raft__service__pb2.RaftResponse.FromString,
+            raft__service__pb2.RaftMessageResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -204,7 +204,7 @@ class RaftService(object):
             target,
             "/raftservice.RaftService/RerouteMessage",
             raft__service__pb2.RerouteMessageArgs.SerializeToString,
-            raft__service__pb2.RaftResponse.FromString,
+            raft__service__pb2.RaftMessageResponse.FromString,
             options,
             channel_credentials,
             insecure,

@@ -1,54 +1,69 @@
-syntax = "proto3";
+syntax                           = "proto3";
 package raftservice;
 
 import "eraftpb.proto";
 
 service RaftService {
-  rpc RequestId(RequestIdArgs) returns (IdRequestResponse) {}
-  rpc ChangeConfig(eraftpb.ConfChange) returns (RaftResponse) {}
-  rpc SendMessage(eraftpb.Message) returns (RaftResponse) {}
-  rpc RerouteMessage(RerouteMessageArgs) returns (RaftResponse) {}
-}
-
-enum ResultCode {
-  Ok            = 0;
-  Error         = 1;
-  WrongLeader   = 2;
+  rpc RequestId(IdRequestArgs) returns (IdRequestResponse) {}
+  rpc ChangeConfig(eraftpb.ConfChange) returns (ChangeConfigResponse) {}
+  rpc SendMessage(eraftpb.Message) returns (RaftMessageResponse) {}
+  rpc RerouteMessage(RerouteMessageArgs) returns (RaftMessageResponse) {}
 }
 
 message Proposal {
-  bytes inner = 1;
+  bytes inner                    = 1;
 }
 
 message Entry {
-  uint64 key    = 1; 
-  string value  = 2;
+  uint64 key                     = 1; 
+  string value                   = 2;
 }
 
-message RaftResponse {
-  bytes inner = 2;
+// SendMessage
+
+message RaftMessageResponse {
+  bytes data                     = 1;
 }
 
-// IdRequest Message
+// ChangeConfig
+
+enum ChangeConfigResult {
+  ChangeConfig_Success           = 0;
+  ChangeConfig_TimeoutError      = 1;
+  ChangeConfig_WrongLeader       = 2;
+}
+
+message ChangeConfigResponse {
+  ChangeConfigResult result      = 1;
+  bytes data                     = 2;
+}
+
+// IdRequest
+
+enum IdRequestResult {
+  IdRequest_Success              = 0;
+  IdRequest_Error                = 1;
+  IdRequest_WrongLeader          = 2;
+}
 
 message IdRequestResponse {
-  ResultCode code = 1;
-  bytes data = 2;
+  IdRequestResult result         = 1;
+  bytes data                     = 2;
 }
 
-message RequestIdArgs {
-  string addr = 1;
+message IdRequestArgs {
+  string addr                    = 1;
 }
 
-// Reroute Message
+// Reroute
 
 enum RerouteMsgType {
-  ConfChange    = 0;
-  Propose       = 1;
+  ConfChange                     = 0;
+  Propose                        = 1;
 }
 
 message RerouteMessageArgs {
-  bytes proposed_data = 1;
+  bytes proposed_data            = 1;
   eraftpb.ConfChange conf_change = 2;
-  RerouteMsgType type = 3;
+  RerouteMsgType type            = 3;
 }

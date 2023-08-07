@@ -1,5 +1,6 @@
 import pickle
 import threading
+from dataclasses import dataclass
 from typing import Union
 
 
@@ -12,10 +13,10 @@ class PickleSerializer:
         return cls(*pickle.loads(data))
 
 
+@dataclass
 class SocketAddr:
-    def __init__(self, host: str, port: str):
-        self.host = host
-        self.port = port
+    host: str
+    port: int
 
     def __repr__(self) -> str:
         return f"{self.host}:{self.port}"
