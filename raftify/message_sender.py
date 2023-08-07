@@ -1,8 +1,8 @@
-import logging
 from asyncio import Queue
 
 from rraft import Message
 
+from raftify.logger import RaftifyLogger
 from raftify.raft_client import RaftClient
 from raftify.request_message import MessageReportUnreachable
 
@@ -15,6 +15,7 @@ class MessageSender:
         client_id: int,
         chan: Queue,
         max_retries: int,
+        logger: RaftifyLogger,
         timeout: float = 5.0,
     ):
         self.message = message
@@ -23,6 +24,7 @@ class MessageSender:
         self.chan = chan
         self.max_retries = max_retries
         self.timeout = timeout
+        self.logger = logger
 
     async def send(self) -> None:
         """
@@ -38,7 +40,7 @@ class MessageSender:
                 if current_retry < self.max_retries:
                     current_retry += 1
                 else:
-                    logging.debug(
+                    self.logger.debug(
                         f"Attempted to connect the {self.max_retries} retries, but were unable to establish a connection."
                     )
 

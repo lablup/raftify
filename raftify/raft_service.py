@@ -1,10 +1,10 @@
 import asyncio
-import logging
 import pickle
 from asyncio import Queue
 
 import grpc
 
+from raftify.logger import RaftifyLogger
 from raftify.protos import eraftpb_pb2, raft_service_pb2
 from raftify.request_message import (
     MessageConfigChange,
@@ -23,8 +23,9 @@ from raftify.response_message import (
 
 
 class RaftService:
-    def __init__(self, sender: Queue) -> None:
+    def __init__(self, sender: Queue, logger: RaftifyLogger) -> None:
         self.sender = sender
+        self.logger = logger
 
     async def RequestId(
         self, request: raft_service_pb2.IdRequestArgs, context: grpc.aio.ServicerContext
@@ -79,7 +80,7 @@ class RaftService:
         except asyncio.TimeoutError:
             reply.result = raft_service_pb2.ChangeConfig_TimeoutError
             reply.data = RaftRespError().encode()
-            logging.error("Timeout waiting for reply")
+            self.logger.error("Timeout waiting for reply")
 
         finally:
             return reply
@@ -114,7 +115,7 @@ class RaftService:
 
         except asyncio.TimeoutError:
             reply.data = RaftRespError().encode()
-            logging.error("Timeout waiting for reply")
+            self.logger.error("Timeout waiting for reply")
 
         finally:
             return reply

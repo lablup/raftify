@@ -1,4 +1,3 @@
-import logging
 import os
 from threading import Lock
 from typing import Any, Callable, List, Optional
@@ -20,6 +19,8 @@ from rraft import (
     StoreError,
     UnavailableError,
 )
+
+from raftify.logger import RaftifyLogger
 
 SNAPSHOT_KEY = b"snapshot"
 LAST_INDEX_KEY = b"last_index"
@@ -43,13 +44,17 @@ class LMDBStorageCore:
         env: lmdb.Environment,
         entries_db: lmdb._Database,
         metadata_db: lmdb._Database,
+        logger: RaftifyLogger,
     ):
         self.env = env
         self.entries_db = entries_db
         self.metadata_db = metadata_db
+        self.logger = logger
 
-    @staticmethod
-    def create(path: os.PathLike, id: int) -> "LMDBStorageCore":
+    @classmethod
+    def create(
+        cls, path: os.PathLike, id: int, logger: RaftifyLogger
+    ) -> "LMDBStorageCore":
         os.makedirs(path, exist_ok=True)
         db_pth = os.path.join(path, f"raft-{id}.mdb")
 
@@ -60,7 +65,7 @@ class LMDBStorageCore:
         hard_state = HardState.default()
         conf_state = ConfState.default()
 
-        core = LMDBStorageCore(env, entries_db, metadata_db)
+        core = cls(env, entries_db, metadata_db, logger)
 
         core.set_hard_state(hard_state)
         core.set_conf_state(conf_state)
@@ -134,7 +139,7 @@ class LMDBStorageCore:
         max_size: Optional[int] = None,
     ) -> List[Entry]:
         with self.env.begin(write=False, db=self.entries_db) as entry_reader:
-            logging.info(f"Entries [{low}, {high}) requested")
+            self.logger.info(f"Entries [{low}, {high}) requested")
 
             cursor = entry_reader.cursor()
             if not cursor.set_range(encode_int(low)):
@@ -176,13 +181,14 @@ class LMDBStorageCore:
 
 
 class LMDBStorage:
-    def __init__(self, core: LMDBStorageCore):
+    def __init__(self, core: LMDBStorageCore, logger: RaftifyLogger):
         self.core = core
+        self.logger = logger
 
-    @staticmethod
-    def create(path: os.PathLike, id: int) -> "LMDBStorage":
-        core = LMDBStorageCore.create(path, id)
-        return LMDBStorage(core)
+    @classmethod
+    def create(cls, path: os.PathLike, id: int, logger: RaftifyLogger) -> "LMDBStorage":
+        core = LMDBStorageCore.create(path, id, logger)
+        return cls(core, logger)
 
     # TODO: Refactor below logic.
     def wl(self, cb: Callable[[LMDBStorageCore], Any]) -> Any:
@@ -269,7 +275,7 @@ class LMDBStorage:
             raft_state.set_hard_state(store.hard_state())
             raft_state.set_conf_state(store.conf_state())
 
-            logging.info(f"Initial RaftState: {raft_state}")
+            self.logger.info(f"Initial RaftState: {raft_state}")
 
             return raft_state
 

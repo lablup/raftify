@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import pickle
 import time
 from asyncio import Queue
@@ -22,6 +21,7 @@ from rraft import (
 
 from raftify.fsm import FSM
 from raftify.lmdb import LMDBStorage
+from raftify.logger import RaftifyLogger
 from raftify.message_sender import MessageSender
 from raftify.pb_adapter import ConfChangeAdapter, MessageAdapter
 from raftify.protos.raft_service_pb2 import RerouteMsgType
@@ -56,6 +56,7 @@ class RaftNode:
         storage: Storage,
         seq: AtomicInteger,
         last_snap_time: float,
+        logger: RaftifyLogger,
     ):
         self.raw_node = raw_node
         self.peers = peers
@@ -65,11 +66,12 @@ class RaftNode:
         self.storage = storage
         self.seq = seq
         self.last_snap_time = last_snap_time
+        self.logger = logger
         self.should_exit = False
 
-    @staticmethod
+    @classmethod
     def bootstrap_leader(
-        chan: Queue, fsm: FSM, logger: Logger | LoggerRef
+        cls, chan: Queue, fsm: FSM, slog: Logger | LoggerRef, logger: RaftifyLogger
     ) -> "RaftNode":
         config = Config.default()
         config.set_id(1)
@@ -82,11 +84,11 @@ class RaftNode:
         snapshot.get_metadata().set_term(0)
         snapshot.get_metadata().get_conf_state().set_voters([1])
 
-        lmdb = LMDBStorage.create(".", 1)
+        lmdb = LMDBStorage.create(".", 1, logger)
         lmdb.apply_snapshot(snapshot)
 
         storage = Storage(lmdb)
-        raw_node = RawNode(config, storage, logger)
+        raw_node = RawNode(config, storage, slog)
 
         peers = {}
         seq = AtomicInteger(0)
@@ -95,7 +97,7 @@ class RaftNode:
         raw_node.get_raft().become_candidate()
         raw_node.get_raft().become_leader()
 
-        return RaftNode(
+        return cls(
             raw_node,
             peers,
             chan,
@@ -104,14 +106,17 @@ class RaftNode:
             storage,
             seq,
             last_snap_time,
+            logger,
         )
 
-    @staticmethod
+    @classmethod
     def new_follower(
+        cls,
         chan: Queue,
         id: int,
         fsm: FSM,
-        logger: Logger | LoggerRef,
+        slog: Logger | LoggerRef,
+        logger: RaftifyLogger,
     ) -> "RaftNode":
         config = Config.default()
 
@@ -121,15 +126,15 @@ class RaftNode:
         config.validate()
 
         # TODO: Create mdb files in temp dir path. Now it create them in current dir for easy test and debugging.
-        lmdb = LMDBStorage.create(".", id)
+        lmdb = LMDBStorage.create(".", id, logger)
         storage = Storage(lmdb)
-        raw_node = RawNode(config, storage, logger)
+        raw_node = RawNode(config, storage, slog)
 
         peers = {}
         seq = AtomicInteger(0)
         last_snap_time = time.time()
 
-        return RaftNode(
+        return cls(
             raw_node,
             peers,
             chan,
@@ -138,6 +143,7 @@ class RaftNode:
             storage,
             seq,
             last_snap_time,
+            logger,
         )
 
     def get_id(self) -> int:
@@ -170,7 +176,7 @@ class RaftNode:
             if next_id == self.get_id():
                 next_id += 1
 
-        logging.info(f"Reserved peer id {next_id}.")
+        self.logger.info(f"Reserved peer id {next_id}.")
         self.peers[next_id] = None
         return next_id
 
@@ -185,6 +191,7 @@ class RaftNode:
                         message=msg,
                         timeout=0.1,
                         max_retries=5,
+                        logger=self.logger,
                     ).send()
                 )
 
@@ -236,7 +243,7 @@ class RaftNode:
             sender.put_nowait(RaftRespResponse(data))
 
         if time.time() > self.last_snap_time + 15:
-            logging.info("Creating snapshot...")
+            self.logger.info("Creating snapshot...")
             self.last_snap_time = time.time()
             # last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
             snapshot = await self.fsm.snapshot()
@@ -244,7 +251,7 @@ class RaftNode:
 
             try:
                 self.lmdb.create_snapshot(snapshot, entry.get_index(), entry.get_term())
-                logging.info("Snapshot created successfully.")
+                self.logger.info("Snapshot created successfully.")
             except Exception:
                 pass
 
@@ -260,13 +267,13 @@ class RaftNode:
         match change_type:
             case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
                 addr = pickle.loads(change.get_context())
-                logging.info(
+                self.logger.info(
                     f"Node '{addr} (node id: {node_id})' added to the cluster."
                 )
                 self.peers[node_id] = RaftClient(addr)
             case ConfChangeType.RemoveNode:
                 if change.get_node_id() == self.get_id():
-                    logging.info(f"{self.get_id()} quit the cluster.")
+                    self.logger.info(f"{self.get_id()} quit the cluster.")
                     self.should_exit = True
                 else:
                     self.peers.pop(change.get_node_id(), None)
@@ -299,7 +306,7 @@ class RaftNode:
             try:
                 sender.put_nowait(response)
             except Exception:
-                logging.error("Error sending response")
+                self.logger.error("Error sending response")
 
     async def run(self) -> None:
         heartbeat = 0.1
@@ -316,7 +323,7 @@ class RaftNode:
             except asyncio.TimeoutError:
                 pass
             except asyncio.CancelledError:
-                logging.warning("Cancelled error occurred!")
+                self.logger.warning("Cancelled error occurred!")
                 raise
             except Exception:
                 raise
@@ -340,7 +347,7 @@ class RaftNode:
                     await self.send_wrongleader_response(message.chan)
                 else:
                     # leader assign new id to peer
-                    logging.debug(
+                    self.logger.debug(
                         f'Received request from the "node {change.get_node_id()}"'
                     )
                     self.seq.increase()
@@ -373,7 +380,7 @@ class RaftNode:
 
             elif isinstance(message, MessageRaft):
                 msg = MessageAdapter.from_pb(message.msg)
-                logging.debug(
+                self.logger.debug(
                     f'Received raft-rs internal message from the "node {msg.get_from()}"'
                 )
 

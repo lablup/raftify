@@ -12,19 +12,23 @@ from typing import Optional
 import tomli
 from aiohttp import web
 from aiohttp.web import Application, RouteTableDef
-from rraft import Logger, default_logger
+from rraft import Logger as Slog, default_logger
 
 from raftify.fsm import FSM
 from raftify.raft_facade import FollowerRole, RaftCluster
 from raftify.utils import SocketAddr
 
 
-def setup_logger() -> Logger:
+def setup_slog() -> Slog:
+    # TODO: This method should be implemented in rraft-py.
     # Set up rraft-py's slog log-level to Debug.
-    # TODO: This method should be improved in rraft-py.
     os.environ["RUST_LOG"] = "debug"
-    logging.basicConfig(level=logging.DEBUG)
     return default_logger()
+
+
+def setup_logger() -> logging.Logger:
+    logging.basicConfig(level=logging.DEBUG)
+    return logging.getLogger()
 
 
 def load_peer_candidates() -> list[SocketAddr]:
@@ -35,6 +39,7 @@ def load_peer_candidates() -> list[SocketAddr]:
     ]
 
 
+slog = setup_slog()
 logger = setup_logger()
 routes = RouteTableDef()
 
@@ -135,7 +140,6 @@ async def leader(request: web.Request) -> web.Response:
 
 
 async def main() -> None:
-    setup_logger()
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--bootstrap", action=argparse.BooleanOptionalAction, default=None
@@ -163,7 +167,7 @@ async def main() -> None:
     if bootstrap:
         assert raft_addr is None, "Cannot specify both --bootstrap and --raft-addr."
 
-        cluster = RaftCluster(peer_addrs[0], store, logger)
+        cluster = RaftCluster(peer_addrs[0], store, slog, logger)
         logger.info("Bootstrap a cluster")
         tasks.append(cluster.bootstrap_cluster())
     else:
@@ -172,7 +176,7 @@ async def main() -> None:
         ), "Follower node requires a --raft-addr option to join the cluster"
 
         logger.info("Running in follower mode")
-        cluster = RaftCluster(raft_addr, store, logger)
+        cluster = RaftCluster(raft_addr, store, slog, logger)
         tasks.append(cluster.join_cluster(raft_addr, peer_addrs, follower_role))
 
     runner = None

@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import pickle
 from asyncio import Queue
 from enum import Enum
@@ -9,6 +8,7 @@ from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
 
 from raftify.error import ClusterJoinError, UnknownError
 from raftify.fsm import FSM
+from raftify.logger import RaftifyLogger
 from raftify.mailbox import Mailbox
 from raftify.protos import raft_service_pb2
 from raftify.raft_client import RaftClient
@@ -32,12 +32,19 @@ class FollowerRole(Enum):
 
 
 class RaftCluster:
-    def __init__(self, addr: SocketAddr, fsm: FSM, logger: Logger | LoggerRef):
+    def __init__(
+        self,
+        addr: SocketAddr,
+        fsm: FSM,
+        slog: Logger | LoggerRef,
+        logger: RaftifyLogger,
+    ):
         """
         Creates a new node with the given address and store.
         """
         self.addr = addr
         self.fsm = fsm
+        self.slog = slog
         self.logger = logger
         self.chan = Queue(maxsize=100)
         self.raft_node = None
@@ -56,8 +63,10 @@ class RaftCluster:
         """
         Create a new leader for the cluster with node id 1.
         """
-        asyncio.create_task(RaftServer(self.addr, self.chan).run())
-        self.raft_node = RaftNode.bootstrap_leader(self.chan, self.fsm, self.logger)
+        asyncio.create_task(RaftServer(self.addr, self.chan, self.logger).run())
+        self.raft_node = RaftNode.bootstrap_leader(
+            self.chan, self.fsm, self.slog, self.logger
+        )
         await asyncio.create_task(self.raft_node.run())
 
     async def join_cluster(
@@ -72,7 +81,7 @@ class RaftCluster:
 
         # 1. Discover the leader of the cluster and obtain an 'node_id'.
         for peer_addr in peer_candidates:
-            logging.info(f'Attempting to join the cluster through "{peer_addr}"...')
+            self.logger.info(f'Attempting to join the cluster through "{peer_addr}"...')
 
             leader_addr = None
             seek_next = False
@@ -92,7 +101,7 @@ class RaftCluster:
                         break
                     case raft_service_pb2.IdRequest_WrongLeader:
                         _, peer_addr, _ = pickle.loads(resp.data)
-                        logging.info(
+                        self.logger.info(
                             f"Sent message to the wrong leader, retrying with the leader at {peer_addr}"
                         )
                         continue
@@ -108,13 +117,13 @@ class RaftCluster:
 
         assert leader_id is not None and node_id is not None
 
-        logging.info(
+        self.logger.info(
             f"Cluster join succeeded. Obtained node id {node_id} from the leader node {leader_id}."
         )
 
         # 2. Run server and node to prepare for joining
         self.raft_node = RaftNode.new_follower(
-            self.chan, node_id, self.fsm, self.logger
+            self.chan, node_id, self.fsm, self.slog, self.logger
         )
 
         self.raft_node.peers = {
@@ -122,7 +131,7 @@ class RaftCluster:
             leader_id: client,
         }
 
-        asyncio.create_task(RaftServer(self.addr, self.chan).run())
+        asyncio.create_task(RaftServer(self.addr, self.chan, self.logger).run())
         raft_node_handle = asyncio.create_task(self.raft_node.run())
 
         # 3. Join the cluster
@@ -139,7 +148,7 @@ class RaftCluster:
             if resp.result == raft_service_pb2.ChangeConfig_Success:
                 break
             elif resp.result == raft_service_pb2.ChangeConfig_TimeoutError:
-                logging.info("Join request timeout. Retrying...")
+                self.logger.info("Join request timeout. Retrying...")
                 await asyncio.sleep(0.25)
                 continue
 
