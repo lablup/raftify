@@ -238,9 +238,9 @@ class RaftNode:
         if time.time() > self.last_snap_time + 15:
             logging.info("Creating snapshot...")
             self.last_snap_time = time.time()
-            last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
+            # last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
             snapshot = await self.fsm.snapshot()
-            self.lmdb.compact(last_applied)
+            # self.lmdb.compact(last_applied)
 
             try:
                 self.lmdb.create_snapshot(snapshot, entry.get_index(), entry.get_term())
@@ -274,11 +274,11 @@ class RaftNode:
                 raise NotImplementedError
 
         if cs := self.raw_node.apply_conf_change(change):
-            last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
+            # last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
             snapshot = await self.fsm.snapshot()
 
             self.lmdb.set_conf_state(cs)
-            self.lmdb.compact(last_applied)
+            # self.lmdb.compact(last_applied)
 
             try:
                 self.lmdb.create_snapshot(snapshot, entry.get_index(), entry.get_term())
