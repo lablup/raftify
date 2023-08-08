@@ -7,6 +7,8 @@ from raftify.deserializer import entry_context_deserializer  # noqa: F401
 from raftify.deserializer import entry_data_deserializer  # noqa: F401
 from raftify.deserializer import message_context_deserializer  # noqa: F401
 from raftify.deserializer import snapshot_data_deserializer  # noqa: F401
+from raftify.deserializer import confchange_context_deserializer  # noqa: F401
+from raftify.deserializer import confchangev2_context_deserializer  # noqa: F401
 
 
 def main(argv):
@@ -21,7 +23,7 @@ def main(argv):
     with env.begin(db=entries_db) as txn:
         cursor = txn.cursor()
         for key, value in cursor:
-            print(f"key: {int(key.decode())}, value: {rraft.Entry.decode(value)}")
+            print(f"Key: {int(key.decode())}, Value: {rraft.Entry.decode(value)}")
 
     env.close()
 

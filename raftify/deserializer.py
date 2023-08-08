@@ -1,4 +1,3 @@
-import logging
 import pickle
 from typing import Optional
 
@@ -8,9 +7,8 @@ def pickle_deserialize(data: bytes) -> Optional[str]:
         return None
 
     if pickle.PROTO in data:
-        return pickle.loads(data[data.index(pickle.PROTO):])
+        return pickle.loads(data[data.index(pickle.PROTO) :])
 
-    logging.warning("Failed to deserialize data: %s", data)
     # Not pickle data
     return data
 

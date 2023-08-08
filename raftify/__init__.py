@@ -1,6 +1,8 @@
 from pathlib import Path
 
 from .deserializer import (  # noqa: F401
+    confchange_context_deserializer,
+    confchangev2_context_deserializer,
     entry_context_deserializer,
     entry_data_deserializer,
     message_context_deserializer,

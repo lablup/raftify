@@ -15,6 +15,8 @@ from aiohttp.web import Application, RouteTableDef
 from rraft import Logger as Slog
 from rraft import default_logger
 
+from raftify.deserializer import confchange_context_deserializer  # noqa: F401
+from raftify.deserializer import confchangev2_context_deserializer  # noqa: F401
 from raftify.deserializer import entry_context_deserializer  # noqa: F401
 from raftify.deserializer import entry_data_deserializer  # noqa: F401
 from raftify.deserializer import message_context_deserializer  # noqa: F401
