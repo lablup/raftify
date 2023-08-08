@@ -12,8 +12,13 @@ from typing import Optional
 import tomli
 from aiohttp import web
 from aiohttp.web import Application, RouteTableDef
-from rraft import Logger as Slog, default_logger
+from rraft import Logger as Slog
+from rraft import default_logger
 
+from raftify.deserializer import entry_context_deserializer  # noqa: F401
+from raftify.deserializer import entry_data_deserializer  # noqa: F401
+from raftify.deserializer import message_context_deserializer  # noqa: F401
+from raftify.deserializer import snapshot_data_deserializer  # noqa: F401
 from raftify.fsm import FSM
 from raftify.raft_facade import FollowerRole, RaftCluster
 from raftify.utils import SocketAddr
