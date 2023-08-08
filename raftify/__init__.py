@@ -1,5 +1,11 @@
 from pathlib import Path
 
+from .deserializer import (  # noqa: F401
+    entry_context_deserializer,
+    entry_data_deserializer,
+    message_context_deserializer,
+    snapshot_data_deserializer,
+)
 from .error import ClusterJoinError, UnknownError  # noqa: F401
 from .fsm import FSM  # noqa: F401
 from .lmdb import LMDBStorage, LMDBStorageCore  # noqa: F401
@@ -25,6 +31,7 @@ __all__ = [
     "fsm",
     "utils",
     "logger",
+    "deserializer",
 ]
 
 __version__ = (Path(__file__).parent / "VERSION").read_text().strip()

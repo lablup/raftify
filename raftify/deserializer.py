@@ -29,3 +29,11 @@ def snapshot_data_deserializer(data: bytes) -> Optional[str]:
 
 def message_context_deserializer(data: bytes) -> Optional[str]:
     return pickle_deserialize(data)
+
+
+def confchange_context_deserializer(data: bytes) -> Optional[str]:
+    return pickle_deserialize(data)
+
+
+def confchangev2_context_deserializer(data: bytes) -> Optional[str]:
+    return pickle_deserialize(data)
