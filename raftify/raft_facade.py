@@ -54,7 +54,7 @@ class RaftCluster:
         """
         Get the node's `Mailbox`.
         """
-        return Mailbox(self.raft_node, self.chan)
+        return Mailbox(self.addr, self.raft_node, self.chan)
 
     def get_peers(self) -> dict[int, RaftClient]:
         return self.raft_node.peers

@@ -1,4 +1,5 @@
 import asyncio
+import pickle
 from asyncio import Queue
 from typing import Optional
 
@@ -15,6 +16,7 @@ from raftify.response_message import (
     RaftRespResponse,
     RaftRespWrongLeader,
 )
+from raftify.utils import SocketAddr
 
 
 class Mailbox:
@@ -22,9 +24,10 @@ class Mailbox:
     A mailbox to send messages to a running raft node.
     """
 
-    def __init__(self, raft_node: RaftNode, sender: Queue):
+    def __init__(self, addr: SocketAddr, raft_node: RaftNode, sender: Queue):
         self.sender = sender
         self.raft_node = raft_node
+        self.addr = addr
 
     async def __handle_response(
         self,
@@ -73,6 +76,7 @@ class Mailbox:
     async def leave(self, node_id: int) -> None:
         cc = ConfChange.default()
         cc.set_node_id(node_id)
+        cc.set_context(pickle.dumps(self.addr))
         cc.set_change_type(ConfChangeType.RemoveNode)
 
         receiver = Queue()
