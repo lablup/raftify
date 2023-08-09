@@ -11,7 +11,7 @@ from .deserializer import (  # noqa: F401
 from .error import ClusterJoinError, UnknownError  # noqa: F401
 from .fsm import FSM  # noqa: F401
 from .lmdb import LMDBStorage, LMDBStorageCore  # noqa: F401
-from .logger import RaftifyLogger  # noqa: F401
+from .logger import AbstractRaftifyLogger  # noqa: F401
 from .mailbox import Mailbox  # noqa: F401
 from .message_sender import MessageSender  # noqa: F401
 from .raft_client import RaftClient  # noqa: F401

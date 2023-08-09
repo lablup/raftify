@@ -97,7 +97,7 @@ class HashStore(FSM):
 
 ```py
 cluster = RaftCluster(raft_addr, store, logger)
-logger.info("Bootstrap a raft cluster")
+logger.info("Bootstrap a Raft Cluster")
 await cluster.bootstrap_cluster()
 ```
 

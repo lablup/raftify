@@ -21,7 +21,7 @@ from rraft import (
 
 from raftify.fsm import FSM
 from raftify.lmdb import LMDBStorage
-from raftify.logger import RaftifyLogger
+from raftify.logger import AbstractRaftifyLogger
 from raftify.message_sender import MessageSender
 from raftify.pb_adapter import ConfChangeAdapter, MessageAdapter
 from raftify.protos.raft_service_pb2 import RerouteMsgType
@@ -56,7 +56,7 @@ class RaftNode:
         storage: Storage,
         seq: AtomicInteger,
         last_snap_time: float,
-        logger: RaftifyLogger,
+        logger: AbstractRaftifyLogger,
     ):
         self.raw_node = raw_node
         self.peers = peers
@@ -71,7 +71,11 @@ class RaftNode:
 
     @classmethod
     def bootstrap_leader(
-        cls, chan: Queue, fsm: FSM, slog: Logger | LoggerRef, logger: RaftifyLogger
+        cls,
+        chan: Queue,
+        fsm: FSM,
+        slog: Logger | LoggerRef,
+        logger: AbstractRaftifyLogger,
     ) -> "RaftNode":
         config = Config.default()
         config.set_id(1)
@@ -116,7 +120,7 @@ class RaftNode:
         id: int,
         fsm: FSM,
         slog: Logger | LoggerRef,
-        logger: RaftifyLogger,
+        logger: AbstractRaftifyLogger,
     ) -> "RaftNode":
         config = Config.default()
 
@@ -381,7 +385,7 @@ class RaftNode:
             elif isinstance(message, MessageRaft):
                 msg = MessageAdapter.from_pb(message.msg)
                 self.logger.debug(
-                    f'Received raft-rs internal message from the "node {msg.get_from()}"'
+                    f'Node {msg.get_to()} Received Raft message from the "node {msg.get_from()}"'
                 )
 
                 try:

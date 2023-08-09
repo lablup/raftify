@@ -175,7 +175,7 @@ async def main() -> None:
         assert raft_addr is None, "Cannot specify both --bootstrap and --raft-addr."
 
         cluster = RaftCluster(peer_addrs[0], store, slog, logger)
-        logger.info("Bootstrap a cluster")
+        logger.info("Bootstrap a Raft Cluster")
         tasks.append(cluster.bootstrap_cluster())
     else:
         assert (

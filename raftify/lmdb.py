@@ -20,7 +20,7 @@ from rraft import (
     UnavailableError,
 )
 
-from raftify.logger import RaftifyLogger
+from raftify.logger import AbstractRaftifyLogger
 
 SNAPSHOT_KEY = b"snapshot"
 LAST_INDEX_KEY = b"last_index"
@@ -44,7 +44,7 @@ class LMDBStorageCore:
         env: lmdb.Environment,
         entries_db: lmdb._Database,
         metadata_db: lmdb._Database,
-        logger: RaftifyLogger,
+        logger: AbstractRaftifyLogger,
     ):
         self.env = env
         self.entries_db = entries_db
@@ -53,7 +53,7 @@ class LMDBStorageCore:
 
     @classmethod
     def create(
-        cls, path: os.PathLike, id: int, logger: RaftifyLogger
+        cls, path: os.PathLike, id: int, logger: AbstractRaftifyLogger
     ) -> "LMDBStorageCore":
         os.makedirs(path, exist_ok=True)
         db_pth = os.path.join(path, f"raft-{id}.mdb")
@@ -181,12 +181,14 @@ class LMDBStorageCore:
 
 
 class LMDBStorage:
-    def __init__(self, core: LMDBStorageCore, logger: RaftifyLogger):
+    def __init__(self, core: LMDBStorageCore, logger: AbstractRaftifyLogger):
         self.core = core
         self.logger = logger
 
     @classmethod
-    def create(cls, path: os.PathLike, id: int, logger: RaftifyLogger) -> "LMDBStorage":
+    def create(
+        cls, path: os.PathLike, id: int, logger: AbstractRaftifyLogger
+    ) -> "LMDBStorage":
         core = LMDBStorageCore.create(path, id, logger)
         return cls(core, logger)
 

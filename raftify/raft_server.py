@@ -3,7 +3,7 @@ from typing import Optional
 
 import grpc
 
-from raftify.logger import RaftifyLogger
+from raftify.logger import AbstractRaftifyLogger
 from raftify.protos import raft_service_pb2_grpc
 from raftify.raft_service import RaftService
 from raftify.utils import SocketAddr
@@ -14,7 +14,7 @@ class RaftServer:
         self,
         addr: SocketAddr,
         sender: Queue,
-        logger: RaftifyLogger,
+        logger: AbstractRaftifyLogger,
         *,
         credentials: Optional[grpc.ServerCredentials] = None,
     ):

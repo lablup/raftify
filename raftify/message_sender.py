@@ -2,7 +2,7 @@ from asyncio import Queue
 
 from rraft import Message
 
-from raftify.logger import RaftifyLogger
+from raftify.logger import AbstractRaftifyLogger
 from raftify.raft_client import RaftClient
 from raftify.request_message import MessageReportUnreachable
 
@@ -15,7 +15,7 @@ class MessageSender:
         client_id: int,
         chan: Queue,
         max_retries: int,
-        logger: RaftifyLogger,
+        logger: AbstractRaftifyLogger,
         timeout: float = 5.0,
     ):
         self.message = message

@@ -8,7 +8,7 @@ from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
 
 from raftify.error import ClusterJoinError, UnknownError
 from raftify.fsm import FSM
-from raftify.logger import RaftifyLogger
+from raftify.logger import AbstractRaftifyLogger
 from raftify.mailbox import Mailbox
 from raftify.protos import raft_service_pb2
 from raftify.raft_client import RaftClient
@@ -37,7 +37,7 @@ class RaftCluster:
         addr: SocketAddr,
         fsm: FSM,
         slog: Logger | LoggerRef,
-        logger: RaftifyLogger,
+        logger: AbstractRaftifyLogger,
     ):
         """
         Creates a new node with the given address and store.

@@ -4,7 +4,7 @@ from asyncio import Queue
 
 import grpc
 
-from raftify.logger import RaftifyLogger
+from raftify.logger import AbstractRaftifyLogger
 from raftify.protos import eraftpb_pb2, raft_service_pb2
 from raftify.request_message import (
     MessageConfigChange,
@@ -23,7 +23,7 @@ from raftify.response_message import (
 
 
 class RaftService:
-    def __init__(self, sender: Queue, logger: RaftifyLogger) -> None:
+    def __init__(self, sender: Queue, logger: AbstractRaftifyLogger) -> None:
         self.sender = sender
         self.logger = logger
 
