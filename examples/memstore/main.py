@@ -15,6 +15,7 @@ from aiohttp.web import Application, RouteTableDef
 from rraft import Logger as Slog
 from rraft import default_logger
 
+from raftify.config import RaftConfig
 from raftify.deserializer import confchange_context_deserializer  # noqa: F401
 from raftify.deserializer import confchangev2_context_deserializer  # noqa: F401
 from raftify.deserializer import entry_context_deserializer  # noqa: F401
@@ -24,6 +25,13 @@ from raftify.deserializer import snapshot_data_deserializer  # noqa: F401
 from raftify.fsm import FSM
 from raftify.raft_facade import FollowerRole, RaftCluster
 from raftify.utils import SocketAddr
+
+RaftCluster.config = RaftConfig.from_dict(
+    {
+        "election_tick": 10,
+        "heartbeat_tick": 3,
+    }
+)
 
 
 def setup_slog() -> Slog:
@@ -171,10 +179,11 @@ async def main() -> None:
     store = HashStore()
 
     tasks = []
+    target_addr = peer_addrs[0] if bootstrap else raft_addr
+    cluster = RaftCluster(target_addr, store, slog, logger)
+
     if bootstrap:
         assert raft_addr is None, "Cannot specify both --bootstrap and --raft-addr."
-
-        cluster = RaftCluster(peer_addrs[0], store, slog, logger)
         logger.info("Bootstrap a Raft Cluster")
         tasks.append(cluster.bootstrap_cluster())
     else:
@@ -183,7 +192,6 @@ async def main() -> None:
         ), "Follower node requires a --raft-addr option to join the cluster"
 
         logger.info("Running in follower mode")
-        cluster = RaftCluster(raft_addr, store, slog, logger)
         tasks.append(cluster.join_cluster(raft_addr, peer_addrs, follower_role))
 
     runner = None

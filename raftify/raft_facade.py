@@ -4,7 +4,9 @@ from asyncio import Queue
 from enum import Enum
 
 import grpc
-from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
+from rraft import ConfChange, ConfChangeType
+from rraft import Config as RaftConfig
+from rraft import Logger, LoggerRef
 
 from raftify.error import ClusterJoinError, UnknownError
 from raftify.fsm import FSM
@@ -32,6 +34,8 @@ class FollowerRole(Enum):
 
 
 class RaftCluster:
+    config = RaftConfig.default()
+
     def __init__(
         self,
         addr: SocketAddr,
@@ -65,7 +69,11 @@ class RaftCluster:
         """
         asyncio.create_task(RaftServer(self.addr, self.chan, self.logger).run())
         self.raft_node = RaftNode.bootstrap_leader(
-            self.chan, self.fsm, self.slog, self.logger
+            self.chan,
+            self.fsm,
+            self.slog,
+            self.logger,
+            cfg=RaftCluster.config,
         )
         await asyncio.create_task(self.raft_node.run())
 
@@ -123,7 +131,12 @@ class RaftCluster:
 
         # 2. Run server and node to prepare for joining
         self.raft_node = RaftNode.new_follower(
-            self.chan, node_id, self.fsm, self.slog, self.logger
+            self.chan,
+            node_id,
+            self.fsm,
+            self.slog,
+            self.logger,
+            cfg=RaftCluster.config,
         )
 
         self.raft_node.peers = {

@@ -76,12 +76,10 @@ class RaftNode:
         fsm: FSM,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
+        cfg: Config,
     ) -> "RaftNode":
-        config = Config.default()
-        config.set_id(1)
-        config.set_election_tick(10)
-        config.set_heartbeat_tick(3)
-        config.validate()
+        cfg.set_id(1)
+        cfg.validate()
 
         snapshot = Snapshot.default()
         snapshot.get_metadata().set_index(0)
@@ -92,7 +90,7 @@ class RaftNode:
         lmdb.apply_snapshot(snapshot)
 
         storage = Storage(lmdb)
-        raw_node = RawNode(config, storage, slog)
+        raw_node = RawNode(cfg, storage, slog)
 
         peers = {}
         seq = AtomicInteger(0)
@@ -121,18 +119,15 @@ class RaftNode:
         fsm: FSM,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
+        cfg: Config,
     ) -> "RaftNode":
-        config = Config.default()
-
-        config.set_id(id)
-        config.set_election_tick(10)
-        config.set_heartbeat_tick(3)
-        config.validate()
+        cfg.set_id(id)
+        cfg.validate()
 
         # TODO: Create mdb files in temp dir path. Now it create them in current dir for easy test and debugging.
         lmdb = LMDBStorage.create(".", id, logger)
         storage = Storage(lmdb)
-        raw_node = RawNode(config, storage, slog)
+        raw_node = RawNode(cfg, storage, slog)
 
         peers = {}
         seq = AtomicInteger(0)

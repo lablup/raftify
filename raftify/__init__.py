@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from .config import RaftConfig  # noqa: F401
 from .deserializer import (  # noqa: F401
     confchange_context_deserializer,
     confchangev2_context_deserializer,
@@ -22,6 +23,7 @@ from .utils import PickleSerializer, SocketAddr  # noqa: F401
 
 __all__ = [
     "lmdb",
+    "config",
     "error",
     "mailbox",
     "message_sender",
