@@ -4,9 +4,7 @@ from asyncio import Queue
 from enum import Enum
 
 import grpc
-from rraft import ConfChange, ConfChangeType
-from rraft import Config as RaftConfig
-from rraft import Logger, LoggerRef
+from rraft import ConfChange, ConfChangeType, Config, Logger, LoggerRef
 
 from raftify.error import ClusterJoinError, UnknownError
 from raftify.fsm import FSM
@@ -34,7 +32,7 @@ class FollowerRole(Enum):
 
 
 class RaftCluster:
-    config = RaftConfig.default()
+    config = Config.default()
 
     def __init__(
         self,
