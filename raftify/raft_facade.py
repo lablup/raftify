@@ -66,6 +66,9 @@ class RaftCluster:
     def set_cluster_config(config: RaftConfig) -> None:
         RaftCluster.cluster_config = config
 
+    def is_initialized(self) -> bool:
+        return self.raft_node is not None
+
     async def bootstrap_cluster(self) -> None:
         """
         Create a new leader for the cluster with node id 1.
