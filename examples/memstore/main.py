@@ -26,11 +26,17 @@ from raftify.fsm import FSM
 from raftify.raft_facade import FollowerRole, RaftCluster
 from raftify.utils import SocketAddr
 
-RaftCluster.config = RaftConfig.from_dict(
-    {
-        "election_tick": 10,
-        "heartbeat_tick": 3,
-    }
+RaftCluster.set_cluster_config(
+    RaftConfig(
+        log_dir="./",
+        use_log_compaction=False,
+        config=RaftConfig.new_raft_config(
+            {
+                "election_tick": 10,
+                "heartbeat_tick": 3,
+            }
+        ),
+    )
 )
 
 

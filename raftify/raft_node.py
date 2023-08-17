@@ -7,7 +7,6 @@ from typing import Optional
 from rraft import (
     ConfChange,
     ConfChangeType,
-    Config,
     Entry,
     EntryRef,
     EntryType,
@@ -19,6 +18,7 @@ from rraft import (
     Storage,
 )
 
+from raftify.config import RaftConfig
 from raftify.fsm import FSM
 from raftify.lmdb import LMDBStorage
 from raftify.logger import AbstractRaftifyLogger
@@ -57,6 +57,7 @@ class RaftNode:
         seq: AtomicInteger,
         last_snap_time: float,
         logger: AbstractRaftifyLogger,
+        cluster_cfg: RaftConfig,
     ):
         self.raw_node = raw_node
         self.peers = peers
@@ -68,6 +69,7 @@ class RaftNode:
         self.last_snap_time = last_snap_time
         self.logger = logger
         self.should_exit = False
+        self.cluster_cfg = cluster_cfg
 
     @classmethod
     def bootstrap_leader(
@@ -76,8 +78,10 @@ class RaftNode:
         fsm: FSM,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
-        cfg: Config,
+        cluster_cfg: RaftConfig,
     ) -> "RaftNode":
+        cfg = cluster_cfg.config
+
         cfg.set_id(1)
         cfg.validate()
 
@@ -86,7 +90,7 @@ class RaftNode:
         snapshot.get_metadata().set_term(0)
         snapshot.get_metadata().get_conf_state().set_voters([1])
 
-        lmdb = LMDBStorage.create(".", 1, logger)
+        lmdb = LMDBStorage.create(cluster_cfg.log_dir, 1, logger)
         lmdb.apply_snapshot(snapshot)
 
         storage = Storage(lmdb)
@@ -109,6 +113,7 @@ class RaftNode:
             seq,
             last_snap_time,
             logger,
+            cluster_cfg,
         )
 
     @classmethod
@@ -119,13 +124,14 @@ class RaftNode:
         fsm: FSM,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
-        cfg: Config,
+        cluster_cfg: RaftConfig,
     ) -> "RaftNode":
+        cfg = cluster_cfg.config
+
         cfg.set_id(id)
         cfg.validate()
 
-        # TODO: Create mdb files in temp dir path. Now it create them in current dir for easy test and debugging.
-        lmdb = LMDBStorage.create(".", id, logger)
+        lmdb = LMDBStorage.create(cluster_cfg.log_dir, id, logger)
         storage = Storage(lmdb)
         raw_node = RawNode(cfg, storage, slog)
 
@@ -143,6 +149,7 @@ class RaftNode:
             seq,
             last_snap_time,
             logger,
+            cluster_cfg,
         )
 
     def get_id(self) -> int:
@@ -244,9 +251,11 @@ class RaftNode:
         if time.time() > self.last_snap_time + 15:
             self.logger.info("Creating snapshot...")
             self.last_snap_time = time.time()
-            # last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
             snapshot = await self.fsm.snapshot()
-            # self.lmdb.compact(last_applied)
+
+            if self.cluster_cfg.use_log_compaction:
+                last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
+                self.lmdb.compact(last_applied)
 
             try:
                 self.lmdb.create_snapshot(snapshot, entry.get_index(), entry.get_term())
@@ -280,11 +289,12 @@ class RaftNode:
                 raise NotImplementedError
 
         if cs := self.raw_node.apply_conf_change(change):
-            # last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
             snapshot = await self.fsm.snapshot()
-
             self.lmdb.set_conf_state(cs)
-            # self.lmdb.compact(last_applied)
+
+            if self.cluster_cfg.use_log_compaction:
+                last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
+                self.lmdb.compact(last_applied)
 
             try:
                 self.lmdb.create_snapshot(snapshot, entry.get_index(), entry.get_term())

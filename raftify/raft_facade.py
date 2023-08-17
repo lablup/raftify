@@ -4,8 +4,9 @@ from asyncio import Queue
 from enum import Enum
 
 import grpc
-from rraft import ConfChange, ConfChangeType, Config, Logger, LoggerRef
+from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
 
+from raftify.config import RaftConfig
 from raftify.error import ClusterJoinError, UnknownError
 from raftify.fsm import FSM
 from raftify.logger import AbstractRaftifyLogger
@@ -32,7 +33,7 @@ class FollowerRole(Enum):
 
 
 class RaftCluster:
-    config = Config.default()
+    cluster_config = RaftConfig()
 
     def __init__(
         self,
@@ -61,18 +62,22 @@ class RaftCluster:
     def get_peers(self) -> dict[int, RaftClient]:
         return self.raft_node.peers
 
+    @staticmethod
+    def set_cluster_config(config: RaftConfig) -> None:
+        RaftCluster.cluster_config = config
+
     async def bootstrap_cluster(self) -> None:
         """
         Create a new leader for the cluster with node id 1.
         """
-        asyncio.create_task(RaftServer(self.addr, self.chan, self.logger).run())
         self.raft_node = RaftNode.bootstrap_leader(
             self.chan,
             self.fsm,
             self.slog,
             self.logger,
-            cfg=RaftCluster.config,
+            cluster_cfg=RaftCluster.cluster_config,
         )
+        asyncio.create_task(RaftServer(self.addr, self.chan, self.logger).run())
         await asyncio.create_task(self.raft_node.run())
 
     async def join_cluster(
@@ -134,7 +139,7 @@ class RaftCluster:
             self.fsm,
             self.slog,
             self.logger,
-            cfg=RaftCluster.config,
+            cluster_cfg=RaftCluster.cluster_config,
         )
 
         self.raft_node.peers = {
