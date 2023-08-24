@@ -16,15 +16,12 @@ from rraft import Logger as Slog
 from rraft import default_logger
 
 from raftify.config import RaftConfig
-from raftify.deserializer import confchange_context_deserializer  # noqa: F401
-from raftify.deserializer import confchangev2_context_deserializer  # noqa: F401
-from raftify.deserializer import entry_context_deserializer  # noqa: F401
-from raftify.deserializer import entry_data_deserializer  # noqa: F401
-from raftify.deserializer import message_context_deserializer  # noqa: F401
-from raftify.deserializer import snapshot_data_deserializer  # noqa: F401
+from raftify.deserializer import init_deserializer
 from raftify.fsm import FSM
 from raftify.raft_facade import FollowerRole, RaftCluster
 from raftify.utils import SocketAddr
+
+init_deserializer()
 
 RaftCluster.set_cluster_config(
     RaftConfig(

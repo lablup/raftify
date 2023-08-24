@@ -1,6 +1,15 @@
 import pickle
 from typing import Optional
 
+from rraft import (
+    set_confchange_context_deserializer,
+    set_confchangev2_context_deserializer,
+    set_entry_context_deserializer,
+    set_entry_data_deserializer,
+    set_message_context_deserializer,
+    set_snapshot_data_deserializer,
+)
+
 
 def pickle_deserialize(data: bytes) -> Optional[str]:
     if data == b"":
@@ -13,25 +22,10 @@ def pickle_deserialize(data: bytes) -> Optional[str]:
     return data
 
 
-def entry_data_deserializer(data: bytes) -> Optional[str]:
-    return pickle_deserialize(data)
-
-
-def entry_context_deserializer(data: bytes) -> Optional[str]:
-    return pickle_deserialize(data)
-
-
-def snapshot_data_deserializer(data: bytes) -> Optional[str]:
-    return pickle_deserialize(data)
-
-
-def message_context_deserializer(data: bytes) -> Optional[str]:
-    return pickle_deserialize(data)
-
-
-def confchange_context_deserializer(data: bytes) -> Optional[str]:
-    return pickle_deserialize(data)
-
-
-def confchangev2_context_deserializer(data: bytes) -> Optional[str]:
-    return pickle_deserialize(data)
+def init_deserializer():
+    set_confchange_context_deserializer(pickle_deserialize)
+    set_confchangev2_context_deserializer(pickle_deserialize)
+    set_entry_context_deserializer(pickle_deserialize)
+    set_entry_data_deserializer(pickle_deserialize)
+    set_message_context_deserializer(pickle_deserialize)
+    set_snapshot_data_deserializer(pickle_deserialize)

@@ -1,14 +1,7 @@
 from pathlib import Path
 
 from .config import RaftConfig  # noqa: F401
-from .deserializer import (  # noqa: F401
-    confchange_context_deserializer,
-    confchangev2_context_deserializer,
-    entry_context_deserializer,
-    entry_data_deserializer,
-    message_context_deserializer,
-    snapshot_data_deserializer,
-)
+from .deserializer import init_deserializer  # noqa: F401
 from .error import ClusterJoinError, UnknownError  # noqa: F401
 from .fsm import FSM  # noqa: F401
 from .lmdb import LMDBStorage, LMDBStorageCore  # noqa: F401
