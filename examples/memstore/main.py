@@ -194,8 +194,10 @@ async def main() -> None:
             raft_addr is not None
         ), "Follower node requires a --raft-addr option to join the cluster"
 
+        res = await cluster.request_id(raft_addr, peer_addrs)
+
         logger.info("Running in follower mode")
-        tasks.append(cluster.join_cluster(raft_addr, peer_addrs, follower_role))
+        tasks.append(cluster.join_cluster(res, follower_role))
 
     runner = None
     if web_server_addr:

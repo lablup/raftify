@@ -1,7 +1,9 @@
 import asyncio
 import pickle
 from asyncio import Queue
+from dataclasses import dataclass
 from enum import Enum
+from typing import Tuple
 
 import grpc
 from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
@@ -30,6 +32,13 @@ class FollowerRole(Enum):
                 return ConfChangeType.AddLearnerNode
             case _:
                 assert "Unreachable"
+
+
+@dataclass
+class RequestIdResponse:
+    follower_id: int
+    leader: Tuple[int, RaftClient]
+    peer_addrs: dict[int, SocketAddr]
 
 
 class RaftCluster:
@@ -83,17 +92,13 @@ class RaftCluster:
         asyncio.create_task(RaftServer(self.addr, self.chan, self.logger).run())
         await asyncio.create_task(self.raft_node.run())
 
-    async def join_cluster(
-        self,
-        raft_addr: SocketAddr,
-        peer_candidates: list[SocketAddr],
-        role: FollowerRole = FollowerRole.Voter,
-    ) -> None:
+    async def request_id(
+        self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]
+    ) -> RequestIdResponse:
         """
-        Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
+        To join the cluster, find out who is the leader node and get node_id from the leader.
         """
 
-        # 1. Discover the leader of the cluster and obtain an 'node_id'.
         for peer_addr in peer_candidates:
             self.logger.info(f'Attempting to join the cluster through "{peer_addr}"...')
 
@@ -130,12 +135,25 @@ class RaftCluster:
             )
 
         assert leader_id is not None and node_id is not None
+        return RequestIdResponse(node_id, (leader_id, client), peer_addrs)
+
+    async def join_cluster(
+        self,
+        request_id_response: RequestIdResponse,
+        role: FollowerRole = FollowerRole.Voter,
+    ) -> None:
+        """
+        Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
+        """
+        node_id = request_id_response.follower_id
+        leader = request_id_response.leader
+        peer_addrs = request_id_response.peer_addrs
+        leader_id, leader_client = leader
 
         self.logger.info(
             f"Cluster join succeeded. Obtained node id {node_id} from the leader node {leader_id}."
         )
 
-        # 2. Run server and node to prepare for joining
         self.raft_node = RaftNode.new_follower(
             self.chan,
             node_id,
@@ -147,13 +165,12 @@ class RaftCluster:
 
         self.raft_node.peers = {
             **{node_id: RaftClient(addr) for node_id, addr in peer_addrs.items()},
-            leader_id: client,
+            leader_id: leader_client,
         }
 
         asyncio.create_task(RaftServer(self.addr, self.chan, self.logger).run())
         raft_node_handle = asyncio.create_task(self.raft_node.run())
 
-        # 3. Join the cluster
         conf_change = ConfChange.default()
         conf_change.set_node_id(node_id)
         conf_change.set_change_type(role.to_changetype())
@@ -162,7 +179,7 @@ class RaftCluster:
         # TODO: Should handle wrong leader error here because the leader might change in the meanwhile.
         # But it might be already handled by the rerouting logic. So, it should be tested first.
         while True:
-            resp = await client.change_config(conf_change)
+            resp = await leader_client.change_config(conf_change)
 
             if resp.result == raft_service_pb2.ChangeConfig_Success:
                 break
