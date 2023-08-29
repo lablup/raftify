@@ -3,7 +3,7 @@ import pickle
 from asyncio import Queue
 from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple
+from typing import Optional, Tuple
 
 import grpc
 from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
@@ -18,6 +18,11 @@ from raftify.raft_client import RaftClient
 from raftify.raft_node import RaftNode
 from raftify.raft_server import RaftServer
 from raftify.utils import SocketAddr
+
+
+class RaftNodeRole(Enum):
+    Leader = 0
+    Follower = 1
 
 
 class FollowerRole(Enum):
@@ -78,17 +83,32 @@ class RaftCluster:
     def is_initialized(self) -> bool:
         return self.raft_node is not None
 
+    def build_raft(self, role: RaftNodeRole, follower_id: Optional[int] = None) -> None:
+        if role == RaftNodeRole.Follower:
+            assert follower_id is not None
+
+            self.raft_node = RaftNode.new_follower(
+                self.chan,
+                follower_id,
+                self.fsm,
+                self.slog,
+                self.logger,
+                cluster_cfg=RaftCluster.cluster_config,
+            )
+        else:
+            self.raft_node = RaftNode.bootstrap_leader(
+                self.chan,
+                self.fsm,
+                self.slog,
+                self.logger,
+                cluster_cfg=RaftCluster.cluster_config,
+            )
+
     async def bootstrap_cluster(self) -> None:
         """
         Create a new leader for the cluster with node id 1.
         """
-        self.raft_node = RaftNode.bootstrap_leader(
-            self.chan,
-            self.fsm,
-            self.slog,
-            self.logger,
-            cluster_cfg=RaftCluster.cluster_config,
-        )
+        assert self.raft_node, "Raft node is not initialized!"
         asyncio.create_task(RaftServer(self.addr, self.chan, self.logger).run())
         await asyncio.create_task(self.raft_node.run())
 
@@ -98,7 +118,6 @@ class RaftCluster:
         """
         To join the cluster, find out who is the leader node and get node_id from the leader.
         """
-
         for peer_addr in peer_candidates:
             self.logger.info(f'Attempting to join the cluster through "{peer_addr}"...')
 
@@ -142,6 +161,8 @@ class RaftCluster:
         request_id_response: RequestIdResponse,
         role: FollowerRole = FollowerRole.Voter,
     ) -> None:
+        assert self.raft_node, "Raft node is not initialized!"
+
         """
         Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
         """
@@ -152,15 +173,6 @@ class RaftCluster:
 
         self.logger.info(
             f"Cluster join succeeded. Obtained node id {node_id} from the leader node {leader_id}."
-        )
-
-        self.raft_node = RaftNode.new_follower(
-            self.chan,
-            node_id,
-            self.fsm,
-            self.slog,
-            self.logger,
-            cluster_cfg=RaftCluster.cluster_config,
         )
 
         self.raft_node.peers = {

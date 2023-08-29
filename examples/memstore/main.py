@@ -18,7 +18,7 @@ from rraft import default_logger
 from raftify.config import RaftConfig
 from raftify.deserializer import init_deserializer
 from raftify.fsm import FSM
-from raftify.raft_facade import FollowerRole, RaftCluster
+from raftify.raft_facade import FollowerRole, RaftCluster, RaftNodeRole
 from raftify.utils import SocketAddr
 
 init_deserializer()
@@ -188,16 +188,22 @@ async def main() -> None:
     if bootstrap:
         assert raft_addr is None, "Cannot specify both --bootstrap and --raft-addr."
         logger.info("Bootstrap a Raft Cluster")
+        cluster.build_raft(RaftNodeRole.LEADER)
         tasks.append(cluster.bootstrap_cluster())
     else:
         assert (
             raft_addr is not None
         ), "Follower node requires a --raft-addr option to join the cluster"
 
-        res = await cluster.request_id(raft_addr, peer_addrs)
+        request_id_response = await cluster.request_id(raft_addr, peer_addrs)
 
         logger.info("Running in follower mode")
-        tasks.append(cluster.join_cluster(res, follower_role))
+        cluster.build_raft(RaftNodeRole.Follower, request_id_response.follower_id)
+        tasks.append(
+            cluster.join_cluster(
+                request_id_response=request_id_response, role=follower_role
+            )
+        )
 
     runner = None
     if web_server_addr:
