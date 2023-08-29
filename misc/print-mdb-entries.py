@@ -3,13 +3,6 @@ import sys
 import lmdb
 import rraft
 
-from raftify.deserializer import entry_context_deserializer  # noqa: F401
-from raftify.deserializer import entry_data_deserializer  # noqa: F401
-from raftify.deserializer import message_context_deserializer  # noqa: F401
-from raftify.deserializer import snapshot_data_deserializer  # noqa: F401
-from raftify.deserializer import confchange_context_deserializer  # noqa: F401
-from raftify.deserializer import confchangev2_context_deserializer  # noqa: F401
-
 
 def main(argv):
     idx = argv[1]
