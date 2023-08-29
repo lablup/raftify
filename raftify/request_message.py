@@ -12,13 +12,13 @@ class RaftRequest(metaclass=abc.ABCMeta):
 
 
 @dataclass
-class MessagePropose(RaftRequest, PickleSerializer):
+class ProposeReqMessage(RaftRequest, PickleSerializer):
     data: bytes
     chan: Queue
 
 
 @dataclass
-class MessageRerouteToLeader(RaftRequest, PickleSerializer):
+class RerouteToLeaderReqMessage(RaftRequest, PickleSerializer):
     proposed_data: Optional[bytes]
     confchange: Optional[raft_service_pb2.ConfChange]
     type: raft_service_pb2.RerouteMsgType
@@ -26,22 +26,22 @@ class MessageRerouteToLeader(RaftRequest, PickleSerializer):
 
 
 @dataclass
-class MessageConfigChange(RaftRequest, PickleSerializer):
+class ConfigChangeReqMessage(RaftRequest, PickleSerializer):
     change: eraftpb_pb2.ConfChange
     chan: Queue
 
 
 @dataclass
-class MessageRequestId(RaftRequest, PickleSerializer):
+class RequestIdReqMessage(RaftRequest, PickleSerializer):
     addr: str
     chan: Queue
 
 
 @dataclass
-class MessageReportUnreachable(RaftRequest, PickleSerializer):
+class ReportUnreachableReqMessage(RaftRequest, PickleSerializer):
     node_id: int
 
 
 @dataclass
-class MessageRaft(RaftRequest, PickleSerializer):
+class RaftReqMessage(RaftRequest, PickleSerializer):
     msg: eraftpb_pb2.Message

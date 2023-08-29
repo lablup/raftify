@@ -5,7 +5,7 @@ from rraft import Message
 from raftify.config import RaftifyConfig
 from raftify.logger import AbstractRaftifyLogger
 from raftify.raft_client import RaftClient
-from raftify.request_message import MessageReportUnreachable
+from raftify.request_message import ReportUnreachableReqMessage
 
 
 class MessageSender:
@@ -33,7 +33,9 @@ class MessageSender:
         current_retry = 0
         while True:
             try:
-                await self.client.send_message(self.message, self.raftify_cfg.message_timeout)
+                await self.client.send_message(
+                    self.message, self.raftify_cfg.message_timeout
+                )
                 return
             except Exception:
                 if current_retry < self.raftify_cfg.max_retry_cnt:
@@ -44,7 +46,7 @@ class MessageSender:
                     )
 
                     try:
-                        await self.chan.put(MessageReportUnreachable(self.client_id))
+                        await self.chan.put(ReportUnreachableReqMessage(self.client_id))
                     except Exception:
                         pass
                     return

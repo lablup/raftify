@@ -10,34 +10,34 @@ class RaftResponse(metaclass=abc.ABCMeta):
 
 
 @dataclass
-class RaftRespWrongLeader(RaftResponse, PickleSerializer):
+class WrongLeaderRespMessage(RaftResponse, PickleSerializer):
     leader_id: int
     leader_addr: str
 
 
 @dataclass
-class RaftRespJoinSuccess(RaftResponse, PickleSerializer):
+class JoinSuccessRespMessage(RaftResponse, PickleSerializer):
     assigned_id: int
     peer_addrs: dict[int, str]
 
 
 @dataclass
-class RaftRespIdReserved(RaftResponse, PickleSerializer):
+class IdReservedRespMessage(RaftResponse, PickleSerializer):
     leader_id: int
     reserved_id: int
     peer_addrs: dict[int, str]
 
 
 @dataclass
-class RaftRespResponse(RaftResponse, PickleSerializer):
+class RaftRespMessage(RaftResponse, PickleSerializer):
     data: bytes
 
 
 @dataclass
-class RaftRespError(RaftResponse, PickleSerializer):
+class RaftErrorRespMessage(RaftResponse, PickleSerializer):
     data: Optional[bytes] = None
 
 
 @dataclass
-class RaftRespOk(RaftResponse, PickleSerializer):
+class RaftOkRespMessage(RaftResponse, PickleSerializer):
     pass

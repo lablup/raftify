@@ -9,12 +9,12 @@ from raftify.error import UnknownError
 from raftify.pb_adapter import ConfChangeAdapter
 from raftify.protos import raft_service_pb2
 from raftify.raft_node import RaftNode
-from raftify.request_message import MessageConfigChange, MessagePropose
+from raftify.request_message import ConfigChangeReqMessage, ProposeReqMessage
 from raftify.response_message import (
-    RaftRespOk,
+    RaftOkRespMessage,
+    RaftRespMessage,
     RaftResponse,
-    RaftRespResponse,
-    RaftRespWrongLeader,
+    WrongLeaderRespMessage,
 )
 from raftify.utils import SocketAddr
 
@@ -37,11 +37,11 @@ class Mailbox:
         proposed_data: Optional[bytes] = None,
         confchange: Optional[raft_service_pb2.ConfChange] = None,
     ) -> Optional[bytes]:
-        if isinstance(response, RaftRespOk):
+        if isinstance(response, RaftOkRespMessage):
             return None
-        if isinstance(response, RaftRespResponse):
+        if isinstance(response, RaftRespMessage):
             return response.data
-        elif isinstance(response, RaftRespWrongLeader):
+        elif isinstance(response, WrongLeaderRespMessage):
             leader_id = self.raft_node.get_leader_id()
             resp_from_leader = await self.raft_node.peers[leader_id].reroute_message(
                 reroute_msg_type=reroute_msg_type,
@@ -63,7 +63,7 @@ class Mailbox:
 
         receiver = Queue()
         # TODO: make timeout duration a variable
-        await self.sender.put(MessagePropose(message, receiver))
+        await self.sender.put(ProposeReqMessage(message, receiver))
 
         resp = await self.__handle_response(
             await asyncio.wait_for(receiver.get(), 2),
@@ -82,7 +82,7 @@ class Mailbox:
         receiver = Queue()
         confchange = ConfChangeAdapter.to_pb(cc)
 
-        await self.sender.put(MessageConfigChange(confchange, receiver))
+        await self.sender.put(ConfigChangeReqMessage(confchange, receiver))
 
         await self.__handle_response(
             await receiver.get(),

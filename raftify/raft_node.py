@@ -28,19 +28,19 @@ from raftify.protos.raft_service_pb2 import RerouteMsgType
 from raftify.raft_client import RaftClient
 from raftify.raft_server import RaftServer
 from raftify.request_message import (
-    MessageConfigChange,
-    MessagePropose,
-    MessageRaft,
-    MessageReportUnreachable,
-    MessageRequestId,
-    MessageRerouteToLeader,
+    ConfigChangeReqMessage,
+    ProposeReqMessage,
+    RaftReqMessage,
+    ReportUnreachableReqMessage,
+    RequestIdReqMessage,
+    RerouteToLeaderReqMessage,
 )
 from raftify.response_message import (
-    RaftRespIdReserved,
-    RaftRespJoinSuccess,
-    RaftRespOk,
-    RaftRespResponse,
-    RaftRespWrongLeader,
+    IdReservedRespMessage,
+    JoinSuccessRespMessage,
+    RaftOkRespMessage,
+    RaftRespMessage,
+    WrongLeaderRespMessage,
 )
 from raftify.utils import AtomicInteger
 
@@ -217,7 +217,7 @@ class RaftNode:
         try:
             # TODO: handle error here
             await channel.put(
-                RaftRespWrongLeader(
+                WrongLeaderRespMessage(
                     leader_id=self.get_leader_id(),
                     leader_addr=str(self.peers[self.get_leader_id()].addr),
                 )
@@ -255,7 +255,7 @@ class RaftNode:
         data = await self.fsm.apply(entry.get_data())
 
         if sender := senders.pop(seq, None):
-            sender.put_nowait(RaftRespResponse(data))
+            sender.put_nowait(RaftRespMessage(data))
 
         if time.time() > self.last_snap_time + 15:
             self.logger.info("Creating snapshot...")
@@ -314,11 +314,11 @@ class RaftNode:
         if sender := senders.pop(seq, None):
             match change_type:
                 case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
-                    response = RaftRespJoinSuccess(
+                    response = JoinSuccessRespMessage(
                         assigned_id=node_id, peer_addrs=self.peer_addrs()
                     )
                 case ConfChangeType.RemoveNode:
-                    response = RaftRespOk()
+                    response = RaftOkRespMessage()
                 case _:
                     raise NotImplementedError
 
@@ -347,18 +347,18 @@ class RaftNode:
             except Exception:
                 raise
 
-            if isinstance(message, MessageRerouteToLeader):
+            if isinstance(message, RerouteToLeaderReqMessage):
                 match message.type:
                     case RerouteMsgType.ConfChange:
-                        message = MessageConfigChange(
+                        message = ConfigChangeReqMessage(
                             change=message.confchange, chan=message.chan
                         )
                     case RerouteMsgType.Propose:
-                        message = MessagePropose(
+                        message = ProposeReqMessage(
                             data=message.proposed_data, chan=message.chan
                         )
 
-            if isinstance(message, MessageConfigChange):
+            if isinstance(message, ConfigChangeReqMessage):
                 change = ConfChangeAdapter.from_pb(message.change)
 
                 if not self.is_leader():
@@ -374,7 +374,7 @@ class RaftNode:
                     context = pickle.dumps(self.seq.value)
                     self.raw_node.propose_conf_change(context, change)
 
-            elif isinstance(message, MessagePropose):
+            elif isinstance(message, ProposeReqMessage):
                 if not self.is_leader():
                     # TODO: retry strategy in case of failure
                     await self.send_wrongleader_response(message.chan)
@@ -384,20 +384,20 @@ class RaftNode:
                     context = pickle.dumps(self.seq.value)
                     self.raw_node.propose(context, message.data)
 
-            elif isinstance(message, MessageRequestId):
+            elif isinstance(message, RequestIdReqMessage):
                 if not self.is_leader():
                     # TODO: retry strategy in case of failure
                     await self.send_wrongleader_response(message.chan)
                 else:
                     await message.chan.put(
-                        RaftRespIdReserved(
+                        IdReservedRespMessage(
                             leader_id=self.get_leader_id(),
                             reserved_id=self.reserve_next_peer_id(message.addr),
                             peer_addrs=self.peer_addrs(),
                         )
                     )
 
-            elif isinstance(message, MessageRaft):
+            elif isinstance(message, RaftReqMessage):
                 msg = MessageAdapter.from_pb(message.msg)
                 self.logger.debug(
                     f'Node {msg.get_to()} Received Raft message from the "node {msg.get_from()}"'
@@ -408,7 +408,7 @@ class RaftNode:
                 except Exception:
                     pass
 
-            elif isinstance(message, MessageReportUnreachable):
+            elif isinstance(message, ReportUnreachableReqMessage):
                 self.raw_node.report_unreachable(message.node_id)
 
             now = time.time()
