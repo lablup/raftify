@@ -22,7 +22,11 @@ def pickle_deserialize(data: bytes) -> Optional[str]:
     return data
 
 
-def init_deserializer():
+def init_rraft_py_deserializer():
+    """
+    Initialize the deserializers using in rraft-py.
+    """
+
     set_confchange_context_deserializer(pickle_deserialize)
     set_confchangev2_context_deserializer(pickle_deserialize)
     set_entry_context_deserializer(pickle_deserialize)

@@ -16,12 +16,9 @@ from rraft import Logger as Slog
 from rraft import default_logger
 
 from raftify.config import RaftifyConfig
-from raftify.deserializer import init_deserializer
 from raftify.fsm import FSM
 from raftify.raft_facade import FollowerRole, RaftCluster, RaftNodeRole
 from raftify.utils import SocketAddr
-
-init_deserializer()
 
 RaftCluster.set_cluster_config(
     RaftifyConfig(

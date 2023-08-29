@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from .config import RaftifyConfig  # noqa: F401
-from .deserializer import init_deserializer  # noqa: F401
 from .error import ClusterJoinError, UnknownError  # noqa: F401
 from .fsm import FSM  # noqa: F401
 from .lmdb import LMDBStorage, LMDBStorageCore  # noqa: F401
@@ -20,7 +19,6 @@ __all__ = [
     "error",
     "mailbox",
     "message_sender",
-    "message",
     "raft_client",
     "raft_node",
     "raft_server",

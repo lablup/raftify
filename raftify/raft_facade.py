@@ -9,6 +9,7 @@ import grpc
 from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
 
 from raftify.config import RaftifyConfig
+from raftify.deserializer import init_rraft_py_deserializer
 from raftify.error import ClusterJoinError, UnknownError
 from raftify.fsm import FSM
 from raftify.logger import AbstractRaftifyLogger
@@ -59,6 +60,7 @@ class RaftCluster:
         """
         Creates a new node with the given address and store.
         """
+        init_rraft_py_deserializer()
         self.addr = addr
         self.fsm = fsm
         self.slog = slog
