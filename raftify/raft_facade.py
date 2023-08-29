@@ -10,7 +10,7 @@ from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
 
 from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
-from raftify.error import ClusterJoinError, UnknownError
+from raftify.error import ClusterJoinError, LeaderNotFoundError, UnknownError
 from raftify.fsm import FSM
 from raftify.logger import AbstractRaftifyLogger
 from raftify.mailbox import Mailbox
@@ -164,9 +164,7 @@ class RaftCluster:
             if not seek_next:
                 break
         else:
-            raise ClusterJoinError(
-                "Could not join the cluster. Check your Raft configuration and check to make sure that any of them is alive."
-            )
+            raise LeaderNotFoundError()
 
         assert leader_id is not None and node_id is not None
 
@@ -181,11 +179,11 @@ class RaftCluster:
         request_id_response: RequestIdResponse,
         role: FollowerRole = FollowerRole.Voter,
     ) -> None:
-        assert self.raft_node and self.raft_server, "Raft node is not initialized!"
-
         """
         Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
         """
+        assert self.raft_node and self.raft_server, "Raft node is not initialized!"
+
         node_id = request_id_response.follower_id
         leader = request_id_response.leader
         peer_addrs = request_id_response.peer_addrs
@@ -207,13 +205,22 @@ class RaftCluster:
         # TODO: Should handle wrong leader error here because the leader might change in the meanwhile.
         # But it might be already handled by the rerouting logic. So, it should be tested first.
         while True:
-            resp = await leader_client.change_config(conf_change)
+            try:
+                resp = await leader_client.change_config(conf_change)
+
+            except grpc.aio.AioRpcError as e:
+                raise ClusterJoinError(cause=e)
+
+            except Exception as e:
+                raise ClusterJoinError(cause=e)
 
             if resp.result == raft_service_pb2.ChangeConfig_Success:
                 return
-            elif resp.result == raft_service_pb2.ChangeConfig_TimeoutError:
+            elif (
+                resp.result == raft_service_pb2.ChangeConfig_TimeoutError
+            ):
                 self.logger.info("Join request timeout. Retrying...")
-                await asyncio.sleep(0.25)
+                await asyncio.sleep(2)
                 continue
 
     async def run_raft(self):

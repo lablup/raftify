@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from .config import RaftifyConfig  # noqa: F401
-from .error import ClusterJoinError, UnknownError  # noqa: F401
+from .error import ClusterJoinError, LeaderNotFoundError, UnknownError  # noqa: F401
 from .fsm import FSM  # noqa: F401
 from .lmdb import LMDBStorage, LMDBStorageCore  # noqa: F401
 from .logger import AbstractRaftifyLogger  # noqa: F401

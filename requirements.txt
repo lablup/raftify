@@ -1,5 +1,5 @@
 grpcio==1.50.0
 lmdb==1.4.0
 protobuf~=4.21.6
-rraft-py>=0.2.13
+rraft-py>=0.2.14
 tomli~=2.0.1

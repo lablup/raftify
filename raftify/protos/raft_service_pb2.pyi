@@ -15,7 +15,6 @@ class ChangeConfigResult(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ChangeConfig_Success: _ClassVar[ChangeConfigResult]
     ChangeConfig_WrongLeader: _ClassVar[ChangeConfigResult]
     ChangeConfig_TimeoutError: _ClassVar[ChangeConfigResult]
-    ChangeConfig_GrpcError: _ClassVar[ChangeConfigResult]
     ChangeConfig_UnknownError: _ClassVar[ChangeConfigResult]
 
 class IdRequestResult(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -32,7 +31,6 @@ class RerouteMsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 ChangeConfig_Success: ChangeConfigResult
 ChangeConfig_WrongLeader: ChangeConfigResult
 ChangeConfig_TimeoutError: ChangeConfigResult
-ChangeConfig_GrpcError: ChangeConfigResult
 ChangeConfig_UnknownError: ChangeConfigResult
 IdRequest_Success: IdRequestResult
 IdRequest_Error: IdRequestResult

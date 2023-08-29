@@ -31,11 +31,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         self, request: raft_service_pb2.IdRequestArgs, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.IdRequestResponse:
         receiver = Queue()
-        try:
-            await self.sender.put(RequestIdReqMessage(request.addr, receiver))
-        except Exception:
-            pass
-
+        await self.sender.put(RequestIdReqMessage(request.addr, receiver))
         response = await receiver.get()
 
         if isinstance(response, WrongLeaderRespMessage):
@@ -67,10 +63,13 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         try:
             if raft_response := await asyncio.wait_for(receiver.get(), 2):
                 if isinstance(raft_response, RaftOkRespMessage):
+                    reply.result = raft_service_pb2.ChangeConfig_Success
                     reply.data = b""
-                if isinstance(raft_response, JoinSuccessRespMessage):
+                elif isinstance(raft_response, JoinSuccessRespMessage):
+                    reply.result = raft_service_pb2.ChangeConfig_Success
                     reply.data = raft_response.encode()
                 elif isinstance(raft_response, WrongLeaderRespMessage):
+                    reply.result = raft_service_pb2.ChangeConfig_WrongLeader
                     leader_id, leader_addr = (
                         raft_response.leader_id,
                         raft_response.leader_addr,
@@ -80,11 +79,8 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         except asyncio.TimeoutError:
             reply.result = raft_service_pb2.ChangeConfig_TimeoutError
             reply.data = RaftErrorRespMessage().encode()
-            self.logger.error("Timeout waiting for reply")
 
-        except grpc.aio.AioRpcError as e:
-            reply.result = raft_service_pb2.ChangeConfig_GrpcError
-            reply.data = RaftErrorRespMessage(data=str(e).encode("utf-8")).encode()
+            self.logger.error(f"Timeout waiting for reply! peer: {context.peer()}")
 
         except Exception as e:
             reply.result = raft_service_pb2.ChangeConfig_UnknownError

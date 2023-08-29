@@ -28,11 +28,10 @@ message RaftMessageResponse {
 // ChangeConfig
 
 enum ChangeConfigResult {
-  ChangeConfig_Success           = 0;
-  ChangeConfig_WrongLeader       = 1;
-  ChangeConfig_TimeoutError      = 2;
-  ChangeConfig_GrpcError         = 3;
-  ChangeConfig_UnknownError      = 4;
+  ChangeConfig_Success                    = 0;
+  ChangeConfig_WrongLeader                = 1;
+  ChangeConfig_TimeoutError               = 2;
+  ChangeConfig_UnknownError               = 3;
 }
 
 message ChangeConfigResponse {

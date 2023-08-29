@@ -325,7 +325,7 @@ class RaftNode:
             try:
                 sender.put_nowait(response)
             except Exception:
-                self.logger.error("Error sending response")
+                self.logger.error("Error occurred while sending response")
 
     async def run(self) -> None:
         heartbeat = 0.1
@@ -367,8 +367,9 @@ class RaftNode:
                 else:
                     # leader assign new id to peer
                     self.logger.debug(
-                        f'Received request from the "node {change.get_node_id()}"'
+                        f'Received confchange request from the "node {change.get_node_id()}"'
                     )
+
                     self.seq.increase()
                     client_senders[self.seq.value] = message.chan
                     context = pickle.dumps(self.seq.value)
