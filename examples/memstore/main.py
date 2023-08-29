@@ -181,15 +181,14 @@ async def main() -> None:
 
     store = HashStore()
 
-    tasks = []
     target_addr = peer_addrs[0] if bootstrap else raft_addr
     cluster = RaftCluster(target_addr, store, slog, logger)
 
     if bootstrap:
         assert raft_addr is None, "Cannot specify both --bootstrap and --raft-addr."
         logger.info("Bootstrap a Raft Cluster")
-        cluster.build_raft(RaftNodeRole.LEADER)
-        tasks.append(cluster.bootstrap_cluster())
+        cluster.build_raft(RaftNodeRole.Leader)
+        cluster.bootstrap_cluster()
     else:
         assert (
             raft_addr is not None
@@ -199,10 +198,8 @@ async def main() -> None:
 
         logger.info("Running in follower mode")
         cluster.build_raft(RaftNodeRole.Follower, request_id_response.follower_id)
-        tasks.append(
-            cluster.join_cluster(
-                request_id_response=request_id_response, role=follower_role
-            )
+        await cluster.join_cluster(
+            request_id_response=request_id_response, role=follower_role
         )
 
     runner = None
@@ -217,11 +214,10 @@ async def main() -> None:
         host, port = web_server_addr.split(":")
         runner = web.AppRunner(app)
         await runner.setup()
-        site = web.TCPSite(runner, host, port)
-        tasks.append(site.start())
+        web_server = web.TCPSite(runner, host, port)
 
     try:
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*(web_server.start(), cluster.run_raft()))
     finally:
         if runner:
             await runner.cleanup()

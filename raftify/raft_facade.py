@@ -65,6 +65,9 @@ class RaftCluster:
         self.logger = logger
         self.chan = Queue(maxsize=100)
         self.raft_node = None
+        self.raft_server = None
+        self.raft_node_task = None
+        self.raft_server_task = None
 
     @property
     def mailbox(self) -> Mailbox:
@@ -84,33 +87,41 @@ class RaftCluster:
         return self.raft_node is not None
 
     def build_raft(self, role: RaftNodeRole, follower_id: Optional[int] = None) -> None:
+        """
+        Prepare Raft node and Raft server with the given role before using it.
+        It should be called before `bootstrap_cluster` or `join_cluster`.
+        """
+        self.raft_server = RaftServer(self.addr, self.chan, self.logger)
+
         if role == RaftNodeRole.Follower:
             assert follower_id is not None
 
             self.raft_node = RaftNode.new_follower(
-                self.chan,
-                follower_id,
-                self.fsm,
-                self.slog,
-                self.logger,
+                chan=self.chan,
+                id=follower_id,
+                fsm=self.fsm,
+                raft_server=self.raft_server,
+                slog=self.slog,
+                logger=self.logger,
                 cluster_cfg=RaftCluster.cluster_config,
             )
         else:
             self.raft_node = RaftNode.bootstrap_leader(
-                self.chan,
-                self.fsm,
-                self.slog,
-                self.logger,
+                chan=self.chan,
+                fsm=self.fsm,
+                raft_server=self.raft_server,
+                slog=self.slog,
+                logger=self.logger,
                 cluster_cfg=RaftCluster.cluster_config,
             )
 
-    async def bootstrap_cluster(self) -> None:
+    def bootstrap_cluster(self) -> None:
         """
         Create a new leader for the cluster with node id 1.
         """
-        assert self.raft_node, "Raft node is not initialized!"
-        asyncio.create_task(RaftServer(self.addr, self.chan, self.logger).run())
-        await asyncio.create_task(self.raft_node.run())
+        assert self.raft_node and self.raft_server, "Raft node is not initialized!"
+        self.raft_server_task = asyncio.create_task(self.raft_server.run())
+        self.raft_node_task = asyncio.create_task(self.raft_node.run())
 
     async def request_id(
         self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]
@@ -118,6 +129,8 @@ class RaftCluster:
         """
         To join the cluster, find out who is the leader node and get node_id from the leader.
         """
+        assert not self.raft_node and not self.raft_server, "Raft node is already set!"
+
         for peer_addr in peer_candidates:
             self.logger.info(f'Attempting to join the cluster through "{peer_addr}"...')
 
@@ -154,6 +167,11 @@ class RaftCluster:
             )
 
         assert leader_id is not None and node_id is not None
+
+        self.logger.info(
+            f"Obtained node id {node_id} from the leader node {leader_id}."
+        )
+
         return RequestIdResponse(node_id, (leader_id, client), peer_addrs)
 
     async def join_cluster(
@@ -161,7 +179,7 @@ class RaftCluster:
         request_id_response: RequestIdResponse,
         role: FollowerRole = FollowerRole.Voter,
     ) -> None:
-        assert self.raft_node, "Raft node is not initialized!"
+        assert self.raft_node and self.raft_server, "Raft node is not initialized!"
 
         """
         Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
@@ -171,17 +189,13 @@ class RaftCluster:
         peer_addrs = request_id_response.peer_addrs
         leader_id, leader_client = leader
 
-        self.logger.info(
-            f"Cluster join succeeded. Obtained node id {node_id} from the leader node {leader_id}."
-        )
-
         self.raft_node.peers = {
             **{node_id: RaftClient(addr) for node_id, addr in peer_addrs.items()},
             leader_id: leader_client,
         }
 
-        asyncio.create_task(RaftServer(self.addr, self.chan, self.logger).run())
-        raft_node_handle = asyncio.create_task(self.raft_node.run())
+        self.raft_server_task = asyncio.create_task(self.raft_server.run())
+        self.raft_node_task = asyncio.create_task(self.raft_node.run())
 
         conf_change = ConfChange.default()
         conf_change.set_node_id(node_id)
@@ -194,10 +208,23 @@ class RaftCluster:
             resp = await leader_client.change_config(conf_change)
 
             if resp.result == raft_service_pb2.ChangeConfig_Success:
-                break
+                return
             elif resp.result == raft_service_pb2.ChangeConfig_TimeoutError:
                 self.logger.info("Join request timeout. Retrying...")
                 await asyncio.sleep(0.25)
                 continue
 
-        await raft_node_handle
+    async def run_raft(self):
+        """
+        Run the Raft node.
+        """
+        assert self.raft_node and self.raft_server, "Raft node is not initialized!"
+
+        assert (
+            self.raft_server_task
+        ), "Raft server is not running! Call `bootstrap_cluster` or `join_cluster` first."
+        assert (
+            self.raft_node_task
+        ), "Raft node is not running! Call `bootstrap_cluster` or `join_cluster` first."
+
+        await asyncio.gather(*(self.raft_server_task, self.raft_node_task))

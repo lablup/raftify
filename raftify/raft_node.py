@@ -26,6 +26,7 @@ from raftify.message_sender import MessageSender
 from raftify.pb_adapter import ConfChangeAdapter, MessageAdapter
 from raftify.protos.raft_service_pb2 import RerouteMsgType
 from raftify.raft_client import RaftClient
+from raftify.raft_server import RaftServer
 from raftify.request_message import (
     MessageConfigChange,
     MessagePropose,
@@ -47,7 +48,9 @@ from raftify.utils import AtomicInteger
 class RaftNode:
     def __init__(
         self,
+        *,
         raw_node: RawNode,
+        raft_server: RaftServer,
         # the peer client could be optional, because an id can be reserved and later populated
         peers: dict[int, Optional[RaftClient]],
         chan: Queue,
@@ -60,6 +63,7 @@ class RaftNode:
         cluster_cfg: RaftConfig,
     ):
         self.raw_node = raw_node
+        self.raft_server = raft_server
         self.peers = peers
         self.chan = chan
         self.fsm = fsm
@@ -74,8 +78,10 @@ class RaftNode:
     @classmethod
     def bootstrap_leader(
         cls,
+        *,
         chan: Queue,
         fsm: FSM,
+        raft_server: RaftServer,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
         cluster_cfg: RaftConfig,
@@ -104,24 +110,27 @@ class RaftNode:
         raw_node.get_raft().become_leader()
 
         return cls(
-            raw_node,
-            peers,
-            chan,
-            fsm,
-            lmdb,
-            storage,
-            seq,
-            last_snap_time,
-            logger,
-            cluster_cfg,
+            raw_node=raw_node,
+            raft_server=raft_server,
+            peers=peers,
+            chan=chan,
+            fsm=fsm,
+            lmdb=lmdb,
+            storage=storage,
+            seq=seq,
+            last_snap_time=last_snap_time,
+            logger=logger,
+            cluster_cfg=cluster_cfg,
         )
 
     @classmethod
     def new_follower(
         cls,
+        *,
         chan: Queue,
         id: int,
         fsm: FSM,
+        raft_server: RaftServer,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
         cluster_cfg: RaftConfig,
@@ -140,16 +149,17 @@ class RaftNode:
         last_snap_time = time.time()
 
         return cls(
-            raw_node,
-            peers,
-            chan,
-            fsm,
-            lmdb,
-            storage,
-            seq,
-            last_snap_time,
-            logger,
-            cluster_cfg,
+            raw_node=raw_node,
+            raft_server=raft_server,
+            peers=peers,
+            chan=chan,
+            fsm=fsm,
+            lmdb=lmdb,
+            storage=storage,
+            seq=seq,
+            last_snap_time=last_snap_time,
+            logger=logger,
+            cluster_cfg=cluster_cfg,
         )
 
     def get_id(self) -> int:
@@ -281,8 +291,9 @@ class RaftNode:
                 self.peers[node_id] = RaftClient(addr)
             case ConfChangeType.RemoveNode:
                 if change.get_node_id() == self.get_id():
-                    self.logger.info(f"{self.get_id()} quit the cluster.")
                     self.should_exit = True
+                    await self.raft_server.terminate()
+                    self.logger.info(f"{self.get_id()} quit the cluster.")
                 else:
                     self.peers.pop(change.get_node_id(), None)
             case _:
