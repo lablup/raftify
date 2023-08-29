@@ -15,7 +15,7 @@ from aiohttp.web import Application, RouteTableDef
 from rraft import Logger as Slog
 from rraft import default_logger
 
-from raftify.config import RaftConfig
+from raftify.config import RaftifyConfig
 from raftify.deserializer import init_deserializer
 from raftify.fsm import FSM
 from raftify.raft_facade import FollowerRole, RaftCluster, RaftNodeRole
@@ -24,10 +24,10 @@ from raftify.utils import SocketAddr
 init_deserializer()
 
 RaftCluster.set_cluster_config(
-    RaftConfig(
+    RaftifyConfig(
         log_dir="./",
         use_log_compaction=False,
-        config=RaftConfig.new_raft_config(
+        config=RaftifyConfig.new_raft_config(
             {
                 "election_tick": 10,
                 "heartbeat_tick": 3,

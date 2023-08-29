@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from .config import RaftConfig  # noqa: F401
+from .config import RaftifyConfig  # noqa: F401
 from .deserializer import init_deserializer  # noqa: F401
 from .error import ClusterJoinError, UnknownError  # noqa: F401
 from .fsm import FSM  # noqa: F401

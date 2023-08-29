@@ -5,7 +5,7 @@ from asyncio import Queue
 import grpc
 
 from raftify.logger import AbstractRaftifyLogger
-from raftify.protos import eraftpb_pb2, raft_service_pb2
+from raftify.protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
 from raftify.request_message import (
     MessageConfigChange,
     MessageRaft,
@@ -22,7 +22,7 @@ from raftify.response_message import (
 )
 
 
-class RaftService:
+class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
     def __init__(self, sender: Queue, logger: AbstractRaftifyLogger) -> None:
         self.sender = sender
         self.logger = logger
@@ -81,6 +81,14 @@ class RaftService:
             reply.result = raft_service_pb2.ChangeConfig_TimeoutError
             reply.data = RaftRespError().encode()
             self.logger.error("Timeout waiting for reply")
+
+        except grpc.aio.AioRpcError as e:
+            reply.result = raft_service_pb2.ChangeConfig_GrpcError
+            reply.data = RaftRespError(data=str(e).encode("utf-8")).encode()
+
+        except Exception as e:
+            reply.result = raft_service_pb2.ChangeConfig_UnknownError
+            reply.data = RaftRespError(data=str(e).encode("utf-8")).encode()
 
         finally:
             return reply

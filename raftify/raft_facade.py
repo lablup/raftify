@@ -8,7 +8,7 @@ from typing import Optional, Tuple
 import grpc
 from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
 
-from raftify.config import RaftConfig
+from raftify.config import RaftifyConfig
 from raftify.error import ClusterJoinError, UnknownError
 from raftify.fsm import FSM
 from raftify.logger import AbstractRaftifyLogger
@@ -47,7 +47,7 @@ class RequestIdResponse:
 
 
 class RaftCluster:
-    cluster_config = RaftConfig()
+    cluster_config = RaftifyConfig()
 
     def __init__(
         self,
@@ -80,7 +80,7 @@ class RaftCluster:
         return self.raft_node.peers
 
     @staticmethod
-    def set_cluster_config(config: RaftConfig) -> None:
+    def set_cluster_config(config: RaftifyConfig) -> None:
         RaftCluster.cluster_config = config
 
     def is_initialized(self) -> bool:
@@ -103,7 +103,7 @@ class RaftCluster:
                 raft_server=self.raft_server,
                 slog=self.slog,
                 logger=self.logger,
-                cluster_cfg=RaftCluster.cluster_config,
+                raftify_cfg=RaftCluster.cluster_config,
             )
         else:
             self.raft_node = RaftNode.bootstrap_leader(
@@ -112,7 +112,7 @@ class RaftCluster:
                 raft_server=self.raft_server,
                 slog=self.slog,
                 logger=self.logger,
-                cluster_cfg=RaftCluster.cluster_config,
+                raftify_cfg=RaftCluster.cluster_config,
             )
 
     def bootstrap_cluster(self) -> None:

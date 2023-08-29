@@ -1,14 +1,16 @@
 from rraft import Config
 
 
-class RaftConfig:
+class RaftifyConfig:
     """
-    Raft Configuration class.
+    Raft Configurations.
 
     Attributes:
     - config: Configuration object. Uses default settings if not provided.
     - log_dir: Directory path where log files are stored.
     - use_log_compaction: Whether to use log compaction. True if used, otherwise False.
+    - max_retry_cnt: Maximum number of retries for a request.
+    - message_timeout: Timeout duration for a message request.
     """
 
     config: Config
@@ -17,20 +19,23 @@ class RaftConfig:
 
     use_log_compaction: bool
 
+    max_retry_cnt: int
+
+    message_timeout: int
+
     def __init__(
         self,
         *,
         log_dir: str = "./",
+        max_retry_cnt: int = 5,
+        message_timeout: int = 0.1,
         use_log_compaction: bool = False,
-        config: Config = Config.default()
+        config: Config = Config.default(),
     ) -> None:
-        """
-        :param log_dir: Directory path where log files are stored.
-        :param use_log_compaction: Whether to use log compaction. True if used, otherwise False.
-        :param config: Configuration object. Uses default settings if not provided.
-        """
         self.log_dir = log_dir
         self.use_log_compaction = use_log_compaction
+        self.max_retry_cnt = max_retry_cnt
+        self.message_timeout = message_timeout
         self.config = config or Config.default()
 
     @staticmethod

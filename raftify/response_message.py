@@ -1,5 +1,6 @@
 import abc
 from dataclasses import dataclass
+from typing import Optional
 
 from raftify.utils import PickleSerializer
 
@@ -34,7 +35,7 @@ class RaftRespResponse(RaftResponse, PickleSerializer):
 
 @dataclass
 class RaftRespError(RaftResponse, PickleSerializer):
-    pass
+    data: Optional[bytes] = None
 
 
 @dataclass

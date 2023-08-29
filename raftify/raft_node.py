@@ -18,7 +18,7 @@ from rraft import (
     Storage,
 )
 
-from raftify.config import RaftConfig
+from raftify.config import RaftifyConfig
 from raftify.fsm import FSM
 from raftify.lmdb import LMDBStorage
 from raftify.logger import AbstractRaftifyLogger
@@ -60,7 +60,7 @@ class RaftNode:
         seq: AtomicInteger,
         last_snap_time: float,
         logger: AbstractRaftifyLogger,
-        cluster_cfg: RaftConfig,
+        raftify_cfg: RaftifyConfig,
     ):
         self.raw_node = raw_node
         self.raft_server = raft_server
@@ -73,7 +73,7 @@ class RaftNode:
         self.last_snap_time = last_snap_time
         self.logger = logger
         self.should_exit = False
-        self.cluster_cfg = cluster_cfg
+        self.raftify_cfg = raftify_cfg
 
     @classmethod
     def bootstrap_leader(
@@ -84,9 +84,9 @@ class RaftNode:
         raft_server: RaftServer,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
-        cluster_cfg: RaftConfig,
+        raftify_cfg: RaftifyConfig,
     ) -> "RaftNode":
-        cfg = cluster_cfg.config
+        cfg = raftify_cfg.config
 
         cfg.set_id(1)
         cfg.validate()
@@ -96,7 +96,7 @@ class RaftNode:
         snapshot.get_metadata().set_term(0)
         snapshot.get_metadata().get_conf_state().set_voters([1])
 
-        lmdb = LMDBStorage.create(cluster_cfg.log_dir, 1, logger)
+        lmdb = LMDBStorage.create(raftify_cfg.log_dir, 1, logger)
         lmdb.apply_snapshot(snapshot)
 
         storage = Storage(lmdb)
@@ -120,7 +120,7 @@ class RaftNode:
             seq=seq,
             last_snap_time=last_snap_time,
             logger=logger,
-            cluster_cfg=cluster_cfg,
+            raftify_cfg=raftify_cfg,
         )
 
     @classmethod
@@ -133,14 +133,14 @@ class RaftNode:
         raft_server: RaftServer,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
-        cluster_cfg: RaftConfig,
+        raftify_cfg: RaftifyConfig,
     ) -> "RaftNode":
-        cfg = cluster_cfg.config
+        cfg = raftify_cfg.config
 
         cfg.set_id(id)
         cfg.validate()
 
-        lmdb = LMDBStorage.create(cluster_cfg.log_dir, id, logger)
+        lmdb = LMDBStorage.create(raftify_cfg.log_dir, id, logger)
         storage = Storage(lmdb)
         raw_node = RawNode(cfg, storage, slog)
 
@@ -159,7 +159,7 @@ class RaftNode:
             seq=seq,
             last_snap_time=last_snap_time,
             logger=logger,
-            cluster_cfg=cluster_cfg,
+            raftify_cfg=raftify_cfg,
         )
 
     def get_id(self) -> int:
@@ -201,13 +201,12 @@ class RaftNode:
             if client := self.peers.get(msg.get_to()):
                 asyncio.create_task(
                     MessageSender(
+                        message=msg,
                         client_id=msg.get_to(),
                         client=client,
                         chan=self.chan,
-                        message=msg,
-                        timeout=0.1,
-                        max_retries=5,
                         logger=self.logger,
+                        raftify_cfg=self.raftify_cfg,
                     ).send()
                 )
 
@@ -263,7 +262,7 @@ class RaftNode:
             self.last_snap_time = time.time()
             snapshot = await self.fsm.snapshot()
 
-            if self.cluster_cfg.use_log_compaction:
+            if self.raftify_cfg.use_log_compaction:
                 last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
                 self.lmdb.compact(last_applied)
 
@@ -303,7 +302,7 @@ class RaftNode:
             snapshot = await self.fsm.snapshot()
             self.lmdb.set_conf_state(cs)
 
-            if self.cluster_cfg.use_log_compaction:
+            if self.raftify_cfg.use_log_compaction:
                 last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
                 self.lmdb.compact(last_applied)
 
