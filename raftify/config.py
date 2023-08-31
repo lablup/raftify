@@ -13,6 +13,23 @@ class RaftifyConfig:
     - message_timeout: Timeout duration for a message request.
     """
 
+    raft_config_keys = [
+        "election_tick",
+        "min_election_tick",
+        "max_election_tick",
+        "heartbeat_tick",
+        "max_committed_size_per_ready",
+        "max_size_per_msg",
+        "max_inflight_msgs",
+        "check_quorum",
+        "batch_append",
+        "max_uncommitted_size",
+        "pre_vote",
+        "priority",
+        "applied",
+        "skip_bcast_commit",
+    ]
+
     config: Config
 
     log_dir: str
@@ -42,22 +59,7 @@ class RaftifyConfig:
     def new_raft_config(cfg_dict: dict) -> "Config":
         cfg = Config.default()
 
-        for key in [
-            "election_tick",
-            "min_election_tick",
-            "max_election_tick",
-            "heartbeat_tick",
-            "max_committed_size_per_ready",
-            "max_size_per_msg",
-            "max_inflight_msgs",
-            "check_quorum",
-            "batch_append",
-            "max_uncommitted_size",
-            "pre_vote",
-            "priority",
-            "applied",
-            "skip_bcast_commit",
-        ]:
+        for key in RaftifyConfig.raft_config_keys:
             if key in cfg_dict:
                 if cfg_dict[key] is not None:
                     getattr(cfg, "set_" + key)(cfg_dict[key])
