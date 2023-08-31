@@ -216,9 +216,7 @@ class RaftCluster:
 
             if resp.result == raft_service_pb2.ChangeConfig_Success:
                 return
-            elif (
-                resp.result == raft_service_pb2.ChangeConfig_TimeoutError
-            ):
+            elif resp.result == raft_service_pb2.ChangeConfig_TimeoutError:
                 self.logger.info("Join request timeout. Retrying...")
                 await asyncio.sleep(2)
                 continue

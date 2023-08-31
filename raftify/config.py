@@ -59,6 +59,7 @@ class RaftifyConfig:
             "skip_bcast_commit",
         ]:
             if key in cfg_dict:
-                getattr(cfg, "set_" + key)(cfg_dict[key])
+                if cfg_dict[key] is not None:
+                    getattr(cfg, "set_" + key)(cfg_dict[key])
 
         return cfg
