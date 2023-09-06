@@ -2,7 +2,7 @@ aiohttp==3.8.4
 argparse==1.4.0
 black
 flake8
-grpcio-tools==1.54.2
+grpcio-tools==1.50.0
 isort
 msgpack==1.0.4
 mypy
