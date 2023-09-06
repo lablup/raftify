@@ -74,9 +74,6 @@ class RaftNode:
         self.logger = logger
         self.should_exit = False
         self.raftify_cfg = raftify_cfg
-        # leader_conf_change_proposal_counter assume that leader is not changed.
-        # TODO: handle leader change to 'leader_conf_change_proposal_counter'
-        self.leader_conf_change_proposal_counter = AtomicInteger()
 
     @classmethod
     def bootstrap_leader(
@@ -301,9 +298,6 @@ class RaftNode:
             case _:
                 raise NotImplementedError
 
-        if self.is_leader():
-            self.leader_conf_change_proposal_counter.decrease()
-
         if cs := self.raw_node.apply_conf_change(change):
             snapshot = await self.fsm.snapshot()
             self.lmdb.set_conf_state(cs)
@@ -379,11 +373,6 @@ class RaftNode:
                     self.seq.increase()
                     client_senders[self.seq.value] = message.chan
                     context = pickle.dumps(self.seq.value)
-
-                    while self.leader_conf_change_proposal_counter.value != 0:
-                        await asyncio.sleep(0.5)
-
-                    self.leader_conf_change_proposal_counter.increase()
                     self.raw_node.propose_conf_change(context, change)
 
             elif isinstance(message, ProposeReqMessage):
