@@ -45,7 +45,7 @@ class RaftifyConfig:
         *,
         log_dir: str = "./",
         max_retry_cnt: int = 5,
-        message_timeout: int = 0.1,
+        message_timeout: float = 0.1,
         use_log_compaction: bool = False,
         config: Config = Config.default(),
     ) -> None:
