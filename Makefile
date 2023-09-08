@@ -25,7 +25,8 @@ clean:
 	rm -rf *.mdb
 
 TESTS = \
-	test_three_node_example
+	test_three_node_example \
+	# test_three_node_example_2
 
 test:
 	@for test in $(TESTS); do \

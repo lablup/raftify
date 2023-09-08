@@ -1,4 +1,4 @@
-NODE_INFO_FILE_PATH = "./tests/.nodes.json"
+CLUSTER_INFO_PATH = "./tests/fixtures"
 
 RAFT_ADDRS = [
     "127.0.0.1:60061",

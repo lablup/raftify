@@ -20,4 +20,4 @@ kill
 exec
 .envrc
 
-.nodes.json
+fixtures

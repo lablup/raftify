@@ -2,6 +2,8 @@ import asyncio
 import json
 import os
 import pickle
+import signal
+import sys
 from contextlib import asynccontextmanager as actxmgr
 from typing import AsyncIterator
 
@@ -13,11 +15,11 @@ from aiotools import process_index
 from raftify.error import ClusterJoinError, LeaderNotFoundError
 from raftify.raft_facade import RaftCluster, RaftNodeRole
 from raftify.utils import SocketAddr
-from tests.harness.constant import NODE_INFO_FILE_PATH, RAFT_ADDRS, WEB_SERVER_ADDRS
+from tests.harness.constant import CLUSTER_INFO_PATH, RAFT_ADDRS, WEB_SERVER_ADDRS
 from tests.harness.log import SetCommand
 from tests.harness.logger import logger, slog
 from tests.harness.store import HashStore
-from tests.utils import read_json, read_pids, write_json, write_pids
+from tests.utils import get_cluster_size, remove_node, write_json, write_node
 
 routes = RouteTableDef()
 
@@ -122,6 +124,12 @@ async def server_main(
         "cluster": cluster,
     }
 
+    def handle_sigterm(*args):
+        remove_node(raft_node_idx + 1)
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, handle_sigterm)
+
     runner = web.AppRunner(app)
     await runner.setup()
     host, port = WEB_SERVER_ADDRS[raft_node_idx].split(":")
@@ -130,17 +138,12 @@ async def server_main(
     asyncio.create_task(cluster.run_raft())
     asyncio.create_task(web_server.start())
 
-    pids = read_pids(NODE_INFO_FILE_PATH)
-    pids[str(raft_socket)] = os.getpid()
-    write_pids(NODE_INFO_FILE_PATH, pids)
-
+    write_node(raft_node_idx + 1, {"addr": str(raft_socket), "pid": os.getpid()})
     yield
 
 
 def run_raft_cluster(num_workers: int):
-    nodes_info = read_json(NODE_INFO_FILE_PATH)
-    nodes_info["root"] = {"pid": os.getpid()}
-    write_json(NODE_INFO_FILE_PATH, nodes_info)
+    write_json(f"{CLUSTER_INFO_PATH}/.root.json", {"pid": os.getpid()})
 
     try:
         aiotools.start_server(
@@ -151,3 +154,17 @@ def run_raft_cluster(num_workers: int):
         print("Exception occurred!: ", e)
     finally:
         print("Terminated.")
+
+
+async def wait_for_cluster_change(
+    predicate: str, poll_interval: float = 1.0, end: float = 3.0
+):
+    while True:
+        cluster_size = get_cluster_size()
+        if eval(predicate, {"cluster_size": cluster_size}):
+            break
+        print(f'Waiting for cluster state changed to "{predicate}"...')
+        await asyncio.sleep(poll_interval)
+
+    print("Waiting for the confchange reflected to the cluster...")
+    await asyncio.sleep(end)
