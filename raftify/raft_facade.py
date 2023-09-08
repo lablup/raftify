@@ -6,11 +6,12 @@ from enum import Enum
 from typing import Optional, Tuple
 
 import grpc
-from rraft import ConfChange, ConfChangeType, Logger, LoggerRef
+from rraft import ConfChange, Logger, LoggerRef
 
 from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.error import ClusterJoinError, LeaderNotFoundError, UnknownError
+from raftify.follower_role import FollowerRole
 from raftify.fsm import FSM
 from raftify.logger import AbstractRaftifyLogger
 from raftify.mailbox import Mailbox
@@ -25,20 +26,6 @@ from raftify.utils import SocketAddr
 class RaftNodeRole(Enum):
     Leader = 0
     Follower = 1
-
-
-class FollowerRole(Enum):
-    Voter = ConfChangeType.AddNode
-    Learner = ConfChangeType.AddLearnerNode
-
-    def to_changetype(self) -> ConfChangeType:
-        match self.value:
-            case ConfChangeType.AddNode:
-                return ConfChangeType.AddNode
-            case ConfChangeType.AddLearnerNode:
-                return ConfChangeType.AddLearnerNode
-            case _:
-                assert "Unreachable"
 
 
 @dataclass

@@ -47,4 +47,4 @@ class RaftServer:
     async def terminate(self, grace: Optional[float] = None) -> None:
         assert self.grpc_server is not None, "gRPC server is not running."
         await self.grpc_server.stop(grace)
-        self.logger.warning("gRPC server has been terminated.")
+        self.logger.info("gRPC server has been terminated.")

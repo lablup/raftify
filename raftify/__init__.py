@@ -8,10 +8,11 @@ from .logger import AbstractRaftifyLogger  # noqa: F401
 from .mailbox import Mailbox  # noqa: F401
 from .peers import Peers  # noqa: F401
 from .raft_client import RaftClient  # noqa: F401
-from .raft_facade import FollowerRole, RaftCluster  # noqa: F401
+from .raft_facade import RaftCluster  # noqa: F401
 from .raft_node import RaftNode  # noqa: F401
 from .raft_server import RaftServer  # noqa: F401
 from .utils import PickleSerializer, SocketAddr  # noqa: F401
+from .follower_role import FollowerRole  # noqa: F401
 
 __all__ = [
     "lmdb",
@@ -27,6 +28,7 @@ __all__ = [
     "logger",
     "peers",
     "deserializer",
+    "follower_role",
 ]
 
 __version__ = (Path(__file__).parent / "VERSION").read_text().strip()
