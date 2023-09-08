@@ -14,6 +14,8 @@ lint:
 	python -m isort raftify
 	python -m black examples
 	python -m isort examples
+	python -m black tests
+	python -m isort tests
 
 install:
 	pip uninstall raftify -y
@@ -21,6 +23,27 @@ install:
 
 clean:
 	rm -rf *.mdb
+
+LEADER_ELECTION_TESTS = \
+	test_leader_election_three_node_example \
+	test_leader_election_five_node_example
+
+test-leader-election:
+	@for test in $(LEADER_ELECTION_TESTS); do \
+		python -m pytest -s -v tests/leader_election.py::$$test; \
+	done
+
+DATA_REPLICATION_TESTS = \
+	test_data_replication
+
+test-data-replication:
+	@for test in $(DATA_REPLICATION_TESTS); do \
+		python -m pytest -s -v tests/data_replication.py::$$test; \
+	done
+
+test:
+	make test-leader-election
+	make test-data-replication
 
 reinstall:
 	make clean

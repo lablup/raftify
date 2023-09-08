@@ -19,3 +19,5 @@ venv
 kill
 exec
 .envrc
+
+fixtures
