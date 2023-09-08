@@ -2,9 +2,11 @@ import os
 import sys
 import lmdb
 import rraft
+from raftify.deserializer import init_rraft_py_deserializer
 
 
 def main(argv):
+    init_rraft_py_deserializer()
     idx = argv[1]
     assert idx.isdigit(), "idx must be a number"
 
