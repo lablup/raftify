@@ -4,12 +4,7 @@ from concurrent.futures import ProcessPoolExecutor
 import pytest
 
 from tests.harness.raft_server import run_raft_cluster, wait_for_cluster_change
-from tests.utils import (
-    RequestType,
-    killall,
-    make_request,
-    reset_fixtures_directory,
-)
+from tests.utils import RequestType, killall, make_request, reset_fixtures_directory
 
 
 @pytest.mark.asyncio

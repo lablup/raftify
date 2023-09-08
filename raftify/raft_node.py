@@ -202,11 +202,13 @@ class RaftNode:
                 asyncio.create_task(
                     MessageSender(
                         message=msg,
-                        client_id=msg.get_to(),
                         client=client,
                         chan=self.chan,
                         logger=self.logger,
                         raftify_cfg=self.raftify_cfg,
+                        seq=self.seq,
+                        peers=self.peers,
+                        raw_node=self.raw_node,
                     ).send()
                 )
 

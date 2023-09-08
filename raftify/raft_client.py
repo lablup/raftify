@@ -6,7 +6,7 @@ from rraft import ConfChange, Message
 
 from raftify.pb_adapter import ConfChangeAdapter, MessageAdapter
 from raftify.protos import raft_service_pb2, raft_service_pb2_grpc
-from raftify.utils import SocketAddr
+from raftify.utils import AtomicInteger, SocketAddr
 
 
 class RaftClient:
@@ -15,6 +15,7 @@ class RaftClient:
     ):
         self.addr = addr
         self.credentials = credentials
+        self.failed_request_counter = AtomicInteger()
 
     def __repr__(self) -> str:
         return f"RaftClient(addr={self.addr})"
