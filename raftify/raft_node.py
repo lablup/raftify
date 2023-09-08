@@ -48,11 +48,11 @@ class RaftNode:
     class MessageSender:
         def __init__(
             self,
-            parent: "RaftNode",
+            raft_node: "RaftNode",
             message: Message,
             client: RaftClient,
         ):
-            self.parent = parent
+            self.raft_node = raft_node
             self.message = message
             self.client = client
 
@@ -65,39 +65,39 @@ class RaftNode:
             while True:
                 try:
                     await self.client.send_message(
-                        self.message, self.parent.raftify_cfg.message_timeout
+                        self.message, self.raft_node.raftify_cfg.message_timeout
                     )
                     return
                 except Exception:
-                    if current_retry < self.parent.raftify_cfg.max_retry_cnt:
+                    if current_retry < self.raft_node.raftify_cfg.max_retry_cnt:
                         current_retry += 1
                     else:
                         client_id = self.message.get_to()
-                        self.parent.logger.debug(
-                            f"Failed to connect to {client_id} the {self.parent.raftify_cfg.max_retry_cnt} times"
+                        self.raft_node.logger.debug(
+                            f"Failed to connect to {client_id} the {self.raft_node.raftify_cfg.max_retry_cnt} times"
                         )
 
                         try:
-                            failed_request_counter = self.parent.peers[
+                            failed_request_counter = self.raft_node.peers[
                                 client_id
                             ].failed_request_counter
 
                             if failed_request_counter.value >= 3:
-                                self.parent.logger.debug(
+                                self.raft_node.logger.debug(
                                     f"Removed 'Node {client_id}' from cluster automatically because the request kept failed"
                                 )
 
-                                del self.parent.peers[client_id]
+                                del self.raft_node.peers[client_id]
 
                                 conf_change = ConfChange.default()
                                 conf_change.set_node_id(client_id)
                                 conf_change.set_context(pickle.dumps(self.client.addr))
                                 conf_change.set_change_type(ConfChangeType.RemoveNode)
-                                self.parent.raw_node.propose_conf_change(
-                                    pickle.dumps(self.parent.seq.value), conf_change
+                                self.raft_node.raw_node.propose_conf_change(
+                                    pickle.dumps(self.raft_node.seq.value), conf_change
                                 )
                             else:
-                                await self.parent.chan.put(
+                                await self.raft_node.chan.put(
                                     ReportUnreachableReqMessage(client_id)
                                 )
                                 failed_request_counter.increase()
