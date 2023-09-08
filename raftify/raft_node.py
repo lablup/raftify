@@ -22,7 +22,6 @@ from raftify.config import RaftifyConfig
 from raftify.fsm import FSM
 from raftify.lmdb import LMDBStorage
 from raftify.logger import AbstractRaftifyLogger
-from raftify.message_sender import MessageSender
 from raftify.pb_adapter import ConfChangeAdapter, MessageAdapter
 from raftify.protos.raft_service_pb2 import RerouteMsgType
 from raftify.raft_client import RaftClient
@@ -46,6 +45,66 @@ from raftify.utils import AtomicInteger
 
 
 class RaftNode:
+    class MessageSender:
+        def __init__(
+            self,
+            parent: "RaftNode",
+            message: Message,
+            client: RaftClient,
+        ):
+            self.parent = parent
+            self.message = message
+            self.client = client
+
+        async def send(self) -> None:
+            """
+            Attempt to send a message 'max_retry_cnt' times at 'timeout' interval.
+            """
+
+            current_retry = 0
+            while True:
+                try:
+                    await self.client.send_message(
+                        self.message, self.parent.raftify_cfg.message_timeout
+                    )
+                    return
+                except Exception:
+                    if current_retry < self.parent.raftify_cfg.max_retry_cnt:
+                        current_retry += 1
+                    else:
+                        client_id = self.message.get_to()
+                        self.parent.logger.debug(
+                            f"Failed to connect to {client_id} the {self.parent.raftify_cfg.max_retry_cnt} times"
+                        )
+
+                        try:
+                            failed_request_counter = self.parent.peers[
+                                client_id
+                            ].failed_request_counter
+
+                            if failed_request_counter.value >= 3:
+                                self.parent.logger.debug(
+                                    f"Removed 'Node {client_id}' from cluster automatically because the request kept failed"
+                                )
+
+                                del self.parent.peers[client_id]
+
+                                conf_change = ConfChange.default()
+                                conf_change.set_node_id(client_id)
+                                conf_change.set_context(pickle.dumps(self.client.addr))
+                                conf_change.set_change_type(ConfChangeType.RemoveNode)
+                                self.parent.raw_node.propose_conf_change(
+                                    pickle.dumps(self.parent.seq.value), conf_change
+                                )
+                            else:
+                                await self.parent.chan.put(
+                                    ReportUnreachableReqMessage(client_id)
+                                )
+                                failed_request_counter.increase()
+                        except Exception:
+                            pass
+                        return
+
     def __init__(
         self,
         *,
@@ -200,15 +259,10 @@ class RaftNode:
         for msg in msgs:
             if client := self.peers.get(msg.get_to()):
                 asyncio.create_task(
-                    MessageSender(
+                    self.MessageSender(
+                        parent=self,
                         message=msg,
                         client=client,
-                        chan=self.chan,
-                        logger=self.logger,
-                        raftify_cfg=self.raftify_cfg,
-                        seq=self.seq,
-                        peers=self.peers,
-                        raw_node=self.raw_node,
                     ).send()
                 )
 
