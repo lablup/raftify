@@ -3,7 +3,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 import pytest
 
-from tests.harness.raft_server import run_raft_cluster, wait_for_cluster_change
+from tests.harness.raft_server import run_raft_cluster, wait_for_until
 from tests.utils import (
     RequestType,
     kill_process,
@@ -26,12 +26,12 @@ async def test_leader_election_three_node_example():
     loop = asyncio.get_running_loop()
     executor = ProcessPoolExecutor()
     loop.run_in_executor(executor, run_raft_cluster, (3))
-    await wait_for_cluster_change("cluster_size >= 3")
+    await wait_for_until("cluster_size >= 3")
 
     leader_node = read_node(1)
     kill_process(leader_node["pid"])
 
-    await wait_for_cluster_change("cluster_size <= 2")
+    await wait_for_until("cluster_size <= 2")
 
     leader = make_request(RequestType.GET, 2, "/leader")
 
@@ -54,12 +54,12 @@ async def test_leader_election_five_node_example():
     loop = asyncio.get_running_loop()
     executor = ProcessPoolExecutor()
     loop.run_in_executor(executor, run_raft_cluster, (5))
-    await wait_for_cluster_change("cluster_size >= 5")
+    await wait_for_until("cluster_size >= 5")
 
     leader_node = read_node(1)
     kill_process(leader_node["pid"])
 
-    await wait_for_cluster_change("cluster_size <= 4")
+    await wait_for_until("cluster_size <= 4")
 
     leader = make_request(RequestType.GET, 2, "/leader")
 

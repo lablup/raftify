@@ -156,9 +156,7 @@ def run_raft_cluster(num_workers: int):
         print("Terminated.")
 
 
-async def wait_for_cluster_change(
-    predicate: str, poll_interval: float = 1.0, end: float = 5.0
-):
+async def wait_for_until(predicate: str, poll_interval: float = 1.0, end: float = 5.0):
     while True:
         cluster_size = get_cluster_size()
         if eval(predicate, {"cluster_size": cluster_size}):

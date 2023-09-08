@@ -41,9 +41,18 @@ test-data-replication:
 		python -m pytest -s -v tests/data_replication.py::$$test; \
 	done
 
+MEMBERSHIP_CHANGE_TESTS = \
+	test_membership_change
+
+test-membership-change:
+	@for test in $(MEMBERSHIP_CHANGE_TESTS); do \
+		python -m pytest -s -v tests/membership_change.py::$$test; \
+	done
+
 test:
 	make test-leader-election
 	make test-data-replication
+	make test-membership-change
 
 reinstall:
 	make clean

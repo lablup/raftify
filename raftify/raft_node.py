@@ -2,7 +2,6 @@ import asyncio
 import pickle
 import time
 from asyncio import Queue
-from typing import Optional
 
 from rraft import (
     ConfChange,
@@ -23,6 +22,7 @@ from raftify.fsm import FSM
 from raftify.lmdb import LMDBStorage
 from raftify.logger import AbstractRaftifyLogger
 from raftify.pb_adapter import ConfChangeAdapter, MessageAdapter
+from raftify.peers import Peers
 from raftify.protos.raft_service_pb2 import RerouteMsgType
 from raftify.raft_client import RaftClient
 from raftify.raft_server import RaftServer
@@ -111,7 +111,7 @@ class RaftNode:
         raw_node: RawNode,
         raft_server: RaftServer,
         # the peer client could be optional, because an id can be reserved and later populated
-        peers: dict[int, Optional[RaftClient]],
+        peers: Peers,
         chan: Queue,
         fsm: FSM,
         lmdb: LMDBStorage,
@@ -161,7 +161,7 @@ class RaftNode:
         storage = Storage(lmdb)
         raw_node = RawNode(cfg, storage, slog)
 
-        peers = {}
+        peers = Peers()
         seq = AtomicInteger(0)
         last_snap_time = time.time()
 
@@ -203,7 +203,7 @@ class RaftNode:
         storage = Storage(lmdb)
         raw_node = RawNode(cfg, storage, slog)
 
-        peers = {}
+        peers = Peers()
         seq = AtomicInteger(0)
         last_snap_time = time.time()
 
@@ -260,7 +260,7 @@ class RaftNode:
             if client := self.peers.get(msg.get_to()):
                 asyncio.create_task(
                     self.MessageSender(
-                        parent=self,
+                        raft_node=self,
                         message=msg,
                         client=client,
                     ).send()

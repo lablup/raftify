@@ -14,6 +14,7 @@ from raftify.error import ClusterJoinError, LeaderNotFoundError, UnknownError
 from raftify.fsm import FSM
 from raftify.logger import AbstractRaftifyLogger
 from raftify.mailbox import Mailbox
+from raftify.peers import Peers
 from raftify.protos import raft_service_pb2
 from raftify.raft_client import RaftClient
 from raftify.raft_node import RaftNode
@@ -78,7 +79,7 @@ class RaftCluster:
         """
         return Mailbox(self.addr, self.raft_node, self.chan)
 
-    def get_peers(self) -> dict[int, RaftClient]:
+    def get_peers(self) -> Peers:
         return self.raft_node.peers
 
     @staticmethod
