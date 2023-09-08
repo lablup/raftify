@@ -3,6 +3,10 @@ class UnknownError(Exception):
 
 
 class LeaderNotFoundError(Exception):
+    """
+    Raise when the 'request_id' fails to find the leader node in the cluster.
+    """
+
     def __init__(
         self,
         message="Leader not found in the cluster. Check your Raft configuration and check to make sure that any of them is alive.",
@@ -11,6 +15,10 @@ class LeaderNotFoundError(Exception):
 
 
 class ClusterJoinError(Exception):
+    """
+    Raise when the 'join_cluster' fails for some reason.
+    """
+
     def __init__(self, cause=None):
         self.cause = cause
         super().__init__(str(cause))
