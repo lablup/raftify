@@ -59,12 +59,6 @@ def write_cluster_info(cluster_info: dict, path: str = CLUSTER_INFO_PATH):
     write_json(f"{path}/.root.json", {"root": cluster_info["root"]})
 
 
-def get_cluster_size(path: str = CLUSTER_INFO_PATH) -> int:
-    node_pattern = re.compile(r"\.node-(\d+).json$")
-    count = sum(1 for filename in os.listdir(path) if node_pattern.match(filename))
-    return count
-
-
 def kill_process(pid: int):
     try:
         os.kill(pid, signal.SIGTERM)

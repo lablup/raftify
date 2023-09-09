@@ -19,7 +19,7 @@ from tests.harness.constant import CLUSTER_INFO_PATH, RAFT_ADDRS, WEB_SERVER_ADD
 from tests.harness.log import SetCommand
 from tests.harness.logger import logger, slog
 from tests.harness.store import HashStore
-from tests.utils import get_cluster_size, remove_node, write_json, write_node
+from tests.utils import read_cluster_info, remove_node, write_json, write_node
 
 routes = RouteTableDef()
 
@@ -90,8 +90,7 @@ async def server_main(
         cluster.build_raft(RaftNodeRole.Leader)
         cluster.bootstrap_cluster()
     else:
-        # TODO: Handle waiting time more properly if it could be.
-        await asyncio.sleep(3.0 * (raft_node_idx + 1))
+        await wait_for_until(f"cluster_size >= {raft_node_idx}", end=0.5)
 
         while True:
             print("Trying to join cluster...")
@@ -158,8 +157,10 @@ def run_raft_cluster(num_workers: int):
 
 async def wait_for_until(predicate: str, poll_interval: float = 1.0, end: float = 5.0):
     while True:
-        cluster_size = get_cluster_size()
-        if eval(predicate, {"cluster_size": cluster_size}):
+        nodes = read_cluster_info()["nodes"]
+        cluster_size = len(nodes)
+
+        if eval(predicate, {"cluster_size": cluster_size, "nodes": nodes}):
             break
         print(f'Waiting for cluster state changed to "{predicate}"...')
         await asyncio.sleep(poll_interval)
