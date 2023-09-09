@@ -47,7 +47,11 @@ def entry_data_deserializer(data: bytes) -> Optional[str]:
 
 def init_rraft_py_deserializer():
     """
-    Initialize the deserializers using in rraft-py.
+    Initialize the custom deserializers using in rraft-py.
+
+    This function Assume that all deserializers use pickle for serialization and deserialization.
+    It's not mandatory for the caller to invoke this function, but if not invoked, byte slices will be logged without being deserialized.
+    So, if you don't want to call this function, it would be good to manually set the deserializers in rraft_py.
     """
 
     set_confchange_context_deserializer(pickle_deserialize)

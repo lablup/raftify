@@ -48,7 +48,6 @@ class RaftCluster:
         """
         Creates a new node with the given address and store.
         """
-        init_rraft_py_deserializer()
         self.addr = addr
         self.fsm = fsm
         self.slog = slog
