@@ -96,17 +96,20 @@ class HashStore(FSM):
 ### Bootstrap a raft cluster
 
 ```py
-cluster = RaftCluster(raft_addr, store, logger)
+cluster = RaftCluster(raft_addr, store, slog, logger)
+cluster.build_raft(RaftNodeRole.Leader)
+cluster.bootstrap_cluster()
 logger.info("Bootstrap a Raft Cluster")
-await cluster.bootstrap_cluster()
 ```
 
 ### Join follower nodes to the cluster
 
 ```py
+cluster = RaftCluster(raft_addr, store, slog, logger)
+request_id_response = await cluster.request_id(raft_addr, peer_addrs)
+cluster.build_raft(RaftNodeRole.Follower, request_id_response.follower_id)
+await cluster.join_cluster(request_id_response)
 logger.info("Running follower node")
-cluster = RaftCluster(raft_addr, store, logger)
-await cluster.join_cluster(raft_addr, peer_addrs, follower_role)
 ```
 
 <!-- ## Installation

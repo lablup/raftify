@@ -29,7 +29,7 @@ def pickle_deserialize(data: bytes) -> Optional[str]:
     return data
 
 
-def set_entry_data_deserializer_cb(data: bytes) -> Optional[str]:
+def entry_data_deserializer(data: bytes) -> Optional[str]:
     if data == b"":
         return None
 
@@ -53,6 +53,6 @@ def init_rraft_py_deserializer():
     set_confchange_context_deserializer(pickle_deserialize)
     set_confchangev2_context_deserializer(pickle_deserialize)
     set_entry_context_deserializer(pickle_deserialize)
-    set_entry_data_deserializer(set_entry_data_deserializer_cb)
+    set_entry_data_deserializer(entry_data_deserializer)
     set_message_context_deserializer(pickle_deserialize)
     set_snapshot_data_deserializer(pickle_deserialize)
