@@ -59,6 +59,8 @@ class RaftNode:
         async def send(self) -> None:
             """
             Attempt to send a message 'max_retry_cnt' times at 'timeout' interval.
+            If 'auto_remove_node' is set to True, the send function will automatically remove the node from the cluster
+            if it fails to connect more than 'connection_fail_limit' times.
             """
 
             current_retry = 0
@@ -227,19 +229,19 @@ class RaftNode:
     def is_leader(self) -> bool:
         return self.get_id() == self.get_leader_id()
 
-    def peer_addrs(self) -> dict[int, str]:
-        return {k: str(v.addr) for k, v in self.peers.items() if v is not None}
-
     def remove_node(self, node_id: int) -> None:
         client = self.peers[node_id]
         del self.peers[node_id]
 
+        self.seq.increase()
         conf_change = ConfChange.default()
         conf_change.set_node_id(node_id)
         conf_change.set_context(pickle.dumps(client.addr))
         conf_change.set_change_type(ConfChangeType.RemoveNode)
+        context = pickle.dumps(self.seq.value)
+
         self.raw_node.propose_conf_change(
-            pickle.dumps(self.seq.value),
+            context,
             conf_change,
         )
 
@@ -381,7 +383,7 @@ class RaftNode:
             match change_type:
                 case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
                     response = JoinSuccessRespMessage(
-                        assigned_id=node_id, peer_addrs=self.peer_addrs()
+                        assigned_id=node_id, peer_addrs=self.peers.peer_addrs()
                     )
                 case ConfChangeType.RemoveNode:
                     response = RaftOkRespMessage()
@@ -425,7 +427,7 @@ class RaftNode:
                         )
 
             if isinstance(message, ConfigChangeReqMessage):
-                change = ConfChangeAdapter.from_pb(message.change)
+                conf_change = ConfChangeAdapter.from_pb(message.change)
 
                 if not self.is_leader():
                     # TODO: retry strategy in case of failure
@@ -433,13 +435,13 @@ class RaftNode:
                 else:
                     # leader assign new id to peer
                     self.logger.debug(
-                        f'Received confchange request from the "node {change.get_node_id()}"'
+                        f'Received confchange request from the "node {conf_change.get_node_id()}"'
                     )
 
                     self.seq.increase()
                     client_senders[self.seq.value] = message.chan
                     context = pickle.dumps(self.seq.value)
-                    self.raw_node.propose_conf_change(context, change)
+                    self.raw_node.propose_conf_change(context, conf_change)
 
             elif isinstance(message, ProposeReqMessage):
                 if not self.is_leader():
@@ -460,7 +462,7 @@ class RaftNode:
                         IdReservedRespMessage(
                             leader_id=self.get_leader_id(),
                             reserved_id=self.reserve_next_peer_id(message.addr),
-                            peer_addrs=self.peer_addrs(),
+                            peer_addrs=self.peers.peer_addrs(),
                         )
                     )
 
