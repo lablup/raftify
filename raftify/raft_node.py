@@ -45,66 +45,6 @@ from raftify.utils import AtomicInteger
 
 
 class RaftNode:
-    class MessageSender:
-        def __init__(
-            self,
-            raft_node: "RaftNode",
-            message: Message,
-            client: RaftClient,
-        ):
-            self.raft_node = raft_node
-            self.message = message
-            self.client = client
-
-        async def send(self) -> None:
-            """
-            Attempt to send a message 'max_retry_cnt' times at 'timeout' interval.
-            If 'auto_remove_node' is set to True, the send function will automatically remove the node from the cluster
-            if it fails to connect more than 'connection_fail_limit' times.
-            """
-
-            current_retry = 0
-            while True:
-                try:
-                    await self.client.send_message(
-                        self.message, self.raft_node.raftify_cfg.message_timeout
-                    )
-                    return
-                except Exception:
-                    if current_retry < self.raft_node.raftify_cfg.max_retry_cnt:
-                        current_retry += 1
-                    else:
-                        client_id = self.message.get_to()
-                        self.raft_node.logger.debug(
-                            f"Failed to connect to {client_id} the {self.raft_node.raftify_cfg.max_retry_cnt} times"
-                        )
-
-                        try:
-                            if self.raft_node.raftify_cfg.auto_remove_node:
-                                failed_request_counter = self.raft_node.peers[
-                                    client_id
-                                ].failed_request_counter
-
-                                if (
-                                    failed_request_counter.value
-                                    >= self.raft_node.raftify_cfg.connection_fail_limit
-                                ):
-                                    self.raft_node.logger.debug(
-                                        f"Removed 'Node {client_id}' from cluster automatically because the request kept failed"
-                                    )
-
-                                    self.raft_node.remove_node(client_id)
-                                    return
-                                else:
-                                    failed_request_counter.increase()
-
-                            await self.raft_node.chan.put(
-                                ReportUnreachableReqMessage(client_id)
-                            )
-                        except Exception:
-                            pass
-                        return
-
     def __init__(
         self,
         *,
@@ -267,15 +207,59 @@ class RaftNode:
         self.peers[next_id] = None
         return next_id
 
-    def send_messages(self, msgs: list[Message]):
-        for msg in msgs:
-            if client := self.peers.get(msg.get_to()):
+    async def send_message(self, client: RaftClient, message: Message) -> None:
+        """
+        Attempt to send a message 'max_retry_cnt' times at 'timeout' interval.
+        If 'auto_remove_node' is set to True, the send function will automatically remove the node from the cluster
+        if it fails to connect more than 'connection_fail_limit' times.
+        """
+
+        current_retry = 0
+        while True:
+            try:
+                await client.send_message(message, self.raftify_cfg.message_timeout)
+                return
+            except Exception:
+                if current_retry < self.raftify_cfg.max_retry_cnt:
+                    current_retry += 1
+                else:
+                    client_id = message.get_to()
+                    self.logger.debug(
+                        f"Failed to connect to {client_id} the {self.raftify_cfg.max_retry_cnt} times"
+                    )
+
+                    try:
+                        if self.raftify_cfg.auto_remove_node:
+                            failed_request_counter = self.peers[
+                                client_id
+                            ].failed_request_counter
+
+                            if (
+                                failed_request_counter.value
+                                >= self.raftify_cfg.connection_fail_limit
+                            ):
+                                self.logger.debug(
+                                    f"Removed 'Node {client_id}' from cluster automatically because the request kept failed"
+                                )
+
+                                self.remove_node(client_id)
+                                return
+                            else:
+                                failed_request_counter.increase()
+
+                        await self.chan.put(ReportUnreachableReqMessage(client_id))
+                    except Exception:
+                        pass
+                    return
+
+    def send_messages(self, messages: list[Message]):
+        for message in messages:
+            if client := self.peers.get(message.get_to()):
                 asyncio.create_task(
-                    self.MessageSender(
-                        raft_node=self,
-                        message=msg,
-                        client=client,
-                    ).send()
+                    self.send_message(
+                        client,
+                        message,
+                    )
                 )
 
     async def send_wrongleader_response(self, channel: Queue) -> None:
