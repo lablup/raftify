@@ -83,7 +83,10 @@ class RaftNode:
                                     client_id
                                 ].failed_request_counter
 
-                                if failed_request_counter.value >= 3:
+                                if (
+                                    failed_request_counter.value
+                                    >= self.raft_node.raftify_cfg.connection_fail_limit
+                                ):
                                     self.raft_node.logger.debug(
                                         f"Removed 'Node {client_id}' from cluster automatically because the request kept failed"
                                     )
@@ -105,7 +108,6 @@ class RaftNode:
         *,
         raw_node: RawNode,
         raft_server: RaftServer,
-        # the peer client could be optional, because an id can be reserved and later populated
         peers: Peers,
         chan: Queue,
         fsm: FSM,

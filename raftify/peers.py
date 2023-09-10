@@ -6,6 +6,7 @@ from raftify.raft_client import RaftClient
 
 
 class Peers(UserDict):
+    # the peer client could be optional, because an id can be reserved and later populated
     data: dict[int, Optional[RaftClient]]
 
     def __repr__(self) -> str:

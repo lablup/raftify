@@ -9,7 +9,6 @@ import grpc
 from rraft import ConfChange, Logger, LoggerRef
 
 from raftify.config import RaftifyConfig
-from raftify.deserializer import init_rraft_py_deserializer
 from raftify.error import ClusterJoinError, LeaderNotFoundError, UnknownError
 from raftify.follower_role import FollowerRole
 from raftify.fsm import FSM
@@ -106,7 +105,7 @@ class RaftCluster:
 
     def bootstrap_cluster(self) -> None:
         """
-        Create a new leader for the cluster with node id 1.
+        Create a new leader for the cluster with node_id 1.
         """
         assert self.raft_node and self.raft_server, "Raft node is not initialized!"
         self.raft_server_task = asyncio.create_task(self.raft_server.run())
@@ -142,7 +141,7 @@ class RaftCluster:
                     case raft_service_pb2.IdRequest_WrongLeader:
                         _, peer_addr, _ = pickle.loads(resp.data)
                         self.logger.info(
-                            f"Sent message to the wrong leader, retrying with the leader at {peer_addr}"
+                            f"Sent message to the wrong leader, retrying with the leader at {peer_addr}."
                         )
                         continue
                     case raft_service_pb2.IdRequest_Error | _:
@@ -169,7 +168,7 @@ class RaftCluster:
         """
         Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
         """
-        assert self.raft_node and self.raft_server, "Raft node is not initialized!"
+        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
 
         node_id = request_id_response.follower_id
         leader = request_id_response.leader
@@ -210,9 +209,9 @@ class RaftCluster:
 
     async def run_raft(self):
         """
-        Run the Raft node.
+        Start to run the raft node.
         """
-        assert self.raft_node and self.raft_server, "Raft node is not initialized!"
+        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
 
         assert (
             self.raft_server_task

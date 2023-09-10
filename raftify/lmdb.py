@@ -133,23 +133,23 @@ class LMDBStorageCore:
 
     def entries(
         self,
-        low: int,
-        high: int,
+        from_: int,
+        to: int,
         _ctx: GetEntriesContext | GetEntriesContextRef,
         max_size: Optional[int] = None,
     ) -> List[Entry]:
         with self.env.begin(write=False, db=self.entries_db) as entry_reader:
-            self.logger.info(f"Entries [{low}, {high}) requested")
+            self.logger.info(f"Entries [{from_}, {to}) requested")
 
             cursor = entry_reader.cursor()
-            if not cursor.set_range(encode_int(low)):
+            if not cursor.set_range(encode_int(from_)):
                 return []
 
             size_count = 0
             entries = []
 
             for key, entry in cursor:
-                if decode_int(key) >= high:
+                if decode_int(key) >= to:
                     break
 
                 if max_size is not None and size_count >= max_size:
