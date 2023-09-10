@@ -78,29 +78,24 @@ class RaftNode:
                         )
 
                         try:
-                            failed_request_counter = self.raft_node.peers[
-                                client_id
-                            ].failed_request_counter
+                            if self.raft_node.raftify_cfg.auto_remove_node:
+                                failed_request_counter = self.raft_node.peers[
+                                    client_id
+                                ].failed_request_counter
 
-                            if failed_request_counter.value >= 3:
-                                self.raft_node.logger.debug(
-                                    f"Removed 'Node {client_id}' from cluster automatically because the request kept failed"
-                                )
+                                if failed_request_counter.value >= 3:
+                                    self.raft_node.logger.debug(
+                                        f"Removed 'Node {client_id}' from cluster automatically because the request kept failed"
+                                    )
 
-                                del self.raft_node.peers[client_id]
+                                    self.raft_node.remove_node(client_id)
+                                    return
+                                else:
+                                    failed_request_counter.increase()
 
-                                conf_change = ConfChange.default()
-                                conf_change.set_node_id(client_id)
-                                conf_change.set_context(pickle.dumps(self.client.addr))
-                                conf_change.set_change_type(ConfChangeType.RemoveNode)
-                                self.raft_node.raw_node.propose_conf_change(
-                                    pickle.dumps(self.raft_node.seq.value), conf_change
-                                )
-                            else:
-                                await self.raft_node.chan.put(
-                                    ReportUnreachableReqMessage(client_id)
-                                )
-                                failed_request_counter.increase()
+                            await self.raft_node.chan.put(
+                                ReportUnreachableReqMessage(client_id)
+                            )
                         except Exception:
                             pass
                         return
@@ -232,6 +227,19 @@ class RaftNode:
 
     def peer_addrs(self) -> dict[int, str]:
         return {k: str(v.addr) for k, v in self.peers.items() if v is not None}
+
+    def remove_node(self, node_id: int) -> None:
+        client = self.peers[node_id]
+        del self.peers[node_id]
+
+        conf_change = ConfChange.default()
+        conf_change.set_node_id(node_id)
+        conf_change.set_context(pickle.dumps(client.addr))
+        conf_change.set_change_type(ConfChangeType.RemoveNode)
+        self.raw_node.propose_conf_change(
+            pickle.dumps(self.seq.value),
+            conf_change,
+        )
 
     def reserve_next_peer_id(self, addr: str) -> int:
         """
