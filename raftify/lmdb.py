@@ -187,9 +187,9 @@ class LMDBStorage:
 
     @classmethod
     def create(
-        cls, path: os.PathLike, id: int, logger: AbstractRaftifyLogger
+        cls, path: os.PathLike, node_id: int, logger: AbstractRaftifyLogger
     ) -> "LMDBStorage":
-        core = LMDBStorageCore.create(path, id, logger)
+        core = LMDBStorageCore.create(path, node_id, logger)
         return cls(core, logger)
 
     # TODO: Refactor below logic.
@@ -295,23 +295,23 @@ class LMDBStorage:
 
         return self.rl(__entries)
 
-    def term(self, idx: int) -> int:
+    def term(self, index: int) -> int:
         def __term(store: LMDBStorageCore):
             first_index = store.first_index()
             last_index = store.last_index()
             hard_state = store.hard_state()
 
-            if idx == hard_state.get_commit():
+            if index == hard_state.get_commit():
                 return hard_state.get_term()
 
-            if idx < first_index:
+            if index < first_index:
                 raise StoreError(CompactedError())
 
-            if idx > last_index:
+            if index > last_index:
                 raise StoreError(UnavailableError())
 
             try:
-                entry = store.entry(idx)
+                entry = store.entry(index)
             except Exception:
                 raise StoreError(UnavailableError())
 
