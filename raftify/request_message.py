@@ -20,7 +20,7 @@ class ProposeReqMessage(RaftRequest, PickleSerializer):
 @dataclass
 class RerouteToLeaderReqMessage(RaftRequest, PickleSerializer):
     proposed_data: Optional[bytes]
-    confchange: Optional[raft_service_pb2.ConfChange]
+    conf_change: Optional[raft_service_pb2.ConfChange]
     type: raft_service_pb2.RerouteMsgType
     chan: Queue
 

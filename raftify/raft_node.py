@@ -403,7 +403,7 @@ class RaftNode:
                 match message.type:
                     case RerouteMsgType.ConfChange:
                         message = ConfigChangeReqMessage(
-                            change=message.confchange, chan=message.chan
+                            change=message.conf_change, chan=message.chan
                         )
                     case RerouteMsgType.Propose:
                         message = ProposeReqMessage(
@@ -419,7 +419,7 @@ class RaftNode:
                 else:
                     # leader assign new id to peer
                     self.logger.debug(
-                        f'Received confchange request from the "node {conf_change.get_node_id()}"'
+                        f'Received conf_change request from the "node {conf_change.get_node_id()}"'
                     )
 
                     self.seq.increase()

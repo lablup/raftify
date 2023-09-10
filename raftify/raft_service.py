@@ -104,7 +104,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
 
         await self.sender.put(
             RerouteToLeaderReqMessage(
-                confchange=request.conf_change,
+                conf_change=request.conf_change,
                 proposed_data=request.proposed_data,
                 type=request.type,
                 chan=receiver,

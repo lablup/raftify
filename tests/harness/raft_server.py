@@ -165,5 +165,5 @@ async def wait_for_until(predicate: str, poll_interval: float = 1.0, end: float 
         print(f'Waiting for cluster state changed to "{predicate}"...')
         await asyncio.sleep(poll_interval)
 
-    print("Waiting for the confchange reflected to the cluster...")
+    print("Waiting for the conf_change reflected to the cluster...")
     await asyncio.sleep(end)

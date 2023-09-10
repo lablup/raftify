@@ -63,12 +63,12 @@ class RaftClient:
         self,
         reroute_msg_type: raft_service_pb2.RerouteMsgType,
         msg_bytes: Optional[bytes] = None,
-        confchange: Optional[raft_service_pb2.ConfChange] = None,
+        conf_change: Optional[raft_service_pb2.ConfChange] = None,
         timeout: float = 5.0,
     ) -> raft_service_pb2.RaftMessageResponse:
         request = raft_service_pb2.RerouteMessageArgs(
             proposed_data=msg_bytes or b"",
-            conf_change=confchange,
+            conf_change=conf_change,
             type=reroute_msg_type,
         )
 

@@ -35,7 +35,7 @@ class Mailbox:
         *,
         reroute_msg_type: raft_service_pb2.RerouteMsgType,
         proposed_data: Optional[bytes] = None,
-        confchange: Optional[raft_service_pb2.ConfChange] = None,
+        conf_change: Optional[raft_service_pb2.ConfChange] = None,
     ) -> Optional[bytes]:
         if isinstance(response, RaftOkRespMessage):
             return None
@@ -45,7 +45,7 @@ class Mailbox:
             leader_id = self.raft_node.get_leader_id()
             resp_from_leader = await self.raft_node.peers[leader_id].reroute_message(
                 reroute_msg_type=reroute_msg_type,
-                confchange=confchange,
+                conf_change=conf_change,
                 msg_bytes=proposed_data,
             )
             if isinstance(resp_from_leader, raft_service_pb2.RaftMessageResponse):
@@ -80,12 +80,12 @@ class Mailbox:
         cc.set_change_type(ConfChangeType.RemoveNode)
 
         receiver = Queue()
-        confchange = ConfChangeAdapter.to_pb(cc)
+        conf_change = ConfChangeAdapter.to_pb(cc)
 
-        await self.sender.put(ConfigChangeReqMessage(confchange, receiver))
+        await self.sender.put(ConfigChangeReqMessage(conf_change, receiver))
 
         await self.__handle_response(
             await receiver.get(),
             reroute_msg_type=raft_service_pb2.ConfChange,
-            confchange=confchange,
+            conf_change=conf_change,
         )
