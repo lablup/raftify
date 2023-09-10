@@ -328,31 +328,31 @@ class RaftNode:
         self, entry: Entry | EntryRef, senders: dict[int, Queue]
     ) -> None:
         seq = pickle.loads(entry.get_context())
-        change = ConfChange.decode(entry.get_data())
-        node_id = change.get_node_id()
+        conf_change = ConfChange.decode(entry.get_data())
+        node_id = conf_change.get_node_id()
 
-        change_type = change.get_change_type()
+        change_type = conf_change.get_change_type()
 
         match change_type:
             case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
-                addr = pickle.loads(change.get_context())
+                addr = pickle.loads(conf_change.get_context())
                 self.logger.info(
                     f"Node '{addr} (node id: {node_id})' added to the cluster."
                 )
                 self.peers[node_id] = RaftClient(addr)
             case ConfChangeType.RemoveNode:
-                if change.get_node_id() == self.get_id():
+                if conf_change.get_node_id() == self.get_id():
                     self.should_exit = True
                     await self.raft_server.terminate()
                     self.logger.info(f"{self.get_id()} quit the cluster.")
                 else:
-                    self.peers.pop(change.get_node_id(), None)
+                    self.peers.pop(conf_change.get_node_id(), None)
             case _:
                 raise NotImplementedError
 
-        if cs := self.raw_node.apply_conf_change(change):
+        if conf_state := self.raw_node.apply_conf_change(conf_change):
             snapshot = await self.fsm.snapshot()
-            self.lmdb.set_conf_state(cs)
+            self.lmdb.set_conf_state(conf_state)
 
             if self.raftify_cfg.use_log_compaction:
                 last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
@@ -403,7 +403,7 @@ class RaftNode:
                 match message.type:
                     case RerouteMsgType.ConfChange:
                         message = ConfigChangeReqMessage(
-                            change=message.conf_change, chan=message.chan
+                            conf_change=message.conf_change, chan=message.chan
                         )
                     case RerouteMsgType.Propose:
                         message = ProposeReqMessage(
@@ -411,7 +411,7 @@ class RaftNode:
                         )
 
             if isinstance(message, ConfigChangeReqMessage):
-                conf_change = ConfChangeAdapter.from_pb(message.change)
+                conf_change = ConfChangeAdapter.from_pb(message.conf_change)
 
                 if not self.is_leader():
                     # TODO: retry strategy in case of failure

@@ -66,12 +66,12 @@ class ConfChangeAdapter(ProtobufAdapter):
 
     @staticmethod
     def from_pb(v: Pb_ConfChange) -> ConfChange:
-        cc = ConfChange.default()
-        cc.set_id(v.id)
-        cc.set_node_id(v.node_id)
-        cc.set_context(v.context)
-        cc.set_change_type(ConfChangeType.from_int(v.change_type))
-        return cc
+        conf_change = ConfChange.default()
+        conf_change.set_id(v.id)
+        conf_change.set_node_id(v.node_id)
+        conf_change.set_context(v.context)
+        conf_change.set_change_type(ConfChangeType.from_int(v.change_type))
+        return conf_change
 
 
 class ConfChangeSingleAdapter(ProtobufAdapter):
@@ -83,10 +83,10 @@ class ConfChangeSingleAdapter(ProtobufAdapter):
 
     @staticmethod
     def from_pb(v: Pb_ConfChangeSingle) -> ConfChangeSingle:
-        cc = ConfChangeSingle.default()
-        cc.set_node_id(v.node_id)
-        cc.set_change_type(ConfChangeType.from_int(v.change_type))
-        return cc
+        conf_change = ConfChangeSingle.default()
+        conf_change.set_node_id(v.node_id)
+        conf_change.set_change_type(ConfChangeType.from_int(v.change_type))
+        return conf_change
 
 
 class ConfChangeV2Adapter(ProtobufAdapter):
@@ -100,11 +100,11 @@ class ConfChangeV2Adapter(ProtobufAdapter):
 
     @staticmethod
     def from_pb(v: Pb_ConfChangeV2) -> ConfChangeV2:
-        cc = ConfChangeV2.default()
-        cc.set_transition(ConfChangeTransition.from_int(v.transition))
-        cc.set_changes(list(map(ConfChangeSingleAdapter.from_pb, v.changes)))
-        cc.set_context(v.context)
-        return cc
+        conf_change = ConfChangeV2.default()
+        conf_change.set_transition(ConfChangeTransition.from_int(v.transition))
+        conf_change.set_changes(list(map(ConfChangeSingleAdapter.from_pb, v.changes)))
+        conf_change.set_context(v.context)
+        return conf_change
 
 
 class ConfStateAdapter(ProtobufAdapter):
@@ -120,13 +120,13 @@ class ConfStateAdapter(ProtobufAdapter):
 
     @staticmethod
     def from_pb(v: Pb_ConfState) -> ConfState:
-        cs = ConfState.default()
-        cs.set_auto_leave(v.auto_leave)
-        cs.set_learners(list(v.learners))
-        cs.set_learners_next(list(v.learners_next))
-        cs.set_voters(list(v.voters))
-        cs.set_voters_outgoing(list(v.voters_outgoing))
-        return cs
+        conf_state = ConfState.default()
+        conf_state.set_auto_leave(v.auto_leave)
+        conf_state.set_learners(list(v.learners))
+        conf_state.set_learners_next(list(v.learners_next))
+        conf_state.set_voters(list(v.voters))
+        conf_state.set_voters_outgoing(list(v.voters_outgoing))
+        return conf_state
 
 
 class EntryAdapter(ProtobufAdapter):
@@ -143,14 +143,14 @@ class EntryAdapter(ProtobufAdapter):
 
     @staticmethod
     def from_pb(v: Pb_Entry) -> Entry:
-        e = Entry.default()
-        e.set_context(v.context)
-        e.set_data(v.data)
-        e.set_entry_type(EntryType.from_int(v.entry_type))
-        e.set_index(v.index)
-        e.set_sync_log(v.sync_log)
-        e.set_term(v.term)
-        return e
+        entry = Entry.default()
+        entry.set_context(v.context)
+        entry.set_data(v.data)
+        entry.set_entry_type(EntryType.from_int(v.entry_type))
+        entry.set_index(v.index)
+        entry.set_sync_log(v.sync_log)
+        entry.set_term(v.term)
+        return entry
 
 
 class HardStateAdapter(ProtobufAdapter):
@@ -164,11 +164,11 @@ class HardStateAdapter(ProtobufAdapter):
 
     @staticmethod
     def from_pb(v: Pb_HardState) -> HardState:
-        hs = HardState.default()
-        hs.set_commit(v.commit)
-        hs.set_term(v.term)
-        hs.set_vote(v.vote)
-        return hs
+        hard_state = HardState.default()
+        hard_state.set_commit(v.commit)
+        hard_state.set_term(v.term)
+        hard_state.set_vote(v.vote)
+        return hard_state
 
 
 class MessageAdapter(ProtobufAdapter):
@@ -195,24 +195,24 @@ class MessageAdapter(ProtobufAdapter):
 
     @staticmethod
     def from_pb(v: Pb_Message) -> Message:
-        m = Message.default()
-        m.set_commit(v.commit)
-        m.set_commit_term(v.commit_term)
-        m.set_context(v.context)
-        m.set_deprecated_priority(v.deprecated_priority)
-        m.set_entries(list(map(EntryAdapter.from_pb, v.entries)))
-        m.set_from(v.from_)
-        m.set_index(v.index)
-        m.set_log_term(v.log_term)
-        m.set_msg_type(MessageType.from_int(v.msg_type))
-        m.set_priority(v.priority)
-        m.set_reject(v.reject)
-        m.set_reject_hint(v.reject_hint)
-        m.set_request_snapshot(v.request_snapshot)
-        m.set_snapshot(SnapshotAdapter.from_pb(v.snapshot))
-        m.set_term(v.term)
-        m.set_to(v.to)
-        return m
+        message = Message.default()
+        message.set_commit(v.commit)
+        message.set_commit_term(v.commit_term)
+        message.set_context(v.context)
+        message.set_deprecated_priority(v.deprecated_priority)
+        message.set_entries(list(map(EntryAdapter.from_pb, v.entries)))
+        message.set_from(v.from_)
+        message.set_index(v.index)
+        message.set_log_term(v.log_term)
+        message.set_msg_type(MessageType.from_int(v.msg_type))
+        message.set_priority(v.priority)
+        message.set_reject(v.reject)
+        message.set_reject_hint(v.reject_hint)
+        message.set_request_snapshot(v.request_snapshot)
+        message.set_snapshot(SnapshotAdapter.from_pb(v.snapshot))
+        message.set_term(v.term)
+        message.set_to(v.to)
+        return message
 
 
 class SnapshotAdapter(ProtobufAdapter):
@@ -225,10 +225,10 @@ class SnapshotAdapter(ProtobufAdapter):
 
     @staticmethod
     def from_pb(v: Pb_Snapshot) -> Snapshot:
-        s = Snapshot.default()
-        s.set_data(v.data)
-        s.set_metadata(SnapshotMetadataAdapter.from_pb(v.metadata))
-        return s
+        snapshot = Snapshot.default()
+        snapshot.set_data(v.data)
+        snapshot.set_metadata(SnapshotMetadataAdapter.from_pb(v.metadata))
+        return snapshot
 
 
 class SnapshotMetadataAdapter(ProtobufAdapter):
@@ -242,8 +242,8 @@ class SnapshotMetadataAdapter(ProtobufAdapter):
 
     @staticmethod
     def from_pb(v: Pb_SnapshotMetadata) -> SnapshotMetadata:
-        sm = SnapshotMetadata.default()
-        sm.set_conf_state(ConfStateAdapter.from_pb(v.conf_state))
-        sm.set_index(v.index)
-        sm.set_term(v.term)
-        return sm
+        snapshot_metadata = SnapshotMetadata.default()
+        snapshot_metadata.set_conf_state(ConfStateAdapter.from_pb(v.conf_state))
+        snapshot_metadata.set_index(v.index)
+        snapshot_metadata.set_term(v.term)
+        return snapshot_metadata

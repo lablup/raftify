@@ -74,13 +74,13 @@ class Mailbox:
         return resp
 
     async def leave(self, node_id: int) -> None:
-        cc = ConfChange.default()
-        cc.set_node_id(node_id)
-        cc.set_context(pickle.dumps(self.addr))
-        cc.set_change_type(ConfChangeType.RemoveNode)
+        conf_change = ConfChange.default()
+        conf_change.set_node_id(node_id)
+        conf_change.set_context(pickle.dumps(self.addr))
+        conf_change.set_change_type(ConfChangeType.RemoveNode)
 
         receiver = Queue()
-        conf_change = ConfChangeAdapter.to_pb(cc)
+        conf_change = ConfChangeAdapter.to_pb(conf_change)
 
         await self.sender.put(ConfigChangeReqMessage(conf_change, receiver))
 

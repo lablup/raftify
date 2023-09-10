@@ -33,9 +33,9 @@ class RaftClient:
         return grpc.aio.insecure_channel(str(self.addr))
 
     async def change_config(
-        self, cc: ConfChange, timeout: float = 5.0
+        self, conf_change: ConfChange, timeout: float = 5.0
     ) -> raft_service_pb2.ChangeConfigResponse:
-        request = ConfChangeAdapter.to_pb(cc)
+        request = ConfChangeAdapter.to_pb(conf_change)
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)

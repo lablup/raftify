@@ -86,10 +86,10 @@ class LMDBStorageCore:
 
     def conf_state(self) -> ConfState:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
-            cs = meta_reader.get(CONF_STATE_KEY)
-            if cs is None:
+            conf_state = meta_reader.get(CONF_STATE_KEY)
+            if conf_state is None:
                 raise StoreError(UnavailableError("There should be a conf state"))
-            return ConfState.decode(cs)
+            return ConfState.decode(conf_state)
 
     def set_conf_state(self, conf_state: ConfState | ConfStateRef) -> None:
         with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
