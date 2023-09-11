@@ -18,7 +18,7 @@ async def test_membership_change():
     loop.run_in_executor(executor, run_raft_cluster, (3))
     await wait_for_until("cluster_size >= 3")
 
-    peers_1: dict = json.loads(make_request(RequestType.GET, 1, "/peers"))
+    peers_1 = json.loads(make_request(RequestType.GET, 1, "/peers"))
     assert peers_1.keys(), [2]
 
     killall()

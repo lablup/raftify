@@ -72,11 +72,7 @@ def killall():
     """
 
     cluster = read_cluster_info()
-
-    for node in cluster["nodes"]:
-        kill_process(node["pid"])
-
-    os.kill(cluster["root"]["pid"], signal.SIGKILL)
+    os.kill(cluster["root"]["pid"], signal.SIGTERM)
 
 
 class RequestType:
