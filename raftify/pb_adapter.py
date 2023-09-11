@@ -91,7 +91,7 @@ class ConfChangeSingleAdapter(ProtobufAdapter):
 
 class ConfChangeV2Adapter(ProtobufAdapter):
     @staticmethod
-    def to_pb(v: ConfChangeV2 | ConfChangeV2Ref) -> Pb_ConfChange:
+    def to_pb(v: ConfChangeV2 | ConfChangeV2Ref) -> Pb_ConfChangeV2:
         return Pb_ConfChangeV2(
             transition=int(v.get_transition()),
             changes=list(map(ConfChangeSingleAdapter.to_pb, v.get_changes())),

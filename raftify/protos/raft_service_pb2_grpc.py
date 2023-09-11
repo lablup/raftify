@@ -23,7 +23,7 @@ class RaftServiceStub(object):
         )
         self.ChangeConfig = channel.unary_unary(
             "/raftservice.RaftService/ChangeConfig",
-            request_serializer=eraftpb__pb2.ConfChange.SerializeToString,
+            request_serializer=eraftpb__pb2.ConfChangeV2.SerializeToString,
             response_deserializer=raft__service__pb2.ChangeConfigResponse.FromString,
         )
         self.SendMessage = channel.unary_unary(
@@ -75,7 +75,7 @@ def add_RaftServiceServicer_to_server(servicer, server):
         ),
         "ChangeConfig": grpc.unary_unary_rpc_method_handler(
             servicer.ChangeConfig,
-            request_deserializer=eraftpb__pb2.ConfChange.FromString,
+            request_deserializer=eraftpb__pb2.ConfChangeV2.FromString,
             response_serializer=raft__service__pb2.ChangeConfigResponse.SerializeToString,
         ),
         "SendMessage": grpc.unary_unary_rpc_method_handler(
@@ -145,7 +145,7 @@ class RaftService(object):
             request,
             target,
             "/raftservice.RaftService/ChangeConfig",
-            eraftpb__pb2.ConfChange.SerializeToString,
+            eraftpb__pb2.ConfChangeV2.SerializeToString,
             raft__service__pb2.ChangeConfigResponse.FromString,
             options,
             channel_credentials,

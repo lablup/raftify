@@ -2,9 +2,9 @@ import asyncio
 from typing import Optional
 
 import grpc
-from rraft import ConfChange, Message
+from rraft import ConfChangeV2, Message
 
-from raftify.pb_adapter import ConfChangeAdapter, MessageAdapter
+from raftify.pb_adapter import ConfChangeAdapter, ConfChangeV2Adapter, MessageAdapter
 from raftify.protos import raft_service_pb2, raft_service_pb2_grpc
 from raftify.utils import AtomicInteger, SocketAddr
 
@@ -33,9 +33,9 @@ class RaftClient:
         return grpc.aio.insecure_channel(str(self.addr))
 
     async def change_config(
-        self, conf_change: ConfChange, timeout: float = 5.0
+        self, conf_change: ConfChangeV2, timeout: float = 5.0
     ) -> raft_service_pb2.ChangeConfigResponse:
-        request = ConfChangeAdapter.to_pb(conf_change)
+        request = ConfChangeV2Adapter.to_pb(conf_change)
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)

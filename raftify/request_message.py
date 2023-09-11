@@ -27,7 +27,7 @@ class RerouteToLeaderReqMessage(RaftRequest, PickleSerializer):
 
 @dataclass
 class ConfigChangeReqMessage(RaftRequest, PickleSerializer):
-    conf_change: eraftpb_pb2.ConfChange
+    conf_change: eraftpb_pb2.ConfChangeV2
     chan: Queue
 
 

@@ -54,7 +54,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
             assert False, "Unreachable"
 
     async def ChangeConfig(
-        self, request: eraftpb_pb2.ConfChange, context: grpc.aio.ServicerContext
+        self, request: eraftpb_pb2.ConfChangeV2, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.ChangeConfigResponse:
         receiver = Queue()
         await self.sender.put(ConfigChangeReqMessage(request, receiver))

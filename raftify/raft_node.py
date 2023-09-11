@@ -6,6 +6,7 @@ from asyncio import Queue
 from rraft import (
     ConfChange,
     ConfChangeType,
+    ConfChangeV2,
     Entry,
     EntryRef,
     EntryType,
@@ -21,7 +22,7 @@ from raftify.config import RaftifyConfig
 from raftify.fsm import FSM
 from raftify.lmdb import LMDBStorage
 from raftify.logger import AbstractRaftifyLogger
-from raftify.pb_adapter import ConfChangeAdapter, MessageAdapter
+from raftify.pb_adapter import ConfChangeAdapter, ConfChangeV2Adapter, MessageAdapter
 from raftify.peers import Peers
 from raftify.protos.raft_service_pb2 import RerouteMsgType
 from raftify.raft_client import RaftClient
@@ -180,9 +181,11 @@ class RaftNode:
         conf_change.set_change_type(ConfChangeType.RemoveNode)
         context = pickle.dumps(self.seq.value)
 
-        self.raw_node.propose_conf_change(
+        conf_change_v2 = conf_change.as_v2()
+
+        self.raw_node.propose_conf_change_v2(
             context,
-            conf_change,
+            conf_change_v2,
         )
 
     def reserve_next_peer_id(self, addr: str) -> int:
@@ -295,7 +298,7 @@ class RaftNode:
             match entry.get_entry_type():
                 case EntryType.EntryNormal:
                     await self.handle_normal_entry(entry, client_senders)
-                case EntryType.EntryConfChange:
+                case EntryType.EntryConfChangeV2:
                     await self.handle_config_change_entry(entry, client_senders)
                 case _:
                     raise NotImplementedError
@@ -328,40 +331,45 @@ class RaftNode:
         self, entry: Entry | EntryRef, senders: dict[int, Queue]
     ) -> None:
         seq = pickle.loads(entry.get_context())
-        conf_change = ConfChange.decode(entry.get_data())
-        node_id = conf_change.get_node_id()
+        conf_change_v2 = ConfChangeV2.decode(entry.get_data())
+        conf_changes = conf_change_v2.get_changes()
 
-        change_type = conf_change.get_change_type()
+        for conf_change in conf_changes:
+            node_id = conf_change.get_node_id()
+            change_type = conf_change.get_change_type()
 
-        match change_type:
-            case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
-                addr = pickle.loads(conf_change.get_context())
-                self.logger.info(
-                    f"Node '{addr} (node id: {node_id})' added to the cluster."
-                )
-                self.peers[node_id] = RaftClient(addr)
-            case ConfChangeType.RemoveNode:
-                if conf_change.get_node_id() == self.get_id():
-                    self.should_exit = True
-                    await self.raft_server.terminate()
-                    self.logger.info(f"{self.get_id()} quit the cluster.")
-                else:
-                    self.peers.pop(conf_change.get_node_id(), None)
-            case _:
-                raise NotImplementedError
+            match change_type:
+                case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
+                    addr = pickle.loads(conf_change_v2.get_context())
+                    self.logger.info(
+                        f"Node '{addr} (node id: {node_id})' added to the cluster."
+                    )
+                    self.peers[node_id] = RaftClient(addr)
+                case ConfChangeType.RemoveNode:
+                    if conf_change.get_node_id() == self.get_id():
+                        self.should_exit = True
+                        await self.raft_server.terminate()
+                        self.logger.info(f"{self.get_id()} quit the cluster.")
+                    else:
+                        self.peers.pop(conf_change.get_node_id(), None)
+                case _:
+                    raise NotImplementedError
 
-        if conf_state := self.raw_node.apply_conf_change(conf_change):
-            snapshot = await self.fsm.snapshot()
-            self.lmdb.set_conf_state(conf_state)
+        if conf_state := self.raw_node.apply_conf_change_v2(conf_change_v2):
+            for conf_change in conf_changes:
+                snapshot = await self.fsm.snapshot()
+                self.lmdb.set_conf_state(conf_state)
 
-            if self.raftify_cfg.use_log_compaction:
-                last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
-                self.lmdb.compact(last_applied)
+                if self.raftify_cfg.use_log_compaction:
+                    last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
+                    self.lmdb.compact(last_applied)
 
-            try:
-                self.lmdb.create_snapshot(snapshot, entry.get_index(), entry.get_term())
-            except Exception:
-                pass
+                try:
+                    self.lmdb.create_snapshot(
+                        snapshot, entry.get_index(), entry.get_term()
+                    )
+                except Exception:
+                    pass
 
         if sender := senders.pop(seq, None):
             match change_type:
@@ -411,21 +419,15 @@ class RaftNode:
                         )
 
             if isinstance(message, ConfigChangeReqMessage):
-                conf_change = ConfChangeAdapter.from_pb(message.conf_change)
-
                 if not self.is_leader():
                     # TODO: retry strategy in case of failure
                     await self.send_wrongleader_response(message.chan)
                 else:
-                    # leader assign new id to peer
-                    self.logger.debug(
-                        f'Received conf_change request from the "node {conf_change.get_node_id()}"'
-                    )
-
+                    conf_change_v2 = ConfChangeV2Adapter.from_pb(message.conf_change)
                     self.seq.increase()
                     client_senders[self.seq.value] = message.chan
                     context = pickle.dumps(self.seq.value)
-                    self.raw_node.propose_conf_change(context, conf_change)
+                    self.raw_node.propose_conf_change_v2(context, conf_change_v2)
 
             elif isinstance(message, ProposeReqMessage):
                 if not self.is_leader():

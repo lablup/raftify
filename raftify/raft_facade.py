@@ -188,11 +188,13 @@ class RaftCluster:
         conf_change.set_change_type(role.to_changetype())
         conf_change.set_context(pickle.dumps(self.addr))
 
+        conf_change_v2 = conf_change.as_v2()
+
         # TODO: Should handle wrong leader error here because the leader might change in the meanwhile.
         # But it might be already handled by the rerouting logic. So, it should be tested first.
         while True:
             try:
-                resp = await leader_client.change_config(conf_change)
+                resp = await leader_client.change_config(conf_change_v2)
 
             except grpc.aio.AioRpcError as e:
                 raise ClusterJoinError(cause=e)
