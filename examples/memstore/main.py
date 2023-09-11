@@ -17,7 +17,7 @@ from rraft import default_logger
 
 from raftify.config import RaftifyConfig
 from raftify.fsm import FSM
-from raftify.raft_facade import FollowerRole, RaftCluster, RaftNodeRole
+from raftify.raft_facade import RaftCluster, RaftNodeRole
 from raftify.utils import SocketAddr
 
 RaftCluster.set_cluster_config(
@@ -161,9 +161,6 @@ async def main() -> None:
     )
     parser.add_argument("--raft-addr", default=None)
     parser.add_argument("--web-server", default=None)
-    parser.add_argument(
-        "--non-voter", action=argparse.BooleanOptionalAction, default=None
-    )
 
     args = parser.parse_args()
 
@@ -172,7 +169,6 @@ async def main() -> None:
         SocketAddr.from_str(args.raft_addr) if args.raft_addr is not None else None
     )
     web_server_addr = args.web_server
-    follower_role = FollowerRole.Learner if args.non_voter else FollowerRole.Voter
 
     peer_addrs = load_peer_candidates()
 
@@ -195,9 +191,7 @@ async def main() -> None:
 
         logger.info("Running in follower mode")
         cluster.build_raft(RaftNodeRole.Follower, request_id_response.follower_id)
-        await cluster.join_cluster(
-            request_id_response=request_id_response, role=follower_role
-        )
+        await cluster.join_cluster(request_id_response=request_id_response)
 
     runner = None
     if web_server_addr:
