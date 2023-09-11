@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import re
@@ -59,9 +60,10 @@ def write_cluster_info(cluster_info: dict, path: str = CLUSTER_INFO_PATH):
     write_json(f"{path}/.root.json", {"root": cluster_info["root"]})
 
 
-def kill_process(pid: int):
+async def kill_process(pid: int):
     try:
         os.kill(pid, signal.SIGTERM)
+        await asyncio.sleep(1.0)
     except Exception:
         pass
 

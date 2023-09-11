@@ -30,7 +30,7 @@ async def test_leader_election_three_node_example():
 
     leader_node = read_node(1)
 
-    kill_process(leader_node["pid"])
+    await kill_process(leader_node["pid"])
 
     await wait_for_until("cluster_size <= 2")
 
@@ -59,7 +59,7 @@ async def test_leader_election_five_node_example():
 
     leader_node = read_node(1)
 
-    kill_process(leader_node["pid"])
+    await kill_process(leader_node["pid"])
 
     await wait_for_until("cluster_size <= 4")
 
