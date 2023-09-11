@@ -175,10 +175,10 @@ class RaftCluster:
         peer_addrs = request_id_response.peer_addrs
         leader_id, leader_client = leader
 
-        self.raft_node.peers = {
+        self.raft_node.peers = Peers({
             **{node_id: RaftClient(addr) for node_id, addr in peer_addrs.items()},
             leader_id: leader_client,
-        }
+        })
 
         self.raft_server_task = asyncio.create_task(self.raft_server.run())
         self.raft_node_task = asyncio.create_task(self.raft_node.run())
