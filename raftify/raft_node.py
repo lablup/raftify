@@ -309,7 +309,7 @@ class RaftNode:
         if sender := senders.pop(seq, None):
             sender.put_nowait(RaftRespMessage(data))
 
-        if time.time() > self.last_snap_time + 15:
+        if time.time() > self.last_snap_time + self.raftify_cfg.snapshot_interval:
             self.logger.info("Creating snapshot...")
             self.last_snap_time = time.time()
             snapshot = await self.fsm.snapshot()
