@@ -111,13 +111,28 @@ class RaftCluster:
         self.raft_server_task = asyncio.create_task(self.raft_server.run())
         self.raft_node_task = asyncio.create_task(self.raft_node.run())
 
+    async def merge_cluster(
+        self,
+        leader_node_id: int,
+        raft_addr: SocketAddr,
+        peer_candidates: list[SocketAddr],
+    ) -> None:
+        assert self.raft_node and self.raft_server, "Raft node is not initialized!"
+
+        if self.raft_node.is_leader():
+            print("Step down from the leader...")
+            term = self.raft_node.raw_node.get_raft().get_term()
+            self.raft_node.raw_node.get_raft().become_follower(term, leader_node_id)
+
+        resp = await self.request_id(raft_addr, peer_candidates)
+        await self.join_cluster(resp)
+
     async def request_id(
         self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]
     ) -> RequestIdResponse:
         """
         To join the cluster, find out who is the leader node and get node_id from the leader.
         """
-        assert not self.raft_node and not self.raft_server, "Raft node is already set!"
 
         for peer_addr in peer_candidates:
             self.logger.info(f'Attempting to join the cluster through "{peer_addr}"...')
@@ -175,10 +190,12 @@ class RaftCluster:
         peer_addrs = request_id_response.peer_addrs
         leader_id, leader_client = leader
 
-        self.raft_node.peers = Peers({
-            **{node_id: RaftClient(addr) for node_id, addr in peer_addrs.items()},
-            leader_id: leader_client,
-        })
+        self.raft_node.peers = Peers(
+            {
+                **{node_id: RaftClient(addr) for node_id, addr in peer_addrs.items()},
+                leader_id: leader_client,
+            }
+        )
 
         self.raft_server_task = asyncio.create_task(self.raft_server.run())
         self.raft_node_task = asyncio.create_task(self.raft_node.run())

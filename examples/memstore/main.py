@@ -154,6 +154,20 @@ async def leader(request: web.Request) -> web.Response:
     return web.Response(text=str(cluster.raft_node.get_leader_id()))
 
 
+@routes.get("/merge/{id}/{addr}")
+async def merge_cluster(request: web.Request) -> web.Response:
+    cluster: RaftCluster = request.app["state"]["cluster"]
+    target_node_id = int(request.match_info["id"])
+    target_addr = request.match_info["addr"]
+
+    peer_addrs = load_peer_candidates()
+    await cluster.merge_cluster(
+        target_node_id, SocketAddr.from_str(target_addr), peer_addrs
+    )
+
+    return web.Response(text="Merged cluster successfully.")
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -174,11 +188,10 @@ async def main() -> None:
 
     store = HashStore()
 
-    target_addr = peer_addrs[0] if bootstrap else raft_addr
+    target_addr = peer_addrs[0] if bootstrap and not raft_addr else raft_addr
     cluster = RaftCluster(target_addr, store, slog, logger)
 
     if bootstrap:
-        assert raft_addr is None, "Cannot specify both --bootstrap and --raft-addr."
         logger.info("Bootstrap a Raft Cluster")
         cluster.build_raft(RaftNodeRole.Leader)
         cluster.bootstrap_cluster()
