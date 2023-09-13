@@ -131,7 +131,7 @@ class RaftCluster:
         self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]
     ) -> RequestIdResponse:
         """
-        To join the cluster, find out who is the leader node and get node_id from the leader.
+        To join the cluster, find out which node is the leader and get node_id from the leader.
         """
 
         for peer_addr in peer_candidates:
