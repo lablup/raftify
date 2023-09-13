@@ -19,6 +19,7 @@ from raftify.config import RaftifyConfig
 from raftify.fsm import FSM
 from raftify.raft_facade import RaftCluster, RaftNodeRole
 from raftify.utils import SocketAddr
+from raftify.deserializer import init_rraft_py_deserializer
 
 RaftCluster.set_cluster_config(
     RaftifyConfig(
@@ -177,6 +178,8 @@ async def merge_cluster(request: web.Request) -> web.Response:
 
 
 async def main() -> None:
+    init_rraft_py_deserializer()
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--bootstrap", action=argparse.BooleanOptionalAction, default=None
