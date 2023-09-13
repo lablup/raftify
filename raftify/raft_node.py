@@ -187,6 +187,7 @@ class RaftNode:
             context,
             conf_change_v2,
         )
+        self.raw_node.apply_conf_change_v2(conf_change_v2)
 
     def reserve_next_peer_id(self, addr: str) -> int:
         """
