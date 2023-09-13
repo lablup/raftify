@@ -3,7 +3,6 @@ import json
 from concurrent.futures import ProcessPoolExecutor
 
 import pytest
-
 from harness.raft_server import run_raft_cluster, wait_for_until
 from utils import RequestType, killall, make_request, reset_fixtures_directory
 

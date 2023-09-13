@@ -22,7 +22,7 @@ from raftify.config import RaftifyConfig
 from raftify.fsm import FSM
 from raftify.lmdb import LMDBStorage
 from raftify.logger import AbstractRaftifyLogger
-from raftify.pb_adapter import ConfChangeAdapter, ConfChangeV2Adapter, MessageAdapter
+from raftify.pb_adapter import ConfChangeV2Adapter, MessageAdapter
 from raftify.peers import Peers
 from raftify.protos.raft_service_pb2 import RerouteMsgType
 from raftify.raft_client import RaftClient

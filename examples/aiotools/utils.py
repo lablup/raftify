@@ -6,7 +6,6 @@ import shutil
 import signal
 
 import requests
-
 from harness.constant import CLUSTER_INFO_PATH, WEB_SERVER_ADDRS
 
 

@@ -2,8 +2,9 @@ import logging
 import pickle
 from typing import Optional
 
-import raftify
 from harness.log import SetCommand
+
+import raftify
 
 
 class HashStore(raftify.FSM):
