@@ -2,7 +2,7 @@ import pickle
 from typing import Optional
 
 from rraft import (
-    ConfChange,
+    ConfChangeV2,
     set_confchange_context_deserializer,
     set_confchangev2_context_deserializer,
     set_entry_context_deserializer,
@@ -34,7 +34,7 @@ def entry_data_deserializer(data: bytes) -> Optional[str]:
         return None
 
     try:
-        return str(ConfChange.decode(data))
+        return str(ConfChangeV2.decode(data))
     except Exception:
         pass
 
