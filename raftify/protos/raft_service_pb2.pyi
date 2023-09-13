@@ -96,11 +96,11 @@ class RerouteMessageArgs(_message.Message):
     CONF_CHANGE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     proposed_data: bytes
-    conf_change: _eraftpb_pb2.ConfChange
+    conf_change: _eraftpb_pb2.ConfChangeV2
     type: RerouteMsgType
     def __init__(
         self,
         proposed_data: _Optional[bytes] = ...,
-        conf_change: _Optional[_Union[_eraftpb_pb2.ConfChange, _Mapping]] = ...,
+        conf_change: _Optional[_Union[_eraftpb_pb2.ConfChangeV2, _Mapping]] = ...,
         type: _Optional[_Union[RerouteMsgType, str]] = ...,
     ) -> None: ...

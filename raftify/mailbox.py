@@ -6,7 +6,7 @@ from typing import Optional
 from rraft import ConfChange, ConfChangeType
 
 from raftify.error import UnknownError
-from raftify.pb_adapter import ConfChangeAdapter
+from raftify.pb_adapter import ConfChangeV2Adapter
 from raftify.protos import raft_service_pb2
 from raftify.raft_node import RaftNode
 from raftify.request_message import ConfigChangeReqMessage, ProposeReqMessage
@@ -81,12 +81,12 @@ class Mailbox:
         conf_change_v2 = conf_change.as_v2()
 
         receiver = Queue()
-        conf_change = ConfChangeAdapter.to_pb(conf_change)
+        conf_change_v2 = ConfChangeV2Adapter.to_pb(conf_change_v2)
 
         await self.sender.put(ConfigChangeReqMessage(conf_change_v2, receiver))
 
         await self.__handle_response(
             await receiver.get(),
             reroute_msg_type=raft_service_pb2.ConfChange,
-            conf_change=conf_change,
+            conf_change=conf_change_v2,
         )

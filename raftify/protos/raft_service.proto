@@ -65,6 +65,6 @@ enum RerouteMsgType {
 
 message RerouteMessageArgs {
   bytes proposed_data            = 1;
-  eraftpb.ConfChange conf_change = 2;
+  eraftpb.ConfChangeV2 conf_change = 2;
   RerouteMsgType type            = 3;
 }
