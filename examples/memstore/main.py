@@ -154,6 +154,14 @@ async def leader(request: web.Request) -> web.Response:
     return web.Response(text=str(cluster.raft_node.get_leader_id()))
 
 
+@routes.get("/progress")
+async def show_progress(request: web.Request) -> web.Response:
+    cluster: RaftCluster = request.app["state"]["cluster"]
+    progress = cluster.raft_node.raw_node.get_raft().prs().collect()
+    res = [str(pr.progress()) for pr in progress]
+    return web.Response(text=str(res))
+
+
 @routes.get("/merge/{id}/{addr}")
 async def merge_cluster(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
