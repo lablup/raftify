@@ -3,7 +3,7 @@ import pickle
 from typing import Optional
 
 import raftify
-from tests.harness.log import SetCommand
+from harness.log import SetCommand
 
 
 class HashStore(raftify.FSM):

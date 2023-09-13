@@ -7,7 +7,7 @@ import signal
 
 import requests
 
-from tests.harness.constant import CLUSTER_INFO_PATH, WEB_SERVER_ADDRS
+from harness.constant import CLUSTER_INFO_PATH, WEB_SERVER_ADDRS
 
 
 def read_json(path: str) -> dict:

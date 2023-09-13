@@ -3,8 +3,8 @@ from concurrent.futures import ProcessPoolExecutor
 
 import pytest
 
-from tests.harness.raft_server import run_raft_cluster, wait_for_until
-from tests.utils import (
+from harness.raft_server import run_raft_cluster, wait_for_until
+from utils import (
     RequestType,
     kill_process,
     killall,

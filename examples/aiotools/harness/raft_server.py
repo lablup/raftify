@@ -15,11 +15,11 @@ from aiotools import process_index
 from raftify.error import ClusterJoinError, LeaderNotFoundError
 from raftify.raft_facade import RaftCluster, RaftNodeRole
 from raftify.utils import SocketAddr
-from tests.harness.constant import CLUSTER_INFO_PATH, RAFT_ADDRS, WEB_SERVER_ADDRS
-from tests.harness.log import SetCommand
-from tests.harness.logger import logger, slog
-from tests.harness.store import HashStore
-from tests.utils import read_cluster_info, remove_node, write_json, write_node
+from harness.constant import CLUSTER_INFO_PATH, RAFT_ADDRS, WEB_SERVER_ADDRS
+from harness.log import SetCommand
+from harness.logger import logger, slog
+from harness.store import HashStore
+from utils import read_cluster_info, remove_node, write_json, write_node
 
 routes = RouteTableDef()
 
