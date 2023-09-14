@@ -242,13 +242,11 @@ class LMDBStorage:
 
     def create_snapshot(self, data: bytes, index: int, term: int) -> None:
         def __create_snapshot(store: LMDBStorageCore):
-            conf_state = store.conf_state()
-
             snapshot = Snapshot.default()
             snapshot.set_data(data)
 
             meta = snapshot.get_metadata()
-            meta.set_conf_state(conf_state)
+            meta.set_conf_state(store.conf_state())
             meta.set_index(index)
             meta.set_term(term)
 
@@ -259,14 +257,13 @@ class LMDBStorage:
     def apply_snapshot(self, snapshot: Snapshot | SnapshotRef) -> None:
         def __apply_snapshot(store: LMDBStorageCore):
             metadata = snapshot.get_metadata()
-            conf_state = metadata.get_conf_state()
             hard_state = store.hard_state()
 
             hard_state.set_term(max(hard_state.get_term(), metadata.get_term()))
             hard_state.set_commit(metadata.get_index())
 
             store.set_hard_state(hard_state)
-            store.set_conf_state(conf_state)
+            store.set_conf_state(metadata.get_conf_state())
             store.set_last_index(metadata.get_index())
 
         self.wl(__apply_snapshot)
