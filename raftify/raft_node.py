@@ -7,9 +7,11 @@ from rraft import (
     ConfChange,
     ConfChangeType,
     ConfChangeV2,
+    ConfState,
     Entry,
     EntryRef,
     EntryType,
+    HardState,
     Logger,
     LoggerRef,
     Message,
@@ -90,13 +92,17 @@ class RaftNode:
         cfg.set_id(1)
         cfg.validate()
 
-        snapshot = Snapshot.default()
-        snapshot.get_metadata().set_index(0)
-        snapshot.get_metadata().set_term(0)
-        snapshot.get_metadata().get_conf_state().set_voters([1])
-
         lmdb = LMDBStorage.create(raftify_cfg.log_dir, 1, logger)
-        lmdb.apply_snapshot(snapshot)
+
+        cs = ConfState.default()
+        cs.set_voters([1])
+        lmdb.set_conf_state(cs)
+
+        hs = HardState.default()
+        hs.set_term(0)
+        hs.set_commit(0)
+        hs.set_vote(0)
+        lmdb.set_hard_state(hs)
 
         storage = Storage(lmdb)
         raw_node = RawNode(cfg, storage, slog)
