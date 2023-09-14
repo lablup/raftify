@@ -48,6 +48,8 @@ class RaftifyConfig:
 
     snapshot_interval: float
 
+    tick_interval: float
+
     def __init__(
         self,
         *,
@@ -59,6 +61,7 @@ class RaftifyConfig:
         use_log_compaction: bool = False,
         config: Config = Config.default(),
         snapshot_interval: float = 15.0,
+        tick_interval: float = 0.1,
     ) -> None:
         self.log_dir = log_dir
         self.use_log_compaction = use_log_compaction
@@ -67,6 +70,7 @@ class RaftifyConfig:
         self.auto_remove_node = auto_remove_node
         self.connection_fail_limit = connection_fail_limit
         self.snapshot_interval = snapshot_interval
+        self.tick_interval = tick_interval
         self.config = config or Config.default()
 
     @staticmethod

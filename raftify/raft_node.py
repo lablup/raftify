@@ -395,17 +395,17 @@ class RaftNode:
                 self.logger.error("Error occurred while sending response")
 
     async def run(self) -> None:
-        heartbeat = 0.1
+        tick_timer = self.raftify_cfg.tick_interval
 
         # A map to contain sender to client responses
         client_senders: dict[int, Queue] = {}
-        timer = time.time()
+        before = time.time()
 
         while not self.should_exit:
             message = None
 
             try:
-                message = await asyncio.wait_for(self.chan.get(), heartbeat)
+                message = await asyncio.wait_for(self.chan.get(), tick_timer)
             except asyncio.TimeoutError:
                 pass
             except asyncio.CancelledError:
@@ -474,14 +474,14 @@ class RaftNode:
                 self.raw_node.report_unreachable(message.node_id)
 
             now = time.time()
-            elapsed = now - timer
-            timer = now
+            elapsed = now - before
+            before = now
 
-            if elapsed > heartbeat:
-                heartbeat = 0.1
+            if elapsed > tick_timer:
+                tick_timer = self.raftify_cfg.tick_interval
                 self.raw_node.tick()
             else:
-                heartbeat -= elapsed
+                tick_timer -= elapsed
 
             await self.on_ready(client_senders)
 
