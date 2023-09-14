@@ -265,6 +265,7 @@ class LMDBStorage:
             store.set_hard_state(hard_state)
             store.set_conf_state(metadata.get_conf_state())
             store.set_last_index(metadata.get_index())
+            store.set_snapshot(snapshot)
 
         self.wl(__apply_snapshot)
 
