@@ -290,7 +290,7 @@ class RaftNode:
     async def handle_committed_entries(
         self,
         committed_entries: list[Entry] | list[EntryRef],
-        client_senders: dict[int, Queue],
+        response_queues: dict[AtomicInteger, Queue],
     ) -> None:
         # Mostly, you need to save the last apply index to resume applying
         # after restart. Here we just ignore this because we use a Memory storage.
@@ -304,20 +304,20 @@ class RaftNode:
 
             match entry.get_entry_type():
                 case EntryType.EntryNormal:
-                    await self.handle_normal_entry(entry, client_senders)
+                    await self.handle_normal_entry(entry, response_queues)
                 case EntryType.EntryConfChangeV2:
-                    await self.handle_config_change_entry(entry, client_senders)
+                    await self.handle_config_change_entry(entry, response_queues)
                 case _:
                     raise NotImplementedError
 
     async def handle_normal_entry(
-        self, entry: Entry | EntryRef, senders: dict[int, Queue]
+        self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
     ) -> None:
-        seq = pickle.loads(entry.get_context())
+        seq = AtomicInteger(pickle.loads(entry.get_context()))
         data = await self.fsm.apply(entry.get_data())
 
-        if sender := senders.pop(seq, None):
-            sender.put_nowait(RaftRespMessage(data))
+        if response_queue := response_queues.pop(seq, None):
+            response_queue.put_nowait(RaftRespMessage(data))
 
         if time.time() > self.last_snap_time + self.raftify_cfg.snapshot_interval:
             self.logger.info("Creating snapshot...")
@@ -335,9 +335,9 @@ class RaftNode:
                 pass
 
     async def handle_config_change_entry(
-        self, entry: Entry | EntryRef, senders: dict[int, Queue]
+        self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
     ) -> None:
-        seq = pickle.loads(entry.get_context())
+        seq = AtomicInteger(pickle.loads(entry.get_context()))
         conf_change_v2 = ConfChangeV2.decode(entry.get_data())
         conf_changes = conf_change_v2.get_changes()
 
@@ -378,7 +378,7 @@ class RaftNode:
                 except Exception:
                     pass
 
-        if sender := senders.pop(seq, None):
+        if response_queue := response_queues.pop(seq, None):
             match change_type:
                 case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
                     response = JoinSuccessRespMessage(
@@ -390,15 +390,13 @@ class RaftNode:
                     raise NotImplementedError
 
             try:
-                sender.put_nowait(response)
+                response_queue.put_nowait(response)
             except Exception:
                 self.logger.error("Error occurred while sending response")
 
     async def run(self) -> None:
         tick_timer = self.raftify_cfg.tick_interval
-
-        # A map to contain sender to client responses
-        client_senders: dict[int, Queue] = {}
+        response_queues: dict[AtomicInteger, Queue] = {}
         before = time.time()
 
         while not self.should_exit:
@@ -432,7 +430,7 @@ class RaftNode:
                 else:
                     conf_change_v2 = ConfChangeV2Adapter.from_pb(message.conf_change)
                     self.seq.increase()
-                    client_senders[self.seq.value] = message.chan
+                    response_queues[self.seq] = message.chan
                     context = pickle.dumps(self.seq.value)
                     self.raw_node.propose_conf_change_v2(context, conf_change_v2)
 
@@ -442,7 +440,7 @@ class RaftNode:
                     await self.send_wrongleader_response(message.chan)
                 else:
                     self.seq.increase()
-                    client_senders[self.seq.value] = message.chan
+                    response_queues[self.seq] = message.chan
                     context = pickle.dumps(self.seq.value)
                     self.raw_node.propose(context, message.data)
 
@@ -483,9 +481,9 @@ class RaftNode:
             else:
                 tick_timer -= elapsed
 
-            await self.on_ready(client_senders)
+            await self.on_ready(response_queues)
 
-    async def on_ready(self, client_senders: dict[int, Queue]) -> None:
+    async def on_ready(self, response_queues: dict[AtomicInteger, Queue]) -> None:
         if not self.raw_node.has_ready():
             return
 
@@ -501,7 +499,7 @@ class RaftNode:
             self.lmdb.apply_snapshot(snapshot.clone())
 
         await self.handle_committed_entries(
-            ready.take_committed_entries(), client_senders
+            ready.take_committed_entries(), response_queues
         )
 
         if entries := ready.entries():
@@ -521,7 +519,7 @@ class RaftNode:
         self.send_messages(light_rd.take_messages())
 
         await self.handle_committed_entries(
-            light_rd.take_committed_entries(), client_senders
+            light_rd.take_committed_entries(), response_queues
         )
 
         self.raw_node.advance_apply()
