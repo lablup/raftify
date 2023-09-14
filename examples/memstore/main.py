@@ -158,6 +158,9 @@ async def leader(request: web.Request) -> web.Response:
 @routes.get("/progress")
 async def show_progress(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
+    if not cluster.raft_node.is_leader():
+        return web.Response(text="Not leader.")
+
     progress_tracker = cluster.raft_node.raw_node.get_raft().prs().collect()
     res = [str(pr_tracker.progress()) for pr_tracker in progress_tracker]
     return web.Response(text=str(res))
