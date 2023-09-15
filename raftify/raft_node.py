@@ -353,12 +353,12 @@ class RaftNode:
                     )
                     self.peers[node_id] = RaftClient(addr)
                 case ConfChangeType.RemoveNode:
-                    if conf_change.get_node_id() == self.get_id():
+                    if node_id == self.get_id():
                         self.should_exit = True
                         await self.raft_server.terminate()
                         self.logger.info(f"{self.get_id()} quit the cluster.")
                     else:
-                        self.peers.pop(conf_change.get_node_id(), None)
+                        self.peers.pop(node_id, None)
                 case _:
                     raise NotImplementedError
 
@@ -459,7 +459,7 @@ class RaftNode:
             elif isinstance(message, RaftReqMessage):
                 msg = MessageAdapter.from_pb(message.msg)
                 self.logger.debug(
-                    f'Node {msg.get_to()} Received Raft message from the "node {msg.get_from()}"'
+                    f'"Node {msg.get_to()}" Received Raft message from the "Node {msg.get_from()}"'
                 )
 
                 try:

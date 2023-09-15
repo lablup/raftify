@@ -135,6 +135,7 @@ class LMDBStorageCore:
         self,
         from_: int,
         to: int,
+        # TODO: Handle GetEntriesContextRef
         _ctx: GetEntriesContext | GetEntriesContextRef,
         max_size: Optional[int] = None,
     ) -> List[Entry]:
