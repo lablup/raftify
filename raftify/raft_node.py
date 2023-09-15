@@ -363,20 +363,19 @@ class RaftNode:
                     raise NotImplementedError
 
         if conf_state := self.raw_node.apply_conf_change_v2(conf_change_v2):
-            for conf_change in conf_changes:
-                snapshot = await self.fsm.snapshot()
-                self.lmdb.set_conf_state(conf_state)
+            snapshot = await self.fsm.snapshot()
+            self.lmdb.set_conf_state(conf_state)
 
-                if self.raftify_cfg.use_log_compaction:
-                    last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
-                    self.lmdb.compact(last_applied)
+            if self.raftify_cfg.use_log_compaction:
+                last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
+                self.lmdb.compact(last_applied)
 
-                try:
-                    self.lmdb.create_snapshot(
-                        snapshot, entry.get_index(), entry.get_term()
-                    )
-                except Exception:
-                    pass
+            try:
+                self.lmdb.create_snapshot(
+                    snapshot, entry.get_index(), entry.get_term()
+                )
+            except Exception:
+                pass
 
         if response_queue := response_queues.pop(seq, None):
             match change_type:
