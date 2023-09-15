@@ -1,6 +1,6 @@
 import os
 from threading import Lock
-from typing import Any, Callable, List, Optional
+from typing import List, Optional
 
 import lmdb
 from rraft import (
@@ -193,25 +193,8 @@ class LMDBStorage:
         core = LMDBStorageCore.create(path, node_id, logger)
         return cls(core, logger)
 
-    # TODO: Refactor below logic.
-    def wl(self, cb: Callable[[LMDBStorageCore], Any]) -> Any:
-        with Lock():
-            res = cb(self.core)
-        return res
-
-    # TODO: Refactor below logic.
-    def rl(self, cb: Callable[[LMDBStorageCore], Any]) -> Any:
-        with Lock():
-            res = cb(self.core)
-        return res
-
     def compact(self, index: int) -> None:
-        def __compact(_store: LMDBStorageCore):
-            # TODO: check that compaction is legal
-            # let last_index = self.last_index(&writer)?;
-            # there should always be at least one entry in the log
-            # assert!(last_index > index + 1);
-
+        with Lock():
             with self.core.env.begin(
                 write=True, db=self.core.entries_db
             ) as entry_writer:
@@ -221,66 +204,52 @@ class LMDBStorage:
                 while decode_int(cursor.key()) < index:
                     cursor.delete()
 
-        self.wl(__compact)
-
     def append(self, entries: List[Entry] | List[EntryRef]) -> None:
-        def __append(store: LMDBStorageCore):
-            store.append(entries)
-
-        self.wl(__append)
+        with Lock():
+            self.core.append(entries)
 
     def set_hard_state(self, hard_state: HardState | HardStateRef) -> None:
-        def __set_hard_state(store: LMDBStorageCore):
-            store.set_hard_state(hard_state)
-
-        self.wl(__set_hard_state)
+        with Lock():
+            self.core.set_hard_state(hard_state)
 
     def set_conf_state(self, conf_state: ConfState | ConfStateRef) -> None:
-        def __set_conf_state(store: LMDBStorageCore):
-            store.set_conf_state(conf_state)
-
-        self.wl(__set_conf_state)
+        with Lock():
+            self.core.set_conf_state(conf_state)
 
     def create_snapshot(self, data: bytes, index: int, term: int) -> None:
-        def __create_snapshot(store: LMDBStorageCore):
+        with Lock():
             snapshot = Snapshot.default()
             snapshot.set_data(data)
 
             meta = snapshot.get_metadata()
-            meta.set_conf_state(store.conf_state())
+            meta.set_conf_state(self.core.conf_state())
             meta.set_index(index)
             meta.set_term(term)
 
-            store.set_snapshot(snapshot)
-
-        self.wl(__create_snapshot)
+            self.core.set_snapshot(snapshot)
 
     def apply_snapshot(self, snapshot: Snapshot | SnapshotRef) -> None:
-        def __apply_snapshot(store: LMDBStorageCore):
+        with Lock():
             metadata = snapshot.get_metadata()
-            hard_state = store.hard_state()
+            hard_state = self.core.hard_state()
 
             hard_state.set_term(max(hard_state.get_term(), metadata.get_term()))
             hard_state.set_commit(metadata.get_index())
 
-            store.set_hard_state(hard_state)
-            store.set_conf_state(metadata.get_conf_state())
-            store.set_last_index(metadata.get_index())
-            store.set_snapshot(snapshot)
-
-        self.wl(__apply_snapshot)
+            self.core.set_hard_state(hard_state)
+            self.core.set_conf_state(metadata.get_conf_state())
+            self.core.set_last_index(metadata.get_index())
+            self.core.set_snapshot(snapshot)
 
     def initial_state(self) -> RaftState:
-        def __initial_state(store: LMDBStorageCore):
+        with Lock():
             raft_state = RaftState.default()
-            raft_state.set_hard_state(store.hard_state())
-            raft_state.set_conf_state(store.conf_state())
+            raft_state.set_hard_state(self.core.hard_state())
+            raft_state.set_conf_state(self.core.conf_state())
 
             self.logger.info(f"Initial RaftState: {raft_state}")
 
             return raft_state
-
-        return self.rl(__initial_state)
 
     def entries(
         self,
@@ -289,16 +258,14 @@ class LMDBStorage:
         ctx: GetEntriesContext | GetEntriesContextRef,
         max_size: Optional[int] = None,
     ) -> List[Entry]:
-        def __entries(store: LMDBStorageCore):
-            return store.entries(low, high, ctx, max_size)
-
-        return self.rl(__entries)
+        with Lock():
+            return self.core.entries(low, high, ctx, max_size)
 
     def term(self, index: int) -> int:
-        def __term(store: LMDBStorageCore):
-            first_index = store.first_index()
-            last_index = store.last_index()
-            hard_state = store.hard_state()
+        with Lock():
+            first_index = self.core.first_index()
+            last_index = self.core.last_index()
+            hard_state = self.core.hard_state()
 
             if index == hard_state.get_commit():
                 return hard_state.get_term()
@@ -310,34 +277,24 @@ class LMDBStorage:
                 raise StoreError(UnavailableError())
 
             try:
-                entry = store.entry(index)
+                entry = self.core.entry(index)
             except Exception:
                 raise StoreError(UnavailableError())
 
             return entry.get_term() if entry else 0
 
-        return self.rl(__term)
-
     def first_index(self) -> int:
-        def __first_index(store: LMDBStorageCore):
-            return store.first_index()
-
-        return self.rl(__first_index)
+        with Lock():
+            return self.core.first_index()
 
     def last_index(self) -> int:
-        def __last_index(store: LMDBStorageCore):
-            return store.last_index()
-
-        return self.rl(__last_index)
+        with Lock():
+            return self.core.last_index()
 
     def snapshot(self, request_index: int, to: int) -> Optional[Snapshot]:
-        def __snapshot(store: LMDBStorageCore):
-            return store.snapshot(request_index, to)
-
-        return self.rl(__snapshot)
+        with Lock():
+            return self.core.snapshot(request_index, to)
 
     def set_hard_state_comit(self, comit: int) -> None:
-        def __set_hard_state_comit(store: LMDBStorageCore):
-            return store.set_hard_state_comit(comit)
-
-        return self.wl(__set_hard_state_comit)
+        with Lock():
+            return self.core.set_hard_state_comit(comit)
