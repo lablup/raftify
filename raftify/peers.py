@@ -9,7 +9,7 @@ class Peers(UserDict):
     # the peer client could be optional, because an id can be reserved and later populated
     data: dict[int, Optional[RaftClient]]
 
-    def __getitem__(self, key: int | str) -> Optional[RaftClient]:
+    def __getitem__(self, key: int | str) -> RaftClient:
         return super().__getitem__(key)
 
     def __repr__(self) -> str:

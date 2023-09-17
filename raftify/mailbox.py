@@ -61,7 +61,7 @@ class Mailbox:
         Send a proposal message to commit to the node.
         """
 
-        receiver = Queue()
+        receiver: Queue = Queue()
         # TODO: make timeout duration a variable
         await self.sender.put(ProposeReqMessage(message, receiver))
 
@@ -80,7 +80,7 @@ class Mailbox:
         conf_change.set_change_type(ConfChangeType.RemoveNode)
         conf_change_v2 = conf_change.as_v2()
 
-        receiver = Queue()
+        receiver: Queue = Queue()
         conf_change_v2 = ConfChangeV2Adapter.to_pb(conf_change_v2)
 
         await self.sender.put(ConfigChangeReqMessage(conf_change_v2, receiver))

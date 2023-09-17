@@ -1,11 +1,5 @@
 [tool.isort]
 profile = "black"
 
-[tool.mypy]
-python_version = "3.11"
-ignore_missing_imports = true
-namespace_packages = true
-explicit_package_bases = true
-
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

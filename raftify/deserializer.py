@@ -12,7 +12,7 @@ from rraft import (
 )
 
 
-def pickle_deserialize(data: bytes) -> Optional[str]:
+def pickle_deserialize(data: bytes) -> Optional[str] | bytes:
     """
     This function assumes that the given byte slice has been dumped with pickle and perform deserialization.
     Note that if the given byte slice is not data dumped with pickle, but it contains data that has been dumped with pickle,
@@ -29,7 +29,7 @@ def pickle_deserialize(data: bytes) -> Optional[str]:
     return data
 
 
-def entry_data_deserializer(data: bytes) -> Optional[str]:
+def entry_data_deserializer(data: bytes) -> Optional[str] | bytes:
     if data == b"":
         return None
 
@@ -45,7 +45,7 @@ def entry_data_deserializer(data: bytes) -> Optional[str]:
     return data
 
 
-def init_rraft_py_deserializer():
+def init_rraft_py_deserializer() -> None:
     """
     Initialize the custom deserializers using in rraft-py.
 

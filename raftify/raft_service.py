@@ -30,7 +30,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
     async def RequestId(
         self, request: raft_service_pb2.IdRequestArgs, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.IdRequestResponse:
-        receiver = Queue()
+        receiver: Queue = Queue()
         await self.sender.put(RequestIdReqMessage(request.addr, receiver))
         response = await receiver.get()
 
@@ -56,7 +56,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
     async def ChangeConfig(
         self, request: eraftpb_pb2.ConfChangeV2, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.ChangeConfigResponse:
-        receiver = Queue()
+        receiver: Queue = Queue()
         await self.sender.put(ConfigChangeReqMessage(request, receiver))
         reply = raft_service_pb2.ChangeConfigResponse()
 
@@ -74,7 +74,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
                         raft_response.leader_id,
                         raft_response.leader_addr,
                     )
-                    reply.data = (pickle.dumps(tuple([leader_id, leader_addr, None])),)
+                    reply.data = pickle.dumps(tuple([leader_id, leader_addr, None]))
 
         except asyncio.TimeoutError:
             reply.result = raft_service_pb2.ChangeConfig_TimeoutError
@@ -100,7 +100,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         request: raft_service_pb2.RerouteMessageArgs,
         context: grpc.aio.ServicerContext,
     ) -> raft_service_pb2.RaftMessageResponse:
-        receiver = Queue()
+        receiver: Queue = Queue()
 
         await self.sender.put(
             RerouteToLeaderReqMessage(

@@ -28,6 +28,7 @@ class RaftServer:
 
     async def run(self) -> None:
         self.grpc_server = grpc.aio.server()
+        assert self.grpc_server is not None
 
         if self.credentials:
             self.grpc_server.add_secure_port(str(self.addr), self.credentials)

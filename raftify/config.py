@@ -45,7 +45,7 @@ class RaftifyConfig:
 
     max_retry_cnt: int
 
-    message_timeout: int
+    message_timeout: float
 
     auto_remove_node: bool
 

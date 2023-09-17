@@ -53,7 +53,7 @@ class LMDBStorageCore:
 
     @classmethod
     def create(
-        cls, map_size: int, path: os.PathLike, id: int, logger: AbstractRaftifyLogger
+        cls, map_size: int, path: str, id: int, logger: AbstractRaftifyLogger
     ) -> "LMDBStorageCore":
         os.makedirs(path, exist_ok=True)
         db_pth = os.path.join(path, f"raft-{id}.mdb")
@@ -190,7 +190,7 @@ class LMDBStorage:
     def create(
         cls,
         map_size: int,
-        path: os.PathLike,
+        path: str,
         node_id: int,
         logger: AbstractRaftifyLogger,
     ) -> "LMDBStorage":

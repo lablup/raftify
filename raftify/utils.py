@@ -23,7 +23,8 @@ class SocketAddr:
 
     @staticmethod
     def from_str(s: str):
-        return SocketAddr(*s.split(":"))
+        ip, port = s.split(":")
+        return SocketAddr(ip, int(port))
 
 
 class AtomicInteger:
@@ -37,7 +38,7 @@ class AtomicInteger:
     def __hash__(self) -> int:
         return self.__value
 
-    def __eq__(self, other: Union["AtomicInteger", int]) -> bool:
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, AtomicInteger):
             return self.__value == other.__value
         elif isinstance(other, int):

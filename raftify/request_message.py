@@ -1,6 +1,6 @@
 import abc
+from asyncio import Queue
 from dataclasses import dataclass
-from multiprocessing import Queue
 from typing import Optional
 
 from raftify.protos import eraftpb_pb2, raft_service_pb2

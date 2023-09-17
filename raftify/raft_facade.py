@@ -51,7 +51,7 @@ class RaftCluster:
         self.fsm = fsm
         self.slog = slog
         self.logger = logger
-        self.chan = Queue(maxsize=100)
+        self.chan: Queue = Queue(maxsize=100)
         self.raft_node = None
         self.raft_server = None
         self.raft_node_task = None
@@ -62,9 +62,11 @@ class RaftCluster:
         """
         Get the node's `Mailbox`.
         """
+        assert self.raft_node is not None, "Raft node is not initialized!"
         return Mailbox(self.addr, self.raft_node, self.chan)
 
     def get_peers(self) -> Peers:
+        assert self.raft_node is not None, "Raft node is not initialized!"
         return self.raft_node.peers
 
     @staticmethod
@@ -80,6 +82,7 @@ class RaftCluster:
         It should be called before `bootstrap_cluster` or `join_cluster`.
         """
         self.raft_server = RaftServer(self.addr, self.chan, self.logger)
+        assert self.raft_server is not None
         self.logger.info("Raftify config: " + str(RaftCluster.cluster_config))
 
         if role == RaftNodeRole.Follower:
