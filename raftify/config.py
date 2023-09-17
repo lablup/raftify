@@ -50,6 +50,8 @@ class RaftifyConfig:
 
     tick_interval: float
 
+    lmdb_map_size: int
+
     def __init__(
         self,
         *,
@@ -62,6 +64,7 @@ class RaftifyConfig:
         config: Config = Config.default(),
         snapshot_interval: float = 15.0,
         tick_interval: float = 0.1,
+        lmdb_map_size: int = 1024 * 1024 * 1024,
     ) -> None:
         self.log_dir = log_dir
         self.use_log_compaction = use_log_compaction
@@ -71,6 +74,7 @@ class RaftifyConfig:
         self.connection_fail_limit = connection_fail_limit
         self.snapshot_interval = snapshot_interval
         self.tick_interval = tick_interval
+        self.lmdb_map_size = lmdb_map_size
         self.config = config or Config.default()
 
     @staticmethod
