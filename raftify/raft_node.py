@@ -407,7 +407,9 @@ class RaftNode:
             except asyncio.TimeoutError:
                 pass
             except asyncio.CancelledError:
-                self.logger.warning("Task cancelled error occurred in Raft node! preparing to terminate...")
+                self.logger.warning(
+                    "Task cancelled error occurred in Raft node! preparing to terminate..."
+                )
                 break
             except Exception:
                 raise

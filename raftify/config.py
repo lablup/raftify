@@ -64,7 +64,7 @@ class RaftifyConfig:
         *,
         log_dir: str = "./",
         max_retry_cnt: int = 5,
-        message_timeout: float = 0.1,
+        message_timeout: float = 5.0,
         auto_remove_node: bool = True,
         connection_fail_limit: int = 5,
         use_log_compaction: bool = False,

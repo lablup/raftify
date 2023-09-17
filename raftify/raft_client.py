@@ -33,7 +33,7 @@ class RaftClient:
         return grpc.aio.insecure_channel(str(self.addr))
 
     async def change_config(
-        self, conf_change: ConfChangeV2, timeout: float = 5.0
+        self, conf_change: ConfChangeV2, timeout: float
     ) -> raft_service_pb2.ChangeConfigResponse:
         request = ConfChangeV2Adapter.to_pb(conf_change)
 
@@ -42,7 +42,7 @@ class RaftClient:
             return await asyncio.wait_for(stub.ChangeConfig(request), timeout)
 
     async def send_message(
-        self, msg: Message, timeout: float = 5.0
+        self, msg: Message, timeout: float
     ) -> raft_service_pb2.RaftMessageResponse:
         request = MessageAdapter.to_pb(msg)
 
@@ -51,7 +51,7 @@ class RaftClient:
             return await asyncio.wait_for(stub.SendMessage(request), timeout)
 
     async def request_id(
-        self, addr: SocketAddr, timeout: float = 5.0
+        self, addr: SocketAddr, timeout: float
     ) -> raft_service_pb2.IdRequestResponse:
         request = raft_service_pb2.IdRequestArgs(addr=str(addr))
 
@@ -62,9 +62,9 @@ class RaftClient:
     async def reroute_message(
         self,
         reroute_msg_type: raft_service_pb2.RerouteMsgType,
+        timeout: float,
         msg_bytes: Optional[bytes] = None,
         conf_change: Optional[raft_service_pb2.ConfChange] = None,
-        timeout: float = 5.0,
     ) -> raft_service_pb2.RaftMessageResponse:
         request = raft_service_pb2.RerouteMessageArgs(
             proposed_data=msg_bytes or b"",

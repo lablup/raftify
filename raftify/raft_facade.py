@@ -147,7 +147,9 @@ class RaftCluster:
             while not leader_addr:
                 client = RaftClient(peer_addr)
                 try:
-                    resp = await client.request_id(raft_addr)
+                    resp = await client.request_id(
+                        raft_addr, timeout=self.cluster_config.message_timeout
+                    )
                 except grpc.aio.AioRpcError:
                     seek_next = True
                     break
@@ -215,7 +217,9 @@ class RaftCluster:
         # But it might be already handled by the rerouting logic. So, it should be tested first.
         while True:
             try:
-                resp = await leader_client.change_config(conf_change_v2)
+                resp = await leader_client.change_config(
+                    conf_change_v2, timeout=self.cluster_config.message_timeout
+                )
 
             except grpc.aio.AioRpcError as e:
                 raise ClusterJoinError(cause=e)
