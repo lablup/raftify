@@ -188,7 +188,11 @@ class LMDBStorage:
 
     @classmethod
     def create(
-        cls, map_size: int, path: os.PathLike, node_id: int, logger: AbstractRaftifyLogger
+        cls,
+        map_size: int,
+        path: os.PathLike,
+        node_id: int,
+        logger: AbstractRaftifyLogger,
     ) -> "LMDBStorage":
         core = LMDBStorageCore.create(map_size, path, node_id, logger)
         return cls(core, logger)

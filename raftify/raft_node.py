@@ -95,7 +95,7 @@ class RaftNode:
             map_size=raftify_cfg.lmdb_map_size,
             path=raftify_cfg.log_dir,
             node_id=1,
-            logger=logger
+            logger=logger,
         )
 
         if raftify_cfg.no_restoration:
@@ -155,7 +155,7 @@ class RaftNode:
             map_size=raftify_cfg.lmdb_map_size,
             path=raftify_cfg.log_dir,
             node_id=id,
-            logger=logger
+            logger=logger,
         )
 
         storage = Storage(lmdb)
@@ -247,7 +247,7 @@ class RaftNode:
                 else:
                     node_id = message.get_to()
                     self.logger.debug(
-                        f"Failed to connect to \"Node {node_id}\" the {self.raftify_cfg.max_retry_cnt} times"
+                        f'Failed to connect to "Node {node_id}" the {self.raftify_cfg.max_retry_cnt} times'
                     )
 
                     try:

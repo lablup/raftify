@@ -17,11 +17,20 @@ from harness.logger import logger, slog
 from harness.store import HashStore
 from utils import read_cluster_info, remove_node, write_json, write_node
 
+from raftify.config import RaftifyConfig
 from raftify.error import ClusterJoinError, LeaderNotFoundError
 from raftify.raft_facade import RaftCluster, RaftNodeRole
 from raftify.utils import SocketAddr
 
 routes = RouteTableDef()
+
+RaftCluster.set_cluster_config(
+    RaftifyConfig(
+        log_dir="./",
+        use_log_compaction=False,
+        no_restoration=True,
+    )
+)
 
 
 @routes.get("/get/{id}")
