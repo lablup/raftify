@@ -11,7 +11,6 @@ from rraft import (
     Entry,
     EntryRef,
     EntryType,
-    HardState,
     Logger,
     LoggerRef,
     Message,
@@ -99,15 +98,17 @@ class RaftNode:
             logger=logger
         )
 
-        cs = ConfState.default()
-        cs.set_voters([1])
-        lmdb.set_conf_state(cs)
+        if raftify_cfg.no_restoration:
+            snapshot = Snapshot.default()
+            snapshot.get_metadata().set_index(0)
+            snapshot.get_metadata().set_term(0)
+            snapshot.get_metadata().get_conf_state().set_voters([1])
 
-        hs = HardState.default()
-        hs.set_term(0)
-        hs.set_commit(0)
-        hs.set_vote(0)
-        lmdb.set_hard_state(hs)
+            lmdb.apply_snapshot(snapshot)
+        else:
+            cs = ConfState.default()
+            cs.set_voters([1])
+            lmdb.set_conf_state(cs)
 
         storage = Storage(lmdb)
         raw_node = RawNode(cfg, storage, slog)
@@ -244,15 +245,15 @@ class RaftNode:
                 if current_retry < self.raftify_cfg.max_retry_cnt:
                     current_retry += 1
                 else:
-                    client_id = message.get_to()
+                    node_id = message.get_to()
                     self.logger.debug(
-                        f"Failed to connect to {client_id} the {self.raftify_cfg.max_retry_cnt} times"
+                        f"Failed to connect to \"Node {node_id}\" the {self.raftify_cfg.max_retry_cnt} times"
                     )
 
                     try:
                         if self.raftify_cfg.auto_remove_node:
                             failed_request_counter = self.peers[
-                                client_id
+                                node_id
                             ].failed_request_counter
 
                             if (
@@ -260,15 +261,15 @@ class RaftNode:
                                 >= self.raftify_cfg.connection_fail_limit
                             ):
                                 self.logger.debug(
-                                    f"Removed 'Node {client_id}' from cluster automatically because the request kept failed"
+                                    f"Removed 'Node {node_id}' from cluster automatically because the request kept failed"
                                 )
 
-                                self.remove_node(client_id)
+                                self.remove_node(node_id)
                                 return
                             else:
                                 failed_request_counter.increase()
 
-                        await self.chan.put(ReportUnreachableReqMessage(client_id))
+                        await self.chan.put(ReportUnreachableReqMessage(node_id))
                     except Exception:
                         pass
                     return

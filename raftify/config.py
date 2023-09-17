@@ -14,6 +14,7 @@ class RaftifyConfig:
     - connection_fail_limit: Maximum number of connection failures before removing a node from the cluster.
     - message_timeout: Timeout duration for a message request.
     - lmdb_map_size: Maximum size lmdb database may grow to.
+    - no_restoration: Ignore previous logs when bootstrapping the cluster. Useful for testing.
     """
 
     raft_config_keys = [
@@ -53,6 +54,8 @@ class RaftifyConfig:
 
     lmdb_map_size: int
 
+    no_restoration: bool
+
     def __init__(
         self,
         *,
@@ -66,6 +69,7 @@ class RaftifyConfig:
         snapshot_interval: float = 15.0,
         tick_interval: float = 0.1,
         lmdb_map_size: int = 1024 * 1024 * 1024,
+        no_restoration: bool = False,
     ) -> None:
         self.log_dir = log_dir
         self.use_log_compaction = use_log_compaction
@@ -76,6 +80,7 @@ class RaftifyConfig:
         self.snapshot_interval = snapshot_interval
         self.tick_interval = tick_interval
         self.lmdb_map_size = lmdb_map_size
+        self.no_restoration = no_restoration
         self.config = config or Config.default()
 
     @staticmethod
