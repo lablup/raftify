@@ -1,12 +1,2 @@
-aiohttp==3.8.4
-argparse==1.4.0
-grpcio-tools==1.50.0
-grpcio==1.50.0
-lmdb==1.4.0
-msgpack==1.0.4
-protobuf~=4.21.6
-rraft-py>=0.2.14
-tomli~=2.0.1
 twine~=4.0.1
-types-protobuf
 wheel>=0.41.1

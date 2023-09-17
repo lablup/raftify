@@ -1,7 +1,6 @@
 import pickle
 import threading
 from dataclasses import dataclass
-from typing import Union
 
 
 class PickleSerializer:
