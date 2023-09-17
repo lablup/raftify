@@ -1,5 +1,5 @@
 import asyncio
-from asyncio import Queue
+from asyncio import Queue, Task
 from typing import Optional
 
 import grpc
@@ -26,7 +26,7 @@ class RaftServer:
         self.grpc_server = None
         self.server_task = None
 
-    async def run(self) -> None:
+    async def run(self) -> Task:
         self.grpc_server = grpc.aio.server()
         assert self.grpc_server is not None
 

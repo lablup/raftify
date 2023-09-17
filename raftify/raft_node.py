@@ -247,7 +247,7 @@ class RaftNode:
                 else:
                     node_id = message.get_to()
                     self.logger.debug(
-                        f'Failed to connect to "Node {node_id}" the {self.raftify_cfg.max_retry_cnt} times'
+                        f'Failed to connect to "Node {node_id}" {self.raftify_cfg.max_retry_cnt} times'
                     )
 
                     try:
@@ -261,7 +261,7 @@ class RaftNode:
                                 >= self.raftify_cfg.connection_fail_limit
                             ):
                                 self.logger.debug(
-                                    f"Removed 'Node {node_id}' from cluster automatically because the request kept failed"
+                                    f'Removed "Node {node_id}" from cluster automatically because the requests kept failed.'
                                 )
 
                                 self.remove_node(node_id)
@@ -286,7 +286,7 @@ class RaftNode:
 
     async def send_wrongleader_response(self, channel: Queue) -> None:
         # TODO: Make this follower to new cluster's leader
-        assert self.get_leader_id() in self.peers, "Leader can't be an empty node!"
+        assert self.get_leader_id() in self.peers, "Leader node not found in peers!"
 
         try:
             # TODO: handle error here
@@ -416,8 +416,8 @@ class RaftNode:
             except asyncio.TimeoutError:
                 pass
             except asyncio.CancelledError:
-                self.logger.warning("Cancelled error occurred!")
-                raise
+                self.logger.warning("Task cancelled error occurred in Raft node! preparing to terminate...")
+                break
             except Exception:
                 raise
 

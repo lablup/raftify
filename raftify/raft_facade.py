@@ -230,7 +230,7 @@ class RaftCluster:
                 await asyncio.sleep(2)
                 continue
 
-    async def run_raft(self):
+    async def run_raft(self) -> None:
         """
         Start to run the raft node.
         """
@@ -243,4 +243,8 @@ class RaftCluster:
             self.raft_node_task
         ), "Raft node is not running! Call `bootstrap_cluster` or `join_cluster` first."
 
-        await asyncio.gather(*(self.raft_server_task, self.raft_node_task))
+        try:
+            await asyncio.gather(*(self.raft_server_task, self.raft_node_task))
+        except asyncio.CancelledError:
+            self.logger.info("Raft server is cancelled. preparing to terminate...")
+            await self.raft_server.terminate()

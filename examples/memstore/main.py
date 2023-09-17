@@ -220,7 +220,8 @@ async def main() -> None:
         cluster.build_raft(RaftNodeRole.Follower, request_id_response.follower_id)
         await cluster.join_cluster(request_id_response=request_id_response)
 
-    runner = None
+    tasks = []
+    app_runner = None
     if web_server_addr:
         app = Application()
         app.add_routes(routes)
@@ -230,16 +231,19 @@ async def main() -> None:
         }
 
         host, port = web_server_addr.split(":")
-        runner = web.AppRunner(app)
-        await runner.setup()
-        web_server = web.TCPSite(runner, host, port)
+        app_runner = web.AppRunner(app)
+        await app_runner.setup()
+        web_server = web.TCPSite(app_runner, host, port)
+        tasks.append(web_server.start())
+
+    tasks.append(cluster.run_raft())
 
     try:
-        await asyncio.gather(*(web_server.start(), cluster.run_raft()))
+        await asyncio.gather(*tasks)
     finally:
-        if runner:
-            await runner.cleanup()
-            await runner.shutdown()
+        if app_runner:
+            await app_runner.cleanup()
+            await app_runner.shutdown()
 
 
 if __name__ == "__main__":
