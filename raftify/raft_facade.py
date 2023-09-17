@@ -80,6 +80,7 @@ class RaftCluster:
         It should be called before `bootstrap_cluster` or `join_cluster`.
         """
         self.raft_server = RaftServer(self.addr, self.chan, self.logger)
+        self.logger.info("Raftify config: " + str(RaftCluster.cluster_config))
 
         if role == RaftNodeRole.Follower:
             assert follower_id is not None

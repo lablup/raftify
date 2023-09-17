@@ -1,6 +1,9 @@
 from rraft import Config
 
+from dataclasses import dataclass
 
+
+@dataclass
 class RaftifyConfig:
     """
     Raft Configurations.
