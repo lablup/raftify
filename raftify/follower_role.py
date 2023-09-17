@@ -14,4 +14,4 @@ class FollowerRole(Enum):
             case ConfChangeType.AddLearnerNode:
                 return ConfChangeType.AddLearnerNode
             case _:
-                assert "Unreachable"
+                assert False, "FollowerRole should be Voter or Learner."
