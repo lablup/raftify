@@ -322,6 +322,18 @@ class RaftNode:
                 case _:
                     raise NotImplementedError
 
+    async def create_snapshot(self, index: int, term: int) -> None:
+        self.logger.info("Creating snapshot...")
+        self.last_snap_time = time.time()
+        snapshot = await self.fsm.snapshot()
+
+        if self.raftify_cfg.use_log_compaction:
+            last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
+            self.lmdb.compact(last_applied)
+
+        self.lmdb.create_snapshot(snapshot, index, term)
+        self.logger.info("Snapshot created successfully.")
+
     async def handle_normal_entry(
         self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
     ) -> None:
@@ -332,19 +344,7 @@ class RaftNode:
             response_queue.put_nowait(RaftRespMessage(data))
 
         if time.time() > self.last_snap_time + self.raftify_cfg.snapshot_interval:
-            self.logger.info("Creating snapshot...")
-            self.last_snap_time = time.time()
-            snapshot = await self.fsm.snapshot()
-
-            if self.raftify_cfg.use_log_compaction:
-                last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
-                self.lmdb.compact(last_applied)
-
-            try:
-                self.lmdb.create_snapshot(snapshot, entry.get_index(), entry.get_term())
-                self.logger.info("Snapshot created successfully.")
-            except Exception:
-                pass
+            await self.create_snapshot(entry.get_index(), entry.get_term())
 
     async def handle_config_change_entry(
         self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
@@ -375,17 +375,8 @@ class RaftNode:
                     raise NotImplementedError
 
         if conf_state := self.raw_node.apply_conf_change_v2(conf_change_v2):
-            snapshot = await self.fsm.snapshot()
             self.lmdb.set_conf_state(conf_state)
-
-            if self.raftify_cfg.use_log_compaction:
-                last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
-                self.lmdb.compact(last_applied)
-
-            try:
-                self.lmdb.create_snapshot(snapshot, entry.get_index(), entry.get_term())
-            except Exception:
-                pass
+            await self.create_snapshot(entry.get_index(), entry.get_term())
 
         if response_queue := response_queues.pop(seq, None):
             match change_type:
