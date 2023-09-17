@@ -37,7 +37,7 @@ class RaftifyConfig:
         "skip_bcast_commit",
     ]
 
-    config: Config
+    raft_config: Config
 
     log_dir: str
 
@@ -68,7 +68,7 @@ class RaftifyConfig:
         auto_remove_node: bool = True,
         connection_fail_limit: int = 5,
         use_log_compaction: bool = False,
-        config: Config = Config.default(),
+        raft_config: Config = Config.default(),
         snapshot_interval: float = 15.0,
         tick_interval: float = 0.1,
         lmdb_map_size: int = 1024 * 1024 * 1024,
@@ -84,7 +84,7 @@ class RaftifyConfig:
         self.tick_interval = tick_interval
         self.lmdb_map_size = lmdb_map_size
         self.no_restoration = no_restoration
-        self.config = config or Config.default()
+        self.raft_config = raft_config or Config.default()
 
     @staticmethod
     def new_raft_config(cfg_dict: dict) -> "Config":

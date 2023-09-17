@@ -25,7 +25,7 @@ RaftCluster.set_cluster_config(
     RaftifyConfig(
         log_dir="./",
         use_log_compaction=False,
-        config=RaftifyConfig.new_raft_config(
+        raft_config=RaftifyConfig.new_raft_config(
             {
                 "election_tick": 10,
                 "heartbeat_tick": 3,

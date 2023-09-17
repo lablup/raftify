@@ -86,7 +86,7 @@ class RaftNode:
         logger: AbstractRaftifyLogger,
         raftify_cfg: RaftifyConfig,
     ) -> "RaftNode":
-        cfg = raftify_cfg.config
+        cfg = raftify_cfg.raft_config
 
         cfg.set_id(1)
         cfg.validate()
@@ -146,7 +146,7 @@ class RaftNode:
         logger: AbstractRaftifyLogger,
         raftify_cfg: RaftifyConfig,
     ) -> "RaftNode":
-        cfg = raftify_cfg.config
+        cfg = raftify_cfg.raft_config
 
         cfg.set_id(id)
         cfg.validate()
