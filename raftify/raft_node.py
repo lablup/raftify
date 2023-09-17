@@ -92,7 +92,12 @@ class RaftNode:
         cfg.set_id(1)
         cfg.validate()
 
-        lmdb = LMDBStorage.create(raftify_cfg.log_dir, 1, logger)
+        lmdb = LMDBStorage.create(
+            map_size=raftify_cfg.lmdb_map_size,
+            path=raftify_cfg.log_dir,
+            node_id=1,
+            logger=logger
+        )
 
         cs = ConfState.default()
         cs.set_voters([1])
@@ -145,7 +150,13 @@ class RaftNode:
         cfg.set_id(id)
         cfg.validate()
 
-        lmdb = LMDBStorage.create(raftify_cfg.log_dir, id, logger)
+        lmdb = LMDBStorage.create(
+            map_size=raftify_cfg.lmdb_map_size,
+            path=raftify_cfg.log_dir,
+            node_id=id,
+            logger=logger
+        )
+
         storage = Storage(lmdb)
         raw_node = RawNode(cfg, storage, slog)
 

@@ -53,12 +53,12 @@ class LMDBStorageCore:
 
     @classmethod
     def create(
-        cls, path: os.PathLike, id: int, logger: AbstractRaftifyLogger
+        cls, map_size: int, path: os.PathLike, id: int, logger: AbstractRaftifyLogger
     ) -> "LMDBStorageCore":
         os.makedirs(path, exist_ok=True)
         db_pth = os.path.join(path, f"raft-{id}.mdb")
 
-        env: lmdb.Environment = lmdb.open(db_pth, map_size=100 * 4096, max_dbs=3000)
+        env: lmdb.Environment = lmdb.open(db_pth, map_size=map_size, max_dbs=3000)
         entries_db = env.open_db(b"entries")
         metadata_db = env.open_db(b"meta")
 
@@ -188,9 +188,9 @@ class LMDBStorage:
 
     @classmethod
     def create(
-        cls, path: os.PathLike, node_id: int, logger: AbstractRaftifyLogger
+        cls, map_size: int, path: os.PathLike, node_id: int, logger: AbstractRaftifyLogger
     ) -> "LMDBStorage":
-        core = LMDBStorageCore.create(path, node_id, logger)
+        core = LMDBStorageCore.create(map_size, path, node_id, logger)
         return cls(core, logger)
 
     def compact(self, index: int) -> None:
