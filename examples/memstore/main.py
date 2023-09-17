@@ -9,6 +9,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Optional
 
+import colorlog
 import tomli
 from aiohttp import web
 from aiohttp.web import Application, RouteTableDef
@@ -43,7 +44,20 @@ def setup_slog() -> Slog:
 
 
 def setup_logger() -> logging.Logger:
-    logging.basicConfig(level=logging.DEBUG)
+    log_format = "%(asctime)s - " "%(log_color)s%(levelname)-8s - %(message)s%(reset)s"
+
+    log_colors_config = {
+        "DEBUG": "cyan",
+        "INFO": "green",
+        "WARNING": "yellow",
+        "ERROR": "red",
+        "CRITICAL": "red",
+        "asctime": "grey",
+    }
+
+    colorlog.basicConfig(
+        level=logging.DEBUG, format=log_format, log_colors=log_colors_config
+    )
     return logging.getLogger()
 
 
