@@ -1,6 +1,6 @@
-from rraft import Config
-
 from dataclasses import dataclass
+
+from rraft import Config
 
 
 @dataclass
