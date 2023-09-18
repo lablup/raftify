@@ -131,6 +131,19 @@ class RaftCluster:
         resp = await self.request_id(raft_addr, peer_candidates)
         await self.join_cluster(resp)
 
+    def transfer_leader(
+        self,
+        node_id: int,
+    ) -> bool:
+        assert self.raft_node and self.raft_server, "Raft node is not initialized!"
+
+        if not self.raft_node.is_leader():
+            print("Not leader!")
+            return False
+
+        self.raft_node.raw_node.transfer_leader(node_id)
+        return True
+
     async def request_id(
         self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]
     ) -> RequestIdResponse:

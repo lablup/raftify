@@ -194,6 +194,15 @@ async def merge_cluster(request: web.Request) -> web.Response:
     return web.Response(text="Merged cluster successfully.")
 
 
+@routes.get("/transfer/{id}")
+async def transfer_leader(request: web.Request) -> web.Response:
+    cluster: RaftCluster = request.app["state"]["cluster"]
+    target_node_id = int(request.match_info["id"])
+
+    cluster.transfer_leader(target_node_id)
+    return web.Response(text="Leader transferred successfully.")
+
+
 async def main() -> None:
     init_rraft_py_deserializer()
 
