@@ -190,7 +190,6 @@ class RaftNode:
 
     def remove_node(self, node_id: int) -> None:
         client = self.peers[node_id]
-        del self.peers[node_id]
 
         self.seq.increase()
         conf_change = ConfChange.default()
@@ -200,12 +199,15 @@ class RaftNode:
         context = pickle.dumps(self.seq.value)
 
         conf_change_v2 = conf_change.as_v2()
-
         self.raw_node.propose_conf_change_v2(
             context,
             conf_change_v2,
         )
         self.raw_node.apply_conf_change_v2(conf_change_v2)
+        hs = self.raw_node.get_raft().hard_state()
+        self.create_snapshot(self.lmdb.last_index(), hs.get_term())
+
+        del self.peers[node_id]
 
     def reserve_next_peer_id(self, addr: str) -> int:
         """
@@ -327,9 +329,8 @@ class RaftNode:
         self.last_snap_time = time.time()
         snapshot = await self.fsm.snapshot()
 
-        if self.raftify_cfg.use_log_compaction:
-            last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
-            self.lmdb.compact(last_applied)
+        last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
+        self.lmdb.compact(last_applied)
 
         self.lmdb.create_snapshot(snapshot, index, term)
         self.logger.info("Snapshot created successfully.")
@@ -430,11 +431,19 @@ class RaftNode:
                     # TODO: retry strategy in case of failure
                     await self.send_wrongleader_response(message.chan)
                 else:
-                    conf_change_v2 = ConfChangeV2Adapter.from_pb(message.conf_change)
-                    self.seq.increase()
-                    response_queues[self.seq] = message.chan
-                    context = pickle.dumps(self.seq.value)
-                    self.raw_node.propose_conf_change_v2(context, conf_change_v2)
+                    if self.raw_node.get_raft().has_pending_conf():
+                        self.logger.error(
+                            "Reject the conf change because pending conf change exist!, try later..."
+                        )
+                        continue
+                    else:
+                        conf_change_v2 = ConfChangeV2Adapter.from_pb(
+                            message.conf_change
+                        )
+                        self.seq.increase()
+                        response_queues[self.seq] = message.chan
+                        context = pickle.dumps(self.seq.value)
+                        self.raw_node.propose_conf_change_v2(context, conf_change_v2)
 
             elif isinstance(message, ProposeReqMessage):
                 if not self.is_leader():
@@ -465,10 +474,7 @@ class RaftNode:
                     f'"Node {msg.get_to()}" Received Raft message from the "Node {msg.get_from()}"'
                 )
 
-                try:
-                    self.raw_node.step(msg)
-                except Exception:
-                    pass
+                self.raw_node.step(msg)
 
             elif isinstance(message, ReportUnreachableReqMessage):
                 self.raw_node.report_unreachable(message.node_id)

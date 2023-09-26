@@ -11,7 +11,6 @@ class RaftifyConfig:
     Attributes:
     - config: Configuration object. Uses default settings if not provided.
     - log_dir: Directory path where log files are stored.
-    - use_log_compaction: Whether to use log compaction. True if used, otherwise False.
     - max_retry_cnt: Maximum number of retries for a request.
     - auto_remove_node: Whether to automatically remove a node from the cluster if it keeps not responding.
     - connection_fail_limit: Maximum number of connection failures before removing a node from the cluster.
@@ -41,8 +40,6 @@ class RaftifyConfig:
 
     log_dir: str
 
-    use_log_compaction: bool
-
     max_retry_cnt: int
 
     message_timeout: float
@@ -67,7 +64,6 @@ class RaftifyConfig:
         message_timeout: float = 5.0,
         auto_remove_node: bool = True,
         connection_fail_limit: int = 5,
-        use_log_compaction: bool = False,
         raft_config: Config = Config.default(),
         snapshot_interval: float = 15.0,
         tick_interval: float = 0.1,
@@ -75,7 +71,6 @@ class RaftifyConfig:
         no_restoration: bool = False,
     ) -> None:
         self.log_dir = log_dir
-        self.use_log_compaction = use_log_compaction
         self.max_retry_cnt = max_retry_cnt
         self.message_timeout = message_timeout
         self.auto_remove_node = auto_remove_node

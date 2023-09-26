@@ -25,7 +25,6 @@ from raftify.utils import SocketAddr
 RaftCluster.set_cluster_config(
     RaftifyConfig(
         log_dir="./",
-        use_log_compaction=False,
         raft_config=RaftifyConfig.new_raft_config(
             {
                 "election_tick": 10,

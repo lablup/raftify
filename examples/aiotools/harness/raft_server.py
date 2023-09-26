@@ -27,7 +27,6 @@ routes = RouteTableDef()
 RaftCluster.set_cluster_config(
     RaftifyConfig(
         log_dir="./",
-        use_log_compaction=False,
         no_restoration=True,
     )
 )
