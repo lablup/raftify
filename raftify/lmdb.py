@@ -95,10 +95,10 @@ class LMDBStorageCore:
         with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
             meta_writer.put(CONF_STATE_KEY, conf_state.encode())
 
-    def snapshot(self, _request_index: int, _to: int) -> Optional[Snapshot]:
+    def snapshot(self, _request_index: int, _to: int) -> Snapshot:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
             snapshot = meta_reader.get(SNAPSHOT_KEY)
-            return Snapshot.decode(snapshot) if snapshot else None
+            return Snapshot.decode(snapshot) if snapshot else Snapshot.default()
 
     def set_snapshot(self, snapshot: Snapshot | SnapshotRef) -> None:
         with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
@@ -295,7 +295,7 @@ class LMDBStorage:
         with Lock():
             return self.core.last_index()
 
-    def snapshot(self, request_index: int, to: int) -> Optional[Snapshot]:
+    def snapshot(self, request_index: int, to: int) -> Snapshot:
         with Lock():
             return self.core.snapshot(request_index, to)
 
