@@ -5,6 +5,7 @@ from typing import Optional
 
 from rraft import ConfChange, ConfChangeType
 
+from raftify.config import RaftifyConfig
 from raftify.error import UnknownError
 from raftify.pb_adapter import ConfChangeV2Adapter
 from raftify.protos import raft_service_pb2
@@ -24,10 +25,17 @@ class Mailbox:
     A mailbox to send messages to a running raft node.
     """
 
-    def __init__(self, addr: SocketAddr, raft_node: RaftNode, sender: Queue):
+    def __init__(
+        self,
+        addr: SocketAddr,
+        raft_node: RaftNode,
+        sender: Queue,
+        raftify_config: RaftifyConfig,
+    ):
         self.sender = sender
         self.raft_node = raft_node
         self.addr = addr
+        self.raftify_config = raftify_config
 
     async def __handle_response(
         self,
@@ -47,6 +55,7 @@ class Mailbox:
                 reroute_msg_type=reroute_msg_type,
                 conf_change=conf_change,
                 msg_bytes=proposed_data,
+                timeout=self.raftify_config.message_timeout,
             )
             if isinstance(resp_from_leader, raft_service_pb2.RaftMessageResponse):
                 return resp_from_leader.data

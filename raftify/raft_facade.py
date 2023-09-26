@@ -63,7 +63,7 @@ class RaftCluster:
         Get the node's `Mailbox`.
         """
         assert self.raft_node is not None, "Raft node is not initialized!"
-        return Mailbox(self.addr, self.raft_node, self.chan)
+        return Mailbox(self.addr, self.raft_node, self.chan, RaftCluster.cluster_config)
 
     def get_peers(self) -> Peers:
         assert self.raft_node is not None, "Raft node is not initialized!"
