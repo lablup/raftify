@@ -491,6 +491,20 @@ class RaftNode:
 
         ready = self.raw_node.ready()
 
+        if not ready.must_sync():
+            # If this ready need not to sync, the term, vote must not be changed,
+            # entries and snapshot must be empty.
+            if hs := ready.hs():
+                core_hs = self.lmdb.core.hard_state()
+                assert hs.get_term() == core_hs.get_term()
+                assert hs.get_vote() == core_hs.get_vote()
+            assert (
+                not ready.entries()
+            ), f"unexpected entries, expected empty entries. entries: {ready.entries()}"
+            assert (
+                not ready.snapshot()
+            ), f"unexpected snapshot, expected empty snapshot. snapshot: {ready.snapshot()}"
+
         if msgs := ready.take_messages():
             self.send_messages(msgs)
 
