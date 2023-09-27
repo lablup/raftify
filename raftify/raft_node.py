@@ -186,7 +186,7 @@ class RaftNode:
     def is_leader(self) -> bool:
         return self.get_id() == self.get_leader_id()
 
-    async def remove_node(self, node_id: int) -> None:
+    def remove_node(self, node_id: int) -> None:
         client = self.peers[node_id]
 
         self.seq.increase()
@@ -202,9 +202,6 @@ class RaftNode:
             conf_change_v2,
         )
         self.raw_node.apply_conf_change_v2(conf_change_v2)
-        hs = self.raw_node.get_raft().hard_state()
-        await self.create_snapshot(self.lmdb.last_index(), hs.get_term())
-
         del self.peers[node_id]
 
     def reserve_next_peer_id(self, addr: str) -> int:
@@ -260,7 +257,7 @@ class RaftNode:
                                 failed_request_counter.value
                                 >= self.raftify_cfg.connection_fail_limit
                             ):
-                                await self.remove_node(node_id)
+                                self.remove_node(node_id)
                                 self.logger.error(
                                     f'Removed "Node {node_id}" from cluster automatically because the requests to the node kept failed.'
                                 )
