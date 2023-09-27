@@ -8,23 +8,25 @@ from raftify.lmdb import SNAPSHOT_KEY, LAST_INDEX_KEY, HARD_STATE_KEY, CONF_STAT
 
 def main(argv):
     init_rraft_py_deserializer()
-    idx = argv[1]
-    assert idx.isdigit(), "idx must be a number"
+    node_id = argv[1]
+    segment_idx = argv[2]
+    assert node_id.isdigit(), "node_id must be a number"
+    assert segment_idx.isdigit(), "segment_idx must be a number"
 
-    env = lmdb.open(f"{os.getcwd()}/raft-{idx}.mdb", max_dbs=2)
-
-    entries_db = env.open_db(b"entries")
+    entries_env = lmdb.open(f"{os.getcwd()}/node{node_id}-entry.mdb/segment{segment_idx}", max_dbs=2)
+    entries_db = entries_env.open_db(b"entries")
 
     print('---- Entries ----')
-    with env.begin(db=entries_db) as txn:
+    with entries_env.begin(db=entries_db) as txn:
         cursor = txn.cursor()
         for key, value in cursor:
             print(f"Key: {int(key.decode())}, Value: {rraft.Entry.decode(value)}")
 
-    metadata_db = env.open_db(b"meta")
+    metadata_env = lmdb.open(f"{os.getcwd()}/node{node_id}-meta.mdb", max_dbs=2)
+    metadata_db = metadata_env.open_db(b"meta")
 
     print('---- Metadata ----')
-    with env.begin(db=metadata_db) as txn:
+    with metadata_env.begin(db=metadata_db) as txn:
         cursor = txn.cursor()
         for key, value in cursor:
             if key == SNAPSHOT_KEY:
@@ -38,7 +40,7 @@ def main(argv):
             else:
                 assert False, f"Unknown key: {key}"
 
-    env.close()
+    metadata_env.close()
 
 
 if __name__ == "__main__":
