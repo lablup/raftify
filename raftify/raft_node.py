@@ -260,8 +260,8 @@ class RaftNode:
                                 self.remove_node(node_id)
                                 self.logger.error(
                                     f'Removing "Node {node_id}" from cluster '
-                                    f'automatically '
-                                    f'because the requests to the node kept failed.'
+                                    f"automatically "
+                                    f"because the requests to the node kept failed."
                                 )
                                 return
                             else:

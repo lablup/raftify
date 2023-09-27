@@ -24,13 +24,6 @@ from raftify.utils import SocketAddr
 
 routes = RouteTableDef()
 
-RaftCluster.set_cluster_config(
-    RaftifyConfig(
-        log_dir="./",
-        no_restoration=True,
-    )
-)
-
 
 @routes.get("/get/{id}")
 async def get(request: web.Request) -> web.Response:
@@ -92,7 +85,13 @@ async def server_main(
     store = HashStore()
     raft_node_idx = process_index.get()
     raft_socket = SocketAddr.from_str(str(RAFT_ADDRS[raft_node_idx]))
-    cluster = RaftCluster(raft_socket, store, slog, logger)
+
+    cfg = RaftifyConfig(
+        log_dir="./",
+        no_restoration=True,
+    )
+
+    cluster = RaftCluster(cfg, raft_socket, store, slog, logger)
 
     if raft_node_idx == 0:
         cluster.build_raft(RaftNodeRole.Leader)

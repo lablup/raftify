@@ -35,10 +35,9 @@ class RequestIdResponse:
 
 
 class RaftCluster:
-    cluster_config = RaftifyConfig()
-
     def __init__(
         self,
+        cluster_config: RaftifyConfig,
         addr: SocketAddr,
         fsm: FSM,
         slog: Logger | LoggerRef,
@@ -55,6 +54,7 @@ class RaftCluster:
         self.raft_node = None
         self.raft_server = None
         self.raft_node_task = None
+        self.cluster_config = cluster_config
         self.raft_server_task = None
 
     @property
@@ -63,15 +63,11 @@ class RaftCluster:
         Get the node's `Mailbox`.
         """
         assert self.raft_node is not None, "Raft node is not initialized!"
-        return Mailbox(self.addr, self.raft_node, self.chan, RaftCluster.cluster_config)
+        return Mailbox(self.addr, self.raft_node, self.chan, self.cluster_config)
 
     def get_peers(self) -> Peers:
         assert self.raft_node is not None, "Raft node is not initialized!"
         return self.raft_node.peers
-
-    @staticmethod
-    def set_cluster_config(config: RaftifyConfig) -> None:
-        RaftCluster.cluster_config = config
 
     def is_initialized(self) -> bool:
         return self.raft_node is not None
@@ -83,7 +79,7 @@ class RaftCluster:
         """
         self.raft_server = RaftServer(self.addr, self.chan, self.logger)
         assert self.raft_server is not None
-        self.logger.info("Raftify config: " + str(RaftCluster.cluster_config))
+        self.logger.info("Raftify config: " + str(self.cluster_config))
 
         if role == RaftNodeRole.Follower:
             assert follower_id is not None
@@ -95,7 +91,7 @@ class RaftCluster:
                 raft_server=self.raft_server,
                 slog=self.slog,
                 logger=self.logger,
-                raftify_cfg=RaftCluster.cluster_config,
+                raftify_cfg=self.cluster_config,
             )
         else:
             self.raft_node = RaftNode.bootstrap_leader(
@@ -104,7 +100,7 @@ class RaftCluster:
                 raft_server=self.raft_server,
                 slog=self.slog,
                 logger=self.logger,
-                raftify_cfg=RaftCluster.cluster_config,
+                raftify_cfg=self.cluster_config,
             )
 
     def bootstrap_cluster(self) -> None:
