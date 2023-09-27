@@ -188,7 +188,7 @@ class RaftNode:
     def is_leader(self) -> bool:
         return self.get_id() == self.get_leader_id()
 
-    def remove_node(self, node_id: int) -> None:
+    async def remove_node(self, node_id: int) -> None:
         client = self.peers[node_id]
 
         self.seq.increase()
@@ -205,7 +205,7 @@ class RaftNode:
         )
         self.raw_node.apply_conf_change_v2(conf_change_v2)
         hs = self.raw_node.get_raft().hard_state()
-        self.create_snapshot(self.lmdb.last_index(), hs.get_term())
+        await self.create_snapshot(self.lmdb.last_index(), hs.get_term())
 
         del self.peers[node_id]
 
@@ -266,7 +266,7 @@ class RaftNode:
                                     f'Removed "Node {node_id}" from cluster automatically because the requests kept failed.'
                                 )
 
-                                self.remove_node(node_id)
+                                await self.remove_node(node_id)
                                 return
                             else:
                                 failed_request_counter.increase()
@@ -327,13 +327,12 @@ class RaftNode:
     async def create_snapshot(self, index: int, term: int) -> None:
         self.logger.info("Creating snapshot...")
         self.last_snap_time = time.time()
-        snapshot = await self.fsm.snapshot()
+        snapshot_data = await self.fsm.snapshot()
 
         last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
         self.lmdb.compact(last_applied)
-
-        self.lmdb.create_snapshot(snapshot, index, term)
-        self.logger.info("Snapshot created successfully.")
+        self.lmdb.create_snapshot(snapshot_data, index, term)
+        self.logger.info("Snapshot created and previous log entries are cleared successfully.")
 
     async def handle_normal_entry(
         self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
