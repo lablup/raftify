@@ -97,10 +97,16 @@ class RaftNode:
             logger=logger,
         )
 
-        snapshot = lmdb.snapshot(0, lmdb.last_index())
-        conf_state = snapshot.get_metadata().get_conf_state()
-        if not conf_state.get_voters():
-            conf_state.set_voters([1])
+        if raftify_cfg.no_restoration:
+            snapshot = Snapshot.default()
+            snapshot.get_metadata().set_index(0)
+            snapshot.get_metadata().set_term(0)
+            snapshot.get_metadata().get_conf_state().set_voters([1])
+        else:
+            snapshot = lmdb.snapshot(0, lmdb.last_index())
+            conf_state = snapshot.get_metadata().get_conf_state()
+            if not conf_state.get_voters():
+                conf_state.set_voters([1])
 
         lmdb.apply_snapshot(snapshot)
 
