@@ -332,7 +332,9 @@ class RaftNode:
         last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
         self.lmdb.compact(last_applied)
         self.lmdb.create_snapshot(snapshot_data, index, term)
-        self.logger.info("Snapshot created and previous log entries are cleared successfully.")
+        self.logger.info(
+            "Snapshot created and previous log entries are cleared successfully."
+        )
 
     async def handle_normal_entry(
         self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
@@ -343,7 +345,10 @@ class RaftNode:
         if response_queue := response_queues.pop(seq, None):
             response_queue.put_nowait(RaftRespMessage(data))
 
-        if time.time() > self.last_snap_time + self.raftify_cfg.snapshot_interval:
+        if (
+            self.raftify_cfg.snapshot_interval > 0
+            and time.time() > self.last_snap_time + self.raftify_cfg.snapshot_interval
+        ):
             await self.create_snapshot(entry.get_index(), entry.get_term())
 
     async def handle_config_change_entry(
