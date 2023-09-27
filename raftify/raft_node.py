@@ -7,7 +7,6 @@ from rraft import (
     ConfChange,
     ConfChangeType,
     ConfChangeV2,
-    ConfState,
     Entry,
     EntryRef,
     EntryType,
@@ -98,17 +97,12 @@ class RaftNode:
             logger=logger,
         )
 
-        if raftify_cfg.no_restoration:
-            snapshot = Snapshot.default()
-            snapshot.get_metadata().set_index(0)
-            snapshot.get_metadata().set_term(0)
-            snapshot.get_metadata().get_conf_state().set_voters([1])
+        snapshot = lmdb.snapshot(0, lmdb.last_index())
+        conf_state = snapshot.get_metadata().get_conf_state()
+        if not conf_state.get_voters():
+            conf_state.set_voters([1])
 
-            lmdb.apply_snapshot(snapshot)
-        else:
-            cs = ConfState.default()
-            cs.set_voters([1])
-            lmdb.set_conf_state(cs)
+        lmdb.apply_snapshot(snapshot)
 
         storage = Storage(lmdb)
         raw_node = RawNode(cfg, storage, slog)
@@ -435,7 +429,6 @@ class RaftNode:
                         self.logger.error(
                             "Reject the conf change because pending conf change exist!, try later..."
                         )
-                        continue
                     else:
                         conf_change_v2 = ConfChangeV2Adapter.from_pb(
                             message.conf_change
