@@ -186,7 +186,7 @@ class LMDBStorageCore:
         with self.env.begin(write=True, db=self.entries_db) as entry_writer:
             cursor = entry_writer.cursor()
             assert cursor.first(), "DB Empty!"
-            from_ = cursor.key()
+            from_ = decode_int(cursor.key())
 
             # TODO: Maybe it would be better to include 'last_index' in compact, but when all entries removed from lmdb,
             # performance issue occurred. So, keep the last index entry here.
@@ -196,9 +196,8 @@ class LMDBStorageCore:
                         f"Try to delete item at {decode_int(cursor.key())}, but not exist!"
                     )
 
-            self.logger.info(
-                f"Entries [{decode_int(from_)}, {to}) deleted successfully."
-            )
+            if to > from_:
+                self.logger.info(f"Entries [{from_}, {to} deleted successfully.")
 
     def append(self, entries: List[Entry] | List[EntryRef]) -> None:
         last_index = self.last_index()
@@ -222,6 +221,49 @@ class LMDBStorageCore:
         hs = self.hard_state()
         hs.set_commit(comit)
         self.set_hard_state(hs)
+
+    def apply_snapshot(self, snapshot: Snapshot | SnapshotRef) -> None:
+        metadata = snapshot.get_metadata()
+        hard_state = self.hard_state()
+
+        hard_state.set_term(max(hard_state.get_term(), metadata.get_term()))
+        hard_state.set_commit(metadata.get_index())
+
+        self.set_hard_state(hard_state)
+        self.set_conf_state(metadata.get_conf_state())
+        self.set_last_index(metadata.get_index())
+        self.set_snapshot(snapshot)
+
+    def initial_state(self) -> RaftState:
+        raft_state = RaftState.default()
+        raft_state.set_hard_state(self.hard_state())
+        raft_state.set_conf_state(self.conf_state())
+
+        self.logger.info(f"Initial RaftState: {raft_state}")
+
+        return raft_state
+
+    def term(self, index: int) -> int:
+        with Lock():
+            first_index = self.first_index()
+            last_index = self.last_index()
+            hard_state = self.hard_state()
+
+            if index == hard_state.get_commit():
+                return hard_state.get_term()
+
+            if index < first_index:
+                raise StoreError(CompactedError())
+
+            if index > last_index:
+                raise StoreError(UnavailableError())
+
+            try:
+                entry = self.entry(index)
+            except Exception:
+                raise StoreError(UnavailableError())
+
+            return entry.get_term() if entry else 0
 
 
 class LMDBStorage:
@@ -262,26 +304,11 @@ class LMDBStorage:
 
     def apply_snapshot(self, snapshot: Snapshot | SnapshotRef) -> None:
         with Lock():
-            metadata = snapshot.get_metadata()
-            hard_state = self.core.hard_state()
-
-            hard_state.set_term(max(hard_state.get_term(), metadata.get_term()))
-            hard_state.set_commit(metadata.get_index())
-
-            self.core.set_hard_state(hard_state)
-            self.core.set_conf_state(metadata.get_conf_state())
-            self.core.set_last_index(metadata.get_index())
-            self.core.set_snapshot(snapshot)
+            self.core.apply_snapshot(snapshot)
 
     def initial_state(self) -> RaftState:
         with Lock():
-            raft_state = RaftState.default()
-            raft_state.set_hard_state(self.core.hard_state())
-            raft_state.set_conf_state(self.core.conf_state())
-
-            self.logger.info(f"Initial RaftState: {raft_state}")
-
-            return raft_state
+            return self.core.initial_state()
 
     def entries(
         self,
@@ -295,25 +322,7 @@ class LMDBStorage:
 
     def term(self, index: int) -> int:
         with Lock():
-            first_index = self.core.first_index()
-            last_index = self.core.last_index()
-            hard_state = self.core.hard_state()
-
-            if index == hard_state.get_commit():
-                return hard_state.get_term()
-
-            if index < first_index:
-                raise StoreError(CompactedError())
-
-            if index > last_index:
-                raise StoreError(UnavailableError())
-
-            try:
-                entry = self.core.entry(index)
-            except Exception:
-                raise StoreError(UnavailableError())
-
-            return entry.get_term() if entry else 0
+            return self.core.term(index)
 
     def first_index(self) -> int:
         with Lock():
