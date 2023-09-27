@@ -187,7 +187,7 @@ class LMDBStorageCore:
             cursor = entry_writer.cursor()
             cursor.first()
 
-            while decode_int(cursor.key()) < index:
+            while decode_int(cursor.key()) <= index:
                 if not cursor.delete():
                     self.logger.info(
                         f"Try to delete item at {decode_int(cursor.key())}, but not exist!"
