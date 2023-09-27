@@ -22,19 +22,6 @@ from raftify.fsm import FSM
 from raftify.raft_facade import RaftCluster, RaftNodeRole
 from raftify.utils import SocketAddr
 
-RaftCluster.set_cluster_config(
-    RaftifyConfig(
-        log_dir="./",
-        snapshot_interval=0,
-        raft_config=RaftifyConfig.new_raft_config(
-            {
-                "election_tick": 10,
-                "heartbeat_tick": 3,
-            }
-        ),
-    )
-)
-
 
 def setup_slog() -> Slog:
     # TODO: This method should be implemented in rraft-py.
@@ -203,6 +190,14 @@ async def transfer_leader(request: web.Request) -> web.Response:
     return web.Response(text="Leader transferred successfully.")
 
 
+@routes.get("/snapshot")
+async def snapshot(request: web.Request) -> web.Response:
+    cluster: RaftCluster = request.app["state"]["cluster"]
+
+    await cluster.create_snapshot()
+    return web.Response(text="Created snapshot successfully.")
+
+
 async def main() -> None:
     init_rraft_py_deserializer()
 
@@ -226,7 +221,18 @@ async def main() -> None:
     store = HashStore()
 
     target_addr = peer_addrs[0] if bootstrap and not raft_addr else raft_addr
-    cluster = RaftCluster(target_addr, store, slog, logger)
+
+    cfg = RaftifyConfig(
+        log_dir="./",
+        raft_config=RaftifyConfig.new_raft_config(
+            {
+                "election_tick": 10,
+                "heartbeat_tick": 3,
+            }
+        ),
+    )
+
+    cluster = RaftCluster(cfg, target_addr, store, slog, logger)
 
     if bootstrap:
         logger.info("Bootstrap a Raft Cluster")
