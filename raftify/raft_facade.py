@@ -129,9 +129,9 @@ class RaftCluster:
 
     async def create_snapshot(self) -> None:
         assert self.raft_node and self.raft_server, "Raft node is not initialized!"
+        hs = self.raft_node.lmdb.core.hard_state()
         await self.raft_node.create_snapshot(
-            self.raft_node.lmdb.last_index(),
-            self.raft_node.lmdb.core.hard_state().get_term(),
+            self.raft_node.lmdb.last_index(), hs.get_term()
         )
 
     def transfer_leader(
