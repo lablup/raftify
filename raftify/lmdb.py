@@ -58,15 +58,18 @@ class LMDBStorageCore:
         os.makedirs(path, exist_ok=True)
         db_pth = os.path.join(path, f"raft-{id}.mdb")
 
-        env: lmdb.Environment = lmdb.open(db_pth, map_size=map_size, max_dbs=3000)
-        entries_db = env.open_db(b"entries")
-        metadata_db = env.open_db(b"meta")
+        try:
+            env: lmdb.Environment = lmdb.open(db_pth, map_size=map_size, max_dbs=3000)
+            entries_db = env.open_db(b"entries")
+            metadata_db = env.open_db(b"meta")
+        except lmdb.MapFullError:
+            logger.error("MDB mapsize is too small. Increase mapsize and try again.")
+            raise
 
         hard_state = HardState.default()
         conf_state = ConfState.default()
 
         core = cls(env, entries_db, metadata_db, logger)
-
         core.set_hard_state(hard_state)
         core.set_conf_state(conf_state)
         core.append([Entry.default()])
@@ -77,23 +80,31 @@ class LMDBStorageCore:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
             hs = meta_reader.get(HARD_STATE_KEY)
             if hs is None:
-                raise StoreError(UnavailableError("Missing hard_state"))
+                raise StoreError(UnavailableError("Missing hard_state in metadata"))
             return HardState.decode(hs)
 
+    def __metadata_put(self, key: bytes, value: bytes) -> None:
+        try:
+            with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
+                meta_writer.put(key, value)
+        except lmdb.MapFullError:
+            self.logger.info("MDB is full. Clearing previous logs and trying again.")
+            self.compact(self.last_index() - 1)
+            with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
+                meta_writer.put(key, value)
+
     def set_hard_state(self, hard_state: HardState | HardStateRef) -> None:
-        with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
-            meta_writer.put(HARD_STATE_KEY, hard_state.encode())
+        self.__metadata_put(HARD_STATE_KEY, hard_state.encode())
 
     def conf_state(self) -> ConfState:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
             conf_state = meta_reader.get(CONF_STATE_KEY)
             if conf_state is None:
-                raise StoreError(UnavailableError("There should be a conf state"))
+                raise StoreError(UnavailableError("Missing conf_state in metadata"))
             return ConfState.decode(conf_state)
 
     def set_conf_state(self, conf_state: ConfState | ConfStateRef) -> None:
-        with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
-            meta_writer.put(CONF_STATE_KEY, conf_state.encode())
+        self.__metadata_put(CONF_STATE_KEY, conf_state.encode())
 
     def snapshot(self, _request_index: int, _to: int) -> Snapshot:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
@@ -101,8 +112,7 @@ class LMDBStorageCore:
             return Snapshot.decode(snapshot) if snapshot else Snapshot.default()
 
     def set_snapshot(self, snapshot: Snapshot | SnapshotRef) -> None:
-        with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
-            meta_writer.put(SNAPSHOT_KEY, snapshot.encode())
+        self.__metadata_put(SNAPSHOT_KEY, snapshot.encode())
 
     def first_index(self) -> int:
         with self.env.begin(write=False, db=self.entries_db) as entry_reader:
@@ -123,8 +133,7 @@ class LMDBStorageCore:
             return decode_int(last_index) if last_index else 0
 
     def set_last_index(self, index: int) -> None:
-        with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
-            meta_writer.put(LAST_INDEX_KEY, encode_int(index))
+        self.__metadata_put(LAST_INDEX_KEY, encode_int(index))
 
     def entry(self, index: int) -> Optional[Entry]:
         with self.env.begin(write=False, db=self.entries_db) as entry_reader:
@@ -162,18 +171,45 @@ class LMDBStorageCore:
 
             return entries
 
+    def create_snapshot(self, data: bytes, index: int, term: int) -> None:
+        snapshot = Snapshot.default()
+        snapshot.set_data(data)
+
+        meta = snapshot.get_metadata()
+        meta.set_conf_state(self.conf_state())
+        meta.set_index(index)
+        meta.set_term(term)
+
+        self.set_snapshot(snapshot)
+
+    def compact(self, index: int) -> None:
+        with self.env.begin(write=True, db=self.entries_db) as entry_writer:
+            cursor = entry_writer.cursor()
+            cursor.first()
+
+            while decode_int(cursor.key()) < index:
+                if not cursor.delete():
+                    self.logger.info(
+                        f"Try to delete item at {decode_int(cursor.key())}, but not exist!"
+                    )
+
     def append(self, entries: List[Entry] | List[EntryRef]) -> None:
         last_index = self.last_index()
 
-        with self.env.begin(write=True, db=self.entries_db) as entry_writer:
-            # TODO: ensure entry arrive in the right order
-            for entry in entries:
-                # assert entry.get_index() == last_index + 1
-                index = entry.get_index()
-                entry_writer.put(encode_int(index), entry.encode())
-                last_index = max(index, last_index)
+        try:
+            with self.env.begin(write=True, db=self.entries_db) as entry_writer:
+                # TODO: ensure entry arrive in the right order
+                for entry in entries:
+                    # assert entry.get_index() == last_index + 1
+                    index = entry.get_index()
+                    entry_writer.put(encode_int(index), entry.encode())
+                    last_index = max(index, last_index)
 
-        self.set_last_index(last_index)
+            self.set_last_index(last_index)
+        except lmdb.MapFullError:
+            self.logger.error("MDB is full. Clearing previous logs and trying again.")
+            self.compact(last_index - 1)
+            self.append(entries)
 
     def set_hard_state_comit(self, comit: int) -> None:
         hs = self.hard_state()
@@ -199,14 +235,7 @@ class LMDBStorage:
 
     def compact(self, index: int) -> None:
         with Lock():
-            with self.core.env.begin(
-                write=True, db=self.core.entries_db
-            ) as entry_writer:
-                cursor = entry_writer.cursor()
-                cursor.first()
-
-                while decode_int(cursor.key()) < index:
-                    cursor.delete()
+            self.core.compact(index)
 
     def append(self, entries: List[Entry] | List[EntryRef]) -> None:
         with Lock():
@@ -222,15 +251,7 @@ class LMDBStorage:
 
     def create_snapshot(self, data: bytes, index: int, term: int) -> None:
         with Lock():
-            snapshot = Snapshot.default()
-            snapshot.set_data(data)
-
-            meta = snapshot.get_metadata()
-            meta.set_conf_state(self.core.conf_state())
-            meta.set_index(index)
-            meta.set_term(term)
-
-            self.core.set_snapshot(snapshot)
+            self.core.create_snapshot(data, index, term)
 
     def apply_snapshot(self, snapshot: Snapshot | SnapshotRef) -> None:
         with Lock():
