@@ -1,4 +1,5 @@
 import os
+import re
 from threading import Lock
 from typing import List, Optional
 
@@ -38,34 +39,107 @@ def decode_int(v: bytes) -> int:
     return int(v.decode())
 
 
+def get_segment_index_from_path(path: str, node_id: int) -> int:
+    files = os.listdir(path)
+    pattern = re.compile(r"entry-node{}-(\d+).mdb".format(node_id))
+
+    segment_indices = []
+    for file in files:
+        match = pattern.match(file)
+        if match:
+            segment_index = int(match.group(1))
+            segment_indices.append(segment_index)
+
+    return max(segment_indices, default=1)
+
+
 class LMDBStorageCore:
     def __init__(
         self,
-        env: lmdb.Environment,
+        storage_path: str,
+        node_id: int,
+        segment_index: int,
+        max_segment_size: int,
+        entries_env: lmdb.Environment,
+        meta_env: lmdb.Environment,
         entries_db: lmdb._Database,
         metadata_db: lmdb._Database,
         logger: AbstractRaftifyLogger,
     ):
-        self.env = env
+        self.storage_path = storage_path
+        self.node_id = node_id
+        self.segment_index = segment_index
+        self.max_segment_size = max_segment_size
+        self.entries_env = entries_env
+        self.meta_env = meta_env
         self.entries_db = entries_db
         self.metadata_db = metadata_db
         self.logger = logger
 
     @classmethod
-    def create(
-        cls, map_size: int, path: str, id: int, logger: AbstractRaftifyLogger
-    ) -> "LMDBStorageCore":
-        os.makedirs(path, exist_ok=True)
-        db_pth = os.path.join(path, f"raft-{id}.mdb")
+    def create_entry_db(
+        cls, path: str, node_id: int, segment_index: int, map_size: int
+    ) -> tuple[lmdb.Environment, lmdb._Database]:
+        entry_db_pth = os.path.join(
+            path, f"node{node_id}-entry.mdb", f"segment{segment_index}"
+        )
+        os.makedirs(entry_db_pth, exist_ok=True)
+        entries_env: lmdb.Environment = lmdb.open(
+            entry_db_pth, map_size=map_size, max_dbs=3000
+        )
+        entries_db = entries_env.open_db(b"entries")
+        return entries_env, entries_db
 
-        env: lmdb.Environment = lmdb.open(db_pth, map_size=map_size, max_dbs=3000)
-        entries_db = env.open_db(b"entries")
-        metadata_db = env.open_db(b"meta")
+    @classmethod
+    def create_meta_db(
+        cls, path: str, node_id: int, map_size: int
+    ) -> tuple[lmdb.Environment, lmdb._Database]:
+        meta_db_pth = os.path.join(path, f"node{node_id}-meta.mdb")
+        os.makedirs(meta_db_pth, exist_ok=True)
+        meta_env: lmdb.Environment = lmdb.open(
+            meta_db_pth, map_size=map_size * 1000 * 1000, max_dbs=2
+        )
+        metadata_db = meta_env.open_db(b"meta")
+        return meta_env, metadata_db
+
+    @classmethod
+    def create(
+        cls,
+        max_segment_size: int,
+        path: str,
+        node_id: int,
+        logger: AbstractRaftifyLogger,
+    ) -> "LMDBStorageCore":
+        segment_index = get_segment_index_from_path(path, node_id)
+
+        try:
+            entries_env, entries_db = cls.create_entry_db(
+                path, node_id, segment_index, max_segment_size
+            )
+        except lmdb.MapFullError:
+            logger.error("Entry db is too small!")
+            raise
+
+        try:
+            meta_env, metadata_db = cls.create_meta_db(path, node_id, 1024 * 1024)
+        except lmdb.MapFullError:
+            logger.error("Metadata db is full!")
+            raise
 
         hard_state = HardState.default()
         conf_state = ConfState.default()
 
-        core = cls(env, entries_db, metadata_db, logger)
+        core = cls(
+            path,
+            node_id,
+            segment_index,
+            max_segment_size,
+            entries_env,
+            meta_env,
+            entries_db,
+            metadata_db,
+            logger,
+        )
 
         core.set_hard_state(hard_state)
         core.set_conf_state(conf_state)
@@ -73,26 +147,35 @@ class LMDBStorageCore:
 
         return core
 
+    def create_new_segment(self) -> None:
+        self.segment_index += 1
+        entries_env, entries_db = LMDBStorageCore.create_entry_db(
+            self.storage_path, self.node_id, self.segment_index, self.max_segment_size
+        )
+
+        self.entries_env = entries_env
+        self.entries_db = entries_db
+
     def hard_state(self) -> HardState:
-        with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
+        with self.meta_env.begin(write=False, db=self.metadata_db) as meta_reader:
             hs = meta_reader.get(HARD_STATE_KEY)
             if hs is None:
                 raise StoreError(UnavailableError("Missing hard_state"))
             return HardState.decode(hs)
 
     def set_hard_state(self, hard_state: HardState | HardStateRef) -> None:
-        with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
+        with self.meta_env.begin(write=True, db=self.metadata_db) as meta_writer:
             meta_writer.put(HARD_STATE_KEY, hard_state.encode())
 
     def conf_state(self) -> ConfState:
-        with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
+        with self.meta_env.begin(write=False, db=self.metadata_db) as meta_reader:
             conf_state = meta_reader.get(CONF_STATE_KEY)
             if conf_state is None:
                 raise StoreError(UnavailableError("There should be a conf state"))
             return ConfState.decode(conf_state)
 
     def set_conf_state(self, conf_state: ConfState | ConfStateRef) -> None:
-        with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
+        with self.meta_env.begin(write=True, db=self.metadata_db) as meta_writer:
             meta_writer.put(CONF_STATE_KEY, conf_state.encode())
 
     def snapshot(self, _request_index: int, _to: int) -> Snapshot:
@@ -101,11 +184,11 @@ class LMDBStorageCore:
             return Snapshot.decode(snapshot) if snapshot else Snapshot.default()
 
     def set_snapshot(self, snapshot: Snapshot | SnapshotRef) -> None:
-        with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
+        with self.meta_env.begin(write=True, db=self.metadata_db) as meta_writer:
             meta_writer.put(SNAPSHOT_KEY, snapshot.encode())
 
     def first_index(self) -> int:
-        with self.env.begin(write=False, db=self.entries_db) as entry_reader:
+        with self.entries_env.begin(write=False, db=self.entries_db) as entry_reader:
             cursor = entry_reader.cursor()
 
             if not cursor.first():
@@ -118,16 +201,16 @@ class LMDBStorageCore:
             return decode_int(cursor.key()) + 1
 
     def last_index(self) -> int:
-        with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
+        with self.meta_env.begin(write=False, db=self.metadata_db) as meta_reader:
             last_index = meta_reader.get(LAST_INDEX_KEY)
             return decode_int(last_index) if last_index else 0
 
     def set_last_index(self, index: int) -> None:
-        with self.env.begin(write=True, db=self.metadata_db) as meta_writer:
+        with self.meta_env.begin(write=True, db=self.metadata_db) as meta_writer:
             meta_writer.put(LAST_INDEX_KEY, encode_int(index))
 
     def entry(self, index: int) -> Optional[Entry]:
-        with self.env.begin(write=False, db=self.entries_db) as entry_reader:
+        with self.entries_env.begin(write=False, db=self.entries_db) as entry_reader:
             entry = entry_reader.get(encode_int(index))
             return Entry.decode(entry) if entry else None
 
@@ -139,7 +222,7 @@ class LMDBStorageCore:
         _ctx: GetEntriesContext | GetEntriesContextRef,
         max_size: Optional[int] = None,
     ) -> List[Entry]:
-        with self.env.begin(write=False, db=self.entries_db) as entry_reader:
+        with self.entries_env.begin(write=False, db=self.entries_db) as entry_reader:
             self.logger.info(f"Entries [{from_}, {to}) requested")
 
             cursor = entry_reader.cursor()
@@ -165,15 +248,20 @@ class LMDBStorageCore:
     def append(self, entries: List[Entry] | List[EntryRef]) -> None:
         last_index = self.last_index()
 
-        with self.env.begin(write=True, db=self.entries_db) as entry_writer:
-            # TODO: ensure entry arrive in the right order
-            for entry in entries:
-                # assert entry.get_index() == last_index + 1
-                index = entry.get_index()
-                entry_writer.put(encode_int(index), entry.encode())
-                last_index = max(index, last_index)
+        try:
+            with self.entries_env.begin(write=True, db=self.entries_db) as entry_writer:
+                # TODO: ensure entry arrive in the right order
+                for entry in entries:
+                    # assert entry.get_index() == last_index + 1
+                    index = entry.get_index()
+                    entry_writer.put(encode_int(index), entry.encode())
+                    last_index = max(index, last_index)
 
-        self.set_last_index(last_index)
+            self.set_last_index(last_index)
+        except lmdb.MapFullError:
+            self.logger.error("EntryMap is full. Create new segment...")
+            self.create_new_segment()
+            self.append(entries)
 
     def set_hard_state_comit(self, comit: int) -> None:
         hs = self.hard_state()
@@ -199,7 +287,7 @@ class LMDBStorage:
 
     def compact(self, index: int) -> None:
         with Lock():
-            with self.core.env.begin(
+            with self.core.entries_env.begin(
                 write=True, db=self.core.entries_db
             ) as entry_writer:
                 cursor = entry_writer.cursor()
