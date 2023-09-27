@@ -7,6 +7,7 @@ from rraft import (
     ConfChange,
     ConfChangeType,
     ConfChangeV2,
+    ConfState,
     Entry,
     EntryRef,
     EntryType,
@@ -103,12 +104,9 @@ class RaftNode:
             snapshot.get_metadata().set_term(0)
             snapshot.get_metadata().get_conf_state().set_voters([1])
         else:
-            snapshot = lmdb.snapshot(0, lmdb.last_index())
-            conf_state = snapshot.get_metadata().get_conf_state()
-            if not conf_state.get_voters():
-                conf_state.set_voters([1])
-
-        lmdb.apply_snapshot(snapshot)
+            cs = ConfState.default()
+            cs.set_voters([1])
+            lmdb.set_conf_state(cs)
 
         storage = Storage(lmdb)
         raw_node = RawNode(cfg, storage, slog)
