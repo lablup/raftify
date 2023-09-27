@@ -322,16 +322,13 @@ class RaftNode:
                     raise NotImplementedError
 
     async def create_snapshot(self, index: int, term: int) -> None:
-        self.logger.info("Creating snapshot...")
         self.last_snap_time = time.time()
         snapshot_data = await self.fsm.snapshot()
 
         last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
         self.lmdb.compact(last_applied)
         self.lmdb.create_snapshot(snapshot_data, index, term)
-        self.logger.info(
-            "Snapshot created and previous log entries are cleared successfully."
-        )
+        self.logger.info("Snapshot created successfully.")
 
     async def handle_normal_entry(
         self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]

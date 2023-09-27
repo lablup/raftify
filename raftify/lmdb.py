@@ -197,7 +197,7 @@ class LMDBStorageCore:
                     )
 
             if to > from_:
-                self.logger.info(f"Entries [{from_}, {to} deleted successfully.")
+                self.logger.info(f"Entries [{from_}, {to}) deleted successfully.")
 
     def append(self, entries: List[Entry] | List[EntryRef]) -> None:
         last_index = self.last_index()
