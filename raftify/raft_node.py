@@ -237,18 +237,18 @@ class RaftNode:
         """
 
         current_retry = 0
+        node_id = message.get_to()
+
         while True:
             try:
-                await client.send_message(message, self.raftify_cfg.message_timeout)
+                if node_id in self.peers:
+                    await client.send_message(message, self.raftify_cfg.message_timeout)
                 return
             except Exception:
                 if current_retry < self.raftify_cfg.max_retry_cnt:
                     current_retry += 1
                 else:
-                    node_id = message.get_to()
-                    self.logger.debug(
-                        f'Failed to connect to "Node {node_id}" {self.raftify_cfg.max_retry_cnt} times'
-                    )
+                    self.logger.debug(f'Failed to connect to "Node {node_id}"!')
 
                     try:
                         if self.raftify_cfg.auto_remove_node:
@@ -260,11 +260,10 @@ class RaftNode:
                                 failed_request_counter.value
                                 >= self.raftify_cfg.connection_fail_limit
                             ):
-                                self.logger.debug(
-                                    f'Removed "Node {node_id}" from cluster automatically because the requests kept failed.'
-                                )
-
                                 await self.remove_node(node_id)
+                                self.logger.error(
+                                    f'Removed "Node {node_id}" from cluster automatically because the requests to the node kept failed.'
+                                )
                                 return
                             else:
                                 failed_request_counter.increase()
