@@ -182,16 +182,23 @@ class LMDBStorageCore:
 
         self.set_snapshot(snapshot)
 
-    def compact(self, index: int) -> None:
+    def compact(self, to: int) -> None:
         with self.env.begin(write=True, db=self.entries_db) as entry_writer:
             cursor = entry_writer.cursor()
-            cursor.first()
+            assert cursor.first(), "DB Empty!"
+            from_ = cursor.key()
 
-            while decode_int(cursor.key()) <= index:
+            # TODO: Maybe it would be better to include 'last_index' in compact, but when all entries removed from lmdb,
+            # performance issue occurred. So, keep the last index entry here.
+            while cursor.key() and decode_int(cursor.key()) < to:
                 if not cursor.delete():
                     self.logger.info(
                         f"Try to delete item at {decode_int(cursor.key())}, but not exist!"
                     )
+
+            self.logger.info(
+                f"Entries [{decode_int(from_)}, {to}) deleted successfully."
+            )
 
     def append(self, entries: List[Entry] | List[EntryRef]) -> None:
         last_index = self.last_index()
@@ -207,7 +214,7 @@ class LMDBStorageCore:
 
             self.set_last_index(last_index)
         except lmdb.MapFullError:
-            self.logger.error("MDB is full. Clearing previous logs and trying again.")
+            self.logger.info("MDB is full. Clearing previous logs and trying again.")
             self.compact(last_index - 1)
             self.append(entries)
 
