@@ -30,7 +30,7 @@ class RaftNodeRole(Enum):
 @dataclass
 class RequestIdResponse:
     follower_id: int
-    leader: Tuple[int, RaftClient]
+    leader: Tuple[int, RaftClient]  # (leader_id, leader_client)
     peer_addrs: dict[int, SocketAddr]
 
 
