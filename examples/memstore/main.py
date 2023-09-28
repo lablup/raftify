@@ -208,6 +208,14 @@ async def entries(request: web.Request) -> web.Response:
     return web.Response(text=res)
 
 
+@routes.get("/unstable")
+async def unstable(request: web.Request) -> web.Response:
+    cluster: RaftCluster = request.app["state"]["cluster"]
+    return web.Response(
+        text=str(cluster.raft_node.raw_node.get_raft().get_raft_log().unstable())
+    )
+
+
 async def main() -> None:
     init_rraft_py_deserializer()
 
