@@ -58,6 +58,9 @@ class RaftCluster:
         self.raft_server_task = None
 
     def __ensure_initialized(self) -> None:
+        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
+
+    def __ensure_task_running(self) -> None:
         assert (
             self.raft_server_task
         ), "Raft server is not running! Call `bootstrap_cluster` or `join_cluster` first."
@@ -85,8 +88,8 @@ class RaftCluster:
         Prepare Raft node and Raft server with the given role before using it.
         It should be called before `bootstrap_cluster` or `join_cluster`.
         """
-        self.__ensure_initialized()
         self.raft_server = RaftServer(self.addr, self.chan, self.logger)
+        assert self.raft_server is not None
         self.logger.info("Raftify config: " + str(self.cluster_config))
 
         if role == RaftNodeRole.Follower:
@@ -264,6 +267,7 @@ class RaftCluster:
         Start to run the raft node.
         """
         self.__ensure_initialized()
+        self.__ensure_task_running()
 
         try:
             await asyncio.gather(*(self.raft_server_task, self.raft_node_task))
