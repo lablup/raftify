@@ -198,6 +198,16 @@ async def snapshot(request: web.Request) -> web.Response:
     return web.Response(text="Created snapshot successfully.")
 
 
+@routes.get("/entries")
+async def entries(request: web.Request) -> web.Response:
+    cluster: RaftCluster = request.app["state"]["cluster"]
+
+    all_entries = cluster.raft_node.raw_node.get_raft().get_raft_log().all_entries()
+    res = f"[ {', '.join(list(map(lambda e: str(e), all_entries)))} ]"
+
+    return web.Response(text=res)
+
+
 async def main() -> None:
     init_rraft_py_deserializer()
 
