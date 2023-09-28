@@ -57,16 +57,24 @@ class RaftCluster:
         self.cluster_config = cluster_config
         self.raft_server_task = None
 
+    def __ensure_initialized(self) -> None:
+        assert (
+            self.raft_server_task
+        ), "Raft server is not running! Call `bootstrap_cluster` or `join_cluster` first."
+        assert (
+            self.raft_node_task
+        ), "Raft node is not running! Call `bootstrap_cluster` or `join_cluster` first."
+
     @property
     def mailbox(self) -> Mailbox:
         """
         Get the node's `Mailbox`.
         """
-        assert self.raft_node is not None, "Raft node is not initialized!"
+        self.__ensure_initialized()
         return Mailbox(self.addr, self.raft_node, self.chan, self.cluster_config)
 
     def get_peers(self) -> Peers:
-        assert self.raft_node is not None, "Raft node is not initialized!"
+        self.__ensure_initialized()
         return self.raft_node.peers
 
     def is_initialized(self) -> bool:
@@ -77,8 +85,8 @@ class RaftCluster:
         Prepare Raft node and Raft server with the given role before using it.
         It should be called before `bootstrap_cluster` or `join_cluster`.
         """
+        self.__ensure_initialized()
         self.raft_server = RaftServer(self.addr, self.chan, self.logger)
-        assert self.raft_server is not None
         self.logger.info("Raftify config: " + str(self.cluster_config))
 
         if role == RaftNodeRole.Follower:
@@ -107,7 +115,7 @@ class RaftCluster:
         """
         Create a new leader for the cluster with node_id 1.
         """
-        assert self.raft_node and self.raft_server, "Raft node is not initialized!"
+        self.__ensure_initialized()
         self.raft_server_task = asyncio.create_task(self.raft_server.run())
         self.raft_node_task = asyncio.create_task(self.raft_node.run())
 
@@ -117,7 +125,7 @@ class RaftCluster:
         raft_addr: SocketAddr,
         peer_candidates: list[SocketAddr],
     ) -> None:
-        assert self.raft_node and self.raft_server, "Raft node is not initialized!"
+        self.__ensure_initialized()
 
         if self.raft_node.is_leader():
             print("Step down from the leader...")
@@ -128,7 +136,8 @@ class RaftCluster:
         await self.join_cluster(resp)
 
     async def create_snapshot(self) -> None:
-        assert self.raft_node and self.raft_server, "Raft node is not initialized!"
+        self.__ensure_initialized()
+
         hs = self.raft_node.lmdb.core.hard_state()
         await self.raft_node.create_snapshot(
             self.raft_node.lmdb.last_index(), hs.get_term()
@@ -138,7 +147,7 @@ class RaftCluster:
         self,
         node_id: int,
     ) -> bool:
-        assert self.raft_node and self.raft_server, "Raft node is not initialized!"
+        self.__ensure_initialized()
 
         if not self.raft_node.is_leader():
             self.logger.warning("LeaderTransfer requested but not leader!")
@@ -205,7 +214,7 @@ class RaftCluster:
         """
         Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
         """
-        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
+        self.__ensure_initialized()
 
         node_id = request_id_response.follower_id
         leader = request_id_response.leader
@@ -254,14 +263,7 @@ class RaftCluster:
         """
         Start to run the raft node.
         """
-        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
-
-        assert (
-            self.raft_server_task
-        ), "Raft server is not running! Call `bootstrap_cluster` or `join_cluster` first."
-        assert (
-            self.raft_node_task
-        ), "Raft node is not running! Call `bootstrap_cluster` or `join_cluster` first."
+        self.__ensure_initialized()
 
         try:
             await asyncio.gather(*(self.raft_server_task, self.raft_node_task))
