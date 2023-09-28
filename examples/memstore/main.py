@@ -216,6 +216,16 @@ async def unstable(request: web.Request) -> web.Response:
     )
 
 
+@routes.post("/eval")
+async def query(request: web.Request) -> web.Response:
+    cluster: RaftCluster = request.app["state"]["cluster"]
+    data = await request.post()
+    query = str(data.get("query", 0))
+    print(f'Received query: {query}')
+    eval(query, {"cluster": cluster})
+    return web.Response(text=f"Evaluated {query} successfully!")
+
+
 async def main() -> None:
     init_rraft_py_deserializer()
 
