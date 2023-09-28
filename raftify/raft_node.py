@@ -98,15 +98,12 @@ class RaftNode:
             logger=logger,
         )
 
-        if raftify_cfg.no_restoration:
-            snapshot = Snapshot.default()
-            snapshot.get_metadata().set_index(0)
-            snapshot.get_metadata().set_term(0)
-            snapshot.get_metadata().get_conf_state().set_voters([1])
-        else:
-            cs = ConfState.default()
-            cs.set_voters([1])
-            lmdb.set_conf_state(cs)
+        snapshot = Snapshot.default()
+        snapshot.get_metadata().set_index(0)
+        snapshot.get_metadata().set_term(0)
+        snapshot.get_metadata().get_conf_state().set_voters([1])
+
+        lmdb.apply_snapshot(snapshot)
 
         storage = Storage(lmdb)
         raw_node = RawNode(cfg, storage, slog)
@@ -499,6 +496,7 @@ class RaftNode:
         snapshot_default = Snapshot.default()
         if ready.snapshot() != snapshot_default.make_ref():
             snapshot = ready.snapshot()
+            self.logger.info("Snapshot found. Restoring FSM from snapshot...")
             await self.fsm.restore(snapshot.get_data())
             self.lmdb.apply_snapshot(snapshot.clone())
 
