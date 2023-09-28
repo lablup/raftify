@@ -141,7 +141,7 @@ class RaftCluster:
         assert self.raft_node and self.raft_server, "Raft node is not initialized!"
 
         if not self.raft_node.is_leader():
-            print("Not leader!")
+            self.logger.warning("LeaderTransfer requested but not leader!")
             return False
 
         self.raft_node.raw_node.transfer_leader(node_id)
