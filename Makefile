@@ -14,8 +14,6 @@ lint:
 	python -m isort raftify
 	python -m black examples
 	python -m isort examples
-	python -m black tests
-	python -m isort tests
 
 install:
 	pip uninstall raftify -y

@@ -1,0 +1,6 @@
+[raft]
+# By default, assume that nodes with the address below exist in the cluster.
+# Newly joined nodes will send a RequestId request from the beginning of peer-candidates in order.
+# However, nodes that do not have an address here can also be added to the cluster, and the nodes listed here do not necessarily have to be added.
+# In addition, when the cluster bootstrap, it uses the first address of the peer-candidate.
+peer-candidates = [ "127.0.0.1:60061", "127.0.0.1:60062", "127.0.0.1:60063" ]

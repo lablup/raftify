@@ -19,7 +19,7 @@ from utils import read_cluster_info, remove_node, write_json, write_node
 
 from raftify.config import RaftifyConfig
 from raftify.error import ClusterJoinError, LeaderNotFoundError
-from raftify.raft_facade import RaftCluster, RaftNodeRole
+from raftify.raft_facade import RaftCluster
 from raftify.utils import SocketAddr
 
 routes = RouteTableDef()

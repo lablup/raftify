@@ -24,7 +24,7 @@ from raftify.fsm import FSM
 from raftify.lmdb import LMDBStorage
 from raftify.logger import AbstractRaftifyLogger
 from raftify.pb_adapter import ConfChangeV2Adapter, MessageAdapter
-from raftify.peers import Peers
+from raftify.peers import Peer, Peers
 from raftify.protos.raft_service_pb2 import RerouteMsgType
 from raftify.raft_client import RaftClient
 from raftify.raft_server import RaftServer
@@ -43,7 +43,7 @@ from raftify.response_message import (
     RaftRespMessage,
     WrongLeaderRespMessage,
 )
-from raftify.utils import AtomicInteger
+from raftify.utils import AtomicInteger, SocketAddr
 
 
 class RaftNode:
@@ -82,6 +82,7 @@ class RaftNode:
         chan: Queue,
         fsm: FSM,
         raft_server: RaftServer,
+        peers: Peers,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
         raftify_cfg: RaftifyConfig,
@@ -108,7 +109,6 @@ class RaftNode:
         storage = Storage(lmdb)
         raw_node = RawNode(cfg, storage, slog)
 
-        peers = Peers()
         seq = AtomicInteger(0)
         last_snap_time = time.time()
 
@@ -137,6 +137,7 @@ class RaftNode:
         id: int,
         fsm: FSM,
         raft_server: RaftServer,
+        peers: Peers,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
         raftify_cfg: RaftifyConfig,
@@ -156,7 +157,6 @@ class RaftNode:
         storage = Storage(lmdb)
         raw_node = RawNode(cfg, storage, slog)
 
-        peers = Peers()
         seq = AtomicInteger(0)
         last_snap_time = time.time()
 
@@ -220,7 +220,7 @@ class RaftNode:
                 next_id += 1
 
         self.logger.info(f"Reserved peer id {next_id}.")
-        self.peers[next_id] = None
+        self.peers[next_id] = Peer(client=None, addr=SocketAddr.from_str(addr))
         return next_id
 
     async def send_message(self, client: RaftClient, message: Message) -> None:
@@ -235,7 +235,7 @@ class RaftNode:
 
         while True:
             try:
-                if node_id in self.peers:
+                if self.peers[node_id].ready:
                     await client.send_message(message, self.raftify_cfg.message_timeout)
                 return
             except Exception:
@@ -347,18 +347,20 @@ class RaftNode:
         seq = AtomicInteger(pickle.loads(entry.get_context()))
         conf_change_v2 = ConfChangeV2.decode(entry.get_data())
         conf_changes = conf_change_v2.get_changes()
+        addrs = pickle.loads(conf_change_v2.get_context())
 
-        for conf_change in conf_changes:
+        for cc_idx, conf_change in enumerate(conf_changes):
             node_id = conf_change.get_node_id()
             change_type = conf_change.get_change_type()
 
             match change_type:
                 case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
-                    addr = pickle.loads(conf_change_v2.get_context())
+                    addr = addrs[cc_idx]
+
                     self.logger.info(
                         f"Node '{addr} (node id: {node_id})' added to the cluster."
                     )
-                    self.peers[node_id] = RaftClient(addr)
+                    self.peers[node_id] = Peer(addr=addr, client=RaftClient(addr), ready=True)
                 case ConfChangeType.RemoveNode:
                     if node_id == self.get_id():
                         self.should_exit = True
