@@ -183,6 +183,10 @@ class RaftCluster:
         addrs = []
 
         for node_id in self.peers.data.keys():
+            # Skip leader
+            if self.addr == self.peers.data[node_id].addr:
+                continue
+
             conf_change = ConfChangeSingle.default()
             conf_change.set_node_id(node_id)
             conf_change.set_change_type(ConfChangeType.AddNode)
@@ -209,7 +213,6 @@ class RaftCluster:
 
         if isinstance(resp, JoinSuccessRespMessage):
             self.logger.info("All follower nodes successfully joined the cluster.")
-            # await self.mailbox.bootstrap_ready()
             return
         # TODO: handle error cases
 

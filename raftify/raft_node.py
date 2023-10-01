@@ -216,13 +216,15 @@ class RaftNode:
                 if self.peers[node_id].state == PeerState.Connected:
                     await client.send_message(message, self.raftify_cfg.message_timeout)
                 return
-            except Exception:
+            except Exception as e:
                 assert self.peers[node_id].state == PeerState.Connected
 
                 if current_retry < self.raftify_cfg.max_retry_cnt:
                     current_retry += 1
                 else:
-                    self.logger.debug(f'Failed to connect to "Node {node_id}"!')
+                    self.logger.warning(
+                        f"Failed to connect to node {node_id}. Error: {e}"
+                    )
 
                     try:
                         if self.raftify_cfg.auto_remove_node:
@@ -237,7 +239,7 @@ class RaftNode:
                                 self.peers[node_id].state = PeerState.Disconnected
                                 self.remove_node(node_id)
                                 self.logger.error(
-                                    f'Removing "Node {node_id}" from cluster '
+                                    f"Removing node {node_id} from cluster "
                                     f"automatically "
                                     f"because the requests to the node kept failed."
                                 )
@@ -246,13 +248,14 @@ class RaftNode:
                                 failed_request_counter.increase()
 
                         await self.chan.put(ReportUnreachableReqMessage(node_id))
-                    except Exception:
+                    except Exception as e:
+                        self.logger.error(e)
                         pass
                     return
 
     def send_messages(self, messages: list[Message]):
         for message in messages:
-            if client := self.peers[message.get_to()]:
+            if client := self.peers[message.get_to()].client:
                 asyncio.create_task(
                     self.send_message(
                         client,
@@ -338,9 +341,7 @@ class RaftNode:
                 case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
                     addr = addrs[cc_idx]
 
-                    self.logger.info(
-                        f"Node '{addr} (node id: {node_id})' added to the cluster."
-                    )
+                    self.logger.info(f"Node {node_id} ({addr}) joined the cluster.")
                     self.peers[node_id] = Peer(
                         addr=addr, client=RaftClient(addr), state=PeerState.Connected
                     )
@@ -348,7 +349,7 @@ class RaftNode:
                     if node_id == self.get_id():
                         self.should_exit = True
                         await self.raft_server.terminate()
-                        self.logger.info(f"{self.get_id()} quit the cluster.")
+                        self.logger.info(f"Node {node_id} quit the cluster.")
                     else:
                         self.peers.data.pop(node_id, None)
                 case _:
@@ -371,8 +372,8 @@ class RaftNode:
 
             try:
                 response_queue.put_nowait(response)
-            except Exception:
-                self.logger.error("Error occurred while sending response")
+            except Exception as e:
+                self.logger.error(f"Error occurred while sending response. {e}")
 
     async def run(self) -> None:
         tick_timer = self.raftify_cfg.tick_interval
@@ -414,7 +415,6 @@ class RaftNode:
                 for node_id, peer in self.peers.data.items():
                     peers.connect(node_id, peer.addr)
 
-                print('peers!!', peers)
                 message.chan.put_nowait(RaftOkRespMessage())
 
             elif isinstance(message, MemberBootstrapReadyReqMessage):
@@ -470,7 +470,7 @@ class RaftNode:
             elif isinstance(message, RaftReqMessage):
                 msg = MessageAdapter.from_pb(message.msg)
                 self.logger.debug(
-                    f'"Node {msg.get_to()}" Received Raft message from the "Node {msg.get_from()}"'
+                    f"Node {msg.get_to()} received Raft message from the node {msg.get_from()}"
                 )
 
                 self.raw_node.step(msg)

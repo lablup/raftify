@@ -157,12 +157,9 @@ async def join_all_followers(cluster: RaftCluster, peers: Peers):
         )
     await cluster.join_followers()
 
-    print("peers", cluster.peers)
     for node_id, peer in peers.data.items():
         if node_id == 1:
             continue
-        print('node_id!', node_id)
-        print('peer!', peer.client)
 
         raw_peers = cluster.peers.encode()
         await peer.client.bootstrap_ready(raw_peers, 5.0)

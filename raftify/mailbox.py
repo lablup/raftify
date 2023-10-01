@@ -81,13 +81,16 @@ class Mailbox:
         # TODO: make timeout duration a variable
         await self.sender.put(ProposeReqMessage(message, receiver))
 
-        resp = await self.__handle_response(
-            await asyncio.wait_for(receiver.get(), 2),
-            reroute_msg_type=raft_service_pb2.Propose,
-            proposed_data=message,
-        )
-        assert resp is not None
-        return resp
+        try:
+            resp = await self.__handle_response(
+                await asyncio.wait_for(receiver.get(), 2),
+                reroute_msg_type=raft_service_pb2.Propose,
+                proposed_data=message,
+            )
+            assert resp is not None
+            return resp
+        except Exception as e:
+            print("Error occured while sending message through mailbox", e)
 
     async def leave(self, node_id: int) -> None:
         conf_change = ConfChange.default()
