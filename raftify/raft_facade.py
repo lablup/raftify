@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Tuple
 
 import grpc
-from rraft import ConfChangeSingle, ConfChangeType, ConfChangeV2, Logger, LoggerRef
+from rraft import ConfChangeSingle, ConfChangeTransition, ConfChangeType, ConfChangeV2, Logger, LoggerRef
 
 from raftify.config import RaftifyConfig
 from raftify.error import ClusterJoinError, LeaderNotFoundError, UnknownError
@@ -179,6 +179,7 @@ class RaftCluster:
         assert self.raft_node.is_leader(), "Only leader can join followers!"
 
         conf_change_v2 = ConfChangeV2.default()
+        conf_change_v2.set_transition(ConfChangeTransition.Explicit)
         changes = []
         addrs = []
 
