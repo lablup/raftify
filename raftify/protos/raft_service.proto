@@ -4,28 +4,31 @@ package raftservice;
 import "eraftpb.proto";
 
 service RaftService {
+  rpc MemberBootstrapReady(MemberBootstrapReadyArgs) returns (RaftMessageResponse) {}
+  rpc BootstrapReady(BootstrapReadyArgs) returns (RaftMessageResponse) {}
   rpc RequestId(IdRequestArgs) returns (IdRequestResponse) {}
   rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
   rpc SendMessage(eraftpb.Message) returns (RaftMessageResponse) {}
   rpc RerouteMessage(RerouteMessageArgs) returns (RaftMessageResponse) {}
 }
 
-message Proposal {
-  bytes inner                    = 1;
+// Used in Static Member's Bootstrap
+
+message MemberBootstrapReadyArgs {
+  uint64 follower_id              = 1;
 }
 
-message Entry {
-  uint64 key                     = 1; 
-  string value                   = 2;
+message BootstrapReadyArgs {
+  bytes peers                     = 1;
 }
 
-// SendMessage
+// Used in SendMessage
 
 message RaftMessageResponse {
   bytes data                     = 1;
 }
 
-// ChangeConfig
+// Config Change
 
 enum ChangeConfigResult {
   ChangeConfig_Success                    = 0;
@@ -39,7 +42,11 @@ message ChangeConfigResponse {
   bytes data                     = 2;
 }
 
-// IdRequest
+// IdRequest for Dynamic Membership
+
+message IdRequestArgs {
+  string addr                    = 1;
+}
 
 enum IdRequestResult {
   IdRequest_Success              = 0;
@@ -52,11 +59,7 @@ message IdRequestResponse {
   bytes data                     = 2;
 }
 
-message IdRequestArgs {
-  string addr                    = 1;
-}
-
-// Reroute
+// Message Rerouting
 
 enum RerouteMsgType {
   ConfChange                     = 0;

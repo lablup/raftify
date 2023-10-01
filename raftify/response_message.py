@@ -18,14 +18,14 @@ class WrongLeaderRespMessage(RaftResponse, PickleSerializer):
 @dataclass
 class JoinSuccessRespMessage(RaftResponse, PickleSerializer):
     assigned_id: int
-    peer_addrs: dict[int, str]
+    peers: bytes
 
 
 @dataclass
 class IdReservedRespMessage(RaftResponse, PickleSerializer):
     leader_id: int
     reserved_id: int
-    peer_addrs: dict[int, str]
+    peers: bytes
 
 
 @dataclass

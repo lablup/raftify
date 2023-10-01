@@ -7,7 +7,6 @@ from rraft import (
     ConfChange,
     ConfChangeType,
     ConfChangeV2,
-    ConfState,
     Entry,
     EntryRef,
     EntryType,
@@ -24,12 +23,14 @@ from raftify.fsm import FSM
 from raftify.lmdb import LMDBStorage
 from raftify.logger import AbstractRaftifyLogger
 from raftify.pb_adapter import ConfChangeV2Adapter, MessageAdapter
-from raftify.peers import Peer, Peers
+from raftify.peers import Peer, Peers, PeerState
 from raftify.protos.raft_service_pb2 import RerouteMsgType
 from raftify.raft_client import RaftClient
 from raftify.raft_server import RaftServer
 from raftify.request_message import (
+    BootstrapReadyReqMessage,
     ConfigChangeReqMessage,
+    MemberBootstrapReadyReqMessage,
     ProposeReqMessage,
     RaftReqMessage,
     ReportUnreachableReqMessage,
@@ -43,7 +44,7 @@ from raftify.response_message import (
     RaftRespMessage,
     WrongLeaderRespMessage,
 )
-from raftify.utils import AtomicInteger, SocketAddr
+from raftify.utils import AtomicInteger
 
 
 class RaftNode:
@@ -184,12 +185,12 @@ class RaftNode:
         return self.get_id() == self.get_leader_id()
 
     def remove_node(self, node_id: int) -> None:
-        client = self.peers[node_id]
+        peer = self.peers[node_id]
 
         self.seq.increase()
         conf_change = ConfChange.default()
         conf_change.set_node_id(node_id)
-        conf_change.set_context(pickle.dumps(client.addr))
+        conf_change.set_context(pickle.dumps(peer.addr))
         conf_change.set_change_type(ConfChangeType.RemoveNode)
         context = pickle.dumps(self.seq.value)
 
@@ -199,29 +200,6 @@ class RaftNode:
             conf_change_v2,
         )
         self.raw_node.apply_conf_change_v2(conf_change_v2)
-        del self.peers[node_id]
-
-    def reserve_next_peer_id(self, addr: str) -> int:
-        """
-        Reserve a slot to insert node on next node addition commit.
-        """
-        prev_conns = [
-            id for id, peer in self.peers.items() if peer and addr == str(peer.addr)
-        ]
-
-        if len(prev_conns) > 0:
-            next_id = prev_conns[0]
-        else:
-            next_id = max(self.peers.keys()) if any(self.peers) else 1
-            next_id = max(next_id + 1, self.get_id())
-
-            # if assigned id is ourself, return next one
-            if next_id == self.get_id():
-                next_id += 1
-
-        self.logger.info(f"Reserved peer id {next_id}.")
-        self.peers[next_id] = Peer(client=None, addr=SocketAddr.from_str(addr))
-        return next_id
 
     async def send_message(self, client: RaftClient, message: Message) -> None:
         """
@@ -235,10 +213,12 @@ class RaftNode:
 
         while True:
             try:
-                if self.peers[node_id].ready:
+                if self.peers[node_id].state == PeerState.Connected:
                     await client.send_message(message, self.raftify_cfg.message_timeout)
                 return
             except Exception:
+                assert self.peers[node_id].state == PeerState.Connected
+
                 if current_retry < self.raftify_cfg.max_retry_cnt:
                     current_retry += 1
                 else:
@@ -248,12 +228,13 @@ class RaftNode:
                         if self.raftify_cfg.auto_remove_node:
                             failed_request_counter = self.peers[
                                 node_id
-                            ].failed_request_counter
+                            ].client.failed_request_counter
 
                             if (
                                 failed_request_counter.value
                                 >= self.raftify_cfg.connection_fail_limit
                             ):
+                                self.peers[node_id].state = PeerState.Disconnected
                                 self.remove_node(node_id)
                                 self.logger.error(
                                     f'Removing "Node {node_id}" from cluster '
@@ -271,7 +252,7 @@ class RaftNode:
 
     def send_messages(self, messages: list[Message]):
         for message in messages:
-            if client := self.peers.get(message.get_to()):
+            if client := self.peers[message.get_to()]:
                 asyncio.create_task(
                     self.send_message(
                         client,
@@ -360,14 +341,16 @@ class RaftNode:
                     self.logger.info(
                         f"Node '{addr} (node id: {node_id})' added to the cluster."
                     )
-                    self.peers[node_id] = Peer(addr=addr, client=RaftClient(addr), ready=True)
+                    self.peers[node_id] = Peer(
+                        addr=addr, client=RaftClient(addr), state=PeerState.Connected
+                    )
                 case ConfChangeType.RemoveNode:
                     if node_id == self.get_id():
                         self.should_exit = True
                         await self.raft_server.terminate()
                         self.logger.info(f"{self.get_id()} quit the cluster.")
                     else:
-                        self.peers.pop(node_id, None)
+                        self.peers.data.pop(node_id, None)
                 case _:
                     raise NotImplementedError
 
@@ -379,7 +362,7 @@ class RaftNode:
             match change_type:
                 case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
                     response = JoinSuccessRespMessage(
-                        assigned_id=node_id, peer_addrs=self.peers.peer_addrs()
+                        assigned_id=node_id, peers=self.peers
                     )
                 case ConfChangeType.RemoveNode:
                     response = RaftOkRespMessage()
@@ -422,7 +405,26 @@ class RaftNode:
                             data=message.proposed_data, chan=message.chan
                         )
 
-            if isinstance(message, ConfigChangeReqMessage):
+            if isinstance(message, BootstrapReadyReqMessage):
+                self.logger.info(
+                    "All nodes are ready to join the cluster. Start to bootstrap process..."
+                )
+                peers = Peers.decode(message.peers)
+                self.peers = peers
+                for node_id, peer in self.peers.data.items():
+                    peers.connect(node_id, peer.addr)
+
+                print('peers!!', peers)
+                message.chan.put_nowait(RaftOkRespMessage())
+
+            elif isinstance(message, MemberBootstrapReadyReqMessage):
+                assert self.is_leader(), "Only leader can handle this message!"
+                follower_id = message.follower_id
+                self.logger.info(f"Node {follower_id} request to join the cluster.")
+                self.peers.connect(follower_id, self.peers[follower_id].addr)
+                message.chan.put_nowait(RaftOkRespMessage())
+
+            elif isinstance(message, ConfigChangeReqMessage):
                 if not self.is_leader():
                     # TODO: retry strategy in case of failure
                     await self.send_wrongleader_response(message.chan)
@@ -458,8 +460,10 @@ class RaftNode:
                     await message.chan.put(
                         IdReservedRespMessage(
                             leader_id=self.get_leader_id(),
-                            reserved_id=self.reserve_next_peer_id(message.addr),
-                            peer_addrs=self.peers.peer_addrs(),
+                            reserved_id=self.peers.reserve_peer(
+                                self.raw_node, message.addr
+                            ),
+                            peers=peers.encode(),
                         )
                     )
 
@@ -498,7 +502,7 @@ class RaftNode:
         snapshot_default = Snapshot.default()
         if ready.snapshot() != snapshot_default.make_ref():
             snapshot = ready.snapshot()
-            self.logger.info("Snapshot found. Restoring FSM from snapshot...")
+            self.logger.info("Restoring FSM from snapshot...")
             await self.fsm.restore(snapshot.get_data())
             self.lmdb.apply_snapshot(snapshot.clone())
 

@@ -38,21 +38,17 @@ IdRequest_WrongLeader: IdRequestResult
 ConfChange: RerouteMsgType
 Propose: RerouteMsgType
 
-class Proposal(_message.Message):
-    __slots__ = ["inner"]
-    INNER_FIELD_NUMBER: _ClassVar[int]
-    inner: bytes
-    def __init__(self, inner: _Optional[bytes] = ...) -> None: ...
+class MemberBootstrapReadyArgs(_message.Message):
+    __slots__ = ["follower_id"]
+    FOLLOWER_ID_FIELD_NUMBER: _ClassVar[int]
+    follower_id: int
+    def __init__(self, follower_id: _Optional[int] = ...) -> None: ...
 
-class Entry(_message.Message):
-    __slots__ = ["key", "value"]
-    KEY_FIELD_NUMBER: _ClassVar[int]
-    VALUE_FIELD_NUMBER: _ClassVar[int]
-    key: int
-    value: str
-    def __init__(
-        self, key: _Optional[int] = ..., value: _Optional[str] = ...
-    ) -> None: ...
+class BootstrapReadyArgs(_message.Message):
+    __slots__ = ["peers"]
+    PEERS_FIELD_NUMBER: _ClassVar[int]
+    peers: bytes
+    def __init__(self, peers: _Optional[bytes] = ...) -> None: ...
 
 class RaftMessageResponse(_message.Message):
     __slots__ = ["data"]
@@ -72,6 +68,12 @@ class ChangeConfigResponse(_message.Message):
         data: _Optional[bytes] = ...,
     ) -> None: ...
 
+class IdRequestArgs(_message.Message):
+    __slots__ = ["addr"]
+    ADDR_FIELD_NUMBER: _ClassVar[int]
+    addr: str
+    def __init__(self, addr: _Optional[str] = ...) -> None: ...
+
 class IdRequestResponse(_message.Message):
     __slots__ = ["result", "data"]
     RESULT_FIELD_NUMBER: _ClassVar[int]
@@ -83,12 +85,6 @@ class IdRequestResponse(_message.Message):
         result: _Optional[_Union[IdRequestResult, str]] = ...,
         data: _Optional[bytes] = ...,
     ) -> None: ...
-
-class IdRequestArgs(_message.Message):
-    __slots__ = ["addr"]
-    ADDR_FIELD_NUMBER: _ClassVar[int]
-    addr: str
-    def __init__(self, addr: _Optional[str] = ...) -> None: ...
 
 class RerouteMessageArgs(_message.Message):
     __slots__ = ["proposed_data", "conf_change", "type"]

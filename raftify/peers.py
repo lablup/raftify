@@ -1,65 +1,110 @@
-from dataclasses import dataclass
 import json
-from collections import UserDict
-from typing import ItemsView, Optional
+import pickle
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Optional
 
+from rraft import RawNode
+
+# from raftify.logger import AbstractRaftifyLogger
 from raftify.raft_client import RaftClient
 from raftify.utils import SocketAddr
+
+
+class PeerState(StrEnum):
+    Preparing = "Preparing"
+    Connected = "Connected"
+    Disconnected = "Disconnected"
+    Quitted = "Quitted"
 
 
 @dataclass
 class Peer:
     addr: SocketAddr
     client: Optional[RaftClient] = None
-    ready: bool = False
+    state: PeerState = PeerState.Preparing
 
     def to_dict(self) -> dict:
         return {
             "client": self.client.to_dict() if self.client is not None else None,
             "addr": str(self.addr),
-            "ready": self.ready,
+            "state": self.state,
         }
 
 
-class Peers(UserDict):
-    # the peer client could be optional, because an id can be reserved and later populated
-    data: dict[int, Peer]
-
-    def __getitem__(self, key: int | str) -> Peer:
-        return super().__getitem__(key)
+class Peers:
+    def __init__(self, peers: dict[int, Peer]) -> None:
+        self.data = peers
 
     def __repr__(self) -> str:
         return json.dumps(
-            {
-                str(key): value.to_dict() if value is not None else None
-                for key, value in self.data.items()
-            }
+            {str(node_id): peer.to_dict() for node_id, peer in self.data.items()}
         )
 
-    def items(self) -> ItemsView[int, Peer]:
-        return self.data.items()
+    def __getitem__(self, node_id: int) -> Peer:
+        return self.data.get(node_id)
 
-    def peer_addrs(self) -> dict[int, str]:
-        return {k: str(v.addr) for k, v in self.data.items() if v is not None}
+    def __setitem__(self, key: int, value: Peer):
+        self.data[key] = value
 
-    # def reserve_next_peer_id(self, addr: str) -> int:
-    #     """
-    #     Reserve a slot to insert node on next node addition commit.
-    #     """
-    #     prev_conns = [
-    #         id for id, peer in self.items() if peer and addr == str(peer.addr)
-    #     ]
+    def __len__(self) -> int:
+        return len(self.data)
 
-    #     if len(prev_conns) > 0:
-    #         next_id = prev_conns[0]
-    #     else:
-    #         next_id = max(self.data.keys()) if any(self.data) else 1
-    #         next_id = max(next_id + 1, self.get_id())
+    def encode(self) -> bytes:
+        peers = Peers({})
+        for node_id, peer in self.data.items():
+            peers[node_id] = Peer(peer.addr, None, peer.state)
+        return pickle.dumps(peers)
 
-    #         # if assigned id is ourself, return next one
-    #         if next_id == self.get_id():
-    #             next_id += 1
+    @staticmethod
+    def decode(bytes: bytes) -> "Peers":
+        return pickle.loads(bytes)
 
-    #     # self.logger.info(f"Reserved peer id {next_id}.")
-    #     self.data[next_id] = Peer(None, SocketAddr.from_str(addr))
-    #     return next_id
+    def reserve_peer(self, raw_node: RawNode, addr: SocketAddr) -> int:
+        """ """
+        prev_conns = [
+            node_id
+            for node_id, peer in self.data.items()
+            if peer.addr == addr and peer.state == PeerState.Disconnected
+        ]
+
+        if len(prev_conns) > 0:
+            next_id = prev_conns[0]
+        else:
+            next_id = max(self.data.keys()) if any(self.data) else 1
+            next_id = max(next_id + 1, raw_node.get_raft().get_id())
+
+            # if assigned id is ourself, return next one
+            if next_id == raw_node.get_raft().get_id():
+                next_id += 1
+
+        # self.logger.info(f"Reserved peer id {next_id}.")
+        self.data[next_id] = Peer(client=None, addr=addr)
+        return next_id
+
+    def ready_peer(self, addr: SocketAddr) -> None:
+        """ """
+        for peer in self.data.values():
+            if peer.addr == addr:
+                if peer.state == PeerState.Connected:
+                    # self.logger.warning(
+                    #     f'ready_peer requested but the peer "{addr}" is already ready.'
+                    # )
+                    return
+
+                peer.state = PeerState.Connected
+                return
+
+    def get_node_id_by_addr(self, addr: SocketAddr) -> Optional[int]:
+        """ """
+        for node_id, peer in self.data.items():
+            if peer.addr == addr:
+                return node_id
+
+        return None
+
+    def connect(self, id: int, addr: SocketAddr) -> None:
+        """ """
+        self.data[id].addr = addr
+        self.data[id].state = PeerState.Connected
+        self.data[id].client = RaftClient(addr)

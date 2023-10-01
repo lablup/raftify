@@ -10,7 +10,12 @@ from raftify.error import UnknownError
 from raftify.pb_adapter import ConfChangeV2Adapter
 from raftify.protos import raft_service_pb2
 from raftify.raft_node import RaftNode
-from raftify.request_message import ConfigChangeReqMessage, ProposeReqMessage
+from raftify.request_message import (
+    BootstrapReadyReqMessage,
+    ConfigChangeReqMessage,
+    MemberBootstrapReadyReqMessage,
+    ProposeReqMessage,
+)
 from raftify.response_message import (
     RaftOkRespMessage,
     RaftRespMessage,
@@ -41,7 +46,7 @@ class Mailbox:
         self,
         response: RaftResponse,
         *,
-        reroute_msg_type: raft_service_pb2.RerouteMsgType,
+        reroute_msg_type: Optional[raft_service_pb2.RerouteMsgType] = None,
         proposed_data: Optional[bytes] = None,
         conf_change: Optional[raft_service_pb2.ConfChange] = None,
     ) -> Optional[bytes]:
@@ -50,6 +55,8 @@ class Mailbox:
         if isinstance(response, RaftRespMessage):
             return response.data
         elif isinstance(response, WrongLeaderRespMessage):
+            assert reroute_msg_type is not None
+
             leader_id = self.raft_node.get_leader_id()
             resp_from_leader = await self.raft_node.peers[leader_id].reroute_message(
                 reroute_msg_type=reroute_msg_type,
@@ -98,4 +105,19 @@ class Mailbox:
             await receiver.get(),
             reroute_msg_type=raft_service_pb2.ConfChange,
             conf_change=conf_change_v2,
+        )
+
+    async def bootstrap_ready(self) -> None:
+        receiver: Queue = Queue()
+        raw_peers = self.raft_node.peers.encode()
+        await self.sender.put(BootstrapReadyReqMessage(raw_peers, receiver))
+        await self.__handle_response(
+            await receiver.get(),
+        )
+
+    async def member_bootstrap_ready(self, follower_id: int) -> None:
+        receiver: Queue = Queue()
+        await self.sender.put(MemberBootstrapReadyReqMessage(follower_id, receiver))
+        await self.__handle_response(
+            await receiver.get(),
         )

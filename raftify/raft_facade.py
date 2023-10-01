@@ -14,7 +14,7 @@ from raftify.fsm import FSM
 from raftify.logger import AbstractRaftifyLogger
 from raftify.mailbox import Mailbox
 from raftify.pb_adapter import ConfChangeV2Adapter
-from raftify.peers import Peers
+from raftify.peers import Peer, Peers, PeerState
 from raftify.protos import raft_service_pb2
 from raftify.raft_client import RaftClient
 from raftify.raft_node import RaftNode
@@ -28,7 +28,7 @@ from raftify.utils import SocketAddr
 class RequestIdResponse:
     follower_id: int
     leader: Tuple[int, RaftClient]  # (leader_id, leader_client)
-    peer_addrs: dict[int, SocketAddr]
+    peers: Peers
 
 
 class FollowerInfo:
@@ -45,6 +45,7 @@ class RaftCluster:
         fsm: FSM,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
+        peers: Peers,
     ):
         """
         Creates a new node with the given address and store.
@@ -55,17 +56,25 @@ class RaftCluster:
         self.logger = logger
         self.chan: Queue = Queue(maxsize=100)
         self.cluster_config = cluster_config
-        self.peers = Peers({})
+        self.peers = peers
         self.raft_node = None
         self.raft_server = None
         self.raft_node_task = None
         self.raft_server_task = None
+
+        if self_peer_id := self.peers.get_node_id_by_addr(self.addr):
+            self.peers.connect(self_peer_id, self.addr)
 
     def __ensure_initialized(self) -> None:
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
 
     def is_initialized(self) -> bool:
         return self.raft_node is not None and self.raft_server is not None
+
+    def cluster_bootstrap_ready(self, expected_size: int) -> bool:
+        return len(self.peers) >= expected_size and all(
+            data.state == PeerState.Connected for data in self.peers.data.values()
+        )
 
     @property
     def mailbox(self) -> Mailbox:
@@ -105,6 +114,7 @@ class RaftCluster:
     ) -> int:
         """
         To join the cluster, find out which node is the leader and get node_id from the leader.
+        Used only in the dynamic cluster join process.
         """
 
         for peer_addr in peer_candidates:
@@ -127,19 +137,15 @@ class RaftCluster:
                 match resp.result:
                     case raft_service_pb2.IdRequest_Success:
                         leader_addr = peer_addr
-                        leader_id, node_id, peer_addrs = pickle.loads(resp.data)
+                        leader_id, node_id, raw_peers = pickle.loads(resp.data)
+                        peers = Peers.decode(raw_peers)
 
-                        # self.peers = Peers(
-                        #     {
-                        #         **{
-                        #             node_id: RaftClient(addr)
-                        #             for node_id, addr in peer_addrs.items()
-                        #         },
-                        #         leader_id: RaftClient(leader_addr),
-                        #     }
-                        # )
+                        self.peers = peers
+                        self.peers.data[leader_id] = Peer(
+                            addr=leader_addr, client=RaftClient(leader_addr)
+                        )
 
-                        # if node_id in self.peers.keys():
+                        # if node_id in self.peers.data.keys():
                         # del self.peers[node_id]
 
                         break
@@ -160,7 +166,7 @@ class RaftCluster:
         assert leader_id is not None and node_id is not None
 
         self.logger.info(
-            f"Obtained node id {node_id} from the leader node {leader_id}."
+            f"Obtained node id {node_id} successfully from the leader node {leader_id}."
         )
 
         return node_id
@@ -176,7 +182,7 @@ class RaftCluster:
         changes = []
         addrs = []
 
-        for node_id in self.peers.keys():
+        for node_id in self.peers.data.keys():
             conf_change = ConfChangeSingle.default()
             conf_change.set_node_id(node_id)
             conf_change.set_change_type(ConfChangeType.AddNode)
@@ -203,10 +209,11 @@ class RaftCluster:
 
         if isinstance(resp, JoinSuccessRespMessage):
             self.logger.info("All follower nodes successfully joined the cluster.")
+            # await self.mailbox.bootstrap_ready()
             return
         # TODO: handle error cases
 
-    async def run_raft(self, node_id: int) -> None:
+    def run_raft(self, node_id: int) -> None:
         """ """
         self.logger.info(
             "Start to run RaftNode. Raftify config: " + str(self.cluster_config)
@@ -237,6 +244,10 @@ class RaftCluster:
 
         self.raft_server_task = asyncio.create_task(self.raft_server.run())
         self.raft_node_task = asyncio.create_task(self.raft_node.run())
+
+    async def wait_for_termination(self) -> None:
+        """ """
+        self.__ensure_initialized()
 
         try:
             await asyncio.gather(*(self.raft_server_task, self.raft_node_task))

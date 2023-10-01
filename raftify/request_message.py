@@ -18,6 +18,18 @@ class ProposeReqMessage(RaftRequest, PickleSerializer):
 
 
 @dataclass
+class MemberBootstrapReadyReqMessage(RaftRequest, PickleSerializer):
+    follower_id: int
+    chan: Queue
+
+
+@dataclass
+class BootstrapReadyReqMessage(RaftRequest, PickleSerializer):
+    peers: bytes
+    chan: Queue
+
+
+@dataclass
 class RerouteToLeaderReqMessage(RaftRequest, PickleSerializer):
     proposed_data: Optional[bytes]
     conf_change: Optional[raft_service_pb2.ConfChange]

@@ -20,6 +20,7 @@ from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.fsm import FSM
 from raftify.peers import Peer, Peers
+from raftify.raft_client import RaftClient
 from raftify.raft_facade import RaftCluster
 from raftify.utils import SocketAddr
 
@@ -49,12 +50,16 @@ def setup_logger() -> logging.Logger:
     return logging.getLogger()
 
 
-def load_peer_candidates() -> list[SocketAddr]:
+def load_peers() -> Peers:
     path = Path(__file__).parent / "config.toml"
-    return [
-        SocketAddr.from_str(addr)
-        for addr in tomli.loads(path.read_text())["raft"]["peer-candidates"]
-    ]
+    cfg = tomli.loads(path.read_text())["raft"]["peers"]
+
+    return Peers(
+        {
+            int(entry["node_id"]): Peer(addr=SocketAddr(entry["ip"], entry["port"]))
+            for entry in cfg
+        }
+    )
 
 
 slog = setup_slog()
@@ -142,15 +147,25 @@ async def peers(request: web.Request) -> web.Response:
     return web.Response(text=str(cluster.get_peers()))
 
 
-async def join_all_followers(cluster: RaftCluster, peer_addrs: list[SocketAddr]):
+async def join_all_followers(cluster: RaftCluster, peers: Peers):
     await asyncio.sleep(1)
-    while len(cluster.peers.keys()) < len(peer_addrs) - 1:
-        len_ = len(cluster.peers.keys())
+    while not cluster.cluster_bootstrap_ready(len(peers)):
+        len_ = len(cluster.peers)
         await asyncio.sleep(2)
         logger.debug(
             f"Waiting for all peers to make join request to the cluster. Current peers count: {len_}"
         )
     await cluster.join_followers()
+
+    print("peers", cluster.peers)
+    for node_id, peer in peers.data.items():
+        if node_id == 1:
+            continue
+        print('node_id!', node_id)
+        print('peer!', peer.client)
+
+        raw_peers = cluster.peers.encode()
+        await peer.client.bootstrap_ready(raw_peers, 5.0)
 
 
 async def main() -> None:
@@ -160,23 +175,17 @@ async def main() -> None:
     parser.add_argument(
         "--bootstrap", action=argparse.BooleanOptionalAction, default=None
     )
-
     parser.add_argument("--raft-addr", default=None)
     parser.add_argument("--web-server", default=None)
-
     args = parser.parse_args()
-
     bootstrap = args.bootstrap
     raft_addr = (
         SocketAddr.from_str(args.raft_addr) if args.raft_addr is not None else None
     )
     web_server_addr = args.web_server
-
-    peer_addrs = load_peer_candidates()
-
+    peers = load_peers()
     store = HashStore()
-
-    target_addr = peer_addrs[0] if bootstrap and not raft_addr else raft_addr
+    target_addr = peers[1].addr if bootstrap and not raft_addr else raft_addr
 
     cfg = RaftifyConfig(
         log_dir="./",
@@ -188,29 +197,28 @@ async def main() -> None:
         ),
     )
 
-    cluster = RaftCluster(cfg, target_addr, store, slog, logger)
-    cluster.peers = Peers({
-        1: Peer(addr=SocketAddr.from_str("127.0.0.1:60061")),
-        2: Peer(addr=SocketAddr.from_str("127.0.0.1:60062")),
-        3: Peer(addr=SocketAddr.from_str("127.0.0.1:60063")),
-    })
+    cluster = RaftCluster(cfg, target_addr, store, slog, logger, peers)
     tasks = []
 
     if bootstrap:
         logger.info("Bootstrap a Raft Cluster")
         node_id = 1
+        cluster.run_raft(node_id)
+        tasks.append(cluster.wait_for_termination())
+        tasks.append(join_all_followers(cluster, cluster.peers))
     else:
         assert (
             raft_addr is not None
         ), "Follower node requires a --raft-addr option to join the cluster"
 
         logger.info("Running in follower mode")
-        node_id = await cluster.request_id(raft_addr, peer_addrs)
+        node_id = peers.get_node_id_by_addr(raft_addr)
+        assert node_id is not None, "Member Node id is not found"
 
-    tasks.append(cluster.run_raft(node_id))
-
-    if bootstrap:
-        tasks.append(join_all_followers(cluster, peer_addrs))
+        cluster.run_raft(node_id)
+        leader_client = RaftClient(peers[1].addr)
+        await leader_client.member_bootstrap_ready(node_id, 5.0)
+        tasks.append(cluster.wait_for_termination())
 
     app_runner = None
     if web_server_addr:

@@ -59,6 +59,24 @@ class RaftClient:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
             return await asyncio.wait_for(stub.RequestId(request), timeout)
 
+    async def member_bootstrap_ready(
+        self, follower_id: int, timeout: float
+    ) -> raft_service_pb2.RaftMessageResponse:
+        request = raft_service_pb2.MemberBootstrapReadyArgs(follower_id=follower_id)
+
+        async with self.__create_channel() as channel:
+            stub = raft_service_pb2_grpc.RaftServiceStub(channel)
+            return await asyncio.wait_for(stub.MemberBootstrapReady(request), timeout)
+
+    async def bootstrap_ready(
+        self, peers: bytes, timeout: float
+    ) -> raft_service_pb2.RaftMessageResponse:
+        request = raft_service_pb2.BootstrapReadyArgs(peers=peers)
+
+        async with self.__create_channel() as channel:
+            stub = raft_service_pb2_grpc.RaftServiceStub(channel)
+            return await asyncio.wait_for(stub.BootstrapReady(request), timeout)
+
     async def reroute_message(
         self,
         reroute_msg_type: raft_service_pb2.RerouteMsgType,

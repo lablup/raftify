@@ -15,7 +15,9 @@ class RaftifyConfig:
     - auto_remove_node: Whether to automatically remove a node from the cluster if it keeps not responding.
     - connection_fail_limit: Maximum number of connection failures before removing a node from the cluster.
     - message_timeout: Timeout duration for a message request.
-    - snapshot_interval: Interval between snapshots. Set to 0 to disable. Snapshots are also created after confchange is applied.
+    - snapshot_interval: Interval between snapshots.
+        Set to 0 to disable.
+        Snapshots are also created after configuration changes are applied.
     - lmdb_map_size: Maximum size lmdb database may grow to.
     - no_restoration: Ignore previous logs when bootstrapping the cluster. Useful for testing.
     """

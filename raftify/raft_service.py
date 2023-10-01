@@ -7,7 +7,9 @@ import grpc
 from raftify.logger import AbstractRaftifyLogger
 from raftify.protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
 from raftify.request_message import (
+    BootstrapReadyReqMessage,
     ConfigChangeReqMessage,
+    MemberBootstrapReadyReqMessage,
     RaftReqMessage,
     RequestIdReqMessage,
     RerouteToLeaderReqMessage,
@@ -43,12 +45,12 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
             )
         elif isinstance(response, IdReservedRespMessage):
             reserved_id = response.reserved_id
-            peer_addrs = response.peer_addrs
+            peers = response.peers
             leader_id = response.leader_id
 
             return raft_service_pb2.IdRequestResponse(
                 result=raft_service_pb2.IdRequest_Success,
-                data=pickle.dumps(tuple([leader_id, reserved_id, peer_addrs])),
+                data=pickle.dumps(tuple([leader_id, reserved_id, peers])),
             )
         else:
             assert False, "Unreachable"
@@ -93,6 +95,34 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         self, request: eraftpb_pb2.Message, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.RaftMessageResponse:
         await self.sender.put(RaftReqMessage(request))
+        return raft_service_pb2.RaftMessageResponse(data=RaftOkRespMessage().encode())
+
+    async def BootstrapReady(
+        self,
+        request: raft_service_pb2.BootstrapReadyArgs,
+        context: grpc.aio.ServicerContext,
+    ) -> raft_service_pb2.RaftMessageResponse:
+        receiver: Queue = Queue()
+        await self.sender.put(
+            BootstrapReadyReqMessage(peers=request.peers, chan=receiver)
+        )
+        _ = await receiver.get()
+
+        return raft_service_pb2.RaftMessageResponse(data=RaftOkRespMessage().encode())
+
+    async def MemberBootstrapReady(
+        self,
+        request: raft_service_pb2.MemberBootstrapReadyArgs,
+        context: grpc.aio.ServicerContext,
+    ) -> raft_service_pb2.RaftMessageResponse:
+        receiver: Queue = Queue()
+        await self.sender.put(
+            MemberBootstrapReadyReqMessage(
+                follower_id=request.follower_id, chan=receiver
+            )
+        )
+        _ = await receiver.get()
+
         return raft_service_pb2.RaftMessageResponse(data=RaftOkRespMessage().encode())
 
     async def RerouteMessage(
