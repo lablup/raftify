@@ -200,6 +200,7 @@ class RaftNode:
             conf_change_v2,
         )
         self.raw_node.apply_conf_change_v2(conf_change_v2)
+        del self.peers.data[node_id]
 
     async def send_message(self, client: RaftClient, message: Message) -> None:
         """
@@ -255,13 +256,14 @@ class RaftNode:
 
     def send_messages(self, messages: list[Message]):
         for message in messages:
-            if client := self.peers[message.get_to()].client:
-                asyncio.create_task(
-                    self.send_message(
-                        client,
-                        message,
+            if peer := self.peers[message.get_to()]:
+                if client := peer.client:
+                    asyncio.create_task(
+                        self.send_message(
+                            client,
+                            message,
+                        )
                     )
-                )
 
     async def send_wrongleader_response(self, channel: Queue) -> None:
         # TODO: Make this follower to new cluster's leader
@@ -289,10 +291,6 @@ class RaftNode:
         # _last_apply_index = 0
 
         for entry in committed_entries:
-            # Empty entry, when the peer becomes Leader it will send an empty entry.
-            if not entry.get_data():
-                continue
-
             match entry.get_entry_type():
                 case EntryType.EntryNormal:
                     await self.handle_normal_entry(entry, response_queues)
@@ -313,6 +311,9 @@ class RaftNode:
     async def handle_normal_entry(
         self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
     ) -> None:
+        if not entry.get_data():
+            return
+
         seq = AtomicInteger(pickle.loads(entry.get_context()))
         data = await self.fsm.apply(entry.get_data())
 
@@ -328,6 +329,13 @@ class RaftNode:
     async def handle_config_change_entry(
         self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
     ) -> None:
+        if not entry.get_data():
+            zero = ConfChangeV2.default()
+            if cs := self.raw_node.apply_conf_change_v2(zero):
+                self.lmdb.set_conf_state(cs)
+                await self.create_snapshot(entry.get_index(), entry.get_term())
+            return
+
         seq = AtomicInteger(pickle.loads(entry.get_context()))
         conf_change_v2 = ConfChangeV2.decode(entry.get_data())
         conf_changes = conf_change_v2.get_changes()
@@ -502,7 +510,7 @@ class RaftNode:
         snapshot_default = Snapshot.default()
         if ready.snapshot() != snapshot_default.make_ref():
             snapshot = ready.snapshot()
-            self.logger.info("Restoring FSM from snapshot...")
+            self.logger.info("Restoring FSM from the snapshot...")
             await self.fsm.restore(snapshot.get_data())
             self.lmdb.apply_snapshot(snapshot.clone())
 
