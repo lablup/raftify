@@ -44,7 +44,7 @@ class MemberBootstrapReadyArgs(_message.Message):
     follower_id: int
     def __init__(self, follower_id: _Optional[int] = ...) -> None: ...
 
-class BootstrapReadyArgs(_message.Message):
+class ClusterBootstrapReadyArgs(_message.Message):
     __slots__ = ["peers"]
     PEERS_FIELD_NUMBER: _ClassVar[int]
     peers: bytes

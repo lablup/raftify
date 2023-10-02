@@ -11,7 +11,7 @@ from raftify.pb_adapter import ConfChangeV2Adapter
 from raftify.protos import raft_service_pb2
 from raftify.raft_node import RaftNode
 from raftify.request_message import (
-    BootstrapReadyReqMessage,
+    ClusteBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
     MemberBootstrapReadyReqMessage,
     ProposeReqMessage,
@@ -113,7 +113,7 @@ class Mailbox:
     async def bootstrap_ready(self) -> None:
         receiver: Queue = Queue()
         raw_peers = self.raft_node.peers.encode()
-        await self.sender.put(BootstrapReadyReqMessage(raw_peers, receiver))
+        await self.sender.put(ClusteBootstrapReadyReqMessage(raw_peers, receiver))
         await self.__handle_response(
             await receiver.get(),
         )

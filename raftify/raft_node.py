@@ -28,7 +28,7 @@ from raftify.protos.raft_service_pb2 import RerouteMsgType
 from raftify.raft_client import RaftClient
 from raftify.raft_server import RaftServer
 from raftify.request_message import (
-    BootstrapReadyReqMessage,
+    ClusteBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
     MemberBootstrapReadyReqMessage,
     ProposeReqMessage,
@@ -406,7 +406,7 @@ class RaftNode:
                             data=message.proposed_data, chan=message.chan
                         )
 
-            if isinstance(message, BootstrapReadyReqMessage):
+            if isinstance(message, ClusteBootstrapReadyReqMessage):
                 self.logger.info(
                     "All nodes are ready to join the cluster. Start to bootstrap process..."
                 )

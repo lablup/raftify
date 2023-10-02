@@ -5,10 +5,17 @@ from dataclasses import dataclass
 from typing import Tuple
 
 import grpc
-from rraft import ConfChangeSingle, ConfChangeTransition, ConfChangeType, ConfChangeV2, Logger, LoggerRef
+from rraft import (
+    ConfChangeSingle,
+    ConfChangeTransition,
+    ConfChangeType,
+    ConfChangeV2,
+    Logger,
+    LoggerRef,
+)
 
 from raftify.config import RaftifyConfig
-from raftify.error import ClusterJoinError, LeaderNotFoundError, UnknownError
+from raftify.error import ClusterBootstrapError, LeaderNotFoundError, UnknownError
 from raftify.follower_role import FollowerRole
 from raftify.fsm import FSM
 from raftify.logger import AbstractRaftifyLogger
@@ -207,10 +214,10 @@ class RaftCluster:
             resp = await asyncio.wait_for(receiver.get(), 2)
 
         except grpc.aio.AioRpcError as e:
-            raise ClusterJoinError(cause=e)
+            raise ClusterBootstrapError(cause=e)
 
         except Exception as e:
-            raise ClusterJoinError(cause=e)
+            raise ClusterBootstrapError(cause=e)
 
         if isinstance(resp, JoinSuccessRespMessage):
             self.logger.info("All follower nodes successfully joined the cluster.")

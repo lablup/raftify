@@ -71,11 +71,11 @@ class RaftClient:
     async def bootstrap_ready(
         self, peers: bytes, timeout: float
     ) -> raft_service_pb2.RaftMessageResponse:
-        request = raft_service_pb2.BootstrapReadyArgs(peers=peers)
+        request = raft_service_pb2.ClusterBootstrapReadyArgs(peers=peers)
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
-            return await asyncio.wait_for(stub.BootstrapReady(request), timeout)
+            return await asyncio.wait_for(stub.ClusterBootstrapReady(request), timeout)
 
     async def reroute_message(
         self,

@@ -5,7 +5,7 @@ import "eraftpb.proto";
 
 service RaftService {
   rpc MemberBootstrapReady(MemberBootstrapReadyArgs) returns (RaftMessageResponse) {}
-  rpc BootstrapReady(BootstrapReadyArgs) returns (RaftMessageResponse) {}
+  rpc ClusterBootstrapReady(ClusterBootstrapReadyArgs) returns (RaftMessageResponse) {}
   rpc RequestId(IdRequestArgs) returns (IdRequestResponse) {}
   rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
   rpc SendMessage(eraftpb.Message) returns (RaftMessageResponse) {}
@@ -18,7 +18,7 @@ message MemberBootstrapReadyArgs {
   uint64 follower_id              = 1;
 }
 
-message BootstrapReadyArgs {
+message ClusterBootstrapReadyArgs {
   bytes peers                     = 1;
 }
 
