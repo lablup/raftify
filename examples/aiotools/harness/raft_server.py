@@ -88,7 +88,6 @@ async def server_main(
 
     cfg = RaftifyConfig(
         log_dir="./",
-        no_restoration=True,
     )
 
     cluster = RaftCluster(cfg, raft_socket, store, slog, logger)

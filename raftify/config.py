@@ -19,7 +19,6 @@ class RaftifyConfig:
         Set to 0 to disable.
         Snapshots are also created after configuration changes are applied.
     - lmdb_map_size: Maximum size lmdb database may grow to.
-    - no_restoration: Ignore previous logs when bootstrapping the cluster. Useful for testing.
     """
 
     raft_config_keys = [
@@ -57,8 +56,6 @@ class RaftifyConfig:
 
     lmdb_map_size: int
 
-    no_restoration: bool
-
     def __init__(
         self,
         *,
@@ -71,7 +68,6 @@ class RaftifyConfig:
         snapshot_interval: float = 0.0,
         tick_interval: float = 0.1,
         lmdb_map_size: int = 1024 * 1024 * 1024,
-        no_restoration: bool = False,
     ) -> None:
         self.log_dir = log_dir
         self.max_retry_cnt = max_retry_cnt
@@ -81,7 +77,6 @@ class RaftifyConfig:
         self.snapshot_interval = snapshot_interval
         self.tick_interval = tick_interval
         self.lmdb_map_size = lmdb_map_size
-        self.no_restoration = no_restoration
         self.raft_config = raft_config or Config.default()
 
     @staticmethod
