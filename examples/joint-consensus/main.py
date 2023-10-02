@@ -150,7 +150,7 @@ async def peers(request: web.Request) -> web.Response:
 async def join_all_followers(cluster: RaftCluster, peers: Peers):
     await asyncio.sleep(1)
     while not cluster.cluster_bootstrap_ready(len(peers)):
-        len_ = len(cluster.peers)
+        len_ = len(cluster.initial_peers)
         await asyncio.sleep(2)
         logger.debug(
             f"Waiting for all peers to make join request to the cluster. Current peers count: {len_}"
@@ -161,8 +161,8 @@ async def join_all_followers(cluster: RaftCluster, peers: Peers):
         if node_id == 1:
             continue
 
-        raw_peers = cluster.peers.encode()
-        await peer.client.bootstrap_ready(raw_peers, 5.0)
+        raw_peers = cluster.initial_peers.encode()
+        await peer.client.cluster_bootstrap_ready(raw_peers, 5.0)
 
 
 async def main() -> None:
@@ -202,7 +202,7 @@ async def main() -> None:
         node_id = 1
         cluster.run_raft(node_id)
         tasks.append(cluster.wait_for_termination())
-        tasks.append(join_all_followers(cluster, cluster.peers))
+        tasks.append(join_all_followers(cluster, cluster.initial_peers))
     else:
         assert (
             raft_addr is not None

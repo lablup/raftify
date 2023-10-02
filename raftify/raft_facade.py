@@ -1,11 +1,10 @@
 import asyncio
 import pickle
 from asyncio import Queue
-from dataclasses import dataclass
-from typing import Tuple
 
 import grpc
 from rraft import (
+    ConfChange,
     ConfChangeSingle,
     ConfChangeTransition,
     ConfChangeType,
@@ -15,7 +14,12 @@ from rraft import (
 )
 
 from raftify.config import RaftifyConfig
-from raftify.error import ClusterBootstrapError, LeaderNotFoundError, UnknownError
+from raftify.error import (
+    ClusterBootstrapError,
+    ClusterJoinError,
+    LeaderNotFoundError,
+    UnknownError,
+)
 from raftify.follower_role import FollowerRole
 from raftify.fsm import FSM
 from raftify.logger import AbstractRaftifyLogger
@@ -26,23 +30,10 @@ from raftify.protos import raft_service_pb2
 from raftify.raft_client import RaftClient
 from raftify.raft_node import RaftNode
 from raftify.raft_server import RaftServer
-from raftify.raft_utils import leave_joint
+from raftify.raft_utils import RequestIdResponse, leave_joint
 from raftify.request_message import ConfigChangeReqMessage
 from raftify.response_message import JoinSuccessRespMessage
 from raftify.utils import SocketAddr
-
-
-@dataclass
-class RequestIdResponse:
-    follower_id: int
-    leader: Tuple[int, RaftClient]  # (leader_id, leader_client)
-    peers: Peers
-
-
-class FollowerInfo:
-    node_id: int
-    addr: SocketAddr
-    role: FollowerRole
 
 
 class RaftCluster:
@@ -53,7 +44,7 @@ class RaftCluster:
         fsm: FSM,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
-        peers: Peers,
+        initial_peers: Peers = Peers({}),
     ):
         """
         Creates a new node with the given address and store.
@@ -64,14 +55,14 @@ class RaftCluster:
         self.logger = logger
         self.chan: Queue = Queue(maxsize=100)
         self.cluster_config = cluster_config
-        self.peers = peers
+        self.initial_peers = initial_peers
         self.raft_node = None
         self.raft_server = None
         self.raft_node_task = None
         self.raft_server_task = None
 
-        if self_peer_id := self.peers.get_node_id_by_addr(self.addr):
-            self.peers.connect(self_peer_id, self.addr)
+        if self_peer_id := self.initial_peers.get_node_id_by_addr(self.addr):
+            self.initial_peers.connect(self_peer_id, self.addr)
 
     def __ensure_initialized(self) -> None:
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
@@ -80,8 +71,9 @@ class RaftCluster:
         return self.raft_node is not None and self.raft_server is not None
 
     def cluster_bootstrap_ready(self, expected_size: int) -> bool:
-        return len(self.peers) >= expected_size and all(
-            data.state == PeerState.Connected for data in self.peers.data.values()
+        return len(self.initial_peers) >= expected_size and all(
+            data.state == PeerState.Connected
+            for data in self.initial_peers.data.values()
         )
 
     @property
@@ -110,6 +102,7 @@ class RaftCluster:
         self,
         node_id: int,
     ) -> bool:
+        """ """
         self.__ensure_initialized()
 
         if not self.raft_node.is_leader():
@@ -121,11 +114,8 @@ class RaftCluster:
 
     async def request_id(
         self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]
-    ) -> int:
-        """
-        To join the cluster, find out which node is the leader and get node_id from the leader.
-        Used only in the dynamic cluster join process.
-        """
+    ) -> RequestIdResponse:
+        """ """
 
         for peer_addr in peer_candidates:
             self.logger.info(f'Attempting to join the cluster through "{peer_addr}"...')
@@ -148,13 +138,7 @@ class RaftCluster:
                     case raft_service_pb2.IdRequest_Success:
                         leader_addr = peer_addr
                         leader_id, node_id, raw_peers = pickle.loads(resp.data)
-                        peers = Peers.decode(raw_peers)
-
-                        self.peers = peers
-                        self.peers.data[leader_id] = Peer(
-                            addr=leader_addr, client=RaftClient(leader_addr)
-                        )
-
+                        peer_addrs = Peers.decode(raw_peers)
                         break
                     case raft_service_pb2.IdRequest_WrongLeader:
                         _, peer_addr, _ = pickle.loads(resp.data)
@@ -176,30 +160,34 @@ class RaftCluster:
             f"Obtained node id {node_id} successfully from the leader node {leader_id}."
         )
 
-        return node_id
+        return RequestIdResponse(node_id, (leader_id, client), peer_addrs)
 
     async def join_followers(
         self,
     ) -> None:
         """ """
         self.__ensure_initialized()
-        assert self.raft_node.is_leader(), "Only leader can join followers!"
+        assert self.raft_node.is_leader(), (
+            "Only leader can add a new node to the cluster!, "
+            "If you want to join the cluster in the follower, "
+            "use `join_cluster` method instead."
+        )
 
         conf_change_v2 = ConfChangeV2.default()
         conf_change_v2.set_transition(ConfChangeTransition.Explicit)
         changes = []
         node_addrs = []
 
-        for node_id in self.peers.data.keys():
+        for node_id in self.initial_peers.data.keys():
             # Skip leader
-            if self.addr == self.peers.data[node_id].addr:
+            if self.addr == self.initial_peers.data[node_id].addr:
                 continue
 
             conf_change = ConfChangeSingle.default()
             conf_change.set_node_id(node_id)
             conf_change.set_change_type(ConfChangeType.AddNode)
             changes.append(conf_change)
-            node_addrs.append(str(self.peers[node_id].addr))
+            node_addrs.append(str(self.initial_peers[node_id].addr))
 
         conf_change_v2.set_changes(changes)
         conf_change_v2.set_context(pickle.dumps(node_addrs))
@@ -225,10 +213,67 @@ class RaftCluster:
             return
         # TODO: handle error cases
 
+    async def join_cluster(
+        self,
+        request_id_response: RequestIdResponse,
+        role: FollowerRole = FollowerRole.Voter,
+    ) -> None:
+        """
+        Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
+        """
+        self.__ensure_initialized()
+
+        node_id = request_id_response.follower_id
+        leader = request_id_response.leader
+        peers = request_id_response.peers
+        leader_id, leader_client = leader
+
+        self.raft_node.peers = Peers(
+            {
+                **{
+                    node_id: Peer(addr=addr, client=RaftClient(addr))
+                    for node_id, addr in peers.data.items()
+                },
+                leader_id: Peer(addr=leader_client.addr, client=leader_client),
+            }
+        )
+
+        conf_change = ConfChange.default()
+        conf_change.set_node_id(node_id)
+        conf_change.set_change_type(role.to_confchange_type())
+        conf_change.set_context(pickle.dumps([self.addr]))
+
+        conf_change_v2 = conf_change.as_v2()
+
+        # TODO: Should handle wrong leader error here because the leader might change in the meanwhile.
+        # But it might be already handled by the rerouting logic. So, it should be tested first.
+        while True:
+            try:
+                resp = await leader_client.change_config(
+                    conf_change_v2, timeout=self.cluster_config.message_timeout
+                )
+                print("resp!!", resp)
+
+            except grpc.aio.AioRpcError as e:
+                print("e!!", e)
+                raise ClusterJoinError(cause=e)
+
+            except Exception as e:
+                print("e!!", e)
+                raise ClusterJoinError(cause=e)
+
+            if resp.result == raft_service_pb2.ChangeConfig_Success:
+                print("logfeowfpewjfoejpo!!")
+                return
+            elif resp.result == raft_service_pb2.ChangeConfig_TimeoutError:
+                self.logger.info("Join request timeout. Retrying...")
+                await asyncio.sleep(2)
+                continue
+
     def run_raft(self, node_id: int) -> None:
         """ """
         self.logger.info(
-            "Start to run RaftNode. Raftify config: " + str(self.cluster_config)
+            "Start to run RaftNode. Configuration: " + str(self.cluster_config)
         )
         self.raft_server = RaftServer(self.addr, self.chan, self.logger)
 
@@ -237,7 +282,7 @@ class RaftCluster:
                 chan=self.chan,
                 fsm=self.fsm,
                 raft_server=self.raft_server,
-                peers=self.peers,
+                peers=self.initial_peers,
                 slog=self.slog,
                 logger=self.logger,
                 raftify_cfg=self.cluster_config,
@@ -248,7 +293,7 @@ class RaftCluster:
                 id=node_id,
                 fsm=self.fsm,
                 raft_server=self.raft_server,
-                peers=self.peers,
+                peers=self.initial_peers,
                 slog=self.slog,
                 logger=self.logger,
                 raftify_cfg=self.cluster_config,

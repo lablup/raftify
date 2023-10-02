@@ -1,7 +1,11 @@
 import asyncio
+from dataclasses import dataclass
+from enum import Enum
 
 from rraft import ConfChangeV2
 
+from raftify.peers import Peers
+from raftify.raft_client import RaftClient
 from raftify.raft_node import RaftNode
 
 
@@ -15,3 +19,15 @@ async def leave_joint(raft_node: RaftNode):
     zero = ConfChangeV2.default()
     assert zero.leave_joint(), "Zero ConfChangeV2 must be empty"
     raft_node.raw_node.propose_conf_change_v2(b"", zero)
+
+
+class RaftNodeRole(Enum):
+    Leader = 0
+    Follower = 1
+
+
+@dataclass
+class RequestIdResponse:
+    follower_id: int
+    leader: tuple[int, RaftClient]  # (leader_id, leader_client)
+    peers: Peers

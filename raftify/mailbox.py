@@ -11,12 +11,7 @@ from raftify.logger import AbstractRaftifyLogger
 from raftify.pb_adapter import ConfChangeV2Adapter
 from raftify.protos import raft_service_pb2
 from raftify.raft_node import RaftNode
-from raftify.request_message import (
-    ClusteBootstrapReadyReqMessage,
-    ConfigChangeReqMessage,
-    MemberBootstrapReadyReqMessage,
-    ProposeReqMessage,
-)
+from raftify.request_message import ConfigChangeReqMessage, ProposeReqMessage
 from raftify.response_message import (
     RaftOkRespMessage,
     RaftRespMessage,

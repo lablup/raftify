@@ -68,7 +68,7 @@ class RaftClient:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
             return await asyncio.wait_for(stub.MemberBootstrapReady(request), timeout)
 
-    async def bootstrap_ready(
+    async def cluster_bootstrap_ready(
         self, peers: bytes, timeout: float
     ) -> raft_service_pb2.RaftMessageResponse:
         request = raft_service_pb2.ClusterBootstrapReadyArgs(peers=peers)

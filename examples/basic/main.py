@@ -19,7 +19,7 @@ from rraft import default_logger
 from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.fsm import FSM
-from raftify.raft_facade import RaftCluster, RaftNodeRole
+from raftify.raft_facade import RaftCluster
 from raftify.utils import SocketAddr
 
 
@@ -251,23 +251,24 @@ async def main() -> None:
     )
 
     cluster = RaftCluster(cfg, target_addr, store, slog, logger)
+    tasks = []
 
     if bootstrap:
         logger.info("Bootstrap a Raft Cluster")
-        cluster.build_raft(RaftNodeRole.Leader)
-        cluster.bootstrap_cluster()
+        node_id = 1
+        cluster.run_raft(node_id)
     else:
         assert (
             raft_addr is not None
         ), "Follower node requires a --raft-addr option to join the cluster"
 
-        request_id_response = await cluster.request_id(raft_addr, peer_addrs)
-
+        request_id_resp = await cluster.request_id(raft_addr, peer_addrs)
+        cluster.run_raft(request_id_resp.follower_id)
         logger.info("Running in follower mode")
-        cluster.build_raft(RaftNodeRole.Follower, request_id_response.follower_id)
-        await cluster.join_cluster(request_id_response=request_id_response)
+        await cluster.join_cluster(request_id_resp)
 
-    tasks = []
+    tasks.append(cluster.wait_for_termination())
+
     app_runner = None
     if web_server_addr:
         app = Application()
@@ -282,8 +283,6 @@ async def main() -> None:
         await app_runner.setup()
         web_server = web.TCPSite(app_runner, host, port)
         tasks.append(web_server.start())
-
-    tasks.append(cluster.run_raft())
 
     try:
         await asyncio.gather(*tasks)

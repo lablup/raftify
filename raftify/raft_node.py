@@ -190,7 +190,7 @@ class RaftNode:
         self.seq.increase()
         conf_change = ConfChange.default()
         conf_change.set_node_id(node_id)
-        conf_change.set_context(pickle.dumps(peer.addr))
+        conf_change.set_context(pickle.dumps([peer.addr]))
         conf_change.set_change_type(ConfChangeType.RemoveNode)
         context = pickle.dumps(self.seq.value)
 
@@ -329,8 +329,10 @@ class RaftNode:
     async def handle_config_change_entry(
         self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
     ) -> None:
+        # TODO: Write documents to clarify when to use entry with empty data.
         if not entry.get_data():
             zero = ConfChangeV2.default()
+            assert zero.leave_joint()
             if cs := self.raw_node.apply_conf_change_v2(zero):
                 self.lmdb.set_conf_state(cs)
                 await self.create_snapshot(entry.get_index(), entry.get_term())
@@ -371,7 +373,7 @@ class RaftNode:
             match change_type:
                 case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
                     response = JoinSuccessRespMessage(
-                        assigned_id=node_id, peers=self.peers
+                        assigned_id=node_id, peers=self.peers.encode()
                     )
                 case ConfChangeType.RemoveNode:
                     response = RaftOkRespMessage()
@@ -448,6 +450,7 @@ class RaftNode:
                         self.seq.increase()
                         response_queues[self.seq] = message.chan
                         context = pickle.dumps(self.seq.value)
+                        print("Propose!!")
                         self.raw_node.propose_conf_change_v2(context, conf_change_v2)
 
             elif isinstance(message, ProposeReqMessage):
@@ -471,7 +474,7 @@ class RaftNode:
                             reserved_id=self.peers.reserve_peer(
                                 self.raw_node, message.addr
                             ),
-                            peers=peers.encode(),
+                            peers=self.peers.encode(),
                         )
                     )
 

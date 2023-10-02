@@ -12,6 +12,7 @@ from .raft_client import RaftClient  # noqa: F401
 from .raft_facade import RaftCluster  # noqa: F401
 from .raft_node import RaftNode  # noqa: F401
 from .raft_server import RaftServer  # noqa: F401
+from .raft_utils import RaftNodeRole  # noqa: F401
 from .utils import PickleSerializer, SocketAddr  # noqa: F401
 
 __all__ = [
@@ -25,6 +26,7 @@ __all__ = [
     "raft_facade",
     "fsm",
     "utils",
+    "raft_utils",
     "logger",
     "peers",
     "deserializer",
