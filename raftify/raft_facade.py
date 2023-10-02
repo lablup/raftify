@@ -26,6 +26,7 @@ from raftify.protos import raft_service_pb2
 from raftify.raft_client import RaftClient
 from raftify.raft_node import RaftNode
 from raftify.raft_server import RaftServer
+from raftify.raft_utils import leave_joint
 from raftify.request_message import ConfigChangeReqMessage
 from raftify.response_message import JoinSuccessRespMessage
 from raftify.utils import SocketAddr
@@ -89,7 +90,9 @@ class RaftCluster:
         Get the node's `Mailbox`.
         """
         self.__ensure_initialized()
-        return Mailbox(self.addr, self.raft_node, self.chan, self.logger, self.cluster_config)
+        return Mailbox(
+            self.addr, self.raft_node, self.chan, self.logger, self.cluster_config
+        )
 
     def get_peers(self) -> Peers:
         self.__ensure_initialized()
@@ -152,9 +155,6 @@ class RaftCluster:
                             addr=leader_addr, client=RaftClient(leader_addr)
                         )
 
-                        # if node_id in self.peers.data.keys():
-                        # del self.peers[node_id]
-
                         break
                     case raft_service_pb2.IdRequest_WrongLeader:
                         _, peer_addr, _ = pickle.loads(resp.data)
@@ -188,7 +188,7 @@ class RaftCluster:
         conf_change_v2 = ConfChangeV2.default()
         conf_change_v2.set_transition(ConfChangeTransition.Explicit)
         changes = []
-        addrs = []
+        node_addrs = []
 
         for node_id in self.peers.data.keys():
             # Skip leader
@@ -199,10 +199,10 @@ class RaftCluster:
             conf_change.set_node_id(node_id)
             conf_change.set_change_type(ConfChangeType.AddNode)
             changes.append(conf_change)
-            addrs.append(str(self.peers[node_id].addr))
+            node_addrs.append(str(self.peers[node_id].addr))
 
         conf_change_v2.set_changes(changes)
-        conf_change_v2.set_context(pickle.dumps(addrs))
+        conf_change_v2.set_context(pickle.dumps(node_addrs))
 
         try:
             receiver = Queue()
@@ -221,6 +221,7 @@ class RaftCluster:
 
         if isinstance(resp, JoinSuccessRespMessage):
             self.logger.info("All follower nodes successfully joined the cluster.")
+            asyncio.create_task(leave_joint(self.raft_node))
             return
         # TODO: handle error cases
 

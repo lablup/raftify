@@ -112,18 +112,3 @@ class Mailbox:
             reroute_msg_type=raft_service_pb2.ConfChange,
             conf_change=conf_change_v2,
         )
-
-    async def bootstrap_ready(self) -> None:
-        receiver: Queue = Queue()
-        raw_peers = self.raft_node.peers.encode()
-        await self.sender.put(ClusteBootstrapReadyReqMessage(raw_peers, receiver))
-        await self.__handle_response(
-            await receiver.get(),
-        )
-
-    async def member_bootstrap_ready(self, follower_id: int) -> None:
-        receiver: Queue = Queue()
-        await self.sender.put(MemberBootstrapReadyReqMessage(follower_id, receiver))
-        await self.__handle_response(
-            await receiver.get(),
-        )
