@@ -7,6 +7,7 @@ from rraft import ConfChange, ConfChangeType
 
 from raftify.config import RaftifyConfig
 from raftify.error import UnknownError
+from raftify.logger import AbstractRaftifyLogger
 from raftify.pb_adapter import ConfChangeV2Adapter
 from raftify.protos import raft_service_pb2
 from raftify.raft_node import RaftNode
@@ -35,11 +36,13 @@ class Mailbox:
         addr: SocketAddr,
         raft_node: RaftNode,
         sender: Queue,
+        logger: AbstractRaftifyLogger,
         raftify_config: RaftifyConfig,
     ):
         self.sender = sender
         self.raft_node = raft_node
         self.addr = addr
+        self.logger = logger
         self.raftify_config = raftify_config
 
     async def __handle_response(
@@ -90,7 +93,7 @@ class Mailbox:
             assert resp is not None
             return resp
         except Exception as e:
-            print("Error occured while sending message through mailbox", e)
+            self.logger.error("Error occured while sending message through mailbox", e)
 
     async def leave(self, node_id: int) -> None:
         conf_change = ConfChange.default()

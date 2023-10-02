@@ -89,7 +89,7 @@ class RaftCluster:
         Get the node's `Mailbox`.
         """
         self.__ensure_initialized()
-        return Mailbox(self.addr, self.raft_node, self.chan, self.cluster_config)
+        return Mailbox(self.addr, self.raft_node, self.chan, self.logger, self.cluster_config)
 
     def get_peers(self) -> Peers:
         self.__ensure_initialized()
