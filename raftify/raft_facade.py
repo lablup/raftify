@@ -64,9 +64,6 @@ class RaftCluster:
         if self_peer_id := self.initial_peers.get_node_id_by_addr(self.addr):
             self.initial_peers.connect(self_peer_id, self.addr)
 
-    def __ensure_initialized(self) -> None:
-        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
-
     def is_initialized(self) -> bool:
         return self.raft_node is not None and self.raft_server is not None
 
@@ -81,17 +78,17 @@ class RaftCluster:
         """
         Get the node's `Mailbox`.
         """
-        self.__ensure_initialized()
+        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
         return Mailbox(
             self.addr, self.raft_node, self.chan, self.logger, self.cluster_config
         )
 
     def get_peers(self) -> Peers:
-        self.__ensure_initialized()
+        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
         return self.raft_node.peers
 
     async def create_snapshot(self) -> None:
-        self.__ensure_initialized()
+        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
 
         hs = self.raft_node.lmdb.core.hard_state()
         await self.raft_node.create_snapshot(
@@ -103,7 +100,7 @@ class RaftCluster:
         node_id: int,
     ) -> bool:
         """ """
-        self.__ensure_initialized()
+        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
 
         if not self.raft_node.is_leader():
             self.logger.warning("LeaderTransfer requested but not leader!")
@@ -166,7 +163,7 @@ class RaftCluster:
         self,
     ) -> None:
         """ """
-        self.__ensure_initialized()
+        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
         assert self.raft_node.is_leader(), (
             "Only leader can add a new node to the cluster!, "
             "If you want to join the cluster in the follower, "
@@ -221,7 +218,7 @@ class RaftCluster:
         """
         Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
         """
-        self.__ensure_initialized()
+        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
 
         node_id = request_id_response.follower_id
         leader = request_id_response.leader
@@ -308,7 +305,7 @@ class RaftCluster:
 
     async def wait_for_termination(self) -> None:
         """ """
-        self.__ensure_initialized()
+        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
 
         try:
             await asyncio.gather(*(self.raft_server_task, self.raft_node_task))
