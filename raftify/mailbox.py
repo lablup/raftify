@@ -9,7 +9,7 @@ from raftify.config import RaftifyConfig
 from raftify.error import UnknownError
 from raftify.logger import AbstractRaftifyLogger
 from raftify.pb_adapter import ConfChangeV2Adapter
-from raftify.protos import raft_service_pb2
+from raftify.protos import eraftpb_pb2, raft_service_pb2
 from raftify.raft_node import RaftNode
 from raftify.request_message import ConfigChangeReqMessage, ProposeReqMessage
 from raftify.response_message import (
@@ -46,7 +46,7 @@ class Mailbox:
         *,
         reroute_msg_type: Optional[raft_service_pb2.RerouteMsgType] = None,
         proposed_data: Optional[bytes] = None,
-        conf_change: Optional[raft_service_pb2.ConfChange] = None,
+        conf_change: Optional[eraftpb_pb2.ConfChangeV2] = None,
     ) -> Optional[bytes]:
         if isinstance(response, RaftOkRespMessage):
             return None
@@ -104,12 +104,12 @@ class Mailbox:
         conf_change_v2 = conf_change.as_v2()
 
         receiver: Queue = Queue()
-        conf_change_v2 = ConfChangeV2Adapter.to_pb(conf_change_v2)
+        pb_conf_change_v2 = ConfChangeV2Adapter.to_pb(conf_change_v2)
 
-        await self.sender.put(ConfigChangeReqMessage(conf_change_v2, receiver))
+        await self.sender.put(ConfigChangeReqMessage(pb_conf_change_v2, receiver))
 
         await self.__handle_response(
             await receiver.get(),
             reroute_msg_type=raft_service_pb2.ConfChange,
-            conf_change=conf_change_v2,
+            conf_change=pb_conf_change_v2,
         )

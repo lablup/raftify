@@ -42,6 +42,7 @@ from raftify.response_message import (
     JoinSuccessRespMessage,
     RaftOkRespMessage,
     RaftRespMessage,
+    RaftResponse,
     WrongLeaderRespMessage,
 )
 from raftify.utils import AtomicInteger, SocketAddr
@@ -377,6 +378,8 @@ class RaftNode:
             await self.create_snapshot(entry.get_index(), entry.get_term())
 
         if response_queue := response_queues.pop(seq, None):
+            response: RaftResponse
+
             match change_type:
                 case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
                     response = JoinSuccessRespMessage(
@@ -415,10 +418,14 @@ class RaftNode:
             if isinstance(message, RerouteToLeaderReqMessage):
                 match message.type:
                     case RerouteMsgType.ConfChange:
+                        assert message.conf_change is not None
+
                         message = ConfigChangeReqMessage(
                             conf_change=message.conf_change, chan=message.chan
                         )
                     case RerouteMsgType.Propose:
+                        assert message.proposed_data is not None
+
                         message = ProposeReqMessage(
                             data=message.proposed_data, chan=message.chan
                         )

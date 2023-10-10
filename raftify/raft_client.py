@@ -5,7 +5,7 @@ import grpc
 from rraft import ConfChangeV2, Message
 
 from raftify.pb_adapter import ConfChangeV2Adapter, MessageAdapter
-from raftify.protos import raft_service_pb2, raft_service_pb2_grpc
+from raftify.protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
 from raftify.utils import AtomicInteger, SocketAddr
 
 
@@ -82,7 +82,7 @@ class RaftClient:
         reroute_msg_type: raft_service_pb2.RerouteMsgType,
         timeout: float,
         msg_bytes: Optional[bytes] = None,
-        conf_change: Optional[raft_service_pb2.ConfChange] = None,
+        conf_change: Optional[eraftpb_pb2.ConfChangeV2] = None,
     ) -> raft_service_pb2.RaftMessageResponse:
         request = raft_service_pb2.RerouteMessageArgs(
             proposed_data=msg_bytes or b"",
