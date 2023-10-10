@@ -72,12 +72,6 @@ class RaftCluster:
     def is_initialized(self) -> bool:
         return self.raft_node is not None and self.raft_server is not None
 
-    def cluster_bootstrap_ready(self, expected_size: int) -> bool:
-        return len(self.initial_peers) >= expected_size and all(
-            data.state == PeerState.Connected
-            for data in self.initial_peers.data.values()
-        )
-
     @property
     def mailbox(self) -> Mailbox:
         """
@@ -99,6 +93,28 @@ class RaftCluster:
         await self.raft_node.create_snapshot(
             self.raft_node.lmdb.last_index(), hs.get_term()
         )
+
+    def cluster_bootstrap_ready(self) -> bool:
+        return all(
+            data.state == PeerState.Connected
+            for data in self.initial_peers.data.values()
+        )
+
+    async def join_all_followers(self):
+        await asyncio.sleep(1)
+        while not self.cluster_bootstrap_ready():
+            await asyncio.sleep(2)
+            self.logger.debug(
+                "Waiting for all peers to make join request to the cluster..."
+            )
+
+        await self.join_followers()
+        for node_id, peer in self.initial_peers.data.items():
+            if node_id == 1:
+                continue
+
+            raw_peers = self.initial_peers.encode()
+            await peer.client.cluster_bootstrap_ready(raw_peers, 5.0)
 
     def transfer_leader(
         self,
@@ -284,7 +300,7 @@ class RaftCluster:
         self.raft_server = RaftServer(self.addr, self.chan, self.logger)
 
         if node_id == 1:
-            self.initial_peers.connect(1, self.addr)
+            self.initial_peers.connect(node_id, self.addr)
 
             self.raft_node = RaftNode.bootstrap_leader(
                 chan=self.chan,

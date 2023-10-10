@@ -215,14 +215,14 @@ class RaftNode:
 
         while True:
             try:
-                if self.peers[node_id].state == PeerState.Connected:
+                peer = self.peers.get(node_id)
+
+                if peer and peer.state == PeerState.Connected:
                     await client.send_message(
                         message, timeout=self.raftify_cfg.message_timeout
                     )
                 return
             except Exception as e:
-                assert self.peers[node_id].state == PeerState.Connected
-
                 if current_retry < self.raftify_cfg.max_retry_cnt:
                     current_retry += 1
                 else:
