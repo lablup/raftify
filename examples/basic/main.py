@@ -19,7 +19,7 @@ from rraft import default_logger
 from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.fsm import FSM
-from raftify.raft_facade import RaftCluster
+from raftify.raft_cluster import RaftCluster
 from raftify.utils import SocketAddr
 
 
