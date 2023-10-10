@@ -1,5 +1,4 @@
 import pickle
-from typing import Optional
 
 from rraft import (
     ConfChangeV2,
@@ -12,7 +11,7 @@ from rraft import (
 )
 
 
-def pickle_deserialize(data: bytes) -> Optional[str] | bytes:
+def pickle_deserialize(data: bytes) -> str | bytes:
     """
     This function assumes that the given byte slice has been dumped with pickle and perform deserialization.
     Note that if the given byte slice is not data dumped with pickle, but it contains data that has been dumped with pickle,
@@ -20,7 +19,7 @@ def pickle_deserialize(data: bytes) -> Optional[str] | bytes:
     """
 
     if data == b"":
-        return None
+        return "None"
 
     if pickle.PROTO in data:
         return pickle.loads(data[data.index(pickle.PROTO) :])
@@ -29,9 +28,9 @@ def pickle_deserialize(data: bytes) -> Optional[str] | bytes:
     return data
 
 
-def entry_data_deserializer(data: bytes) -> Optional[str] | bytes:
+def entry_data_deserializer(data: bytes) -> str | bytes:
     if data == b"":
-        return None
+        return "None"
 
     try:
         return str(ConfChangeV2.decode(data))
