@@ -28,6 +28,7 @@ from rraft import (
 
 from raftify.protos.eraftpb_pb2 import ConfChange as Pb_ConfChange
 from raftify.protos.eraftpb_pb2 import ConfChangeSingle as Pb_ConfChangeSingle
+from raftify.protos.eraftpb_pb2 import ConfChangeType as Pb_ConfChangeType
 from raftify.protos.eraftpb_pb2 import ConfChangeV2 as Pb_ConfChangeV2
 from raftify.protos.eraftpb_pb2 import ConfState as Pb_ConfState
 from raftify.protos.eraftpb_pb2 import Entry as Pb_Entry
@@ -54,6 +55,23 @@ class ProtobufAdapter(metaclass=ABCMeta):
         raise NotImplementedError
 
 
+class ConfChangeTypeAdapter(ProtobufAdapter):
+    @staticmethod
+    def to_pb(v: ConfChangeType) -> Pb_ConfChangeType:
+        match v:
+            case ConfChangeType.AddNode:
+                return Pb_ConfChangeType.AddNode
+            case ConfChangeType.RemoveNode:
+                return Pb_ConfChangeType.RemoveNode
+            case ConfChangeType.AddLearnerNode:
+                return Pb_ConfChangeType.AddLearnerNode
+        assert False
+
+    @staticmethod
+    def from_pb(v: Pb_ConfChangeType) -> ConfChangeType:
+        return ConfChangeType.from_int(v)
+
+
 class ConfChangeAdapter(ProtobufAdapter):
     @staticmethod
     def to_pb(v: ConfChange | ConfChangeRef) -> Pb_ConfChange:
@@ -61,7 +79,7 @@ class ConfChangeAdapter(ProtobufAdapter):
             id=v.get_id(),
             node_id=v.get_node_id(),
             context=v.get_context(),
-            change_type=int(v.get_change_type()),
+            change_type=ConfChangeTypeAdapter.to_pb(v.get_change_type()),
         )
 
     @staticmethod
@@ -70,7 +88,7 @@ class ConfChangeAdapter(ProtobufAdapter):
         conf_change.set_id(v.id)
         conf_change.set_node_id(v.node_id)
         conf_change.set_context(v.context)
-        conf_change.set_change_type(ConfChangeType.from_int(v.change_type))
+        conf_change.set_change_type(ConfChangeTypeAdapter.from_pb(v.change_type))
         return conf_change
 
 
@@ -78,14 +96,15 @@ class ConfChangeSingleAdapter(ProtobufAdapter):
     @staticmethod
     def to_pb(v: ConfChangeSingle | ConfChangeSingleRef) -> Pb_ConfChangeSingle:
         return Pb_ConfChangeSingle(
-            node_id=v.get_node_id(), change_type=int(v.get_change_type())
+            node_id=v.get_node_id(),
+            change_type=ConfChangeTypeAdapter.to_pb(v.get_change_type()),
         )
 
     @staticmethod
     def from_pb(v: Pb_ConfChangeSingle) -> ConfChangeSingle:
         conf_change = ConfChangeSingle.default()
         conf_change.set_node_id(v.node_id)
-        conf_change.set_change_type(ConfChangeType.from_int(v.change_type))
+        conf_change.set_change_type(ConfChangeTypeAdapter.from_pb(v.change_type))
         return conf_change
 
 
