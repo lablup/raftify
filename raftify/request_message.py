@@ -24,7 +24,7 @@ class MemberBootstrapReadyReqMessage(RaftRequest, PickleSerializer):
 
 
 @dataclass
-class ClusteBootstrapReadyReqMessage(RaftRequest, PickleSerializer):
+class ClusterBootstrapReadyReqMessage(RaftRequest, PickleSerializer):
     peers: bytes
     chan: Queue
 

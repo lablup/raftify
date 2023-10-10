@@ -7,7 +7,7 @@ import grpc
 from raftify.logger import AbstractRaftifyLogger
 from raftify.protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
 from raftify.request_message import (
-    ClusteBootstrapReadyReqMessage,
+    ClusterBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
     MemberBootstrapReadyReqMessage,
     RaftReqMessage,
@@ -104,7 +104,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
     ) -> raft_service_pb2.RaftMessageResponse:
         receiver: Queue = Queue()
         await self.sender.put(
-            ClusteBootstrapReadyReqMessage(peers=request.peers, chan=receiver)
+            ClusterBootstrapReadyReqMessage(peers=request.peers, chan=receiver)
         )
         _ = await receiver.get()
 
