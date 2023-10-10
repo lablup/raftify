@@ -4,7 +4,7 @@ from .config import RaftifyConfig  # noqa: F401
 from .error import ClusterJoinError, LeaderNotFoundError, UnknownError  # noqa: F401
 from .follower_role import FollowerRole  # noqa: F401
 from .fsm import FSM  # noqa: F401
-from .lmdb import LMDBStorage, LMDBStorageCore  # noqa: F401
+from .storage.lmdb import LMDBStorage, LMDBStorageCore  # noqa: F401
 from .logger import AbstractRaftifyLogger  # noqa: F401
 from .mailbox import Mailbox  # noqa: F401
 from .peers import Peers  # noqa: F401
