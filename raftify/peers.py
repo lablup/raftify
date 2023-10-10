@@ -78,7 +78,6 @@ class Peers:
             if next_id == raw_node.get_raft().get_id():
                 next_id += 1
 
-        # self.logger.info(f"Reserved peer id {next_id}.")
         self.data[next_id] = Peer(client=None, addr=addr)
         return next_id
 
@@ -86,12 +85,6 @@ class Peers:
         """ """
         for peer in self.data.values():
             if peer.addr == addr:
-                if peer.state == PeerState.Connected:
-                    # self.logger.warning(
-                    #     f'ready_peer requested but the peer "{addr}" is already ready.'
-                    # )
-                    return
-
                 peer.state = PeerState.Connected
                 return
 
@@ -105,6 +98,9 @@ class Peers:
 
     def connect(self, id: int, addr: SocketAddr) -> None:
         """ """
-        self.data[id].addr = addr
-        self.data[id].state = PeerState.Connected
-        self.data[id].client = RaftClient(addr)
+        if id not in self.data:
+            self.data[id] = Peer(addr, RaftClient(addr), PeerState.Connected)
+        else:
+            self.data[id].addr = addr
+            self.data[id].state = PeerState.Connected
+            self.data[id].client = RaftClient(addr)

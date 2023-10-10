@@ -231,10 +231,16 @@ class RaftCluster:
         self.raft_node.peers = Peers(
             {
                 **{
-                    node_id: Peer(addr=addr, client=RaftClient(addr))
+                    node_id: Peer(
+                        addr=addr, client=RaftClient(addr), state=PeerState.Connected
+                    )
                     for node_id, addr in peers.data.items()
                 },
-                leader_id: Peer(addr=leader_client.addr, client=leader_client),
+                leader_id: Peer(
+                    addr=leader_client.addr,
+                    client=leader_client,
+                    state=PeerState.Connected,
+                ),
             }
         )
 
@@ -252,18 +258,14 @@ class RaftCluster:
                 resp = await leader_client.change_config(
                     conf_change_v2, timeout=self.cluster_config.message_timeout
                 )
-                print("resp!!", resp)
 
             except grpc.aio.AioRpcError as e:
-                print("e!!", e)
                 raise ClusterJoinError(cause=e)
 
             except Exception as e:
-                print("e!!", e)
                 raise ClusterJoinError(cause=e)
 
             if resp.result == raft_service_pb2.ChangeConfig_Success:
-                print("logfeowfpewjfoejpo!!")
                 return
             elif resp.result == raft_service_pb2.ChangeConfig_TimeoutError:
                 self.logger.info("Join request timeout. Retrying...")
@@ -278,6 +280,8 @@ class RaftCluster:
         self.raft_server = RaftServer(self.addr, self.chan, self.logger)
 
         if node_id == 1:
+            self.initial_peers.connect(1, self.addr)
+
             self.raft_node = RaftNode.bootstrap_leader(
                 chan=self.chan,
                 fsm=self.fsm,

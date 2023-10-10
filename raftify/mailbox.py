@@ -56,7 +56,9 @@ class Mailbox:
             assert reroute_msg_type is not None
 
             leader_id = self.raft_node.get_leader_id()
-            resp_from_leader = await self.raft_node.peers[leader_id].reroute_message(
+            resp_from_leader = await self.raft_node.peers[
+                leader_id
+            ].client.reroute_message(
                 reroute_msg_type=reroute_msg_type,
                 conf_change=conf_change,
                 msg_bytes=proposed_data,
@@ -89,6 +91,7 @@ class Mailbox:
             return resp
         except Exception as e:
             self.logger.error("Error occured while sending message through mailbox", e)
+            raise
 
     async def leave(self, node_id: int) -> None:
         conf_change = ConfChange.default()

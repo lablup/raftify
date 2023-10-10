@@ -93,8 +93,8 @@ async def server_main(
     cluster = RaftCluster(cfg, raft_socket, store, slog, logger)
 
     if raft_node_idx == 0:
-        cluster.build_raft(RaftNodeRole.Leader)
-        cluster.bootstrap_cluster()
+        node_id = 1
+        cluster.run_raft(node_id)
     else:
         await wait_for_until(f"cluster_size >= {raft_node_idx}", end=0.5)
 
@@ -110,7 +110,7 @@ async def server_main(
                 await asyncio.sleep(2)
                 continue
 
-            cluster.build_raft(RaftNodeRole.Follower, request_id_response.follower_id)
+            cluster.run_raft(request_id_response.follower_id)
 
             try:
                 await cluster.join_cluster(request_id_response)
@@ -140,7 +140,7 @@ async def server_main(
     host, port = WEB_SERVER_ADDRS[raft_node_idx].split(":")
     web_server = web.TCPSite(runner, host, port)
 
-    asyncio.create_task(cluster.run_raft())
+    asyncio.create_task(cluster.wait_for_termination())
     asyncio.create_task(web_server.start())
 
     write_node(raft_node_idx + 1, {"addr": str(raft_socket), "pid": os.getpid()})

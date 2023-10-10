@@ -44,7 +44,7 @@ from raftify.response_message import (
     RaftRespMessage,
     WrongLeaderRespMessage,
 )
-from raftify.utils import AtomicInteger
+from raftify.utils import AtomicInteger, SocketAddr
 
 
 class RaftNode:
@@ -215,7 +215,9 @@ class RaftNode:
         while True:
             try:
                 if self.peers[node_id].state == PeerState.Connected:
-                    await client.send_message(message, self.raftify_cfg.message_timeout)
+                    await client.send_message(
+                        message, timeout=self.raftify_cfg.message_timeout
+                    )
                 return
             except Exception as e:
                 assert self.peers[node_id].state == PeerState.Connected
@@ -440,17 +442,28 @@ class RaftNode:
                     await self.send_wrongleader_response(message.chan)
                 else:
                     if self.raw_node.get_raft().has_pending_conf():
+                        pending_conf_index = (
+                            self.raw_node.get_raft().get_pending_conf_index()
+                        )
                         self.logger.error(
-                            "Reject the conf change because pending conf change exist!, try later..."
+                            f"Reject the conf change because pending conf change exist! ({pending_conf_index=}), try later..."
                         )
                     else:
                         conf_change_v2 = ConfChangeV2Adapter.from_pb(
                             message.conf_change
                         )
+                        socket_addrs = pickle.loads(conf_change_v2.get_context())
+
+                        for addr in socket_addrs:
+                            self.peers.ready_peer(addr)
+
+                        self.logger.debug(
+                            f"Proposing a new config change..., {conf_change_v2=}"
+                        )
+
                         self.seq.increase()
                         response_queues[self.seq] = message.chan
                         context = pickle.dumps(self.seq.value)
-                        print("Propose!!")
                         self.raw_node.propose_conf_change_v2(context, conf_change_v2)
 
             elif isinstance(message, ProposeReqMessage):
@@ -468,12 +481,14 @@ class RaftNode:
                     # TODO: retry strategy in case of failure
                     await self.send_wrongleader_response(message.chan)
                 else:
+                    reserved_id = self.peers.reserve_peer(
+                        self.raw_node, SocketAddr.from_str(message.addr)
+                    )
+
                     await message.chan.put(
                         IdReservedRespMessage(
                             leader_id=self.get_leader_id(),
-                            reserved_id=self.peers.reserve_peer(
-                                self.raw_node, message.addr
-                            ),
+                            reserved_id=reserved_id,
                             peers=self.peers.encode(),
                         )
                     )

@@ -62,10 +62,8 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         await self.sender.put(ConfigChangeReqMessage(request, receiver))
         reply = raft_service_pb2.ChangeConfigResponse()
 
-        print("ChangeConfig request!! ", request)
         try:
             if raft_response := await asyncio.wait_for(receiver.get(), 2):
-                print("raft_response!!", raft_response)
                 if isinstance(raft_response, RaftOkRespMessage):
                     reply.result = raft_service_pb2.ChangeConfig_Success
                     reply.data = b""
@@ -81,14 +79,12 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
                     reply.data = pickle.dumps(tuple([leader_id, leader_addr, None]))
 
         except asyncio.TimeoutError:
-            print("Timeoutdwdipowdiwjfioew!!!")
             reply.result = raft_service_pb2.ChangeConfig_TimeoutError
             reply.data = RaftErrorRespMessage().encode()
 
             self.logger.error("Timeout waiting for reply!")
 
         except Exception as e:
-            print("ChangeConfig_UnknownError!!!", e)
             reply.result = raft_service_pb2.ChangeConfig_UnknownError
             reply.data = RaftErrorRespMessage(data=str(e).encode("utf-8")).encode()
 
