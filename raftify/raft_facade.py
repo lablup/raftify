@@ -134,6 +134,7 @@ class RaftCluster:
         self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]
     ) -> RequestIdResponse:
         """ """
+        # TODO: Block request_id calling until the all cluster's initial peers are ready.
 
         for peer_addr in peer_candidates:
             self.logger.info(f'Attempting to join the cluster through "{peer_addr}"...')
