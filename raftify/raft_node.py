@@ -231,9 +231,12 @@ class RaftNode:
 
                     try:
                         if self.raftify_cfg.auto_remove_node:
-                            failed_request_counter = self.peers[
-                                node_id
-                            ].client.failed_request_counter
+                            failed_client = self.peers[node_id].client
+                            assert failed_client is not None
+
+                            failed_request_counter = (
+                                failed_client.failed_request_counter
+                            )
 
                             if (
                                 failed_request_counter.value
@@ -252,7 +255,7 @@ class RaftNode:
 
                         await self.chan.put(ReportUnreachableReqMessage(node_id))
                     except Exception as e:
-                        self.logger.error(e)
+                        self.logger.error(str(e))
                         pass
                     return
 
@@ -269,7 +272,9 @@ class RaftNode:
 
     async def send_wrongleader_response(self, channel: Queue) -> None:
         # TODO: Make this follower to new cluster's leader
-        assert self.get_leader_id() in self.peers, "Leader node not found in peers!"
+        assert (
+            self.get_leader_id() in self.peers.data
+        ), "Leader node not found in peers!"
 
         try:
             # TODO: handle error here

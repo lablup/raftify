@@ -37,6 +37,11 @@ from raftify.utils import SocketAddr
 
 
 class RaftCluster:
+    raft_node: RaftNode | None
+    raft_server: RaftServer | None
+    raft_node_task: asyncio.Task | None
+    raft_server_task: asyncio.Task | None
+
     def __init__(
         self,
         cluster_config: RaftifyConfig,
@@ -190,7 +195,7 @@ class RaftCluster:
         conf_change_v2.set_context(pickle.dumps(node_addrs))
 
         try:
-            receiver = Queue()
+            receiver: Queue = Queue()
             await self.raft_node.chan.put(
                 ConfigChangeReqMessage(
                     ConfChangeV2Adapter.to_pb(conf_change_v2), receiver
@@ -229,9 +234,11 @@ class RaftCluster:
             {
                 **{
                     node_id: Peer(
-                        addr=addr, client=RaftClient(addr), state=PeerState.Connected
+                        addr=peer.addr,
+                        client=RaftClient(peer.addr),
+                        state=PeerState.Connected,
                     )
-                    for node_id, addr in peers.data.items()
+                    for node_id, peer in peers.data.items()
                 },
                 leader_id: Peer(
                     addr=leader_client.addr,
@@ -306,9 +313,10 @@ class RaftCluster:
     async def wait_for_termination(self) -> None:
         """ """
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
+        assert self.raft_server_task and self.raft_node_task
 
         try:
-            await asyncio.gather(*(self.raft_server_task, self.raft_node_task))
+            await asyncio.gather(self.raft_server_task, self.raft_node_task)
         except asyncio.CancelledError:
             self.logger.info("Raft server is cancelled. preparing to terminate...")
             await self.raft_server.terminate()

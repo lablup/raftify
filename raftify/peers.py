@@ -42,7 +42,8 @@ class Peers:
         )
 
     def __getitem__(self, node_id: int) -> Peer:
-        return self.data.get(node_id)
+        assert node_id in self.data
+        return self.data[node_id]
 
     def __setitem__(self, key: int, value: Peer):
         self.data[key] = value
@@ -55,6 +56,9 @@ class Peers:
         for node_id, peer in self.data.items():
             peers[node_id] = Peer(peer.addr, None, peer.state)
         return pickle.dumps(peers)
+
+    def get(self, node_id: int) -> Optional[Peer]:
+        return self.data.get(node_id)
 
     @staticmethod
     def decode(bytes: bytes) -> "Peers":
