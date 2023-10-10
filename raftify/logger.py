@@ -18,3 +18,11 @@ class AbstractRaftifyLogger(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def error(self, message: str, *args, **kwargs):
         pass
+
+    @abc.abstractmethod
+    def critical(self, message: str, *args, **kwargs):
+        pass
+
+    @abc.abstractmethod
+    def verbose(self, message: str, *args, **kwargs):
+        pass

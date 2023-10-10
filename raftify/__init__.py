@@ -9,9 +9,10 @@ from .logger import AbstractRaftifyLogger  # noqa: F401
 from .mailbox import Mailbox  # noqa: F401
 from .peers import Peers  # noqa: F401
 from .raft_client import RaftClient  # noqa: F401
-from .raft_facade import RaftCluster  # noqa: F401
+from .raft_cluster import RaftCluster  # noqa: F401
 from .raft_node import RaftNode  # noqa: F401
 from .raft_server import RaftServer  # noqa: F401
+from .raft_utils import RaftNodeRole  # noqa: F401
 from .utils import PickleSerializer, SocketAddr  # noqa: F401
 
 __all__ = [
@@ -22,9 +23,10 @@ __all__ = [
     "raft_client",
     "raft_node",
     "raft_server",
-    "raft_facade",
+    "raft_cluster",
     "fsm",
     "utils",
+    "raft_utils",
     "logger",
     "peers",
     "deserializer",

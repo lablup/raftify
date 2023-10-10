@@ -16,6 +16,16 @@ class RaftServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.MemberBootstrapReady = channel.unary_unary(
+            "/raftservice.RaftService/MemberBootstrapReady",
+            request_serializer=raft__service__pb2.MemberBootstrapReadyArgs.SerializeToString,
+            response_deserializer=raft__service__pb2.RaftMessageResponse.FromString,
+        )
+        self.ClusterBootstrapReady = channel.unary_unary(
+            "/raftservice.RaftService/ClusterBootstrapReady",
+            request_serializer=raft__service__pb2.ClusterBootstrapReadyArgs.SerializeToString,
+            response_deserializer=raft__service__pb2.RaftMessageResponse.FromString,
+        )
         self.RequestId = channel.unary_unary(
             "/raftservice.RaftService/RequestId",
             request_serializer=raft__service__pb2.IdRequestArgs.SerializeToString,
@@ -40,6 +50,18 @@ class RaftServiceStub(object):
 
 class RaftServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
+
+    def MemberBootstrapReady(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
+    def ClusterBootstrapReady(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def RequestId(self, request, context):
         """Missing associated documentation comment in .proto file."""
@@ -68,6 +90,16 @@ class RaftServiceServicer(object):
 
 def add_RaftServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
+        "MemberBootstrapReady": grpc.unary_unary_rpc_method_handler(
+            servicer.MemberBootstrapReady,
+            request_deserializer=raft__service__pb2.MemberBootstrapReadyArgs.FromString,
+            response_serializer=raft__service__pb2.RaftMessageResponse.SerializeToString,
+        ),
+        "ClusterBootstrapReady": grpc.unary_unary_rpc_method_handler(
+            servicer.ClusterBootstrapReady,
+            request_deserializer=raft__service__pb2.ClusterBootstrapReadyArgs.FromString,
+            response_serializer=raft__service__pb2.RaftMessageResponse.SerializeToString,
+        ),
         "RequestId": grpc.unary_unary_rpc_method_handler(
             servicer.RequestId,
             request_deserializer=raft__service__pb2.IdRequestArgs.FromString,
@@ -98,6 +130,64 @@ def add_RaftServiceServicer_to_server(servicer, server):
 # This class is part of an EXPERIMENTAL API.
 class RaftService(object):
     """Missing associated documentation comment in .proto file."""
+
+    @staticmethod
+    def MemberBootstrapReady(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/raftservice.RaftService/MemberBootstrapReady",
+            raft__service__pb2.MemberBootstrapReadyArgs.SerializeToString,
+            raft__service__pb2.RaftMessageResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
+
+    @staticmethod
+    def ClusterBootstrapReady(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/raftservice.RaftService/ClusterBootstrapReady",
+            raft__service__pb2.ClusterBootstrapReadyArgs.SerializeToString,
+            raft__service__pb2.RaftMessageResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
     def RequestId(

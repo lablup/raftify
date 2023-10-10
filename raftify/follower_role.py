@@ -7,7 +7,7 @@ class FollowerRole(Enum):
     Voter = ConfChangeType.AddNode
     Learner = ConfChangeType.AddLearnerNode
 
-    def to_changetype(self) -> ConfChangeType:
+    def to_confchange_type(self) -> ConfChangeType:
         match self.value:
             case ConfChangeType.AddNode:
                 return ConfChangeType.AddNode

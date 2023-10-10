@@ -19,6 +19,8 @@ from rraft import default_logger
 from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.fsm import FSM
+from raftify.peers import Peer, Peers
+from raftify.raft_client import RaftClient
 from raftify.raft_cluster import RaftCluster
 from raftify.utils import SocketAddr
 
@@ -48,12 +50,16 @@ def setup_logger() -> logging.Logger:
     return logging.getLogger()
 
 
-def load_peer_candidates() -> list[SocketAddr]:
+def load_peers() -> Peers:
     path = Path(__file__).parent / "config.toml"
-    return [
-        SocketAddr.from_str(addr)
-        for addr in tomli.loads(path.read_text())["raft"]["peer-candidates"]
-    ]
+    cfg = tomli.loads(path.read_text())["raft"]["peers"]
+
+    return Peers(
+        {
+            int(entry["node_id"]): Peer(addr=SocketAddr(entry["ip"], entry["port"]))
+            for entry in cfg
+        }
+    )
 
 
 slog = setup_slog()
@@ -135,85 +141,10 @@ async def leave(request: web.Request) -> web.Response:
     )
 
 
-@routes.get("/remove/{id}")
-async def remove(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-    id = request.match_info["id"]
-
-    await cluster.mailbox.leave(int(id))
-    return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
-
-
 @routes.get("/peers")
 async def peers(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
     return web.Response(text=str(cluster.get_peers()))
-
-
-@routes.get("/leader")
-async def leader(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-    return web.Response(text=str(cluster.raft_node.get_leader_id()))
-
-
-@routes.get("/progress")
-async def show_progress(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-    if not cluster.raft_node.is_leader():
-        return web.Response(text="Not leader.")
-
-    progress_tracker = cluster.raft_node.raw_node.get_raft().prs().collect()
-    res = [str(pr_tracker.progress()) for pr_tracker in progress_tracker]
-    return web.Response(text=str(res))
-
-
-@routes.get("/merge/{id}/{addr}")
-async def merge_cluster(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-    target_node_id = int(request.match_info["id"])
-    target_addr = request.match_info["addr"]
-
-    peer_addrs = load_peer_candidates()
-    await cluster.merge_cluster(
-        target_node_id, SocketAddr.from_str(target_addr), peer_addrs
-    )
-
-    return web.Response(text="Merged cluster successfully.")
-
-
-@routes.get("/transfer/{id}")
-async def transfer_leader(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-    target_node_id = int(request.match_info["id"])
-
-    cluster.transfer_leader(target_node_id)
-    return web.Response(text="Leader transferred successfully.")
-
-
-@routes.get("/snapshot")
-async def snapshot(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-
-    await cluster.create_snapshot()
-    return web.Response(text="Created snapshot successfully.")
-
-
-@routes.get("/entries")
-async def entries(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-
-    all_entries = cluster.raft_node.raw_node.get_raft().get_raft_log().all_entries()
-    res = f"[ {', '.join(list(map(lambda e: str(e), all_entries)))} ]"
-
-    return web.Response(text=res)
-
-
-@routes.get("/unstable")
-async def unstable(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-    return web.Response(
-        text=str(cluster.raft_node.raw_node.get_raft().get_raft_log().unstable())
-    )
 
 
 async def main() -> None:
@@ -225,20 +156,15 @@ async def main() -> None:
     )
     parser.add_argument("--raft-addr", default=None)
     parser.add_argument("--web-server", default=None)
-
     args = parser.parse_args()
-
     bootstrap = args.bootstrap
     raft_addr = (
         SocketAddr.from_str(args.raft_addr) if args.raft_addr is not None else None
     )
     web_server_addr = args.web_server
-
-    peer_addrs = load_peer_candidates()
-
+    peers = load_peers()
     store = HashStore()
-
-    target_addr = peer_addrs[0] if bootstrap and not raft_addr else raft_addr
+    target_addr = peers[1].addr if bootstrap and not raft_addr else raft_addr
 
     cfg = RaftifyConfig(
         log_dir="./",
@@ -250,24 +176,28 @@ async def main() -> None:
         ),
     )
 
-    cluster = RaftCluster(cfg, target_addr, store, slog, logger)
+    cluster = RaftCluster(cfg, target_addr, store, slog, logger, peers)
     tasks = []
 
     if bootstrap:
         logger.info("Bootstrap a Raft Cluster")
         node_id = 1
         cluster.run_raft(node_id)
+        tasks.append(cluster.wait_for_termination())
+        tasks.append(cluster.join_all_followers())
     else:
         assert (
             raft_addr is not None
         ), "Follower node requires a --raft-addr option to join the cluster"
 
-        request_id_resp = await cluster.request_id(raft_addr, peer_addrs)
-        cluster.run_raft(request_id_resp.follower_id)
         logger.info("Running in follower mode")
-        await cluster.join_cluster(request_id_resp)
+        node_id = peers.get_node_id_by_addr(raft_addr)
+        assert node_id is not None, "Member Node id is not found"
 
-    tasks.append(cluster.wait_for_termination())
+        cluster.run_raft(node_id)
+        leader_client = RaftClient(peers[1].addr)
+        await leader_client.member_bootstrap_ready(node_id, 5.0)
+        tasks.append(cluster.wait_for_termination())
 
     app_runner = None
     if web_server_addr:

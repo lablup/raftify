@@ -28,11 +28,15 @@ from rraft import (
 
 from raftify.protos.eraftpb_pb2 import ConfChange as Pb_ConfChange
 from raftify.protos.eraftpb_pb2 import ConfChangeSingle as Pb_ConfChangeSingle
+from raftify.protos.eraftpb_pb2 import ConfChangeTransition as Pb_ConfChangeTransition
+from raftify.protos.eraftpb_pb2 import ConfChangeType as Pb_ConfChangeType
 from raftify.protos.eraftpb_pb2 import ConfChangeV2 as Pb_ConfChangeV2
 from raftify.protos.eraftpb_pb2 import ConfState as Pb_ConfState
 from raftify.protos.eraftpb_pb2 import Entry as Pb_Entry
+from raftify.protos.eraftpb_pb2 import EntryType as Pb_EntryType
 from raftify.protos.eraftpb_pb2 import HardState as Pb_HardState
 from raftify.protos.eraftpb_pb2 import Message as Pb_Message
+from raftify.protos.eraftpb_pb2 import MessageType as Pb_MessageType
 from raftify.protos.eraftpb_pb2 import Snapshot as Pb_Snapshot
 from raftify.protos.eraftpb_pb2 import SnapshotMetadata as Pb_SnapshotMetadata
 
@@ -54,6 +58,40 @@ class ProtobufAdapter(metaclass=ABCMeta):
         raise NotImplementedError
 
 
+class ConfChangeTransitionAdapter(ProtobufAdapter):
+    @staticmethod
+    def to_pb(v: ConfChangeTransition) -> Pb_ConfChangeTransition:
+        match v:
+            case ConfChangeTransition.Auto:
+                return Pb_ConfChangeTransition.Auto
+            case ConfChangeTransition.Implicit:
+                return Pb_ConfChangeTransition.Implicit
+            case ConfChangeTransition.Explicit:
+                return Pb_ConfChangeTransition.Explicit
+        assert False
+
+    @staticmethod
+    def from_pb(v: Pb_ConfChangeTransition) -> ConfChangeTransition:
+        return ConfChangeTransition.from_int(v)
+
+
+class ConfChangeTypeAdapter(ProtobufAdapter):
+    @staticmethod
+    def to_pb(v: ConfChangeType) -> Pb_ConfChangeType:
+        match v:
+            case ConfChangeType.AddNode:
+                return Pb_ConfChangeType.AddNode
+            case ConfChangeType.RemoveNode:
+                return Pb_ConfChangeType.RemoveNode
+            case ConfChangeType.AddLearnerNode:
+                return Pb_ConfChangeType.AddLearnerNode
+        assert False
+
+    @staticmethod
+    def from_pb(v: Pb_ConfChangeType) -> ConfChangeType:
+        return ConfChangeType.from_int(v)
+
+
 class ConfChangeAdapter(ProtobufAdapter):
     @staticmethod
     def to_pb(v: ConfChange | ConfChangeRef) -> Pb_ConfChange:
@@ -61,7 +99,7 @@ class ConfChangeAdapter(ProtobufAdapter):
             id=v.get_id(),
             node_id=v.get_node_id(),
             context=v.get_context(),
-            change_type=int(v.get_change_type()),
+            change_type=ConfChangeTypeAdapter.to_pb(v.get_change_type()),
         )
 
     @staticmethod
@@ -70,7 +108,7 @@ class ConfChangeAdapter(ProtobufAdapter):
         conf_change.set_id(v.id)
         conf_change.set_node_id(v.node_id)
         conf_change.set_context(v.context)
-        conf_change.set_change_type(ConfChangeType.from_int(v.change_type))
+        conf_change.set_change_type(ConfChangeTypeAdapter.from_pb(v.change_type))
         return conf_change
 
 
@@ -78,14 +116,15 @@ class ConfChangeSingleAdapter(ProtobufAdapter):
     @staticmethod
     def to_pb(v: ConfChangeSingle | ConfChangeSingleRef) -> Pb_ConfChangeSingle:
         return Pb_ConfChangeSingle(
-            node_id=v.get_node_id(), change_type=int(v.get_change_type())
+            node_id=v.get_node_id(),
+            change_type=ConfChangeTypeAdapter.to_pb(v.get_change_type()),
         )
 
     @staticmethod
     def from_pb(v: Pb_ConfChangeSingle) -> ConfChangeSingle:
         conf_change = ConfChangeSingle.default()
         conf_change.set_node_id(v.node_id)
-        conf_change.set_change_type(ConfChangeType.from_int(v.change_type))
+        conf_change.set_change_type(ConfChangeTypeAdapter.from_pb(v.change_type))
         return conf_change
 
 
@@ -93,7 +132,7 @@ class ConfChangeV2Adapter(ProtobufAdapter):
     @staticmethod
     def to_pb(v: ConfChangeV2 | ConfChangeV2Ref) -> Pb_ConfChangeV2:
         return Pb_ConfChangeV2(
-            transition=int(v.get_transition()),
+            transition=ConfChangeTransitionAdapter.to_pb(v.get_transition()),
             changes=list(map(ConfChangeSingleAdapter.to_pb, v.get_changes())),
             context=v.get_context(),
         )
@@ -129,13 +168,30 @@ class ConfStateAdapter(ProtobufAdapter):
         return conf_state
 
 
+class EntryTypeAdapter(ProtobufAdapter):
+    @staticmethod
+    def to_pb(v: EntryType) -> Pb_EntryType:
+        match v:
+            case EntryType.EntryNormal:
+                return Pb_EntryType.EntryNormal
+            case EntryType.EntryConfChange:
+                return Pb_EntryType.EntryConfChange
+            case EntryType.EntryConfChangeV2:
+                return Pb_EntryType.EntryConfChangeV2
+        assert False
+
+    @staticmethod
+    def from_pb(v: Pb_EntryType) -> EntryType:
+        return EntryType.from_int(v)
+
+
 class EntryAdapter(ProtobufAdapter):
     @staticmethod
     def to_pb(v: Entry | EntryRef) -> Pb_Entry:
         return Pb_Entry(
             context=v.get_context(),
             data=v.get_data(),
-            entry_type=int(v.get_entry_type()),
+            entry_type=EntryTypeAdapter.to_pb(v.get_entry_type()),
             index=v.get_index(),
             sync_log=v.get_sync_log(),
             term=v.get_term(),
@@ -146,7 +202,7 @@ class EntryAdapter(ProtobufAdapter):
         entry = Entry.default()
         entry.set_context(v.context)
         entry.set_data(v.data)
-        entry.set_entry_type(EntryType.from_int(v.entry_type))
+        entry.set_entry_type(EntryTypeAdapter.from_pb(v.entry_type))
         entry.set_index(v.index)
         entry.set_sync_log(v.sync_log)
         entry.set_term(v.term)
@@ -171,6 +227,55 @@ class HardStateAdapter(ProtobufAdapter):
         return hard_state
 
 
+class MessageTypeAdapter(ProtobufAdapter):
+    @staticmethod
+    def to_pb(v: MessageType) -> Pb_MessageType:
+        match v:
+            case MessageType.MsgHup:
+                return Pb_MessageType.MsgHup
+            case MessageType.MsgBeat:
+                return Pb_MessageType.MsgBeat
+            case MessageType.MsgPropose:
+                return Pb_MessageType.MsgPropose
+            case MessageType.MsgAppend:
+                return Pb_MessageType.MsgAppend
+            case MessageType.MsgAppendResponse:
+                return Pb_MessageType.MsgAppendResponse
+            case MessageType.MsgRequestVote:
+                return Pb_MessageType.MsgRequestVote
+            case MessageType.MsgRequestVoteResponse:
+                return Pb_MessageType.MsgRequestVoteResponse
+            case MessageType.MsgSnapshot:
+                return Pb_MessageType.MsgSnapshot
+            case MessageType.MsgHeartbeat:
+                return Pb_MessageType.MsgHeartbeat
+            case MessageType.MsgHeartbeatResponse:
+                return Pb_MessageType.MsgHeartbeatResponse
+            case MessageType.MsgUnreachable:
+                return Pb_MessageType.MsgUnreachable
+            case MessageType.MsgSnapStatus:
+                return Pb_MessageType.MsgSnapStatus
+            case MessageType.MsgCheckQuorum:
+                return Pb_MessageType.MsgCheckQuorum
+            case MessageType.MsgTransferLeader:
+                return Pb_MessageType.MsgTransferLeader
+            case MessageType.MsgTimeoutNow:
+                return Pb_MessageType.MsgTimeoutNow
+            case MessageType.MsgReadIndex:
+                return Pb_MessageType.MsgReadIndex
+            case MessageType.MsgReadIndexResp:
+                return Pb_MessageType.MsgReadIndexResp
+            case MessageType.MsgRequestPreVote:
+                return Pb_MessageType.MsgRequestPreVote
+            case MessageType.MsgRequestPreVoteResponse:
+                return Pb_MessageType.MsgRequestPreVoteResponse
+        assert False
+
+    @staticmethod
+    def from_pb(v: int) -> MessageType:
+        return MessageType.from_int(v)
+
+
 class MessageAdapter(ProtobufAdapter):
     @staticmethod
     def to_pb(v: Message | MessageRef) -> Pb_Message:
@@ -183,7 +288,7 @@ class MessageAdapter(ProtobufAdapter):
             from_=v.get_from(),
             index=v.get_index(),
             log_term=v.get_log_term(),
-            msg_type=int(v.get_msg_type()),
+            msg_type=MessageTypeAdapter.to_pb(v.get_msg_type()),
             priority=v.get_priority(),
             reject=v.get_reject(),
             reject_hint=v.get_reject_hint(),
@@ -204,7 +309,7 @@ class MessageAdapter(ProtobufAdapter):
         message.set_from(v.from_)
         message.set_index(v.index)
         message.set_log_term(v.log_term)
-        message.set_msg_type(MessageType.from_int(v.msg_type))
+        message.set_msg_type(MessageTypeAdapter.from_pb(v.msg_type))
         message.set_priority(v.priority)
         message.set_reject(v.reject)
         message.set_reject_hint(v.reject_hint)
