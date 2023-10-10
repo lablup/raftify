@@ -114,6 +114,7 @@ class RaftCluster:
                 continue
 
             raw_peers = self.initial_peers.encode()
+            assert peer.client is not None
             await peer.client.cluster_bootstrap_ready(raw_peers, 5.0)
 
     def transfer_leader(
