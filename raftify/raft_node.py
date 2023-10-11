@@ -262,7 +262,7 @@ class RaftNode:
 
     def send_messages(self, messages: list[Message]):
         for message in messages:
-            if peer := self.peers[message.get_to()]:
+            if peer := self.peers.get(message.get_to()):
                 if client := peer.client:
                     asyncio.create_task(
                         self.send_message(
