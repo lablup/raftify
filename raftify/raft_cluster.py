@@ -100,15 +100,20 @@ class RaftCluster:
             for data in self.initial_peers.data.values()
         )
 
-    async def join_all_followers(self):
+    async def wait_for_followers_join(self):
+        """ """
         await asyncio.sleep(1)
         while not self.cluster_bootstrap_ready():
-            await asyncio.sleep(2)
             self.logger.debug(
                 "Waiting for all peers to make join request to the cluster..."
             )
+            await asyncio.sleep(2)
 
-        await self.join_followers()
+        self.logger.debug(
+            "Received All followers join request, preparing to bootstrap the cluster."
+        )
+        await self.__join_followers()
+
         for node_id, peer in self.initial_peers.data.items():
             if node_id == 1:
                 continue
@@ -182,7 +187,7 @@ class RaftCluster:
 
         return RequestIdResponse(node_id, (leader_id, client), peer_addrs)
 
-    async def join_followers(
+    async def __join_followers(
         self,
     ) -> None:
         """ """

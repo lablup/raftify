@@ -20,7 +20,6 @@ from rraft import (
 
 from raftify.config import RaftifyConfig
 from raftify.fsm import FSM
-from raftify.storage.lmdb import LMDBStorage
 from raftify.logger import AbstractRaftifyLogger
 from raftify.pb_adapter import ConfChangeV2Adapter, MessageAdapter
 from raftify.peers import Peer, Peers, PeerState
@@ -45,6 +44,7 @@ from raftify.response_message import (
     RaftResponse,
     WrongLeaderRespMessage,
 )
+from raftify.storage.lmdb import LMDBStorage
 from raftify.utils import AtomicInteger, SocketAddr
 
 

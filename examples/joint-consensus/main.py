@@ -183,8 +183,8 @@ async def main() -> None:
         logger.info("Bootstrap a Raft Cluster")
         node_id = 1
         cluster.run_raft(node_id)
+        tasks.append(cluster.wait_for_followers_join())
         tasks.append(cluster.wait_for_termination())
-        tasks.append(cluster.join_all_followers())
     else:
         assert (
             raft_addr is not None
