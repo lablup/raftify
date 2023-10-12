@@ -62,7 +62,7 @@ routes = RouteTableDef()
 
 
 class SetCommand:
-    def __init__(self, key: int, value: str) -> None:
+    def __init__(self, key: str, value: str) -> None:
         self.key = key
         self.value = value
 
@@ -80,7 +80,7 @@ class HashStore(FSM):
         self._store = dict()
         self._lock = Lock()
 
-    def get(self, key: int) -> Optional[str]:
+    def get(self, key: str) -> Optional[str]:
         with self._lock:
             return self._store.get(key)
 
@@ -107,7 +107,7 @@ class HashStore(FSM):
 async def get(request: web.Request) -> web.Response:
     store: HashStore = request.app["state"]["store"]
     id = request.match_info["id"]
-    return web.Response(text=store.get(int(id)))
+    return web.Response(text=store.get(id))
 
 
 @routes.get("/all")
@@ -120,7 +120,7 @@ async def all(request: web.Request) -> web.Response:
 async def put(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
     id, value = request.match_info["id"], request.match_info["value"]
-    message = SetCommand(int(id), value)
+    message = SetCommand(id, value)
     result = await cluster.mailbox.send(message.encode())
     return web.Response(text=f'"{str(pickle.loads(result))}"')
 

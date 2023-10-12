@@ -73,7 +73,7 @@ class HashStore(FSM):
         self._store = dict()
         self._lock = Lock()
 
-    def get(self, key: int) -> Optional[str]:
+    def get(self, key: str) -> Optional[str]:
         with self._lock:
             return self._store.get(key)
 
@@ -96,27 +96,23 @@ class HashStore(FSM):
 ### Bootstrap a raft cluster
 
 ```py
-cluster = RaftCluster(cluster_cfg, raft_addr, store, slog, logger)
-cluster.build_raft(RaftNodeRole.Leader)
-cluster.bootstrap_cluster()
-logger.info("Bootstrap a Raft Cluster")
+logger.info("Bootstrap new Raft Cluster")
+node_id = 1
+cluster = RaftCluster(cluster_cfg, target_addr, store, slog, logger)
+cluster.run_raft(node_id)
+asyncio.create_task(cluster.wait_for_termination())
 ```
 
 ### Join follower nodes to the cluster
 
 ```py
+logger.info("Running in follower mode")
 cluster = RaftCluster(cluster_cfg, raft_addr, store, slog, logger)
 request_id_response = await cluster.request_id(raft_addr, peer_addrs)
-cluster.build_raft(RaftNodeRole.Follower, request_id_response.follower_id)
+cluster.run_raft(request_id_resp.follower_id)
 await cluster.join_cluster(request_id_response)
-logger.info("Running follower node")
+asyncio.create_task(cluster.wait_for_termination())
 ```
-
-<!-- ## Installation
-
-```
-$ pip install raftify
-``` -->
 
 ## References
 

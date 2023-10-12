@@ -30,7 +30,7 @@ routes = RouteTableDef()
 async def get(request: web.Request) -> web.Response:
     store: HashStore = request.app["state"]["store"]
     id = request.match_info["id"]
-    return web.Response(text=store.get(int(id)))
+    return web.Response(text=store.get(id))
 
 
 @routes.get("/all")
@@ -43,7 +43,7 @@ async def all(request: web.Request) -> web.Response:
 async def put(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
     id, value = request.match_info["id"], request.match_info["value"]
-    message = SetCommand(int(id), value)
+    message = SetCommand(id, value)
     result = await cluster.mailbox.send(message.encode())
     return web.Response(text=f'"{str(pickle.loads(result))}"')
 

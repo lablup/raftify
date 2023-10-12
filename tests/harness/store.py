@@ -11,7 +11,7 @@ class HashStore(raftify.FSM):
     def __init__(self):
         self._store = dict()
 
-    def get(self, key: int) -> Optional[str]:
+    def get(self, key: str) -> Optional[str]:
         return self._store.get(key)
 
     def as_dict(self) -> dict:

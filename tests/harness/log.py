@@ -2,7 +2,7 @@ import pickle
 
 
 class SetCommand:
-    def __init__(self, key: int, value: str) -> None:
+    def __init__(self, key: str, value: str) -> None:
         self.key = key
         self.value = value
 
