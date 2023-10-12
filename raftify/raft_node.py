@@ -222,13 +222,11 @@ class RaftNode:
                         message, timeout=self.raftify_cfg.message_timeout
                     )
                 return
-            except Exception as e:
+            except Exception:
                 if current_retry < self.raftify_cfg.max_retry_cnt:
                     current_retry += 1
                 else:
-                    self.logger.warning(
-                        f"Failed to connect to node {node_id}. Error: {e}"
-                    )
+                    self.logger.warning(f"Failed to connect to node {node_id}.")
 
                     try:
                         if self.raftify_cfg.auto_remove_node:
