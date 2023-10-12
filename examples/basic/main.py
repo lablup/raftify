@@ -9,6 +9,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Optional
 
+import aiomonitor
 import colorlog
 import tomli
 from aiohttp import web
@@ -285,7 +286,9 @@ async def main() -> None:
         tasks.append(web_server.start())
 
     try:
-        await asyncio.gather(*tasks)
+        loop = asyncio.get_running_loop()
+        with aiomonitor.start_monitor(loop):
+            await asyncio.gather(*tasks)
     finally:
         if app_runner:
             await app_runner.cleanup()
