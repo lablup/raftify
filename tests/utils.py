@@ -7,6 +7,23 @@ import signal
 
 import requests
 from harness.constant import CLUSTER_INFO_PATH, WEB_SERVER_ADDRS
+from pathlib import Path
+import tomli
+
+from raftify.peers import Peer, Peers
+from raftify.utils import SocketAddr
+
+
+def load_peers(peer_filename: str) -> Peers:
+    path = Path(__file__).parent / "harness" / peer_filename
+    cfg = tomli.loads(path.read_text())["raft"]["peers"]
+
+    return Peers(
+        {
+            int(entry["node_id"]): Peer(addr=SocketAddr(entry["ip"], entry["port"]))
+            for entry in cfg
+        }
+    )
 
 
 def read_json(path: str) -> dict:

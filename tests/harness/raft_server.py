@@ -15,10 +15,11 @@ from harness.constant import CLUSTER_INFO_PATH, RAFT_ADDRS, WEB_SERVER_ADDRS
 from harness.log import SetCommand
 from harness.logger import logger, slog
 from harness.store import HashStore
+from raftify.peers import Peers
+from raftify.raft_client import RaftClient
 from utils import read_cluster_info, remove_node, write_json, write_node
 
 from raftify.config import RaftifyConfig
-from raftify.error import ClusterJoinError, LeaderNotFoundError
 from raftify.raft_cluster import RaftCluster
 from raftify.utils import SocketAddr
 
@@ -82,43 +83,38 @@ async def leader(request: web.Request) -> web.Response:
 async def server_main(
     loop: asyncio.AbstractEventLoop, pidx: int, _args: list
 ) -> AsyncIterator[None]:
+    """
+    Raft server harness code using static membership.
+    This will reduce the complexity and costs of the test code, and also could test static membership feature itself.
+    """
+    peers = _args[0]
+    print('peers', peers)
+
     store = HashStore()
     raft_node_idx = process_index.get()
-    raft_socket = SocketAddr.from_str(str(RAFT_ADDRS[raft_node_idx]))
+    node_id = raft_node_idx + 1
+    raft_addr = SocketAddr.from_str(str(RAFT_ADDRS[raft_node_idx]))
 
     cfg = RaftifyConfig(
         log_dir="./",
     )
 
-    cluster = RaftCluster(cfg, raft_socket, store, slog, logger)
+    cluster = RaftCluster(cfg, raft_addr, store, slog, logger, peers)
 
     if raft_node_idx == 0:
-        node_id = 1
+        logger.info("Bootstrap a Raft Cluster")
         cluster.run_raft(node_id)
+        asyncio.create_task(cluster.wait_for_followers_join())
+        asyncio.create_task(cluster.wait_for_termination())
     else:
-        await wait_for_until(f"cluster_size >= {raft_node_idx}", end=0.5)
+        # Wait for the leader node's grpc server ready
+        await asyncio.sleep(2)
+        logger.info("Running in follower mode")
+        cluster.run_raft(node_id)
 
-        while True:
-            print("Trying to join cluster...")
-            try:
-                request_id_response = await cluster.request_id(
-                    raft_socket,
-                    [SocketAddr.from_str(str(raft_addr)) for raft_addr in RAFT_ADDRS],
-                )
-            except LeaderNotFoundError:
-                print("Leader not found! retry after 2s...")
-                await asyncio.sleep(2)
-                continue
-
-            cluster.run_raft(request_id_response.follower_id)
-
-            try:
-                await cluster.join_cluster(request_id_response)
-                break
-            except ClusterJoinError as e:
-                print("ClusterJoinError! retry after 2s...: ", e)
-                await asyncio.sleep(2)
-                continue
+        leader_client = RaftClient(peers[1].addr)
+        await leader_client.member_bootstrap_ready(node_id, timeout=5.0)
+        asyncio.create_task(cluster.wait_for_termination())
 
     assert cluster.raft_node is not None, "RaftNode not initialized properly!"
 
@@ -143,17 +139,18 @@ async def server_main(
     asyncio.create_task(cluster.wait_for_termination())
     asyncio.create_task(web_server.start())
 
-    write_node(raft_node_idx + 1, {"addr": str(raft_socket), "pid": os.getpid()})
+    write_node(raft_node_idx + 1, {"addr": str(raft_addr), "pid": os.getpid()})
     yield
 
 
-def run_raft_cluster(num_workers: int):
+def run_raft_cluster(peers: Peers):
     write_json(f"{CLUSTER_INFO_PATH}/.root.json", {"pid": os.getpid()})
 
     try:
         aiotools.start_server(
             server_main,
-            num_workers=num_workers,
+            num_workers=len(peers),
+            args=(peers,),
         )
     except Exception as e:
         print("Exception occurred!: ", e)
