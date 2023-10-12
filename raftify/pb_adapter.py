@@ -59,37 +59,41 @@ class ProtobufAdapter(metaclass=ABCMeta):
 
 
 class ConfChangeTransitionAdapter(ProtobufAdapter):
+    to_pb_adapter = {
+        ConfChangeTransition.Auto: Pb_ConfChangeTransition.Auto,
+        ConfChangeTransition.Implicit: Pb_ConfChangeTransition.Implicit,
+        ConfChangeTransition.Explicit: Pb_ConfChangeTransition.Explicit,
+    }
+
+    from_pb_adapter = {value: key for key, value in to_pb_adapter.items()}
+
     @staticmethod
     def to_pb(v: ConfChangeTransition) -> Pb_ConfChangeTransition:
-        match v:
-            case ConfChangeTransition.Auto:
-                return Pb_ConfChangeTransition.Auto
-            case ConfChangeTransition.Implicit:
-                return Pb_ConfChangeTransition.Implicit
-            case ConfChangeTransition.Explicit:
-                return Pb_ConfChangeTransition.Explicit
-        assert False
+        return ConfChangeTransitionAdapter.to_pb_adapter[v]
 
     @staticmethod
     def from_pb(v: Pb_ConfChangeTransition) -> ConfChangeTransition:
-        return ConfChangeTransition.from_int(v)
+        return ConfChangeTransitionAdapter.from_pb_adapter[v]
 
 
 class ConfChangeTypeAdapter(ProtobufAdapter):
+    to_pb_adapter: dict[ConfChangeType, Pb_ConfChangeType] = {
+        ConfChangeType.AddNode: Pb_ConfChangeType.AddNode,
+        ConfChangeType.RemoveNode: Pb_ConfChangeType.RemoveNode,
+        ConfChangeType.AddLearnerNode: Pb_ConfChangeType.AddLearnerNode,
+    }
+
+    from_pb_adapter: dict[Pb_ConfChangeType, ConfChangeType] = {
+        value: key for key, value in to_pb_adapter.items()
+    }
+
     @staticmethod
     def to_pb(v: ConfChangeType) -> Pb_ConfChangeType:
-        match v:
-            case ConfChangeType.AddNode:
-                return Pb_ConfChangeType.AddNode
-            case ConfChangeType.RemoveNode:
-                return Pb_ConfChangeType.RemoveNode
-            case ConfChangeType.AddLearnerNode:
-                return Pb_ConfChangeType.AddLearnerNode
-        assert False
+        return ConfChangeTypeAdapter.to_pb_adapter[v]
 
     @staticmethod
     def from_pb(v: Pb_ConfChangeType) -> ConfChangeType:
-        return ConfChangeType.from_int(v)
+        return ConfChangeTypeAdapter.from_pb_adapter[v]
 
 
 class ConfChangeAdapter(ProtobufAdapter):
@@ -169,20 +173,21 @@ class ConfStateAdapter(ProtobufAdapter):
 
 
 class EntryTypeAdapter(ProtobufAdapter):
+    to_pb_adapter = {
+        EntryType.EntryNormal: Pb_EntryType.EntryNormal,
+        EntryType.EntryConfChange: Pb_EntryType.EntryConfChange,
+        EntryType.EntryConfChangeV2: Pb_EntryType.EntryConfChangeV2,
+    }
+
+    from_pb_adapter = {value: key for key, value in to_pb_adapter.items()}
+
     @staticmethod
     def to_pb(v: EntryType) -> Pb_EntryType:
-        match v:
-            case EntryType.EntryNormal:
-                return Pb_EntryType.EntryNormal
-            case EntryType.EntryConfChange:
-                return Pb_EntryType.EntryConfChange
-            case EntryType.EntryConfChangeV2:
-                return Pb_EntryType.EntryConfChangeV2
-        assert False
+        return EntryTypeAdapter.to_pb_adapter[v]
 
     @staticmethod
     def from_pb(v: Pb_EntryType) -> EntryType:
-        return EntryType.from_int(v)
+        return EntryTypeAdapter.from_pb_adapter[v]
 
 
 class EntryAdapter(ProtobufAdapter):
@@ -228,52 +233,37 @@ class HardStateAdapter(ProtobufAdapter):
 
 
 class MessageTypeAdapter(ProtobufAdapter):
+    to_pb_adapter = {
+        MessageType.MsgHup: Pb_MessageType.MsgHup,
+        MessageType.MsgBeat: Pb_MessageType.MsgBeat,
+        MessageType.MsgPropose: Pb_MessageType.MsgPropose,
+        MessageType.MsgAppend: Pb_MessageType.MsgAppend,
+        MessageType.MsgAppendResponse: Pb_MessageType.MsgAppendResponse,
+        MessageType.MsgRequestVote: Pb_MessageType.MsgRequestVote,
+        MessageType.MsgRequestVoteResponse: Pb_MessageType.MsgRequestVoteResponse,
+        MessageType.MsgSnapshot: Pb_MessageType.MsgSnapshot,
+        MessageType.MsgHeartbeat: Pb_MessageType.MsgHeartbeat,
+        MessageType.MsgHeartbeatResponse: Pb_MessageType.MsgHeartbeatResponse,
+        MessageType.MsgUnreachable: Pb_MessageType.MsgUnreachable,
+        MessageType.MsgSnapStatus: Pb_MessageType.MsgSnapStatus,
+        MessageType.MsgCheckQuorum: Pb_MessageType.MsgCheckQuorum,
+        MessageType.MsgTransferLeader: Pb_MessageType.MsgTransferLeader,
+        MessageType.MsgTimeoutNow: Pb_MessageType.MsgTimeoutNow,
+        MessageType.MsgReadIndex: Pb_MessageType.MsgReadIndex,
+        MessageType.MsgReadIndexResp: Pb_MessageType.MsgReadIndexResp,
+        MessageType.MsgRequestPreVote: Pb_MessageType.MsgRequestPreVote,
+        MessageType.MsgRequestPreVoteResponse: Pb_MessageType.MsgRequestPreVoteResponse,
+    }
+
+    from_pb_adapter = {value: key for key, value in to_pb_adapter.items()}
+
     @staticmethod
     def to_pb(v: MessageType) -> Pb_MessageType:
-        match v:
-            case MessageType.MsgHup:
-                return Pb_MessageType.MsgHup
-            case MessageType.MsgBeat:
-                return Pb_MessageType.MsgBeat
-            case MessageType.MsgPropose:
-                return Pb_MessageType.MsgPropose
-            case MessageType.MsgAppend:
-                return Pb_MessageType.MsgAppend
-            case MessageType.MsgAppendResponse:
-                return Pb_MessageType.MsgAppendResponse
-            case MessageType.MsgRequestVote:
-                return Pb_MessageType.MsgRequestVote
-            case MessageType.MsgRequestVoteResponse:
-                return Pb_MessageType.MsgRequestVoteResponse
-            case MessageType.MsgSnapshot:
-                return Pb_MessageType.MsgSnapshot
-            case MessageType.MsgHeartbeat:
-                return Pb_MessageType.MsgHeartbeat
-            case MessageType.MsgHeartbeatResponse:
-                return Pb_MessageType.MsgHeartbeatResponse
-            case MessageType.MsgUnreachable:
-                return Pb_MessageType.MsgUnreachable
-            case MessageType.MsgSnapStatus:
-                return Pb_MessageType.MsgSnapStatus
-            case MessageType.MsgCheckQuorum:
-                return Pb_MessageType.MsgCheckQuorum
-            case MessageType.MsgTransferLeader:
-                return Pb_MessageType.MsgTransferLeader
-            case MessageType.MsgTimeoutNow:
-                return Pb_MessageType.MsgTimeoutNow
-            case MessageType.MsgReadIndex:
-                return Pb_MessageType.MsgReadIndex
-            case MessageType.MsgReadIndexResp:
-                return Pb_MessageType.MsgReadIndexResp
-            case MessageType.MsgRequestPreVote:
-                return Pb_MessageType.MsgRequestPreVote
-            case MessageType.MsgRequestPreVoteResponse:
-                return Pb_MessageType.MsgRequestPreVoteResponse
-        assert False
+        return MessageTypeAdapter.to_pb_adapter[v]
 
     @staticmethod
     def from_pb(v: int) -> MessageType:
-        return MessageType.from_int(v)
+        return MessageTypeAdapter.from_pb_adapter[v]
 
 
 class MessageAdapter(ProtobufAdapter):
