@@ -30,11 +30,11 @@ class Mailbox:
         self,
         addr: SocketAddr,
         raft_node: RaftNode,
-        sender: Queue,
+        message_queue: Queue,
         logger: AbstractRaftifyLogger,
         raftify_config: RaftifyConfig,
     ):
-        self.sender = sender
+        self.message_queue = message_queue
         self.raft_node = raft_node
         self.addr = addr
         self.logger = logger
@@ -82,7 +82,7 @@ class Mailbox:
 
         receiver: Queue = Queue()
         # TODO: make timeout duration a variable
-        await self.sender.put(ProposeReqMessage(message, receiver))
+        await self.message_queue.put(ProposeReqMessage(message, receiver))
 
         try:
             resp = await self.__handle_response(
@@ -106,10 +106,17 @@ class Mailbox:
         receiver: Queue = Queue()
         pb_conf_change_v2 = ConfChangeV2Adapter.to_pb(conf_change_v2)
 
-        await self.sender.put(ConfigChangeReqMessage(pb_conf_change_v2, receiver))
+        print("1111!!")
+        await self.message_queue.put(
+            ConfigChangeReqMessage(pb_conf_change_v2, receiver)
+        )
+
+        print("222!!")
+        res = (await receiver.get(),)
+        print("322!!")
 
         await self.__handle_response(
-            await receiver.get(),
+            res,
             reroute_msg_type=raft_service_pb2.ConfChange,
             conf_change=pb_conf_change_v2,
         )

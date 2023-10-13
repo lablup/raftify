@@ -55,7 +55,7 @@ class RaftNode:
         raw_node: RawNode,
         raft_server: RaftServer,
         peers: Peers,
-        chan: Queue,
+        message_queue: Queue,
         fsm: FSM,
         lmdb: LMDBStorage,
         storage: Storage,
@@ -67,7 +67,7 @@ class RaftNode:
         self.raw_node = raw_node
         self.raft_server = raft_server
         self.peers = peers
-        self.chan = chan
+        self.message_queue = message_queue
         self.fsm = fsm
         self.lmdb = lmdb
         self.storage = storage
@@ -81,7 +81,7 @@ class RaftNode:
     def bootstrap_leader(
         cls,
         *,
-        chan: Queue,
+        message_queue: Queue,
         fsm: FSM,
         raft_server: RaftServer,
         peers: Peers,
@@ -121,7 +121,7 @@ class RaftNode:
             raw_node=raw_node,
             raft_server=raft_server,
             peers=peers,
-            chan=chan,
+            message_queue=message_queue,
             fsm=fsm,
             lmdb=lmdb,
             storage=storage,
@@ -135,7 +135,7 @@ class RaftNode:
     def new_follower(
         cls,
         *,
-        chan: Queue,
+        message_queue: Queue,
         id: int,
         fsm: FSM,
         raft_server: RaftServer,
@@ -166,7 +166,7 @@ class RaftNode:
             raw_node=raw_node,
             raft_server=raft_server,
             peers=peers,
-            chan=chan,
+            message_queue=message_queue,
             fsm=fsm,
             lmdb=lmdb,
             storage=storage,
@@ -252,7 +252,9 @@ class RaftNode:
                             else:
                                 failed_request_counter.increase()
 
-                        await self.chan.put(ReportUnreachableReqMessage(node_id))
+                        await self.message_queue.put(
+                            ReportUnreachableReqMessage(node_id)
+                        )
                     except Exception as e:
                         self.logger.error(str(e))
                         pass
@@ -402,7 +404,7 @@ class RaftNode:
             message = None
 
             try:
-                message = await asyncio.wait_for(self.chan.get(), tick_timer)
+                message = await asyncio.wait_for(self.message_queue.get(), tick_timer)
             except asyncio.TimeoutError:
                 pass
             except asyncio.CancelledError:

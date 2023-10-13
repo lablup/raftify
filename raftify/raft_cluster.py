@@ -61,7 +61,7 @@ class RaftCluster:
         # TODO: temporary maxsize is for debugging purposes.
         # In most cases, maxsize doesn't need to be over 100.
         # Find reasonable maxsize and remove it.
-        self.chan: Queue = Queue(maxsize=100)
+        self.message_queue: Queue = Queue(maxsize=100)
         self.cluster_config = cluster_config
         self.initial_peers = initial_peers
         self.raft_node = None
@@ -82,7 +82,11 @@ class RaftCluster:
         """
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
         return Mailbox(
-            self.addr, self.raft_node, self.chan, self.logger, self.cluster_config
+            self.addr,
+            self.raft_node,
+            self.message_queue,
+            self.logger,
+            self.cluster_config,
         )
 
     def get_peers(self) -> Peers:
@@ -307,13 +311,13 @@ class RaftCluster:
         self.logger.info(
             "Start to run RaftNode. Configuration: " + str(self.cluster_config)
         )
-        self.raft_server = RaftServer(self.addr, self.chan, self.logger)
+        self.raft_server = RaftServer(self.addr, self.message_queue, self.logger)
 
         if node_id == 1:
             self.initial_peers.connect(node_id, self.addr)
 
             self.raft_node = RaftNode.bootstrap_leader(
-                chan=self.chan,
+                message_queue=self.message_queue,
                 fsm=self.fsm,
                 raft_server=self.raft_server,
                 peers=self.initial_peers,
@@ -323,7 +327,7 @@ class RaftCluster:
             )
         else:
             self.raft_node = RaftNode.new_follower(
-                chan=self.chan,
+                message_queue=self.message_queue,
                 id=node_id,
                 fsm=self.fsm,
                 raft_server=self.raft_server,
