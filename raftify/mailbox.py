@@ -73,7 +73,7 @@ class Mailbox:
                 # TODO: handle this case. The leader might change in the meanwhile.
                 assert False
 
-        raise UnknownError(f"Unknown response type: {resp_from_leader}")
+        raise UnknownError(f"Unknown response type: {response}")
 
     async def send(self, message: bytes) -> bytes:
         """
@@ -93,27 +93,24 @@ class Mailbox:
             assert resp is not None
             return resp
         except Exception as e:
-            self.logger.error("Error occured while sending message through mailbox", e)
+            self.logger.error("Error occurred while sending message through mailbox", e)
             raise
 
-    async def leave(self, node_id: int) -> None:
+    async def remove_node(self, node_id: int, addr: SocketAddr) -> None:
         conf_change = ConfChange.default()
         conf_change.set_node_id(node_id)
-        conf_change.set_context(pickle.dumps(self.addr))
+        conf_change.set_context(pickle.dumps([addr]))
         conf_change.set_change_type(ConfChangeType.RemoveNode)
         conf_change_v2 = conf_change.as_v2()
 
         receiver: Queue = Queue()
         pb_conf_change_v2 = ConfChangeV2Adapter.to_pb(conf_change_v2)
 
-        print("1111!!")
         await self.message_queue.put(
             ConfigChangeReqMessage(pb_conf_change_v2, receiver)
         )
 
-        print("222!!")
-        res = (await receiver.get(),)
-        print("322!!")
+        res = await receiver.get()
 
         await self.__handle_response(
             res,

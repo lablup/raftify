@@ -226,7 +226,7 @@ class RaftCluster:
 
         try:
             receiver: Queue = Queue()
-            await self.raft_node.chan.put(
+            await self.raft_node.message_queue.put(
                 ConfigChangeReqMessage(
                     ConfChangeV2Adapter.to_pb(conf_change_v2), receiver
                 )
@@ -241,6 +241,7 @@ class RaftCluster:
 
         if isinstance(resp, JoinSuccessRespMessage):
             self.logger.info("All follower nodes successfully joined the cluster.")
+            self.raft_node.bootstrap_done = True
             asyncio.create_task(leave_joint(self.raft_node))
             return
         # TODO: handle error cases
@@ -254,6 +255,8 @@ class RaftCluster:
         Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
         """
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
+        # Cluster bootstrap should be done before calling this method.
+        self.raft_node.bootstrap_done = True
 
         node_id = request_id_response.follower_id
         leader = request_id_response.leader
@@ -313,6 +316,8 @@ class RaftCluster:
         )
         self.raft_server = RaftServer(self.addr, self.message_queue, self.logger)
 
+        bootstrap_done = len(self.initial_peers) == 0
+
         if node_id == 1:
             self.initial_peers.connect(node_id, self.addr)
 
@@ -324,6 +329,7 @@ class RaftCluster:
                 slog=self.slog,
                 logger=self.logger,
                 raftify_cfg=self.cluster_config,
+                bootstrap_done=bootstrap_done,
             )
         else:
             self.raft_node = RaftNode.new_follower(
@@ -335,6 +341,7 @@ class RaftCluster:
                 slog=self.slog,
                 logger=self.logger,
                 raftify_cfg=self.cluster_config,
+                bootstrap_done=bootstrap_done,
             )
 
         self.raft_server_task = asyncio.create_task(self.raft_server.run())

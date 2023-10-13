@@ -3,6 +3,7 @@ import pickle
 import time
 from asyncio import Queue
 
+import rraft
 from rraft import (
     ConfChange,
     ConfChangeType,
@@ -63,6 +64,7 @@ class RaftNode:
         last_snap_time: float,
         logger: AbstractRaftifyLogger,
         raftify_cfg: RaftifyConfig,
+        bootstrap_done: bool,
     ):
         self.raw_node = raw_node
         self.raft_server = raft_server
@@ -76,6 +78,7 @@ class RaftNode:
         self.logger = logger
         self.should_exit = False
         self.raftify_cfg = raftify_cfg
+        self.bootstrap_done = bootstrap_done
 
     @classmethod
     def bootstrap_leader(
@@ -88,6 +91,7 @@ class RaftNode:
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
         raftify_cfg: RaftifyConfig,
+        bootstrap_done: bool,
     ) -> "RaftNode":
         cfg = raftify_cfg.raft_config
 
@@ -129,6 +133,7 @@ class RaftNode:
             last_snap_time=last_snap_time,
             logger=logger,
             raftify_cfg=raftify_cfg,
+            bootstrap_done=bootstrap_done,
         )
 
     @classmethod
@@ -143,6 +148,7 @@ class RaftNode:
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
         raftify_cfg: RaftifyConfig,
+        bootstrap_done: bool,
     ) -> "RaftNode":
         cfg = raftify_cfg.raft_config
 
@@ -174,6 +180,7 @@ class RaftNode:
             last_snap_time=last_snap_time,
             logger=logger,
             raftify_cfg=raftify_cfg,
+            bootstrap_done=bootstrap_done,
         )
 
     def get_id(self) -> int:
@@ -215,9 +222,7 @@ class RaftNode:
 
         while True:
             try:
-                peer = self.peers.get(node_id)
-
-                if peer and peer.state == PeerState.Connected:
+                if self.bootstrap_done:
                     await client.send_message(
                         message, timeout=self.raftify_cfg.message_timeout
                     )
@@ -348,6 +353,9 @@ class RaftNode:
 
         seq = AtomicInteger(pickle.loads(entry.get_context()))
         conf_change_v2 = ConfChangeV2.decode(entry.get_data())
+
+        print("conf_change_v2", conf_change_v2)
+
         conf_changes = conf_change_v2.get_changes()
         addrs = pickle.loads(conf_change_v2.get_context())
 
@@ -440,6 +448,7 @@ class RaftNode:
                     peers.connect(node_id, peer.addr)
 
                 message.chan.put_nowait(RaftOkRespMessage())
+                self.bootstrap_done = True
 
             elif isinstance(message, MemberBootstrapReadyReqMessage):
                 assert self.is_leader(), "Only leader can handle this message!"
@@ -511,7 +520,16 @@ class RaftNode:
                     f"Node {msg.get_to()} received Raft message from the node {msg.get_from()}"
                 )
 
-                self.raw_node.step(msg)
+                try:
+                    self.raw_node.step(msg)
+                except rraft.StepPeerNotFoundError:
+                    self.logger.debug(
+                        "StepPeerNotFoundError occurred. Ignore this message if RemoveNode happend."
+                    )
+                    continue
+                except rraft.StepLocalMsgError:
+                    # TODO: Study what is LocalMsg and when it happens and handle it.
+                    raise
 
             elif isinstance(message, ReportUnreachableReqMessage):
                 self.raw_node.report_unreachable(message.node_id)

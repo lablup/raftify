@@ -140,7 +140,7 @@ async def remove(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
     id = request.match_info["id"]
 
-    await cluster.mailbox.leave(int(id))
+    await cluster.mailbox.leave(int(id), cluster.get_peers()[int(id)].addr)
     return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
 
