@@ -262,7 +262,7 @@ class MessageTypeAdapter(ProtobufAdapter):
         return MessageTypeAdapter.to_pb_adapter[v]
 
     @staticmethod
-    def from_pb(v: int) -> MessageType:
+    def from_pb(v: Pb_MessageType) -> MessageType:
         return MessageTypeAdapter.from_pb_adapter[v]
 
 

@@ -212,7 +212,7 @@ class RaftCluster:
             conf_change.set_node_id(node_id)
             conf_change.set_change_type(ConfChangeType.AddNode)
             changes.append(conf_change)
-            node_addrs.append(str(self.initial_peers[node_id].addr))
+            node_addrs.append(self.initial_peers[node_id].addr)
 
         conf_change_v2.set_changes(changes)
         conf_change_v2.set_context(pickle.dumps(node_addrs))
