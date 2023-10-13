@@ -203,10 +203,17 @@ class RaftNode:
         context = pickle.dumps(self.seq.value)
 
         conf_change_v2 = conf_change.as_v2()
-        self.raw_node.propose_conf_change_v2(
-            context,
-            conf_change_v2,
-        )
+
+        try:
+            self.raw_node.propose_conf_change_v2(
+                context,
+                conf_change_v2,
+            )
+
+        except rraft.ProposalDroppedError:
+            # TODO: Study what is LocalMsg and when it happens and handle it.
+            raise
+
         self.raw_node.apply_conf_change_v2(conf_change_v2)
 
         del self.peers.data[node_id]
@@ -507,7 +514,14 @@ class RaftNode:
                         self.seq.increase()
                         response_queues[self.seq] = message.chan
                         context = pickle.dumps(self.seq.value)
-                        self.raw_node.propose_conf_change_v2(context, conf_change_v2)
+
+                        try:
+                            self.raw_node.propose_conf_change_v2(
+                                context, conf_change_v2
+                            )
+                        except rraft.ProposalDroppedError:
+                            # TODO: Study what is LocalMsg and when it happens and handle it.
+                            raise
 
             elif isinstance(message, ProposeReqMessage):
                 if not self.is_leader():
