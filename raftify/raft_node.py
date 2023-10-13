@@ -211,7 +211,7 @@ class RaftNode:
             )
 
         except rraft.ProposalDroppedError:
-            # TODO: Study what is LocalMsg and when it happens and handle it.
+            # TODO: Study when it happens and handle it.
             raise
 
         self.raw_node.apply_conf_change_v2(conf_change_v2)
@@ -225,13 +225,7 @@ class RaftNode:
             self.logger.error(str(e))
             pass
 
-    async def should_retry(self, message: Message, current_retry_count: int) -> bool:
-        """ """
-        node_id = message.get_to()
-
-        if node_id not in self.peers.data.keys():
-            return False
-
+    def get_elapsed_time_from_first_connection_lost(self, node_id: int) -> float:
         failed_client = self.peers[node_id].client
         assert failed_client is not None
 
@@ -240,7 +234,13 @@ class RaftNode:
 
         elapsed = time.time() - failed_client.first_failed_time
 
-        if elapsed >= self.raftify_cfg.message_timeout:
+        return round(elapsed, 4)
+
+    def handle_node_auto_removal(self, elapsed: float, node_id: int) -> None:
+        if node_id not in self.peers.data.keys():
+            return
+
+        if elapsed >= self.raftify_cfg.node_auto_remove_threshold:
             if self.raftify_cfg.auto_remove_node:
                 self.peers[node_id].state = PeerState.Disconnected
                 self.remove_node(node_id)
@@ -249,19 +249,20 @@ class RaftNode:
                     f"automatically "
                     f"because the requests to the connection kept failed."
                 )
-                return False
-        else:
-            self.logger.warning(
-                f"Failed to connect to node {node_id}, elapsed from failure: {elapsed}"
-            )
+
+    def should_retry(self, message: Message, current_retry_count: int) -> bool:
+        """ """
+        node_id = message.get_to()
+
+        if node_id not in self.peers.data.keys():
+            return False
 
         return current_retry_count < self.raftify_cfg.max_retry_cnt
 
     async def send_message(self, client: RaftClient, message: Message) -> None:
         """
-        Attempt to send a message 'max_retry_cnt' times at 'timeout' interval.
-        If 'auto_remove_node' is set to True, the send function will automatically remove the node from the cluster
-        if it fails to connect more than 'connection_fail_limit' times.
+        Attempt to send a message 'max_retry_cnt' times at 'message_timeout' interval.
+        If 'auto_remove_node' is set to True, the send function will automatically remove the node from the cluster.
         """
 
         node_id = message.get_to()
@@ -278,17 +279,19 @@ class RaftNode:
                     assert failed_client is not None
                     failed_client.first_failed_time = None
                 return
-            except asyncio.TimeoutError:
+            except Exception or asyncio.TimeoutError as err:
                 await self.report_unreachable(node_id)
-                if await self.should_retry(message, current_retry_count):
-                    current_retry_count += 1
-                    continue
-                else:
-                    return
-            except Exception:
-                await self.report_unreachable(node_id)
-                if await self.should_retry(message, current_retry_count):
+                elapsed = self.get_elapsed_time_from_first_connection_lost(node_id)
+                self.logger.warning(
+                    f"Failed to connect to node {node_id}, elapsed from failure: {elapsed}"
+                )
+
+                self.handle_node_auto_removal(elapsed, node_id)
+
+                if not isinstance(err, asyncio.TimeoutError):
                     await asyncio.sleep(self.raftify_cfg.message_timeout)
+
+                if self.should_retry(message, current_retry_count):
                     current_retry_count += 1
                     continue
                 else:
@@ -520,7 +523,7 @@ class RaftNode:
                                 context, conf_change_v2
                             )
                         except rraft.ProposalDroppedError:
-                            # TODO: Study what is LocalMsg and when it happens and handle it.
+                            # TODO: Study when it happens and handle it.
                             raise
 
             elif isinstance(message, ProposeReqMessage):

@@ -48,6 +48,8 @@ class RaftifyConfig:
 
     auto_remove_node: bool
 
+    node_auto_remove_threshold: float
+
     snapshot_interval: float
 
     tick_interval: float
@@ -58,9 +60,10 @@ class RaftifyConfig:
         self,
         *,
         log_dir: str = "./",
-        message_timeout: float = 2.5,
-        max_retry_cnt: int = 5,
+        message_timeout: float = 5.0,
+        max_retry_cnt: int = 2,
         auto_remove_node: bool = True,
+        node_auto_remove_threshold: float = 7.0,
         raft_config: Config = Config.default(),
         snapshot_interval: float = 0.0,
         tick_interval: float = 0.1,
@@ -70,6 +73,7 @@ class RaftifyConfig:
         self.max_retry_cnt = max_retry_cnt
         self.message_timeout = message_timeout
         self.auto_remove_node = auto_remove_node
+        self.node_auto_remove_threshold = node_auto_remove_threshold
         self.snapshot_interval = snapshot_interval
         self.tick_interval = tick_interval
         self.lmdb_map_size = lmdb_map_size
