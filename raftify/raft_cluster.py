@@ -58,6 +58,9 @@ class RaftCluster:
         self.fsm = fsm
         self.slog = slog
         self.logger = logger
+        # TODO: temporary maxsize is for debugging purposes.
+        # In most cases, maxsize doesn't need to be over 100.
+        # Find reasonable maxsize and remove it.
         self.chan: Queue = Queue(maxsize=100)
         self.cluster_config = cluster_config
         self.initial_peers = initial_peers
