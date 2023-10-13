@@ -6,7 +6,7 @@ from rraft import ConfChangeV2, Message
 
 from raftify.pb_adapter import ConfChangeV2Adapter, MessageAdapter
 from raftify.protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
-from raftify.utils import AtomicInteger, SocketAddr
+from raftify.utils import SocketAddr
 
 
 class RaftClient:
@@ -15,7 +15,7 @@ class RaftClient:
     ):
         self.addr = addr
         self.credentials = credentials
-        self.failed_request_counter = AtomicInteger()
+        self.first_failed_time = None
 
     def __repr__(self) -> str:
         return f"RaftClient(addr={self.addr})"
@@ -24,7 +24,7 @@ class RaftClient:
         return {
             "addr": str(self.addr),
             "credentials": self.credentials,
-            "failed_request_counter": self.failed_request_counter.value,
+            "first_failed_time": self.first_failed_time,
         }
 
     def __create_channel(self) -> grpc.aio.Channel:
