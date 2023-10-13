@@ -150,7 +150,7 @@ class RaftCluster:
         # TODO: Block request_id calling until the all cluster's initial peers are ready.
 
         for peer_addr in peer_candidates:
-            self.logger.info(f'Attempting to join the cluster through "{peer_addr}"...')
+            self.logger.info(f'Attempting to get a node_id through "{peer_addr}"...')
 
             leader_addr = None
             seek_next = False
@@ -175,7 +175,8 @@ class RaftCluster:
                     case raft_service_pb2.IdRequest_WrongLeader:
                         _, peer_addr, _ = pickle.loads(resp.data)
                         self.logger.info(
-                            f"Sent message to the wrong leader, retrying with the leader at {peer_addr}."
+                            f"Sent message to the wrong leader, retrying with the peer at {peer_addr} "
+                            f"assuming it is leader node."
                         )
                         continue
                     case raft_service_pb2.IdRequest_Error | _:
