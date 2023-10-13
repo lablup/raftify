@@ -13,13 +13,14 @@ import colorlog
 import tomli
 from aiohttp import web
 from aiohttp.web import Application, RouteTableDef
-from rraft import Logger as Slog
+from rraft import ConfChangeV2, Logger as Slog
 from rraft import default_logger
 
 from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.fsm import FSM
 from raftify.raft_cluster import RaftCluster
+from raftify.raft_utils import leave_joint
 from raftify.utils import SocketAddr
 
 
@@ -128,20 +129,22 @@ async def put(request: web.Request) -> web.Response:
 @routes.get("/leave")
 async def leave(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
+    id = cluster.raft_node.get_id()
 
-    await cluster.mailbox.leave(cluster.raft_node.get_id())
-    return web.Response(
-        text=f'Removed "node {cluster.raft_node.get_id()}" from the cluster successfully.'
-    )
+    await cluster.mailbox.leave([id], [cluster.get_peers()[id].addr])
+    return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
 
-@routes.get("/remove/{id}")
+@routes.get("/remove/{ids}")
 async def remove(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
-    id = request.match_info["id"]
+    ids = request.match_info["ids"]
+    target_ids = list(map(int, ids.split(",")))
+    peers = cluster.get_peers()
+    target_peer_addrs = [peers[id].addr for id in target_ids]
 
-    await cluster.mailbox.leave(int(id), cluster.get_peers()[int(id)].addr)
-    return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
+    await cluster.mailbox.leave(target_ids, target_peer_addrs)
+    return web.Response(text=f'Removed "node {ids}" from the cluster successfully.')
 
 
 @routes.get("/peers")
@@ -213,6 +216,16 @@ async def unstable(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
     return web.Response(
         text=str(cluster.raft_node.raw_node.get_raft().get_raft_log().unstable())
+    )
+
+
+@routes.get("/zero")
+async def zero(request: web.Request) -> web.Response:
+    cluster: RaftCluster = request.app["state"]["cluster"]
+    await leave_joint(cluster.raft_node)
+
+    return web.Response(
+        text=str("")
     )
 
 

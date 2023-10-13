@@ -1,4 +1,5 @@
 import asyncio
+import math
 import pickle
 import time
 from asyncio import Queue
@@ -226,7 +227,12 @@ class RaftNode:
             pass
 
     def get_elapsed_time_from_first_connection_lost(self, node_id: int) -> float:
-        failed_client = self.peers[node_id].client
+        peer = self.peers.get(node_id)
+
+        if not peer:
+            return math.nan
+
+        failed_client = peer.client
         assert failed_client is not None
 
         if failed_client.first_failed_time is None:
@@ -374,13 +380,7 @@ class RaftNode:
     async def handle_config_change_entry(
         self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
     ) -> None:
-        # TODO: Write documents to clarify when to use entry with empty data.
         if not entry.get_data():
-            zero = ConfChangeV2.default()
-            assert zero.leave_joint()
-            if cs := self.raw_node.apply_conf_change_v2(zero):
-                self.lmdb.set_conf_state(cs)
-                await self.create_snapshot(entry.get_index(), entry.get_term())
             return
 
         seq = AtomicInteger(pickle.loads(entry.get_context()))
@@ -585,6 +585,22 @@ class RaftNode:
 
             await self.on_ready(response_queues)
 
+    def handle_persisted_entries(self, entries: list[Entry] | list[EntryRef]):
+        # TODO: Write documents to clarify when to use entry with empty data.
+        for entry in entries:
+            if entry.get_entry_type() == EntryType.EntryConfChangeV2 and not entry.get_data():
+                asyncio.create_task(self.commit_zero(entry))
+
+        self.lmdb.append(entries)
+
+    async def commit_zero(self, entry: Entry | EntryRef):
+        await asyncio.sleep(1)
+        zero = ConfChangeV2.default()
+        assert zero.leave_joint()
+        if cs := self.raw_node.apply_conf_change_v2(zero):
+            self.lmdb.set_conf_state(cs)
+            await self.create_snapshot(entry.get_index(), entry.get_term())
+
     async def on_ready(self, response_queues: dict[AtomicInteger, Queue]) -> None:
         if not self.raw_node.has_ready():
             return
@@ -606,7 +622,7 @@ class RaftNode:
         )
 
         if entries := ready.entries():
-            self.lmdb.append(entries)
+            self.handle_persisted_entries(entries)
 
         if hs := ready.hs():
             self.lmdb.set_hard_state(hs)

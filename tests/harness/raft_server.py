@@ -88,7 +88,6 @@ async def server_main(
     This will reduce the complexity and costs of the test code, and also could test static membership feature itself.
     """
     peers = _args[0]
-    print('peers', peers)
 
     store = HashStore()
     raft_node_idx = process_index.get()
