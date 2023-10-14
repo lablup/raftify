@@ -11,7 +11,6 @@ from raftify.logger import AbstractRaftifyLogger
 from raftify.pb_adapter import ConfChangeV2Adapter
 from raftify.protos import eraftpb_pb2, raft_service_pb2
 from raftify.raft_node import RaftNode
-from raftify.raft_utils import leave_joint
 from raftify.request_message import ConfigChangeReqMessage, ProposeReqMessage
 from raftify.response_message import (
     RaftOkRespMessage,
@@ -122,12 +121,11 @@ class Mailbox:
         res = await receiver.get()
 
         try:
-            resp = await self.__handle_response(
+            await self.__handle_response(
                 res,
                 reroute_msg_type=raft_service_pb2.ConfChange,
                 conf_change=pb_conf_change_v2,
             )
-            assert resp is None
         except Exception as e:
             self.logger.error("Error occurred while sending message through mailbox", e)
             raise
