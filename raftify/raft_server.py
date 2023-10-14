@@ -14,13 +14,13 @@ class RaftServer:
     def __init__(
         self,
         addr: SocketAddr,
-        sender: Queue,
+        message_queue: Queue,
         logger: AbstractRaftifyLogger,
         *,
         credentials: Optional[grpc.ServerCredentials] = None,
     ):
         self.addr = addr
-        self.sender = sender
+        self.message_queue = message_queue
         self.credentials = credentials
         self.logger = logger
         self.grpc_server = None
@@ -38,7 +38,7 @@ class RaftServer:
         self.logger.debug(f'Start listening gRPC requests on "{self.addr}"...')
 
         raft_service_pb2_grpc.add_RaftServiceServicer_to_server(
-            RaftService(self.sender, self.logger), self.grpc_server
+            RaftService(self.message_queue, self.logger), self.grpc_server
         )
 
         await self.grpc_server.start()

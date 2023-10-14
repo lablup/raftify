@@ -7,6 +7,7 @@ from asyncio import Queue
 import rraft
 from rraft import (
     ConfChange,
+    ConfChangeTransition,
     ConfChangeType,
     ConfChangeV2,
     Entry,
@@ -34,6 +35,7 @@ from raftify.request_message import (
     MemberBootstrapReadyReqMessage,
     ProposeReqMessage,
     RaftReqMessage,
+    ChangeConfigAndApplyImmediatelyReqMessage,
     ReportUnreachableReqMessage,
     RequestIdReqMessage,
     RerouteToLeaderReqMessage,
@@ -193,31 +195,17 @@ class RaftNode:
     def is_leader(self) -> bool:
         return self.get_id() == self.get_leader_id()
 
-    def remove_node(self, node_id: int) -> None:
-        peer = self.peers[node_id]
-
-        self.seq.increase()
+    def remove_node(self, node_id: int, addr: SocketAddr) -> None:
         conf_change = ConfChange.default()
         conf_change.set_node_id(node_id)
-        conf_change.set_context(pickle.dumps([peer.addr]))
+        conf_change.set_context(pickle.dumps([addr]))
         conf_change.set_change_type(ConfChangeType.RemoveNode)
-        context = pickle.dumps(self.seq.value)
 
         conf_change_v2 = conf_change.as_v2()
+        conf_change_v2.set_transition(ConfChangeTransition.Auto)
 
-        try:
-            self.raw_node.propose_conf_change_v2(
-                context,
-                conf_change_v2,
-            )
-
-        except rraft.ProposalDroppedError:
-            # TODO: Study when it happens and handle it.
-            raise
-
-        self.raw_node.apply_conf_change_v2(conf_change_v2)
-
-        del self.peers.data[node_id]
+        leader_id = self.raw_node.get_raft().get_id()
+        asyncio.create_task(self.peers[leader_id].client.change_config_and_apply_immediately(conf_change_v2))
 
     async def report_unreachable(self, node_id: int) -> None:
         try:
@@ -243,18 +231,28 @@ class RaftNode:
         return round(elapsed, 4)
 
     def handle_node_auto_removal(self, elapsed: float, node_id: int) -> None:
+        assert self.is_leader()
+
         if node_id not in self.peers.data.keys():
             return
 
         if elapsed >= self.raftify_cfg.node_auto_remove_threshold:
             if self.raftify_cfg.auto_remove_node:
-                self.peers[node_id].state = PeerState.Disconnected
-                self.remove_node(node_id)
-                self.logger.error(
-                    f"Removing node {node_id} from the cluster "
-                    f"automatically "
-                    f"because the requests to the connection kept failed."
-                )
+                peer = self.peers.data[node_id]
+
+                # 여기 로직 수정 필요
+                # 여러 raft 서버가 동시에 아웃할 때 로그가 전혀 맞지 않음.
+                if peer.state == PeerState.Connected:
+                    self.peers.data[node_id].state = PeerState.Disconnecting
+
+                    self.remove_node(node_id, self.peers[node_id].addr)
+                    # del self.peers.data[node_id]
+
+                    self.logger.error(
+                        f"Removing node {node_id} from the cluster "
+                        f"automatically "
+                        f"because the requests to the connection kept failed."
+                    )
 
     def should_retry(self, message: Message, current_retry_count: int) -> bool:
         """ """
@@ -277,6 +275,9 @@ class RaftNode:
         while True:
             try:
                 if self.bootstrap_done:
+                    if self.peers[node_id].state == PeerState.Disconnecting:
+                        return
+
                     await client.send_message(
                         message, timeout=self.raftify_cfg.message_timeout
                     )
@@ -292,7 +293,8 @@ class RaftNode:
                     f"Failed to connect to node {node_id}, elapsed from failure: {elapsed}"
                 )
 
-                self.handle_node_auto_removal(elapsed, node_id)
+                if self.is_leader():
+                    self.handle_node_auto_removal(elapsed, node_id)
 
                 if not isinstance(err, asyncio.TimeoutError):
                     await asyncio.sleep(self.raftify_cfg.message_timeout)
@@ -344,9 +346,11 @@ class RaftNode:
         for entry in committed_entries:
             match entry.get_entry_type():
                 case EntryType.EntryNormal:
-                    await self.handle_normal_entry(entry, response_queues)
+                    await self.handle_committed_normal_entry(entry, response_queues)
                 case EntryType.EntryConfChangeV2:
-                    await self.handle_config_change_entry(entry, response_queues)
+                    await self.handle_committed_config_change_entry(
+                        entry, response_queues
+                    )
                 case _:
                     raise NotImplementedError
 
@@ -359,7 +363,7 @@ class RaftNode:
         self.lmdb.create_snapshot(snapshot_data, index, term)
         self.logger.info("Snapshot created successfully.")
 
-    async def handle_normal_entry(
+    async def handle_committed_normal_entry(
         self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
     ) -> None:
         if not entry.get_data():
@@ -377,10 +381,16 @@ class RaftNode:
         ):
             await self.create_snapshot(entry.get_index(), entry.get_term())
 
-    async def handle_config_change_entry(
+    async def handle_committed_config_change_entry(
         self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
     ) -> None:
+        # TODO: Write documents to clarify when to use entry with empty data.
         if not entry.get_data():
+            zero = ConfChangeV2.default()
+            assert zero.leave_joint()
+            if cs := self.raw_node.apply_conf_change_v2(zero):
+                self.lmdb.set_conf_state(cs)
+                await self.create_snapshot(entry.get_index(), entry.get_term())
             return
 
         seq = AtomicInteger(pickle.loads(entry.get_context()))
@@ -510,10 +520,6 @@ class RaftNode:
                         for addr in socket_addrs:
                             self.peers.ready_peer(addr)
 
-                        self.logger.debug(
-                            f"Proposing a new config change..., {conf_change_v2=}"
-                        )
-
                         self.seq.increase()
                         response_queues[self.seq] = message.chan
                         context = pickle.dumps(self.seq.value)
@@ -522,9 +528,35 @@ class RaftNode:
                             self.raw_node.propose_conf_change_v2(
                                 context, conf_change_v2
                             )
+
+                            self.logger.debug(
+                                f"Proposed new config change..., seq={self.seq.value}, {conf_change_v2=}"
+                            )
                         except rraft.ProposalDroppedError:
                             # TODO: Study when it happens and handle it.
                             raise
+
+            elif isinstance(message, ChangeConfigAndApplyImmediatelyReqMessage):
+                self.seq.increase()
+                response_queues[self.seq] = message.chan
+
+                conf_change_v2 = ConfChangeV2Adapter.from_pb(
+                    message.conf_change
+                )
+
+                try:
+                    self.raw_node.propose_conf_change_v2(
+                        context,
+                        conf_change_v2,
+                    )
+
+                except rraft.ProposalDroppedError:
+                    # TODO: Study when it happens and handle it.
+                    raise
+
+                self.raw_node.apply_conf_change_v2(conf_change_v2)
+
+                # del self.peers.data[node_id]
 
             elif isinstance(message, ProposeReqMessage):
                 if not self.is_leader():
@@ -588,7 +620,10 @@ class RaftNode:
     def handle_persisted_entries(self, entries: list[Entry] | list[EntryRef]):
         # TODO: Write documents to clarify when to use entry with empty data.
         for entry in entries:
-            if entry.get_entry_type() == EntryType.EntryConfChangeV2 and not entry.get_data():
+            if (
+                entry.get_entry_type() == EntryType.EntryConfChangeV2
+                and not entry.get_data()
+            ):
                 asyncio.create_task(self.commit_zero(entry))
 
         self.lmdb.append(entries)
@@ -622,7 +657,8 @@ class RaftNode:
         )
 
         if entries := ready.entries():
-            self.handle_persisted_entries(entries)
+            # self.handle_persisted_entries(entries)
+            self.lmdb.append(entries)
 
         if hs := ready.hs():
             self.lmdb.set_hard_state(hs)

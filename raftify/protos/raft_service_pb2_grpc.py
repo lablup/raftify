@@ -36,6 +36,11 @@ class RaftServiceStub(object):
             request_serializer=eraftpb__pb2.ConfChangeV2.SerializeToString,
             response_deserializer=raft__service__pb2.ChangeConfigResponse.FromString,
         )
+        self.ChangeConfigAndApplyImmediately = channel.unary_unary(
+            "/raftservice.RaftService/ChangeConfigAndApplyImmediately",
+            request_serializer=eraftpb__pb2.ConfChangeV2.SerializeToString,
+            response_deserializer=raft__service__pb2.ChangeConfigResponse.FromString,
+        )
         self.SendMessage = channel.unary_unary(
             "/raftservice.RaftService/SendMessage",
             request_serializer=eraftpb__pb2.Message.SerializeToString,
@@ -75,6 +80,12 @@ class RaftServiceServicer(object):
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
 
+    def ChangeConfigAndApplyImmediately(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
     def SendMessage(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -107,6 +118,11 @@ def add_RaftServiceServicer_to_server(servicer, server):
         ),
         "ChangeConfig": grpc.unary_unary_rpc_method_handler(
             servicer.ChangeConfig,
+            request_deserializer=eraftpb__pb2.ConfChangeV2.FromString,
+            response_serializer=raft__service__pb2.ChangeConfigResponse.SerializeToString,
+        ),
+        "ChangeConfigAndApplyImmediately": grpc.unary_unary_rpc_method_handler(
+            servicer.ChangeConfigAndApplyImmediately,
             request_deserializer=eraftpb__pb2.ConfChangeV2.FromString,
             response_serializer=raft__service__pb2.ChangeConfigResponse.SerializeToString,
         ),
@@ -235,6 +251,35 @@ class RaftService(object):
             request,
             target,
             "/raftservice.RaftService/ChangeConfig",
+            eraftpb__pb2.ConfChangeV2.SerializeToString,
+            raft__service__pb2.ChangeConfigResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
+
+    @staticmethod
+    def ChangeConfigAndApplyImmediately(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/raftservice.RaftService/ChangeConfigAndApplyImmediately",
             eraftpb__pb2.ConfChangeV2.SerializeToString,
             raft__service__pb2.ChangeConfigResponse.FromString,
             options,

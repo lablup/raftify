@@ -9,11 +9,13 @@ from pathlib import Path
 from threading import Lock
 from typing import Optional
 
+import aiomonitor
 import colorlog
 import tomli
 from aiohttp import web
 from aiohttp.web import Application, RouteTableDef
-from rraft import ConfChangeV2, Logger as Slog
+from rraft import ConfChangeV2
+from rraft import Logger as Slog
 from rraft import default_logger
 
 from raftify.config import RaftifyConfig
@@ -224,9 +226,7 @@ async def zero(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
     await leave_joint(cluster.raft_node)
 
-    return web.Response(
-        text=str("")
-    )
+    return web.Response(text=str(""))
 
 
 async def main() -> None:
@@ -298,7 +298,9 @@ async def main() -> None:
         tasks.append(web_server.start())
 
     try:
-        await asyncio.gather(*tasks)
+        loop = asyncio.get_running_loop()
+        with aiomonitor.start_monitor(loop):
+            await asyncio.gather(*tasks)
     finally:
         if app_runner:
             await app_runner.cleanup()

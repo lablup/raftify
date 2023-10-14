@@ -11,6 +11,7 @@ from raftify.request_message import (
     ConfigChangeReqMessage,
     MemberBootstrapReadyReqMessage,
     RaftReqMessage,
+    ChangeConfigAndApplyImmediatelyReqMessage,
     RequestIdReqMessage,
     RerouteToLeaderReqMessage,
 )
@@ -25,15 +26,25 @@ from raftify.response_message import (
 
 
 class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
-    def __init__(self, sender: Queue, logger: AbstractRaftifyLogger) -> None:
-        self.sender = sender
+    def __init__(self, message_queue: Queue, logger: AbstractRaftifyLogger) -> None:
+        self.message_queue = message_queue
         self.logger = logger
+        self.confchange_req_queue: Queue = Queue()
+        self.confchange_req_applier = asyncio.create_task(self.apply_confchange())
+        self.confchange_res_queue: Queue = Queue()
+
+    async def apply_confchange(self):
+        while True:
+            await asyncio.sleep(3)
+            req, apply_immediately = await self.confchange_req_queue.get()
+            res = await self.ChangeConfigRequestHandler(req, apply_immediately)
+            await self.confchange_res_queue.put(res)
 
     async def RequestId(
         self, request: raft_service_pb2.IdRequestArgs, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.IdRequestResponse:
         receiver: Queue = Queue()
-        await self.sender.put(RequestIdReqMessage(request.addr, receiver))
+        await self.message_queue.put(RequestIdReqMessage(request.addr, receiver))
         response = await receiver.get()
 
         if isinstance(response, WrongLeaderRespMessage):
@@ -55,18 +66,22 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         else:
             assert False, "Unreachable"
 
-    async def ChangeConfig(
-        self, request: eraftpb_pb2.ConfChangeV2, context: grpc.aio.ServicerContext
-    ) -> raft_service_pb2.ChangeConfigResponse:
+    async def ChangeConfigRequestHandler(self, request: eraftpb_pb2.ConfChangeV2, apply_immediately: bool = False):
         receiver: Queue = Queue()
-        await self.sender.put(ConfigChangeReqMessage(request, receiver))
+
+        if apply_immediately:
+            await self.message_queue.put(ChangeConfigAndApplyImmediatelyReqMessage(request, receiver))
+        else:
+            await self.message_queue.put(ConfigChangeReqMessage(request, receiver))
+
         reply = raft_service_pb2.ChangeConfigResponse()
 
         try:
+            # TODO: timeout should be configurable
             if raft_response := await asyncio.wait_for(receiver.get(), 2):
                 if isinstance(raft_response, RaftOkRespMessage):
                     reply.result = raft_service_pb2.ChangeConfig_Success
-                    reply.data = b""
+                    reply.data = b"ChangeConfig_Success"
                 elif isinstance(raft_response, JoinSuccessRespMessage):
                     reply.result = raft_service_pb2.ChangeConfig_Success
                     reply.data = raft_response.encode()
@@ -82,7 +97,9 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
             reply.result = raft_service_pb2.ChangeConfig_TimeoutError
             reply.data = RaftErrorRespMessage().encode()
 
-            self.logger.error("Timeout waiting for reply!")
+            self.logger.error(
+                'TimeoutError occurs while handling "ConfigChangeReqMessage!"'
+            )
 
         except Exception as e:
             reply.result = raft_service_pb2.ChangeConfig_UnknownError
@@ -91,10 +108,24 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         finally:
             return reply
 
+    async def ChangeConfig(
+        self, request: eraftpb_pb2.ConfChangeV2, context: grpc.aio.ServicerContext
+    ) -> raft_service_pb2.ChangeConfigResponse:
+        await self.confchange_req_queue.put((request, False))
+        res = await self.confchange_res_queue.get()
+        return res
+
+    async def ChangeConfigAndApplyImmediately(
+        self, request: eraftpb_pb2.ConfChangeV2, context: grpc.aio.ServicerContext
+    ) -> raft_service_pb2.ChangeConfigResponse:
+        await self.confchange_req_queue.put((request, True))
+        res = await self.confchange_res_queue.get()
+        return res
+
     async def SendMessage(
         self, request: eraftpb_pb2.Message, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.RaftMessageResponse:
-        await self.sender.put(RaftReqMessage(request))
+        await self.message_queue.put(RaftReqMessage(request))
         return raft_service_pb2.RaftMessageResponse(data=RaftOkRespMessage().encode())
 
     async def ClusterBootstrapReady(
@@ -103,7 +134,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         context: grpc.aio.ServicerContext,
     ) -> raft_service_pb2.RaftMessageResponse:
         receiver: Queue = Queue()
-        await self.sender.put(
+        await self.message_queue.put(
             ClusterBootstrapReadyReqMessage(peers=request.peers, chan=receiver)
         )
         _ = await receiver.get()
@@ -116,7 +147,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         context: grpc.aio.ServicerContext,
     ) -> raft_service_pb2.RaftMessageResponse:
         receiver: Queue = Queue()
-        await self.sender.put(
+        await self.message_queue.put(
             MemberBootstrapReadyReqMessage(
                 follower_id=request.follower_id, chan=receiver
             )
@@ -132,7 +163,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
     ) -> raft_service_pb2.RaftMessageResponse:
         receiver: Queue = Queue()
 
-        await self.sender.put(
+        await self.message_queue.put(
             RerouteToLeaderReqMessage(
                 conf_change=request.conf_change,
                 proposed_data=request.proposed_data,
@@ -143,13 +174,14 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         reply = raft_service_pb2.RaftMessageResponse()
 
         try:
+            # TODO: timeout should be configurable
             if raft_response := await asyncio.wait_for(receiver.get(), 2):
                 if isinstance(raft_response, RaftRespMessage):
                     reply.data = raft_response.data
 
         except asyncio.TimeoutError:
             reply.data = RaftErrorRespMessage().encode()
-            self.logger.error("Timeout waiting for reply")
+            self.logger.error('TimeoutError occurs while handling "RerouteMessage!"')
 
         finally:
             return reply
