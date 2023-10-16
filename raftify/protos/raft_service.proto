@@ -8,7 +8,7 @@ service RaftService {
   rpc ClusterBootstrapReady(ClusterBootstrapReadyArgs) returns (RaftMessageResponse) {}
   rpc RequestId(IdRequestArgs) returns (IdRequestResponse) {}
   rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
-  rpc ChangeConfigAndApplyImmediately(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
+  rpc ApplyConfigChangeForcely(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
   rpc SendMessage(eraftpb.Message) returns (RaftMessageResponse) {}
   rpc RerouteMessage(RerouteMessageArgs) returns (RaftMessageResponse) {}
 }

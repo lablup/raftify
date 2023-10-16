@@ -7,11 +7,11 @@ import grpc
 from raftify.logger import AbstractRaftifyLogger
 from raftify.protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
 from raftify.request_message import (
+    ApplyConfigChangeForcelyReqMessage,
     ClusterBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
     MemberBootstrapReadyReqMessage,
     RaftReqMessage,
-    ChangeConfigAndApplyImmediatelyReqMessage,
     RequestIdReqMessage,
     RerouteToLeaderReqMessage,
 )
@@ -30,15 +30,18 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         self.message_queue = message_queue
         self.logger = logger
         self.confchange_req_queue: Queue = Queue()
-        self.confchange_req_applier = asyncio.create_task(self.apply_confchange())
+        self.confchange_req_applier = asyncio.create_task(
+            self.confchange_request_applier()
+        )
         self.confchange_res_queue: Queue = Queue()
 
-    async def apply_confchange(self):
+    async def confchange_request_applier(self):
+        # TODO: Describe why this queueing is required.
         while True:
-            req, apply_immediately = await self.confchange_req_queue.get()
-            res = await self.ChangeConfigRequestHandler(req, apply_immediately)
+            req, force = await self.confchange_req_queue.get()
+            res = await self.ChangeConfigRequestHandler(req, force)
             await self.confchange_res_queue.put(res)
-            await asyncio.sleep(3)
+            await asyncio.sleep(1)
 
     async def RequestId(
         self, request: raft_service_pb2.IdRequestArgs, context: grpc.aio.ServicerContext
@@ -66,11 +69,15 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         else:
             assert False, "Unreachable"
 
-    async def ChangeConfigRequestHandler(self, request: eraftpb_pb2.ConfChangeV2, apply_immediately: bool = False):
+    async def ChangeConfigRequestHandler(
+        self, request: eraftpb_pb2.ConfChangeV2, force: bool = False
+    ):
         receiver: Queue = Queue()
 
-        if apply_immediately:
-            await self.message_queue.put(ChangeConfigAndApplyImmediatelyReqMessage(request, receiver))
+        if force:
+            await self.message_queue.put(
+                ApplyConfigChangeForcelyReqMessage(request, receiver)
+            )
         else:
             await self.message_queue.put(ConfigChangeReqMessage(request, receiver))
 
@@ -117,7 +124,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         res = await self.confchange_res_queue.get()
         return res
 
-    async def ChangeConfigAndApplyImmediately(
+    async def ApplyConfigChangeForcely(
         self, request: eraftpb_pb2.ConfChangeV2, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.ChangeConfigResponse:
         await self.confchange_req_queue.put((request, True))

@@ -3,7 +3,7 @@ import pickle
 from asyncio import Queue
 from typing import Optional
 
-from rraft import ConfChangeSingle, ConfChangeTransition, ConfChangeType, ConfChangeV2
+from rraft import ConfChange, ConfChangeType
 
 from raftify.config import RaftifyConfig
 from raftify.error import UnknownError
@@ -96,20 +96,12 @@ class Mailbox:
             self.logger.error("Error occurred while sending message through mailbox", e)
             raise
 
-    async def leave(self, node_ids: list[int], addrs: list[SocketAddr]) -> None:
-        assert len(node_ids) == len(addrs)
-
-        conf_change_v2 = ConfChangeV2.default()
-        changes = []
-        for node_id in node_ids:
-            cc = ConfChangeSingle.default()
-            cc.set_node_id(node_id)
-            cc.set_change_type(ConfChangeType.RemoveNode)
-            changes.append(cc)
-
-        conf_change_v2.set_changes(changes)
-        conf_change_v2.set_context(pickle.dumps(addrs))
-        conf_change_v2.set_transition(ConfChangeTransition.Auto)
+    async def leave(self, node_id: int, addr: SocketAddr) -> None:
+        conf_change = ConfChange.default()
+        conf_change.set_node_id(node_id)
+        conf_change.set_context(pickle.dumps([addr]))
+        conf_change.set_change_type(ConfChangeType.RemoveNode)
+        conf_change_v2 = conf_change.as_v2()
 
         receiver: Queue = Queue()
         pb_conf_change_v2 = ConfChangeV2Adapter.to_pb(conf_change_v2)
@@ -120,17 +112,8 @@ class Mailbox:
 
         res = await receiver.get()
 
-        try:
-            await self.__handle_response(
-                res,
-                reroute_msg_type=raft_service_pb2.ConfChange,
-                conf_change=pb_conf_change_v2,
-            )
-        except Exception as e:
-            self.logger.error("Error occurred while sending message through mailbox", e)
-            raise
-
-        # for node_id in node_ids:
-        #     self.raft_node.peers.data.pop(node_id, None)
-
-        # asyncio.create_task(leave_joint(self.raft_node))
+        await self.__handle_response(
+            res,
+            reroute_msg_type=raft_service_pb2.ConfChange,
+            conf_change=pb_conf_change_v2,
+        )

@@ -44,7 +44,7 @@ class ConfigChangeReqMessage(RaftRequest, PickleSerializer):
 
 
 @dataclass
-class ChangeConfigAndApplyImmediatelyReqMessage(RaftRequest, PickleSerializer):
+class ApplyConfigChangeForcelyReqMessage(RaftRequest, PickleSerializer):
     conf_change: eraftpb_pb2.ConfChangeV2
     chan: Queue
 

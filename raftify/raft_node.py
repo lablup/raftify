@@ -4,6 +4,7 @@ import pickle
 import time
 from asyncio import Queue
 
+import grpc
 import rraft
 from rraft import (
     ConfChange,
@@ -30,12 +31,12 @@ from raftify.protos.raft_service_pb2 import RerouteMsgType
 from raftify.raft_client import RaftClient
 from raftify.raft_server import RaftServer
 from raftify.request_message import (
+    ApplyConfigChangeForcelyReqMessage,
     ClusterBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
     MemberBootstrapReadyReqMessage,
     ProposeReqMessage,
     RaftReqMessage,
-    ChangeConfigAndApplyImmediatelyReqMessage,
     ReportUnreachableReqMessage,
     RequestIdReqMessage,
     RerouteToLeaderReqMessage,
@@ -195,17 +196,19 @@ class RaftNode:
     def is_leader(self) -> bool:
         return self.get_id() == self.get_leader_id()
 
-    def remove_node(self, node_id: int, addr: SocketAddr) -> None:
+    def remove_node(self, node_id: int) -> None:
         conf_change = ConfChange.default()
         conf_change.set_node_id(node_id)
-        conf_change.set_context(pickle.dumps([addr]))
+        conf_change.set_context(pickle.dumps([self.peers[node_id].addr]))
         conf_change.set_change_type(ConfChangeType.RemoveNode)
 
         conf_change_v2 = conf_change.as_v2()
         conf_change_v2.set_transition(ConfChangeTransition.Auto)
 
         leader_id = self.raw_node.get_raft().get_id()
-        asyncio.create_task(self.peers[leader_id].client.change_config_and_apply_immediately(conf_change_v2))
+        asyncio.create_task(
+            self.peers[leader_id].client.apply_change_config_forcely(conf_change_v2)
+        )
 
     async def report_unreachable(self, node_id: int) -> None:
         try:
@@ -238,15 +241,11 @@ class RaftNode:
 
         if elapsed >= self.raftify_cfg.node_auto_remove_threshold:
             if self.raftify_cfg.auto_remove_node:
-                peer = self.peers.data[node_id]
+                peer = self.peers[node_id]
 
-                # 여기 로직 수정 필요
-                # 여러 raft 서버가 동시에 아웃할 때 로그가 전혀 맞지 않음.
                 if peer.state == PeerState.Connected:
                     self.peers.data[node_id].state = PeerState.Disconnecting
-
-                    self.remove_node(node_id, self.peers[node_id].addr)
-                    # del self.peers.data[node_id]
+                    self.remove_node(node_id)
 
                     self.logger.error(
                         f"Removing node {node_id} from the cluster "
@@ -275,7 +274,10 @@ class RaftNode:
         while True:
             try:
                 if self.bootstrap_done:
-                    if self.peers[node_id].state == PeerState.Disconnecting:
+                    if (
+                        self.peers[node_id].state == PeerState.Disconnecting
+                        or self.peers[node_id].state == PeerState.Disconnected
+                    ):
                         return
 
                     await client.send_message(
@@ -286,11 +288,15 @@ class RaftNode:
                     assert failed_client is not None
                     failed_client.first_failed_time = None
                 return
-            except Exception or asyncio.TimeoutError as err:
+            except grpc.aio.AioRpcError or asyncio.TimeoutError as err:
+                if not isinstance(err, asyncio.TimeoutError):
+                    if not err.code() == grpc.StatusCode.UNAVAILABLE:
+                        raise
+
                 await self.report_unreachable(node_id)
                 elapsed = self.get_elapsed_time_from_first_connection_lost(node_id)
                 self.logger.warning(
-                    f"Failed to connect to node {node_id}, elapsed from failure: {elapsed}"
+                    f"Failed to connect to node {node_id}, elapsed from failure: {elapsed}s"
                 )
 
                 if self.is_leader():
@@ -304,6 +310,9 @@ class RaftNode:
                     continue
                 else:
                     return
+            # Unknown error reraising
+            except Exception:
+                raise
 
     def send_messages(self, messages: list[Message]):
         for message in messages:
@@ -419,7 +428,7 @@ class RaftNode:
                         await self.raft_server.terminate()
                         self.logger.info(f"Node {node_id} quit the cluster.")
                     else:
-                        self.peers.data.pop(node_id, None)
+                        self.peers.data[node_id].state = PeerState.Disconnected
                 case _:
                     raise NotImplementedError
 
@@ -537,14 +546,15 @@ class RaftNode:
                             # TODO: Study when it happens and handle it.
                             raise
 
-            elif isinstance(message, ChangeConfigAndApplyImmediatelyReqMessage):
+            elif isinstance(message, ApplyConfigChangeForcelyReqMessage):
+                # Ignore all pending conf changes and apply the given conf change forcely.
+                # This won't persist the conf changes, but apply them successfully.
+
                 await self.seq.increase()
                 response_queues[self.seq] = message.chan
                 context = pickle.dumps(self.seq.value)
 
-                conf_change_v2 = ConfChangeV2Adapter.from_pb(
-                    message.conf_change
-                )
+                conf_change_v2 = ConfChangeV2Adapter.from_pb(message.conf_change)
 
                 try:
                     self.raw_node.propose_conf_change_v2(
@@ -557,9 +567,11 @@ class RaftNode:
                     raise
 
                 self.raw_node.apply_conf_change_v2(conf_change_v2)
-
                 message.chan.put_nowait(RaftOkRespMessage())
-                # del self.peers.data[node_id]
+
+                changes = conf_change_v2.get_changes()
+                for change in changes:
+                    self.peers.data[change.get_node_id()].state = PeerState.Disconnected
 
             elif isinstance(message, ProposeReqMessage):
                 if not self.is_leader():
@@ -597,7 +609,7 @@ class RaftNode:
                 try:
                     self.raw_node.step(msg)
                 except rraft.StepPeerNotFoundError:
-                    self.logger.debug(
+                    self.logger.warning(
                         "StepPeerNotFoundError occurred. Ignore this message if RemoveNode happend."
                     )
                     continue
@@ -631,14 +643,6 @@ class RaftNode:
 
         self.lmdb.append(entries)
 
-    async def commit_zero(self, entry: Entry | EntryRef):
-        await asyncio.sleep(1)
-        zero = ConfChangeV2.default()
-        assert zero.leave_joint()
-        if cs := self.raw_node.apply_conf_change_v2(zero):
-            self.lmdb.set_conf_state(cs)
-            await self.create_snapshot(entry.get_index(), entry.get_term())
-
     async def on_ready(self, response_queues: dict[AtomicInteger, Queue]) -> None:
         if not self.raw_node.has_ready():
             return
@@ -660,7 +664,6 @@ class RaftNode:
         )
 
         if entries := ready.entries():
-            # self.handle_persisted_entries(entries)
             self.lmdb.append(entries)
 
         if hs := ready.hs():
