@@ -35,10 +35,10 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
 
     async def apply_confchange(self):
         while True:
-            await asyncio.sleep(3)
             req, apply_immediately = await self.confchange_req_queue.get()
             res = await self.ChangeConfigRequestHandler(req, apply_immediately)
             await self.confchange_res_queue.put(res)
+            await asyncio.sleep(3)
 
     async def RequestId(
         self, request: raft_service_pb2.IdRequestArgs, context: grpc.aio.ServicerContext
@@ -77,6 +77,9 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         reply = raft_service_pb2.ChangeConfigResponse()
 
         try:
+            # Does putting timeout here make sense?
+            # ChangeConfig request should send response anyway.
+            # Current implementation send response only after the conf change is properly committed.
             # TODO: timeout should be configurable
             if raft_response := await asyncio.wait_for(receiver.get(), 2):
                 if isinstance(raft_response, RaftOkRespMessage):
