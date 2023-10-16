@@ -1,5 +1,5 @@
+import asyncio
 import pickle
-import threading
 from dataclasses import dataclass
 
 
@@ -29,7 +29,7 @@ class SocketAddr:
 class AtomicInteger:
     def __init__(self, value: int = 0):
         self.__value = value
-        self.__lock = threading.Lock()
+        self.__lock = asyncio.Lock()
 
     def __repr__(self) -> str:
         return str(self.__value)
@@ -44,18 +44,18 @@ class AtomicInteger:
             return self.__value == other
         return False
 
-    def increase(self, value: int = 1) -> "AtomicInteger":
-        with self.__lock:
+    async def increase(self, value: int = 1) -> "AtomicInteger":
+        async with self.__lock:
             self.__value += value
         return self
 
-    def decrease(self, value: int = 1) -> "AtomicInteger":
-        with self.__lock:
+    async def decrease(self, value: int = 1) -> "AtomicInteger":
+        async with self.__lock:
             self.__value -= value
         return self
 
-    def set(self, value: int) -> "AtomicInteger":
-        with self.__lock:
+    async def set(self, value: int) -> "AtomicInteger":
+        async with self.__lock:
             self.__value = value
         return self
 
