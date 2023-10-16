@@ -445,6 +445,7 @@ class RaftNode:
             except Exception as e:
                 self.logger.error(f"Error occurred while sending response. {e}")
 
+    # TODO: Abstract and improve this event handling loop. especially, the part of handling response_queues.
     async def run(self) -> None:
         tick_timer = self.raftify_cfg.tick_interval
         response_queues: dict[AtomicInteger, Queue] = {}

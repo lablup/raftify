@@ -84,7 +84,6 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
             if raft_response := await asyncio.wait_for(receiver.get(), 2):
                 if isinstance(raft_response, RaftOkRespMessage):
                     reply.result = raft_service_pb2.ChangeConfig_Success
-                    reply.data = b"ChangeConfig_Success"
                 elif isinstance(raft_response, JoinSuccessRespMessage):
                     reply.result = raft_service_pb2.ChangeConfig_Success
                     reply.data = raft_response.encode()
