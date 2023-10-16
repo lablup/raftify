@@ -20,6 +20,7 @@ from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.fsm import FSM
 from raftify.raft_cluster import RaftCluster
+from raftify.raft_utils import leave_joint
 from raftify.utils import SocketAddr
 
 
@@ -128,19 +129,18 @@ async def put(request: web.Request) -> web.Response:
 @routes.get("/leave")
 async def leave(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
-
-    await cluster.mailbox.leave(cluster.raft_node.get_id())
-    return web.Response(
-        text=f'Removed "node {cluster.raft_node.get_id()}" from the cluster successfully.'
-    )
+    id = cluster.raft_node.get_id()
+    addr = cluster.get_peers()[id].addr
+    await cluster.mailbox.leave(id, addr)
+    return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
 
 @routes.get("/remove/{id}")
 async def remove(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
-    id = request.match_info["id"]
-
-    await cluster.mailbox.leave(int(id), cluster.get_peers()[int(id)].addr)
+    id = int(request.match_info["id"])
+    addr = cluster.get_peers()[id].addr
+    await cluster.mailbox.leave(id, addr)
     return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
 
@@ -214,6 +214,14 @@ async def unstable(request: web.Request) -> web.Response:
     return web.Response(
         text=str(cluster.raft_node.raw_node.get_raft().get_raft_log().unstable())
     )
+
+
+@routes.get("/zero")
+async def zero(request: web.Request) -> web.Response:
+    cluster: RaftCluster = request.app["state"]["cluster"]
+    await leave_joint(cluster.raft_node)
+
+    return web.Response(text=str(""))
 
 
 async def main() -> None:

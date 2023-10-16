@@ -134,11 +134,10 @@ async def put(request: web.Request) -> web.Response:
 @routes.get("/leave")
 async def leave(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
-
-    await cluster.mailbox.leave(cluster.raft_node.get_id())
-    return web.Response(
-        text=f'Removed "node {cluster.raft_node.get_id()}" from the cluster successfully.'
-    )
+    id = cluster.raft_node.get_id()
+    addr = cluster.get_peers()[id].addr
+    await cluster.mailbox.leave(id, addr)
+    return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
 
 @routes.get("/peers")

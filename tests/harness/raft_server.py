@@ -51,20 +51,20 @@ async def put(request: web.Request) -> web.Response:
 @routes.get("/leave")
 async def leave(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
-
-    await cluster.mailbox.leave(cluster.raft_node.get_id())
-    return web.Response(
-        text=f'Removed "node {cluster.raft_node.get_id()}" from the cluster successfully.'
-    )
+    id = cluster.raft_node.get_id()
+    addr = cluster.get_peers()[id].addr
+    await cluster.mailbox.leave(id, addr)
+    return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
 
 @routes.get("/remove/{id}")
 async def remove(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
-    id = request.match_info["id"]
-
-    await cluster.mailbox.leave(int(id))
+    id = int(request.match_info["id"])
+    addr = cluster.get_peers()[id].addr
+    await cluster.mailbox.leave(id, addr)
     return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
+
 
 
 @routes.get("/peers")
@@ -88,7 +88,6 @@ async def server_main(
     This will reduce the complexity and costs of the test code, and also could test static membership feature itself.
     """
     peers = _args[0]
-    print('peers', peers)
 
     store = HashStore()
     raft_node_idx = process_index.get()

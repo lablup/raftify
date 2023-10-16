@@ -96,7 +96,7 @@ class Mailbox:
             self.logger.error("Error occurred while sending message through mailbox", e)
             raise
 
-    async def remove_node(self, node_id: int, addr: SocketAddr) -> None:
+    async def leave(self, node_id: int, addr: SocketAddr) -> None:
         conf_change = ConfChange.default()
         conf_change.set_node_id(node_id)
         conf_change.set_context(pickle.dumps([addr]))

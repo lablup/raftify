@@ -1,4 +1,5 @@
 import asyncio
+import math
 from typing import Optional
 
 import grpc
@@ -33,13 +34,24 @@ class RaftClient:
         return grpc.aio.insecure_channel(str(self.addr))
 
     async def change_config(
-        self, conf_change: ConfChangeV2, timeout: float
+        self, conf_change: ConfChangeV2, timeout: float = math.inf
     ) -> raft_service_pb2.ChangeConfigResponse:
         request = ConfChangeV2Adapter.to_pb(conf_change)
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
             return await asyncio.wait_for(stub.ChangeConfig(request), timeout)
+
+    async def apply_change_config_forcely(
+        self, conf_change: ConfChangeV2, timeout: float = math.inf
+    ) -> raft_service_pb2.ChangeConfigResponse:
+        request = ConfChangeV2Adapter.to_pb(conf_change)
+
+        async with self.__create_channel() as channel:
+            stub = raft_service_pb2_grpc.RaftServiceStub(channel)
+            return await asyncio.wait_for(
+                stub.ApplyConfigChangeForcely(request), timeout
+            )
 
     async def send_message(
         self, msg: Message, timeout: float

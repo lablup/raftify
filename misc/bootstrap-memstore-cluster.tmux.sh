@@ -21,15 +21,23 @@ join_cluster() {
 	fi
 }
 
+clear_terminal() {
+	clear
+	tmux clear-history
+}
+
 for (( i=1; i<=$N; i++ ))
 do
 		if (( $PANEL_NUM == 1 )); then
+				clear_terminal
 				bootstrap
 		elif (( $PANEL_NUM % 2 == 1 )); then
+				clear_terminal
 				tmux select-pane -t $(($PANEL_NUM-1))
 				tmux split-window -h
 				join_cluster
 		elif (( $PANEL_NUM % 2 == 0 )); then
+				clear_terminal
 				tmux select-pane -t $(($PANEL_NUM-1))
 				tmux split-window -v
 				join_cluster

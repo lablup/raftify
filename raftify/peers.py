@@ -15,6 +15,7 @@ class PeerState(StrEnum):
     Preparing = "Preparing"
     Connected = "Connected"
     Disconnected = "Disconnected"
+    Disconnecting = "Disconnecting"
     Quitted = "Quitted"
 
 
