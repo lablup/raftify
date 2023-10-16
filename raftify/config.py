@@ -9,11 +9,10 @@ class RaftifyConfig:
     Raft Configurations.
 
     Attributes:
-    - config: Configuration object. Uses default settings if not provided.
+    - raft_config: Configuration object. Uses default settings if not provided.
     - log_dir: Directory path where log files are stored.
     - max_retry_cnt: Maximum number of retries for a request.
     - auto_remove_node: Whether to automatically remove a node from the cluster if it keeps not responding.
-    - connection_fail_limit: Maximum number of connection failures before removing a node from the cluster.
     - message_timeout: Timeout duration for a message request.
     - snapshot_interval: Interval between snapshots.
         Set to 0 to disable.
