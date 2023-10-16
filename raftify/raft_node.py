@@ -520,7 +520,7 @@ class RaftNode:
                         for addr in socket_addrs:
                             self.peers.ready_peer(addr)
 
-                        self.seq.increase()
+                        await self.seq.increase()
                         response_queues[self.seq] = message.chan
                         context = pickle.dumps(self.seq.value)
 
@@ -537,8 +537,9 @@ class RaftNode:
                             raise
 
             elif isinstance(message, ChangeConfigAndApplyImmediatelyReqMessage):
-                self.seq.increase()
+                await self.seq.increase()
                 response_queues[self.seq] = message.chan
+                context = pickle.dumps(self.seq.value)
 
                 conf_change_v2 = ConfChangeV2Adapter.from_pb(
                     message.conf_change
@@ -556,6 +557,7 @@ class RaftNode:
 
                 self.raw_node.apply_conf_change_v2(conf_change_v2)
 
+                message.chan.put_nowait(RaftOkRespMessage())
                 # del self.peers.data[node_id]
 
             elif isinstance(message, ProposeReqMessage):
@@ -563,7 +565,7 @@ class RaftNode:
                     # TODO: retry strategy in case of failure
                     await self.send_wrongleader_response(message.chan)
                 else:
-                    self.seq.increase()
+                    await self.seq.increase()
                     response_queues[self.seq] = message.chan
                     context = pickle.dumps(self.seq.value)
                     self.raw_node.propose(context, message.data)
@@ -577,7 +579,7 @@ class RaftNode:
                         self.raw_node, SocketAddr.from_str(message.addr)
                     )
 
-                    await message.chan.put(
+                    message.chan.put_nowait(
                         IdReservedRespMessage(
                             leader_id=self.get_leader_id(),
                             reserved_id=reserved_id,
