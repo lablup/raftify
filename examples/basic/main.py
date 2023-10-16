@@ -9,12 +9,10 @@ from pathlib import Path
 from threading import Lock
 from typing import Optional
 
-import aiomonitor
 import colorlog
 import tomli
 from aiohttp import web
 from aiohttp.web import Application, RouteTableDef
-from rraft import ConfChangeV2
 from rraft import Logger as Slog
 from rraft import default_logger
 
@@ -298,9 +296,7 @@ async def main() -> None:
         tasks.append(web_server.start())
 
     try:
-        loop = asyncio.get_running_loop()
-        with aiomonitor.start_monitor(loop):
-            await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks)
     finally:
         if app_runner:
             await app_runner.cleanup()
