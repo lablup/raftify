@@ -129,6 +129,39 @@ class RaftCluster:
             assert peer.client is not None
             await peer.client.cluster_bootstrap_ready(raw_peers, 5.0)
 
+    def get_debug_info(self) -> str:
+        """
+        Collect and return all useful information for debugging
+        """
+        progress_trackers = self.raft_node.raw_node.get_raft().prs().collect()
+
+        return f"""
+========= Node info =========
+node_id: {self.raft_node.raw_node.get_raft().get_id()}
+current_leader_id: {self.raft_node.raw_node.get_raft().get_leader_id()}
+
+========= Storage info =========
+hard_state: {str(self.raft_node.lmdb.core.hard_state())}
+conf_state: {str(self.raft_node.lmdb.core.conf_state())}
+last_index: {str(self.raft_node.lmdb.core.last_index())}
+snapshot: {str(self.raft_node.lmdb.core.snapshot(0, 0))}
+
+========= Progress =========
+progress: {[str(pr_tracker.progress()) for pr_tracker in progress_trackers]}
+
+========= Peer state =========
+peers: {str(self.get_peers())}
+
+========= Raft log =========
+raft_log.last_applied: {self.raft_node.raw_node.get_raft().get_raft_log().get_applied()}
+raft_log.last_committed: {self.raft_node.raw_node.get_raft().get_raft_log().get_committed()}
+raft_log.last_persisted: {self.raft_node.raw_node.get_raft().get_raft_log().get_persisted()}
+
+========= Pending confchange =========
+pending_conf_index: {self.raft_node.raw_node.get_raft().get_pending_conf_index()}
+has_pending_conf: {self.raft_node.raw_node.get_raft().has_pending_conf()}
+        """.strip()
+
     def transfer_leader(
         self,
         node_id: int,

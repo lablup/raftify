@@ -224,6 +224,12 @@ async def zero(request: web.Request) -> web.Response:
     return web.Response(text=str(""))
 
 
+@routes.get("/debug")
+async def debug(request: web.Request) -> web.Response:
+    cluster: RaftCluster = request.app["state"]["cluster"]
+    return web.Response(text=cluster.get_debug_info())
+
+
 async def main() -> None:
     init_rraft_py_deserializer()
 
