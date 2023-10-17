@@ -267,7 +267,7 @@ class RaftNode:
     async def send_message(self, client: RaftClient, message: Message) -> None:
         """
         Attempt to send a message 'max_retry_cnt' times at 'message_timeout' interval.
-        If 'auto_remove_node' is set to True, the send function will automatically remove the node from the cluster.
+        If 'auto_remove_node' is set to True, the send function will remove the node from the cluster automatically.
         """
 
         node_id = message.get_to()
@@ -298,7 +298,7 @@ class RaftNode:
                 await self.report_unreachable(node_id)
                 elapsed = self.get_elapsed_time_from_first_connection_lost(node_id)
                 self.logger.warning(
-                    f"Failed to connect to node {node_id}, elapsed from failure: {elapsed}s"
+                    f"Failed to connect to node {node_id}, elapsed from failure: {format(elapsed, '.4f')}s"
                 )
 
                 if self.is_leader():
@@ -349,6 +349,7 @@ class RaftNode:
         committed_entries: list[Entry] | list[EntryRef],
         response_queues: dict[AtomicInteger, Queue],
     ) -> None:
+        # TODO: persist last_applied_index and implement log entries commit resuming logic
         # Mostly, you need to save the last apply index to resume applying
         # after restart. Here we just ignore this because we use a Memory storage.
 
@@ -642,17 +643,6 @@ class RaftNode:
                 tick_timer -= elapsed
 
             await self.on_ready(response_queues)
-
-    def handle_persisted_entries(self, entries: list[Entry] | list[EntryRef]):
-        # TODO: Write documents to clarify when to use entry with empty data.
-        for entry in entries:
-            if (
-                entry.get_entry_type() == EntryType.EntryConfChangeV2
-                and not entry.get_data()
-            ):
-                asyncio.create_task(self.commit_zero(entry))
-
-        self.lmdb.append(entries)
 
     async def on_ready(self, response_queues: dict[AtomicInteger, Queue]) -> None:
         if not self.raw_node.has_ready():
