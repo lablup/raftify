@@ -11,6 +11,7 @@ from rraft import (
     ConfChangeTransition,
     ConfChangeType,
     ConfChangeV2,
+    ConfState,
     Entry,
     EntryRef,
     EntryType,
@@ -19,6 +20,7 @@ from rraft import (
     Message,
     RawNode,
     Snapshot,
+    SnapshotMetadata,
     Storage,
 )
 
@@ -372,6 +374,15 @@ class RaftNode:
         self.lmdb.create_snapshot(snapshot_data, index, term)
         self.logger.info("Snapshot created successfully.")
 
+    def update_snapshot_metadata(self, cs: ConfState, index: int, term: int) -> None:
+        snapshot_metadata = SnapshotMetadata.default()
+        snapshot_metadata.set_conf_state(cs)
+        snapshot_metadata.set_index(index)
+        snapshot_metadata.set_term(term)
+
+        self.lmdb.set_snapshot_meta(snapshot_metadata)
+        self.logger.info("Snapshot metadata updated successfully.")
+
     async def handle_committed_normal_entry(
         self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
     ) -> None:
@@ -405,8 +416,6 @@ class RaftNode:
         seq = AtomicInteger(pickle.loads(entry.get_context()))
         conf_change_v2 = ConfChangeV2.decode(entry.get_data())
 
-        print(f"{conf_change_v2=}")
-
         conf_changes = conf_change_v2.get_changes()
         addrs = pickle.loads(conf_change_v2.get_context())
 
@@ -434,7 +443,9 @@ class RaftNode:
 
         if conf_state := self.raw_node.apply_conf_change_v2(conf_change_v2):
             self.lmdb.set_conf_state(conf_state)
-            await self.create_snapshot(entry.get_index(), entry.get_term())
+            self.update_snapshot_metadata(
+                conf_state, entry.get_index(), entry.get_term()
+            )
 
         if response_queue := response_queues.pop(seq, None):
             response: RaftResponse

@@ -15,6 +15,7 @@ from rraft import (
     HardStateRef,
     RaftState,
     Snapshot,
+    SnapshotMetadata,
     SnapshotRef,
     StoreError,
     UnavailableError,
@@ -265,6 +266,11 @@ class LMDBStorageCore:
 
             return entry.get_term() if entry else 0
 
+    def set_snapshot_metadata(self, metadata: SnapshotMetadata) -> None:
+        snapshot = self.snapshot(0, 0)
+        snapshot.set_metadata(metadata)
+        self.set_snapshot(snapshot)
+
 
 class LMDBStorage:
     def __init__(self, core: LMDBStorageCore, logger: AbstractRaftifyLogger):
@@ -335,6 +341,10 @@ class LMDBStorage:
     def snapshot(self, request_index: int, to: int) -> Snapshot:
         with Lock():
             return self.core.snapshot(request_index, to)
+
+    def set_snapshot_metadata(self, metadata: SnapshotMetadata) -> Snapshot:
+        with Lock():
+            return self.core.set_snapshot_metadata(metadata)
 
     def set_hard_state_comit(self, comit: int) -> None:
         with Lock():
