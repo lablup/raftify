@@ -380,7 +380,7 @@ class RaftNode:
         snapshot_metadata.set_index(index)
         snapshot_metadata.set_term(term)
 
-        self.lmdb.set_snapshot_meta(snapshot_metadata)
+        self.lmdb.set_snapshot_metadata(snapshot_metadata)
         self.logger.info("Snapshot metadata updated successfully.")
 
     async def handle_committed_normal_entry(
