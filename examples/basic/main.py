@@ -100,9 +100,8 @@ class HashStore(FSM):
             return pickle.dumps(self._store)
 
     async def restore(self, snapshot: bytes) -> None:
-        if snapshot:
-            with self._lock:
-                self._store = pickle.loads(snapshot)
+        with self._lock:
+            self._store = pickle.loads(snapshot)
 
 
 @routes.get("/get/{id}")

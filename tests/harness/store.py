@@ -27,5 +27,4 @@ class HashStore(raftify.FSM):
         return pickle.dumps(self._store)
 
     async def restore(self, snapshot: bytes) -> None:
-        if snapshot:
-            self._store = pickle.loads(snapshot)
+        self._store = pickle.loads(snapshot)

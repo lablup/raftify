@@ -92,10 +92,8 @@ class Mailbox:
             )
             assert resp is not None
             return resp
-        except Exception as err:
-            self.logger.error(
-                f"Error occurred while sending message through mailbox, {str(err)}"
-            )
+        except Exception as e:
+            self.logger.error("Error occurred while sending message through mailbox", e)
             raise
 
     async def leave(self, node_id: int, addr: SocketAddr) -> None:
