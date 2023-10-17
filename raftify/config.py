@@ -64,7 +64,7 @@ class RaftifyConfig:
         auto_remove_node: bool = True,
         node_auto_remove_threshold: float = 7.0,
         raft_config: Config = Config.default(),
-        snapshot_interval: float = 0.0,
+        snapshot_interval: float = 5.0,
         tick_interval: float = 0.1,
         lmdb_map_size: int = 1024 * 1024 * 1024,
     ) -> None:

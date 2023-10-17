@@ -85,6 +85,7 @@ class RaftNode:
         self.should_exit = False
         self.raftify_cfg = raftify_cfg
         self.bootstrap_done = bootstrap_done
+        # self.snapshot_task = asyncio.create_task(self.snapshot_creator())
 
     @classmethod
     def bootstrap_leader(
@@ -327,6 +328,14 @@ class RaftNode:
                         )
                     )
 
+    async def handle_snapshot_creation(self):
+        if (
+            self.raftify_cfg.snapshot_interval > 0
+            and time.time() > self.last_snap_time + self.raftify_cfg.snapshot_interval
+        ):
+            last_index = self.lmdb.last_index()
+            await self.create_snapshot(last_index, self.lmdb.term(last_index))
+
     async def send_wrongleader_response(self, channel: Queue) -> None:
         # TODO: Make this follower to new cluster's leader
         assert (
@@ -395,11 +404,11 @@ class RaftNode:
         if response_queue := response_queues.pop(seq, None):
             response_queue.put_nowait(RaftRespMessage(data))
 
-        if (
-            self.raftify_cfg.snapshot_interval > 0
-            and time.time() > self.last_snap_time + self.raftify_cfg.snapshot_interval
-        ):
-            await self.create_snapshot(entry.get_index(), entry.get_term())
+        # if (
+        #     self.raftify_cfg.snapshot_interval > 0
+        #     and time.time() > self.last_snap_time + self.raftify_cfg.snapshot_interval
+        # ):
+        #     await self.create_snapshot(entry.get_index(), entry.get_term())
 
     async def handle_committed_config_change_entry(
         self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
@@ -655,6 +664,9 @@ class RaftNode:
         self.lmdb.append(entries)
 
     async def on_ready(self, response_queues: dict[AtomicInteger, Queue]) -> None:
+        # Question: Could blocking due to snapshot creating be allowed here?
+        await self.handle_snapshot_creation()
+
         if not self.raw_node.has_ready():
             return
 
