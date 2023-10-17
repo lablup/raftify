@@ -245,26 +245,25 @@ class LMDBStorageCore:
         return raft_state
 
     def term(self, index: int) -> int:
-        with Lock():
-            first_index = self.first_index()
-            last_index = self.last_index()
-            hard_state = self.hard_state()
+        first_index = self.first_index()
+        last_index = self.last_index()
+        hard_state = self.hard_state()
 
-            if index == hard_state.get_commit():
-                return hard_state.get_term()
+        if index == hard_state.get_commit():
+            return hard_state.get_term()
 
-            if index < first_index:
-                raise StoreError(CompactedError())
+        if index < first_index:
+            raise StoreError(CompactedError())
 
-            if index > last_index:
-                raise StoreError(UnavailableError())
+        if index > last_index:
+            raise StoreError(UnavailableError())
 
-            try:
-                entry = self.entry(index)
-            except Exception:
-                raise StoreError(UnavailableError())
+        try:
+            entry = self.entry(index)
+        except Exception:
+            raise StoreError(UnavailableError())
 
-            return entry.get_term() if entry else 0
+        return entry.get_term() if entry else 0
 
     def set_snapshot_metadata(self, metadata: SnapshotMetadata) -> None:
         snapshot = self.snapshot(0, 0)
