@@ -10,7 +10,7 @@ from harness.constant import CLUSTER_INFO_PATH, WEB_SERVER_ADDRS
 from pathlib import Path
 import tomli
 
-from raftify.peers import Peer, PeerState, Peers
+from raftify.peers import Peer, Peers
 from raftify.utils import SocketAddr
 
 
@@ -50,7 +50,10 @@ def write_node(node_id: int, data: dict):
 
 
 def remove_node(node_id: int):
-    os.remove(f"{CLUSTER_INFO_PATH}/.node-{node_id}.json")
+    try:
+        os.remove(f"{CLUSTER_INFO_PATH}/.node-{node_id}.json")
+    except FileNotFoundError:
+        pass
 
 
 def read_cluster_info(path: str = CLUSTER_INFO_PATH) -> dict:
