@@ -195,24 +195,26 @@ class LMDBStorageCore:
             assert cursor.first(), "DB Empty!"
             from_ = decode_int(cursor.key())
 
-            # TODO: Maybe it would be better to include 'last_index' in compact, but when all entries removed from lmdb,
-            # performance issue occurred. So, keep the last index entry here.
             compaction_logs_buf = []
             while cursor.key() and decode_int(cursor.key()) < to:
                 entry = rraft.Entry.decode(cursor.value())
                 compaction_logs_buf.append(str(entry))
+
+                # TODO: Maybe it would be better to include 'last_index' in compact, but when all entries removed from lmdb,
+                # performance issue occurred. (and also see https://github.com/lablup/raftify/issues/47)
+                # So, keep the last index entry here.
 
                 if not cursor.delete():
                     self.logger.info(
                         f"Try to delete item at {decode_int(cursor.key())}, but not exist!"
                     )
 
-            sink_pth = os.path.join(
+            dest_pth = os.path.join(
                 self.log_path,
                 f"compacted-logs-{self.compaction_log_index}.json",
             )
 
-            with open(sink_pth, "w") as file:
+            with open(dest_pth, "w") as file:
                 json.dump(compaction_logs_buf, file)
 
             self.compaction_log_index += 1
