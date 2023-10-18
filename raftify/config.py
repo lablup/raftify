@@ -13,11 +13,13 @@ class RaftifyConfig:
     - log_dir: Directory path where log files are stored.
     - max_retry_cnt: Maximum number of retries for a request.
     - auto_remove_node: Whether to automatically remove a node from the cluster if it keeps not responding.
+    - node_auto_remove_threshold: Threshold for the node auto removal.
     - message_timeout: Timeout duration for a message request.
     - snapshot_interval: Interval between snapshots.
         Set to 0 to disable.
         Snapshots are also created after configuration changes are applied.
     - lmdb_map_size: Maximum size lmdb database may grow to.
+    - tick_interval: Interval between Raft ticks.
     """
 
     raft_config_keys = [
