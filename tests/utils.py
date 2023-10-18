@@ -15,7 +15,7 @@ from raftify.utils import SocketAddr
 
 
 def load_peers(peer_filename: str) -> Peers:
-    path = Path(__file__).parent / "harness" / peer_filename
+    path = Path(__file__).parent / "fixtures" / peer_filename
     cfg = tomli.loads(path.read_text())["raft"]["peers"]
 
     return Peers(
