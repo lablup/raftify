@@ -23,7 +23,16 @@ test-membership-manage:
 		python -m pytest -s -v membership_manage.py::$$test; \
 	done
 
+NETWORK_TESTS = \
+	test_message_rerouting
+
+test-network:
+	@for test in $(NETWORK_TESTS); do \
+		python -m pytest -s -v network.py::$$test; \
+	done
+
 test:
 	make test-leader-election
 	make test-data-replication
 	make test-membership-manage
+	make test-network
