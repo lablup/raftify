@@ -18,6 +18,7 @@ from harness.logger import logger, slog
 from harness.store import HashStore
 from raftify.peers import PeerState, Peers
 from raftify.raft_client import RaftClient
+from raftify.deserializer import init_rraft_py_deserializer
 from utils import read_cluster_info, remove_node, write_json, write_node
 
 from raftify.config import RaftifyConfig
@@ -101,6 +102,8 @@ async def server_main(
     Raft server harness code using static membership.
     This will reduce the complexity and costs of the test code, and also could test static membership feature itself.
     """
+    init_rraft_py_deserializer()
+
     peers = args[0]
 
     store = HashStore()
@@ -109,7 +112,7 @@ async def server_main(
     raft_addr = SocketAddr.from_str(str(RAFT_ADDRS[raft_node_idx]))
 
     cfg = RaftifyConfig(
-        log_dir="./",
+        log_dir="./logs",
     )
 
     cluster = RaftCluster(cfg, raft_addr, store, slog, logger, peers)
@@ -157,8 +160,9 @@ async def server_main(
 
 
 async def excute_extra_node(node_id: int, raft_addr: SocketAddr, peers: Peers):
+    init_rraft_py_deserializer()
     cfg = RaftifyConfig(
-        log_dir="./",
+        log_dir="./logs",
     )
 
     store = HashStore()
