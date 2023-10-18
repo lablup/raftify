@@ -41,3 +41,11 @@ async def test_message_rerouting():
 
     killall()
     executor.shutdown()
+
+
+# TODO: Implement this test
+@pytest.mark.asyncio
+async def test_serial_confchanges():
+    """
+    Test that creating a lot of confchanges at the same time does not create a pending_conf_change.
+    """
