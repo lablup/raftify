@@ -276,7 +276,6 @@ class RaftNode:
                 if self.bootstrap_done:
                     if (
                         self.peers[node_id].state == PeerState.Disconnecting
-                        or self.peers[node_id].state == PeerState.Disconnected
                     ):
                         return
 
