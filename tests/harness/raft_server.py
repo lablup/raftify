@@ -66,7 +66,6 @@ async def remove(request: web.Request) -> web.Response:
     return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
 
-
 @routes.get("/peers")
 async def peers(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
@@ -81,13 +80,13 @@ async def leader(request: web.Request) -> web.Response:
 
 @actxmgr
 async def server_main(
-    loop: asyncio.AbstractEventLoop, pidx: int, _args: list
+    _loop: asyncio.AbstractEventLoop, _pidx: int, args: list
 ) -> AsyncIterator[None]:
     """
     Raft server harness code using static membership.
     This will reduce the complexity and costs of the test code, and also could test static membership feature itself.
     """
-    peers = _args[0]
+    peers = args[0]
 
     store = HashStore()
     raft_node_idx = process_index.get()
