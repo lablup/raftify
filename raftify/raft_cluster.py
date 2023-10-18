@@ -1,5 +1,8 @@
 import asyncio
+import json
+import os
 import pickle
+import re
 from asyncio import Queue
 
 import grpc
@@ -162,6 +165,41 @@ pending_conf_index: {self.raft_node.raw_node.get_raft().get_pending_conf_index()
 has_pending_conf: {self.raft_node.raw_node.get_raft().has_pending_conf()}
         """.strip()
 
+    def __gather_compacted_logs(self, path: str) -> list[str]:
+        result = []
+        node_pattern = re.compile(r"compacted-logs-(\d+)\.json$")
+
+        for filename in sorted(os.listdir(path)):
+            match = node_pattern.match(filename)
+            if match:
+                with open(os.path.join(path, filename), "r") as file:
+                    result += json.load(file)
+
+        return result
+
+    def get_all_entry_logs(self) -> str:
+        """
+        Collect and return all entries in the raft log
+        """
+        current_all_entries = (
+            self.raft_node.raw_node.get_raft().get_raft_log().all_entries()
+        )
+        current_all_entries_logs = "\n".join(
+            list(map(lambda e: str(e), current_all_entries))
+        )
+
+        compacted_all_entries_logs = "\n".join(
+            self.__gather_compacted_logs(self.raft_node.lmdb.core.log_dir_path)
+        )
+
+        return f"""
+========= Compacted all entries =========
+{compacted_all_entries_logs}
+
+========= Existing all entries =========
+{current_all_entries_logs}
+        """.strip()
+
     def transfer_leader(
         self,
         node_id: int,
@@ -202,14 +240,19 @@ has_pending_conf: {self.raft_node.raw_node.get_raft().has_pending_conf()}
                 match resp.result:
                     case raft_service_pb2.IdRequest_Success:
                         leader_addr = peer_addr
-                        leader_id, node_id, raw_peers = pickle.loads(resp.data)
+                        resp_dict = pickle.loads(resp.data)
+                        leader_id = resp_dict["leader_id"]
+                        node_id = resp_dict["reserved_id"]
+                        raw_peers = resp_dict["peers"]
+
                         peer_addrs = Peers.decode(raw_peers)
                         break
                     case raft_service_pb2.IdRequest_WrongLeader:
-                        _, peer_addr, _ = pickle.loads(resp.data)
+                        resp_dict = pickle.loads(resp.data)
+                        peer_addr = resp_dict["leader_addr"]
                         self.logger.info(
                             f"Sent message to the wrong leader, retrying with the peer at {peer_addr} "
-                            f"assuming it is leader node."
+                            f"assuming that it is leader node."
                         )
                         continue
                     case raft_service_pb2.IdRequest_Error | _:

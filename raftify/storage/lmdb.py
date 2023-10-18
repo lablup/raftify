@@ -1,8 +1,10 @@
+import json
 import os
 from threading import Lock
 from typing import List, Optional
 
 import lmdb
+import rraft
 from rraft import (
     CompactedError,
     ConfState,
@@ -41,25 +43,37 @@ def decode_int(v: bytes) -> int:
 class LMDBStorageCore:
     def __init__(
         self,
+        log_dir_path: str,
+        node_id: int,
         env: lmdb.Environment,
         entries_db: lmdb._Database,
         metadata_db: lmdb._Database,
         logger: AbstractRaftifyLogger,
     ):
+        self.node_id = node_id
         self.env = env
         self.entries_db = entries_db
         self.metadata_db = metadata_db
         self.logger = logger
+        self.compaction_log_index = 1
+        self.log_dir_path = log_dir_path
 
     @classmethod
     def create(
-        cls, map_size: int, path: str, id: int, logger: AbstractRaftifyLogger
+        cls,
+        map_size: int,
+        log_dir_path: str,
+        node_id: int,
+        logger: AbstractRaftifyLogger,
     ) -> "LMDBStorageCore":
-        os.makedirs(path, exist_ok=True)
-        db_pth = os.path.join(path, f"raft-{id}.mdb")
+        log_dir_path = os.path.join(log_dir_path, f"node-{node_id}")
+
+        os.makedirs(log_dir_path, exist_ok=True)
 
         try:
-            env: lmdb.Environment = lmdb.open(db_pth, map_size=map_size, max_dbs=3000)
+            env: lmdb.Environment = lmdb.open(
+                log_dir_path, map_size=map_size, max_dbs=3000
+            )
             entries_db = env.open_db(b"entries")
             metadata_db = env.open_db(b"meta")
         except lmdb.MapFullError:
@@ -69,7 +83,7 @@ class LMDBStorageCore:
         hard_state = HardState.default()
         conf_state = ConfState.default()
 
-        core = cls(env, entries_db, metadata_db, logger)
+        core = cls(log_dir_path, node_id, env, entries_db, metadata_db, logger)
         core.set_hard_state(hard_state)
         core.set_conf_state(conf_state)
         core.append([Entry.default()])
@@ -188,13 +202,29 @@ class LMDBStorageCore:
             assert cursor.first(), "DB Empty!"
             from_ = decode_int(cursor.key())
 
-            # TODO: Maybe it would be better to include 'last_index' in compact, but when all entries removed from lmdb,
-            # performance issue occurred. So, keep the last index entry here.
+            compaction_logs_buf = []
             while cursor.key() and decode_int(cursor.key()) < to:
+                entry = rraft.Entry.decode(cursor.value())
+                compaction_logs_buf.append(str(entry))
+
+                # TODO: Maybe it would be better to include 'last_index' in compact, but when all entries removed from lmdb,
+                # performance issue occurred. (and also see https://github.com/lablup/raftify/issues/47)
+                # So, keep the last index entry here.
+
                 if not cursor.delete():
                     self.logger.info(
                         f"Try to delete item at {decode_int(cursor.key())}, but not exist!"
                     )
+
+            dest_pth = os.path.join(
+                self.log_dir_path,
+                f"compacted-logs-{self.compaction_log_index}.json",
+            )
+
+            with open(dest_pth, "w") as file:
+                json.dump(compaction_logs_buf, file)
+
+            self.compaction_log_index += 1
 
             if to > from_:
                 self.logger.info(f"Entries [{from_}, {to}) deleted successfully.")
@@ -274,11 +304,11 @@ class LMDBStorage:
     def create(
         cls,
         map_size: int,
-        path: str,
+        log_dir_path: str,
         node_id: int,
         logger: AbstractRaftifyLogger,
     ) -> "LMDBStorage":
-        core = LMDBStorageCore.create(map_size, path, node_id, logger)
+        core = LMDBStorageCore.create(map_size, log_dir_path, node_id, logger)
         return cls(core, logger)
 
     def compact(self, index: int) -> None:

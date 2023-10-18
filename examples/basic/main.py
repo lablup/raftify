@@ -230,6 +230,12 @@ async def debug(request: web.Request) -> web.Response:
     return web.Response(text=cluster.get_debug_info())
 
 
+@routes.get("/debug_entries")
+async def debug_entries(request: web.Request) -> web.Response:
+    cluster: RaftCluster = request.app["state"]["cluster"]
+    return web.Response(text=cluster.get_all_entry_logs())
+
+
 async def main() -> None:
     init_rraft_py_deserializer()
 
@@ -255,7 +261,7 @@ async def main() -> None:
     target_addr = peer_addrs[0] if bootstrap and not raft_addr else raft_addr
 
     cfg = RaftifyConfig(
-        log_dir="./",
+        log_dir="./logs",
         raft_config=RaftifyConfig.new_raft_config(
             {
                 "election_tick": 10,

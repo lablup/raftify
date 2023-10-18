@@ -20,7 +20,7 @@ install:
 	pip install .
 
 clean:
-	rm -rf *.mdb
+	rm -rf logs
 
 reinstall:
 	make clean

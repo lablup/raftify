@@ -104,7 +104,7 @@ class RaftNode:
 
         lmdb = LMDBStorage.create(
             map_size=raftify_cfg.lmdb_map_size,
-            path=raftify_cfg.log_dir,
+            log_dir_path=raftify_cfg.log_dir,
             node_id=1,
             logger=logger,
         )
@@ -161,7 +161,7 @@ class RaftNode:
 
         lmdb = LMDBStorage.create(
             map_size=raftify_cfg.lmdb_map_size,
-            path=raftify_cfg.log_dir,
+            log_dir_path=raftify_cfg.log_dir,
             node_id=id,
             logger=logger,
         )
