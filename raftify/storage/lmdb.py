@@ -1,8 +1,10 @@
+import json
 import os
 from threading import Lock
 from typing import List, Optional
 
 import lmdb
+import rraft
 from rraft import (
     CompactedError,
     ConfState,
@@ -41,22 +43,27 @@ def decode_int(v: bytes) -> int:
 class LMDBStorageCore:
     def __init__(
         self,
+        log_path: str,
+        node_id: int,
         env: lmdb.Environment,
         entries_db: lmdb._Database,
         metadata_db: lmdb._Database,
         logger: AbstractRaftifyLogger,
     ):
+        self.log_path = log_path
+        self.node_id = node_id
         self.env = env
         self.entries_db = entries_db
         self.metadata_db = metadata_db
         self.logger = logger
+        self.compaction_log_index = 1
 
     @classmethod
     def create(
-        cls, map_size: int, path: str, id: int, logger: AbstractRaftifyLogger
+        cls, map_size: int, log_path: str, node_id: int, logger: AbstractRaftifyLogger
     ) -> "LMDBStorageCore":
-        os.makedirs(path, exist_ok=True)
-        db_pth = os.path.join(path, f"raft-{id}.mdb")
+        os.makedirs(log_path, exist_ok=True)
+        db_pth = os.path.join(log_path, f"raft-{node_id}.mdb")
 
         try:
             env: lmdb.Environment = lmdb.open(db_pth, map_size=map_size, max_dbs=3000)
@@ -69,7 +76,7 @@ class LMDBStorageCore:
         hard_state = HardState.default()
         conf_state = ConfState.default()
 
-        core = cls(env, entries_db, metadata_db, logger)
+        core = cls(db_pth, node_id, env, entries_db, metadata_db, logger)
         core.set_hard_state(hard_state)
         core.set_conf_state(conf_state)
         core.append([Entry.default()])
@@ -190,11 +197,25 @@ class LMDBStorageCore:
 
             # TODO: Maybe it would be better to include 'last_index' in compact, but when all entries removed from lmdb,
             # performance issue occurred. So, keep the last index entry here.
+            compaction_logs_buf = []
             while cursor.key() and decode_int(cursor.key()) < to:
+                entry = rraft.Entry.decode(cursor.value())
+                compaction_logs_buf.append(str(entry))
+
                 if not cursor.delete():
                     self.logger.info(
                         f"Try to delete item at {decode_int(cursor.key())}, but not exist!"
                     )
+
+            sink_pth = os.path.join(
+                self.log_path,
+                f"compacted-logs-{self.compaction_log_index}.json",
+            )
+
+            with open(sink_pth, "w") as file:
+                json.dump(compaction_logs_buf, file)
+
+            self.compaction_log_index += 1
 
             if to > from_:
                 self.logger.info(f"Entries [{from_}, {to}) deleted successfully.")

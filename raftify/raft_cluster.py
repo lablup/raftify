@@ -1,5 +1,8 @@
 import asyncio
+import json
+import os
 import pickle
+import re
 from asyncio import Queue
 
 import grpc
@@ -160,6 +163,41 @@ raft_log.last_persisted: {self.raft_node.raw_node.get_raft().get_raft_log().get_
 ========= Pending confchange =========
 pending_conf_index: {self.raft_node.raw_node.get_raft().get_pending_conf_index()}
 has_pending_conf: {self.raft_node.raw_node.get_raft().has_pending_conf()}
+        """.strip()
+
+    def __gather_compacted_logs(self, path: str) -> list[str]:
+        result = []
+        node_pattern = re.compile(r"compacted-logs-(\d+)\.json$")
+
+        for filename in sorted(os.listdir(path)):
+            match = node_pattern.match(filename)
+            if match:
+                with open(os.path.join(path, filename), "r") as file:
+                    result += json.load(file)
+
+        return result
+
+    def get_all_entry_logs(self) -> str:
+        """
+        Collect and return all entries in the raft log
+        """
+        current_all_entries = (
+            self.raft_node.raw_node.get_raft().get_raft_log().all_entries()
+        )
+        current_all_entries_logs = "\n".join(
+            list(map(lambda e: str(e), current_all_entries))
+        )
+
+        compacted_all_entries_logs = "\n".join(
+            self.__gather_compacted_logs(self.raft_node.lmdb.core.log_path)
+        )
+
+        return f"""
+========= Compacted all entries =========
+{compacted_all_entries_logs}
+
+========= Existing all entries =========
+{current_all_entries_logs}
         """.strip()
 
     def transfer_leader(
