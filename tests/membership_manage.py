@@ -49,3 +49,11 @@ async def test_disconnected_node_get_same_node_id():
 
     killall()
     executor.shutdown()
+
+
+# TODO: Implement this test
+@pytest.mark.asyncio
+async def test_apply_confchange_forcely():
+    """
+    Test when a ConfChange should be committed even though the quorum is not satisfied
+    """
