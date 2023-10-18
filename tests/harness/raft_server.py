@@ -16,7 +16,7 @@ from harness.constant import CLUSTER_INFO_PATH, RAFT_ADDRS, WEB_SERVER_ADDRS
 from harness.log import SetCommand
 from harness.logger import logger, slog
 from harness.store import HashStore
-from raftify.peers import Peers
+from raftify.peers import PeerState, Peers
 from raftify.raft_client import RaftClient
 from utils import read_cluster_info, remove_node, write_json, write_node
 
@@ -67,10 +67,24 @@ async def remove(request: web.Request) -> web.Response:
     return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
 
+def get_alive_node_ids(peers: Peers) -> list[int]:
+    return [
+        node_id
+        for node_id, peer in peers.data.items()
+        if peer.state == PeerState.Connected
+    ]
+
+
 @routes.get("/peers")
 async def peers(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
     return web.Response(text=str(cluster.get_peers()))
+
+
+@routes.get("/connected_nodes")
+async def connected_nodes(request: web.Request) -> web.Response:
+    cluster: RaftCluster = request.app["state"]["cluster"]
+    return web.Response(text=json.dumps(get_alive_node_ids(cluster.get_peers())))
 
 
 @routes.get("/leader")

@@ -16,7 +16,7 @@ test-data-replication:
 	done
 
 MEMBERSHIP_MANAGE_TESTS = \
-	test_membership_change
+	test_disconnected_node_get_same_node_id
 
 test-membership-manage:
 	@for test in $(MEMBERSHIP_MANAGE_TESTS); do \

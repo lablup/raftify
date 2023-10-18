@@ -10,7 +10,7 @@ from harness.constant import CLUSTER_INFO_PATH, WEB_SERVER_ADDRS
 from pathlib import Path
 import tomli
 
-from raftify.peers import Peer, Peers
+from raftify.peers import Peer, PeerState, Peers
 from raftify.utils import SocketAddr
 
 
@@ -77,6 +77,16 @@ def write_cluster_info(cluster_info: dict, path: str = CLUSTER_INFO_PATH):
 
 
 async def kill_process(pid: int):
+    try:
+        os.kill(pid, signal.SIGTERM)
+        await asyncio.sleep(1.0)
+    except Exception:
+        pass
+
+
+async def kill_node(node_id: int):
+    pid = read_json(f"{CLUSTER_INFO_PATH}/.node-{node_id}.json")["pid"]
+
     try:
         os.kill(pid, signal.SIGTERM)
         await asyncio.sleep(1.0)
