@@ -31,6 +31,10 @@ async def test_disconnected_node_get_same_node_id():
     make_request(RequestType.GET, 1, "/remove/2")
     await kill_node(2)
     await wait_for_until("cluster_size <= 2")
+    peers_states_2 = json.loads(make_request(RequestType.GET, 1, "/peers"))
+    assert list(peers_states_2.keys()) == ['1', '2', '3']
+    assert peers_states_2['2']["state"] != "Connected"
+
     peers_2 = json.loads(make_request(RequestType.GET, 1, "/connected_nodes"))
     assert peers_2 == [1, 3]
 
