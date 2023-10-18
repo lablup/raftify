@@ -6,7 +6,7 @@ import pickle
 import signal
 import sys
 from contextlib import asynccontextmanager as actxmgr
-from typing import AsyncIterator, Callable
+from typing import AsyncIterator
 
 import aiotools
 from aiohttp import web

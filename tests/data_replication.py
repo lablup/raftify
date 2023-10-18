@@ -33,7 +33,7 @@ async def test_data_replication():
         assert resp == "A"
 
     addr = SocketAddr(host="127.0.0.1", port=60064)
-    peers.data[4] = Peer(addr, client=RaftClient(addr))
+    peers[4] = Peer(addr, client=RaftClient(addr))
 
     spawn_extra_node(4, addr, peers)
     await wait_for_until("cluster_size >= 4")

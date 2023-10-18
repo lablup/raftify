@@ -20,7 +20,7 @@ async def test_membership_change():
     await wait_for_until("cluster_size >= 3")
 
     peers_1 = json.loads(make_request(RequestType.GET, 1, "/peers"))
-    assert peers_1.keys(), [2]
+    assert list(peers_1.keys()) == ['1', '2', '3']
 
     killall()
     executor.shutdown()

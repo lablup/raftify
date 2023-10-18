@@ -94,7 +94,8 @@ def killall():
 
     # Killing parent process kills all the child processes except for extra nodes spawned from calling 'spawn_extra_node'.
     # So, to kill them, we need to send kill signal them manually.
-    for node in cluster["nodes"]:
+    remaining_nodes = read_cluster_info()["nodes"]
+    for node in remaining_nodes:
         os.kill(node["pid"], signal.SIGTERM)
 
 
