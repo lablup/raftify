@@ -1,11 +1,12 @@
 import asyncio
 import json
+import multiprocessing
 import os
 import pickle
 import signal
 import sys
 from contextlib import asynccontextmanager as actxmgr
-from typing import AsyncIterator
+from typing import AsyncIterator, Callable
 
 import aiotools
 from aiohttp import web
@@ -123,12 +124,6 @@ async def server_main(
         "cluster": cluster,
     }
 
-    def handle_sigterm(*args):
-        remove_node(raft_node_idx + 1)
-        sys.exit(0)
-
-    signal.signal(signal.SIGTERM, handle_sigterm)
-
     runner = web.AppRunner(app)
     await runner.setup()
     host, port = WEB_SERVER_ADDRS[raft_node_idx].split(":")
@@ -137,8 +132,71 @@ async def server_main(
     asyncio.create_task(cluster.wait_for_termination())
     asyncio.create_task(web_server.start())
 
+    def handle_sigterm(*args):
+        remove_node(raft_node_idx + 1)
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, handle_sigterm)
+
     write_node(raft_node_idx + 1, {"addr": str(raft_addr), "pid": os.getpid()})
     yield
+
+
+async def excute_extra_node(node_id: int, raft_addr: SocketAddr, peers: Peers):
+    cfg = RaftifyConfig(
+        log_dir="./",
+    )
+
+    store = HashStore()
+    cluster = RaftCluster(cfg, raft_addr, store, slog, logger, peers)
+    peer_addrs = [peer.addr for peer in peers.data.values()]
+
+    request_id_resp = await cluster.request_id(raft_addr, peer_addrs)
+    cluster.run_raft(request_id_resp.follower_id)
+    logger.info("Running in follower mode")
+
+    app = Application()
+    app.add_routes(routes)
+    app["state"] = {
+        "store": store,
+        "cluster": cluster,
+    }
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    host, port = WEB_SERVER_ADDRS[node_id - 1].split(":")
+    web_server = web.TCPSite(runner, host, port)
+
+    await cluster.join_cluster(request_id_resp)
+
+    def handle_sigterm(*args):
+        remove_node(node_id)
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, handle_sigterm)
+
+    write_node(node_id, {"addr": str(raft_addr), "pid": os.getpid()})
+
+    await asyncio.gather(
+        cluster.wait_for_termination(),
+        web_server.start()
+    )
+
+
+def run_in_new_process(cb, *args):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    coro = cb(*args)
+    task = asyncio.ensure_future(coro)
+    try:
+        loop.run_until_complete(task)
+    finally:
+        loop.close()
+
+
+def spawn_extra_node(node_id: int, raft_addr: SocketAddr, peers: Peers):
+    p = multiprocessing.Process(target=run_in_new_process, args=(excute_extra_node, node_id, raft_addr, peers))
+    p.start()
 
 
 def run_raft_cluster(peers: Peers):
