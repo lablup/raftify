@@ -274,9 +274,7 @@ class RaftNode:
         while True:
             try:
                 if self.bootstrap_done:
-                    if (
-                        self.peers[node_id].state == PeerState.Disconnecting
-                    ):
+                    if self.peers[node_id].state == PeerState.Disconnecting:
                         return
 
                     await client.send_message(
