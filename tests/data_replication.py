@@ -44,3 +44,12 @@ async def test_data_replication():
 
     killall()
     executor.shutdown()
+
+
+# TODO: Implement this test
+@pytest.mark.asyncio
+async def test_repetitive_puts():
+    """
+    Test lots of put request.
+    It should work even if the size of total requests is larger than the map_size of lmdb.
+    """

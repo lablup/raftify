@@ -74,3 +74,11 @@ async def test_leader_election_five_node_example():
 
     killall()
     executor.shutdown()
+
+
+# TODO: Implement this test
+@pytest.mark.asyncio
+async def test_repetitive_leader_failures():
+    """
+    Test repetitive leader failures.
+    """
