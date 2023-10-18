@@ -7,6 +7,7 @@ from harness.raft_server import run_raft_cluster, wait_for_until
 from utils import RequestType, kill_node, killall, load_peers, make_request, reset_fixtures_directory
 
 
+# TODO: Maybe it would be better to replace RerouteMessage with network layer's implementation for simplicity.
 @pytest.mark.asyncio
 async def test_message_rerouting():
     """
