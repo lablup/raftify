@@ -15,15 +15,15 @@ test-data-replication:
 		python -m pytest -s -v data_replication.py::$$test; \
 	done
 
-MEMBERSHIP_CHANGE_TESTS = \
+MEMBERSHIP_MANAGE_TESTS = \
 	test_membership_change
 
-test-membership-change:
-	@for test in $(MEMBERSHIP_CHANGE_TESTS); do \
-		python -m pytest -s -v membership_change.py::$$test; \
+test-membership-manage:
+	@for test in $(MEMBERSHIP_MANAGE_TESTS); do \
+		python -m pytest -s -v membership_manage.py::$$test; \
 	done
 
 test:
 	make test-leader-election
 	make test-data-replication
-	make test-membership-change
+	make test-membership-manage
