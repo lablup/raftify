@@ -55,7 +55,9 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
 
             return raft_service_pb2.IdRequestResponse(
                 result=raft_service_pb2.IdRequest_WrongLeader,
-                data=pickle.dumps(tuple([leader_id, leader_addr, None])),
+                data=pickle.dumps(
+                    {"leader_id": leader_id, "leader_addr": leader_addr}
+                ),
             )
         elif isinstance(response, IdReservedRespMessage):
             reserved_id = response.reserved_id
@@ -64,7 +66,9 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
 
             return raft_service_pb2.IdRequestResponse(
                 result=raft_service_pb2.IdRequest_Success,
-                data=pickle.dumps(tuple([leader_id, reserved_id, peers])),
+                data=pickle.dumps(
+                    {"leader_id": leader_id, "reserved_id": reserved_id, "peers": peers}
+                ),
             )
         else:
             assert False, "Unreachable"

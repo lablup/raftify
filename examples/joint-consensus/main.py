@@ -166,7 +166,7 @@ async def main() -> None:
     target_addr = peers[1].addr if bootstrap and not raft_addr else raft_addr
 
     cfg = RaftifyConfig(
-        log_dir="./",
+        log_dir="./logs",
         raft_config=RaftifyConfig.new_raft_config(
             {
                 "election_tick": 10,

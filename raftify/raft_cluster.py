@@ -189,7 +189,7 @@ has_pending_conf: {self.raft_node.raw_node.get_raft().has_pending_conf()}
         )
 
         compacted_all_entries_logs = "\n".join(
-            self.__gather_compacted_logs(self.raft_node.lmdb.core.log_path)
+            self.__gather_compacted_logs(self.raft_node.lmdb.core.log_dir_path)
         )
 
         return f"""
@@ -240,14 +240,19 @@ has_pending_conf: {self.raft_node.raw_node.get_raft().has_pending_conf()}
                 match resp.result:
                     case raft_service_pb2.IdRequest_Success:
                         leader_addr = peer_addr
-                        leader_id, node_id, raw_peers = pickle.loads(resp.data)
+                        resp_dict = pickle.loads(resp.data)
+                        leader_id = resp_dict["leader_id"]
+                        node_id = resp_dict["reserved_id"]
+                        raw_peers = resp_dict["peers"]
+
                         peer_addrs = Peers.decode(raw_peers)
                         break
                     case raft_service_pb2.IdRequest_WrongLeader:
-                        _, peer_addr, _ = pickle.loads(resp.data)
+                        resp_dict = pickle.loads(resp.data)
+                        peer_addr = resp_dict["leader_addr"]
                         self.logger.info(
                             f"Sent message to the wrong leader, retrying with the peer at {peer_addr} "
-                            f"assuming it is leader node."
+                            f"assuming that it is leader node."
                         )
                         continue
                     case raft_service_pb2.IdRequest_Error | _:
