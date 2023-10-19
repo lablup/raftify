@@ -11,6 +11,14 @@ service RaftService {
   rpc ApplyConfigChangeForcely(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
   rpc SendMessage(eraftpb.Message) returns (RaftMessageResponse) {}
   rpc RerouteMessage(RerouteMessageArgs) returns (RaftMessageResponse) {}
+  rpc DebugNode(Empty) returns (DebugNodeResponse) {}
+}
+
+message Empty {
+}
+
+message DebugNodeResponse {
+  string result = 1;
 }
 
 // Used in Static Member's Bootstrap

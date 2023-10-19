@@ -3,6 +3,7 @@ import math
 import pickle
 import time
 from asyncio import Queue
+from typing import Any
 
 import grpc
 import rraft
@@ -23,6 +24,7 @@ from rraft import (
 )
 
 from raftify.config import RaftifyConfig
+from raftify.deserializer import pickle_deserialize
 from raftify.fsm import FSM
 from raftify.logger import AbstractRaftifyLogger
 from raftify.pb_adapter import ConfChangeV2Adapter, MessageAdapter
@@ -34,6 +36,7 @@ from raftify.request_message import (
     ApplyConfigChangeForcelyReqMessage,
     ClusterBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
+    DebugNodeRequest,
     MemberBootstrapReadyReqMessage,
     ProposeReqMessage,
     RaftReqMessage,
@@ -209,6 +212,44 @@ class RaftNode:
         asyncio.create_task(
             self.peers[leader_id].client.apply_change_config_forcely(conf_change_v2)
         )
+
+    def inspect(self) -> dict[str, Any]:
+        """
+        Collect and return lots of useful information for debugging
+        """
+
+        progress_trackers = self.raw_node.get_raft().prs().collect()
+        hs = self.lmdb.core.hard_state()
+        cs = self.lmdb.core.conf_state()
+        snapshot = self.lmdb.core.snapshot(0, 0)
+        snapshot_dict = snapshot.to_dict()
+        snapshot_dict["data"] = pickle_deserialize(snapshot.get_data())
+
+        return {
+            "node_id": self.raw_node.get_raft().get_id(),
+            "current_leader_id": self.raw_node.get_raft().get_leader_id(),
+            "storage": {
+                "hard_state": hs.to_dict(),
+                "conf_state": cs.to_dict(),
+                "snapshot": snapshot_dict,
+                "last_index": self.lmdb.core.last_index(),
+            },
+            "progress": [
+                pr_tracker.progress().to_dict() for pr_tracker in progress_trackers
+            ],
+            "raft_log": {
+                "applied": self.raw_node.get_raft().get_raft_log().get_applied(),
+                "committed": self.raw_node.get_raft().get_raft_log().get_committed(),
+                "persisted": self.raw_node.get_raft().get_raft_log().get_persisted(),
+            },
+            "failure": {
+                "pending_conf_index": self.raw_node.get_raft().get_pending_conf_index(),
+                "has_pending_conf": self.raw_node.get_raft().has_pending_conf(),
+            },
+            "peer_states": {
+                node_id: peer.to_dict() for node_id, peer in self.peers.data.items()
+            },
+        }
 
     async def report_unreachable(self, node_id: int) -> None:
         try:
@@ -615,6 +656,9 @@ class RaftNode:
 
             elif isinstance(message, ReportUnreachableReqMessage):
                 self.raw_node.report_unreachable(message.node_id)
+
+            elif isinstance(message, DebugNodeRequest):
+                message.chan.put_nowait(self.inspect())
 
             now = time.time()
             elapsed = now - before

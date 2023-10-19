@@ -38,6 +38,16 @@ IdRequest_WrongLeader: IdRequestResult
 ConfChange: RerouteMsgType
 Propose: RerouteMsgType
 
+class Empty(_message.Message):
+    __slots__ = []
+    def __init__(self) -> None: ...
+
+class DebugNodeResponse(_message.Message):
+    __slots__ = ["result"]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    result: str
+    def __init__(self, result: _Optional[str] = ...) -> None: ...
+
 class MemberBootstrapReadyArgs(_message.Message):
     __slots__ = ["follower_id"]
     FOLLOWER_ID_FIELD_NUMBER: _ClassVar[int]

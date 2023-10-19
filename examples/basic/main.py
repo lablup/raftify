@@ -20,7 +20,7 @@ from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.fsm import FSM
 from raftify.raft_cluster import RaftCluster
-from raftify.raft_utils import leave_joint
+from raftify.raft_utils import get_all_entry_logs, leave_joint, print_raft_node
 from raftify.utils import SocketAddr
 
 
@@ -227,13 +227,14 @@ async def zero(request: web.Request) -> web.Response:
 @routes.get("/debug")
 async def debug(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
-    return web.Response(text=cluster.get_debug_info())
+    debug_info = cluster.raft_node.inspect()
+    return web.Response(text=print_raft_node(debug_info))
 
 
 @routes.get("/debug_entries")
 async def debug_entries(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
-    return web.Response(text=cluster.get_all_entry_logs())
+    return web.Response(text=get_all_entry_logs(cluster.raft_node))
 
 
 async def main() -> None:

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import pickle
 from asyncio import Queue
 
@@ -10,6 +11,7 @@ from raftify.request_message import (
     ApplyConfigChangeForcelyReqMessage,
     ClusterBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
+    DebugNodeRequest,
     MemberBootstrapReadyReqMessage,
     RaftReqMessage,
     RequestIdReqMessage,
@@ -55,9 +57,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
 
             return raft_service_pb2.IdRequestResponse(
                 result=raft_service_pb2.IdRequest_WrongLeader,
-                data=pickle.dumps(
-                    {"leader_id": leader_id, "leader_addr": leader_addr}
-                ),
+                data=pickle.dumps({"leader_id": leader_id, "leader_addr": leader_addr}),
             )
         elif isinstance(response, IdReservedRespMessage):
             reserved_id = response.reserved_id
@@ -198,3 +198,11 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
 
         finally:
             return reply
+
+    async def DebugNode(
+        self, _request: raft_service_pb2.Empty, _context: grpc.aio.ServicerContext
+    ) -> raft_service_pb2.DebugNodeResponse:
+        receiver: Queue = Queue()
+        await self.message_queue.put(DebugNodeRequest(receiver))
+        debug_info = await asyncio.wait_for(receiver.get(), 2)
+        return raft_service_pb2.DebugNodeResponse(result=json.dumps(debug_info))

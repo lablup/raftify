@@ -63,3 +63,8 @@ class ReportUnreachableReqMessage(RaftRequest, PickleSerializer):
 @dataclass
 class RaftReqMessage(RaftRequest, PickleSerializer):
     msg: eraftpb_pb2.Message
+
+
+@dataclass
+class DebugNodeRequest(RaftRequest, PickleSerializer):
+    chan: Queue
