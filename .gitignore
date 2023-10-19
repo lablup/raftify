@@ -20,4 +20,6 @@ kill
 exec
 .envrc
 
+tests/fixtures
 tests/tests/fixtures
+logs
