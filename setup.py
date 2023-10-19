@@ -38,4 +38,9 @@ setup(
     extras_require={"dev": dev_requires, "build": build_requires},
     zip_safe=False,
     include_package_data=True,
+    entry_points={
+        'console_scripts': [
+            'raftify-cli = raftify.cli:main'
+        ]
+    }
 )
