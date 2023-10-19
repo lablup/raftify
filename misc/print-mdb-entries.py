@@ -11,7 +11,7 @@ def main(argv):
     idx = argv[1]
     assert idx.isdigit(), "idx must be a number"
 
-    env = lmdb.open(f"{os.getcwd()}/raft-{idx}.mdb", max_dbs=2)
+    env = lmdb.open(f"{os.getcwd()}/logs/node-{idx}", max_dbs=2)
 
     entries_db = env.open_db(b"entries")
 
