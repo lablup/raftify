@@ -72,6 +72,7 @@ def get_all_entry_logs(raft_node: RaftNode) -> str:
         """.strip()
 
 
+# TODO: Move this into RaftNode if possible
 def print_raft_node(debug_info: dict[str, Any]) -> str:
     return f"""
 ========= Node info =========
