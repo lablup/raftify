@@ -224,13 +224,6 @@ async def zero(request: web.Request) -> web.Response:
     return web.Response(text=str(""))
 
 
-@routes.get("/debug")
-async def debug(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-    debug_info = cluster.raft_node.inspect()
-    return web.Response(text=print_raft_node(debug_info))
-
-
 @routes.get("/debug_entries")
 async def debug_entries(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
