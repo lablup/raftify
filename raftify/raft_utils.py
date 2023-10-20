@@ -35,6 +35,10 @@ def gather_compacted_logs(path: str) -> list[str]:
 
 
 def format_all_entries(all_entries: dict[str, Any]) -> str:
+    """
+    all_entries: result of raftify.raft_client.RaftClient.debug_entries
+    """
+
     return f"""
 ========= Compacted all entries =========
 {all_entries['compacted_all_entries']}
@@ -44,8 +48,11 @@ def format_all_entries(all_entries: dict[str, Any]) -> str:
         """.strip()
 
 
-# TODO: Move this into RaftNode if possible
 def format_raft_node_debugging_info(debug_info: dict[str, Any]) -> str:
+    """
+    debug_info: result of raftify.raft_client.RaftClient.debug_node
+    """
+
     return f"""
 ========= Node info =========
 node_id: {debug_info['node_id']}

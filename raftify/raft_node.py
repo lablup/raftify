@@ -310,7 +310,7 @@ class RaftNode:
 
     async def leave_joint(self):
         """
-        Force Empty ConfChange entry to be committed.
+        Force Empty ConfChange entry to be committed for leaving joint consensus state.
         """
         # TODO: Execute commit on the more appropriate timing.
         # If possible, it would be great to switch to use "Auto" confchange transition.
