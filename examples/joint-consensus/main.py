@@ -62,6 +62,14 @@ def load_peers() -> Peers:
     )
 
 
+def load_peer_candidates() -> list[SocketAddr]:
+    path = Path(__file__).parent / "peer-candidates.toml"
+    return [
+        SocketAddr.from_str(addr)
+        for addr in tomli.loads(path.read_text())["raft"]["peer-candidates"]
+    ]
+
+
 slog = setup_slog()
 logger = setup_logger()
 routes = RouteTableDef()
@@ -147,21 +155,42 @@ async def peers(request: web.Request) -> web.Response:
 
 
 async def main() -> None:
+    """
+    Usage:
+        main.py [--bootstrap] [--bootstrap-follower] [--raft-addr=<addr>] [--web-server=<addr>]
+    Example:
+        # Bootstrap Raft Cluster
+        python ./examples/joint-consensus/main.py --bootstrap --web-server=127.0.0.1:8001
+
+        # Initial nodes request to join the cluster, and then the cluster starts up.
+        python ./examples/joint-consensus/main.py --bootstrap-follower --raft-addr=127.0.0.1:60062 --web-server=127.0.0.1:8002
+        python ./examples/joint-consensus/main.py --bootstrap-follower --raft-addr=127.0.0.1:60063 --web-server=127.0.0.1:8003
+
+        # You can join the extra node after the cluster bootstrapping is done.
+        python ./examples/joint-consensus/main.py --raft-addr=127.0.0.1:60064 --web-server=127.0.0.1:8004
+    """
+
     init_rraft_py_deserializer()
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--bootstrap", action=argparse.BooleanOptionalAction, default=None
     )
+    parser.add_argument(
+        "--bootstrap-follower", action=argparse.BooleanOptionalAction, default=None
+    )
     parser.add_argument("--raft-addr", default=None)
     parser.add_argument("--web-server", default=None)
     args = parser.parse_args()
     bootstrap = args.bootstrap
+    bootstrap_follower = args.bootstrap_follower
     raft_addr = (
         SocketAddr.from_str(args.raft_addr) if args.raft_addr is not None else None
     )
     web_server_addr = args.web_server
-    peers = load_peers()
+    peers = (
+        load_peers() if (raft_addr and bootstrap_follower) or bootstrap else Peers({})
+    )
     store = HashStore()
     target_addr = peers[1].addr if bootstrap and not raft_addr else raft_addr
 
@@ -184,18 +213,27 @@ async def main() -> None:
         cluster.run_raft(node_id)
         tasks.append(cluster.wait_for_followers_join())
         tasks.append(cluster.wait_for_termination())
-    else:
-        assert (
-            raft_addr is not None
-        ), "Follower node requires a --raft-addr option to join the cluster"
+    elif bootstrap_follower:
+        assert raft_addr is not None
 
-        logger.info("Running in follower mode")
+        logger.info("Running in follower bootstrap mode")
         node_id = peers.get_node_id_by_addr(raft_addr)
         assert node_id is not None, "Member Node id is not found"
 
         cluster.run_raft(node_id)
         leader_client = RaftClient(peers[1].addr)
         await leader_client.member_bootstrap_ready(node_id, 5.0)
+        tasks.append(cluster.wait_for_termination())
+    else:
+        # Extra follower could only join after cluster bootstrapping is done
+        assert raft_addr is not None
+
+        logger.info("Running in follower mode")
+
+        peer_addrs = load_peer_candidates()
+        request_id_resp = await cluster.request_id(raft_addr, peer_addrs)
+        cluster.run_raft(request_id_resp.follower_id)
+        await cluster.join_cluster(request_id_resp)
         tasks.append(cluster.wait_for_termination())
 
     app_runner = None
