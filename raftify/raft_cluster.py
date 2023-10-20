@@ -248,7 +248,7 @@ class RaftCluster:
         if isinstance(resp, JoinSuccessRespMessage):
             self.logger.info("All follower nodes successfully joined the cluster.")
             self.raft_node.bootstrap_done = True
-            asyncio.create_task(self.leave_joint())
+            asyncio.create_task(self.raft_node.leave_joint())
             return
         # TODO: handle error cases
 
