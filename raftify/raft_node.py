@@ -237,6 +237,9 @@ class RaftNode:
             "progress": [
                 pr_tracker.progress().to_dict() for pr_tracker in progress_trackers
             ],
+            "raft": {
+                "term": self.raw_node.get_raft().get_term(),
+            },
             "raft_log": {
                 "applied": self.raw_node.get_raft().get_raft_log().get_applied(),
                 "committed": self.raw_node.get_raft().get_raft_log().get_committed(),
