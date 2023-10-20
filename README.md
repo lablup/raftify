@@ -103,6 +103,20 @@ cluster.run_raft(node_id)
 asyncio.create_task(cluster.wait_for_termination())
 ```
 
+#### Bootstrap with initial peers
+
+You can bootstrap raft cluster with initial peers by passing `peers` argument to `RaftCluster`.
+
+In this case, the leader node waits until all other follower nodes send cluster join requests. While waiting, it cannot process any requests.
+
+After collecting all follower join requests, the leader node commits an Entry containing AddNode confchanges for all nodes in initial peers.
+
+Once bootstrap done, you can join additional nodes to the cluster using the `node_id` issued through a `request_id` call.
+
+#### Bootstrap without initial peers
+
+You can bootstrap raft cluster without any peers, and followers can join the cluster later.
+
 ### Join follower nodes to the cluster
 
 ```py
