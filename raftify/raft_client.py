@@ -106,11 +106,22 @@ class RaftClient:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
             return await asyncio.wait_for(stub.RerouteMessage(request), timeout)
 
-    async def debug_node(self, timeout: float) -> raft_service_pb2.RaftMessageResponse:
+    async def debug_node(self, timeout: float) -> raft_service_pb2.DebugNodeResponse:
         request = raft_service_pb2.Empty()
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
             res = await asyncio.wait_for(stub.DebugNode(request), timeout)
+            lines = res.result.split("\n")
+            return "\n".join(lines)
+
+    async def debug_entries(
+        self, timeout: float
+    ) -> raft_service_pb2.DebugEntriesResponse:
+        request = raft_service_pb2.Empty()
+
+        async with self.__create_channel() as channel:
+            stub = raft_service_pb2_grpc.RaftServiceStub(channel)
+            res = await asyncio.wait_for(stub.DebugEntries(request), timeout)
             lines = res.result.split("\n")
             return "\n".join(lines)

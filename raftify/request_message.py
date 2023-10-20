@@ -68,3 +68,8 @@ class RaftReqMessage(RaftRequest, PickleSerializer):
 @dataclass
 class DebugNodeRequest(RaftRequest, PickleSerializer):
     chan: Queue
+
+
+@dataclass
+class DebugEntriesRequest(RaftRequest, PickleSerializer):
+    chan: Queue

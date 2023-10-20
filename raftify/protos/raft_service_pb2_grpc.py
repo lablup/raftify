@@ -56,6 +56,11 @@ class RaftServiceStub(object):
             request_serializer=raft__service__pb2.Empty.SerializeToString,
             response_deserializer=raft__service__pb2.DebugNodeResponse.FromString,
         )
+        self.DebugEntries = channel.unary_unary(
+            "/raftservice.RaftService/DebugEntries",
+            request_serializer=raft__service__pb2.Empty.SerializeToString,
+            response_deserializer=raft__service__pb2.DebugNodeResponse.FromString,
+        )
 
 
 class RaftServiceServicer(object):
@@ -109,6 +114,12 @@ class RaftServiceServicer(object):
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
 
+    def DebugEntries(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
 
 def add_RaftServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -149,6 +160,11 @@ def add_RaftServiceServicer_to_server(servicer, server):
         ),
         "DebugNode": grpc.unary_unary_rpc_method_handler(
             servicer.DebugNode,
+            request_deserializer=raft__service__pb2.Empty.FromString,
+            response_serializer=raft__service__pb2.DebugNodeResponse.SerializeToString,
+        ),
+        "DebugEntries": grpc.unary_unary_rpc_method_handler(
+            servicer.DebugEntries,
             request_deserializer=raft__service__pb2.Empty.FromString,
             response_serializer=raft__service__pb2.DebugNodeResponse.SerializeToString,
         ),
@@ -383,6 +399,35 @@ class RaftService(object):
             request,
             target,
             "/raftservice.RaftService/DebugNode",
+            raft__service__pb2.Empty.SerializeToString,
+            raft__service__pb2.DebugNodeResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
+
+    @staticmethod
+    def DebugEntries(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/raftservice.RaftService/DebugEntries",
             raft__service__pb2.Empty.SerializeToString,
             raft__service__pb2.DebugNodeResponse.FromString,
             options,

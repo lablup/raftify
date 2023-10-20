@@ -12,12 +12,17 @@ service RaftService {
   rpc SendMessage(eraftpb.Message) returns (RaftMessageResponse) {}
   rpc RerouteMessage(RerouteMessageArgs) returns (RaftMessageResponse) {}
   rpc DebugNode(Empty) returns (DebugNodeResponse) {}
+  rpc DebugEntries(Empty) returns (DebugNodeResponse) {}
 }
 
 message Empty {
 }
 
 message DebugNodeResponse {
+  string result = 1;
+}
+
+message DebugEntriesResponse {
   string result = 1;
 }
 

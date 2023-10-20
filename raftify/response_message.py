@@ -46,3 +46,8 @@ class RaftOkRespMessage(RaftResponse, PickleSerializer):
 @dataclass
 class DebugNodeResponse(RaftResponse, PickleSerializer):
     result: dict
+
+
+@dataclass
+class DebugEntriesResponse(RaftResponse, PickleSerializer):
+    result: dict

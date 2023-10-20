@@ -3,7 +3,7 @@ import json
 import sys
 
 from raftify.raft_client import RaftClient
-from raftify.raft_utils import print_raft_node
+from raftify.raft_utils import format_all_entries, format_raft_node_debugging_info
 from raftify.utils import SocketAddr
 
 
@@ -25,10 +25,18 @@ async def async_main():
 
         match sys.argv[1]:
             case "all-entries":
-                # TODO: Add this
+                print(
+                    format_all_entries(
+                        json.loads(await client.debug_entries(timeout=5.0))
+                    )
+                )
                 pass
             case "debug":
-                print(print_raft_node(json.loads(await client.debug_node(timeout=5.0))))
+                print(
+                    format_raft_node_debugging_info(
+                        json.loads(await client.debug_node(timeout=5.0))
+                    )
+                )
             case _:
                 print_help()
 

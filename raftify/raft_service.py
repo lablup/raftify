@@ -11,6 +11,7 @@ from raftify.request_message import (
     ApplyConfigChangeForcelyReqMessage,
     ClusterBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
+    DebugEntriesRequest,
     DebugNodeRequest,
     MemberBootstrapReadyReqMessage,
     RaftReqMessage,
@@ -206,3 +207,11 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         await self.message_queue.put(DebugNodeRequest(receiver))
         debug_info = await asyncio.wait_for(receiver.get(), 2)
         return raft_service_pb2.DebugNodeResponse(result=json.dumps(debug_info))
+
+    async def DebugEntries(
+        self, _request: raft_service_pb2.Empty, _context: grpc.aio.ServicerContext
+    ) -> raft_service_pb2.DebugEntriesResponse:
+        receiver: Queue = Queue()
+        await self.message_queue.put(DebugEntriesRequest(receiver))
+        debug_info = await asyncio.wait_for(receiver.get(), 2)
+        return raft_service_pb2.DebugEntriesResponse(result=json.dumps(debug_info))

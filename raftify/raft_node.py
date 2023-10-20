@@ -24,7 +24,7 @@ from rraft import (
 )
 
 from raftify.config import RaftifyConfig
-from raftify.deserializer import pickle_deserialize
+from raftify.deserializer import entry_data_deserializer, pickle_deserialize
 from raftify.fsm import FSM
 from raftify.logger import AbstractRaftifyLogger
 from raftify.pb_adapter import ConfChangeV2Adapter, MessageAdapter
@@ -32,10 +32,12 @@ from raftify.peers import Peer, Peers, PeerState
 from raftify.protos.raft_service_pb2 import RerouteMsgType
 from raftify.raft_client import RaftClient
 from raftify.raft_server import RaftServer
+from raftify.raft_utils import gather_compacted_logs
 from raftify.request_message import (
     ApplyConfigChangeForcelyReqMessage,
     ClusterBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
+    DebugEntriesRequest,
     DebugNodeRequest,
     MemberBootstrapReadyReqMessage,
     ProposeReqMessage,
@@ -305,6 +307,38 @@ class RaftNode:
             return False
 
         return current_retry_count < self.raftify_cfg.max_retry_cnt
+
+    async def leave_joint(self):
+        """
+        Force Empty ConfChange entry to be committed.
+        """
+        # TODO: Execute commit on the more appropriate timing.
+        # If possible, it would be great to switch to use "Auto" confchange transition.
+        await asyncio.sleep(1)
+        zero = ConfChangeV2.default()
+        assert zero.leave_joint(), "Zero ConfChangeV2 must be empty"
+        self.raw_node.propose_conf_change_v2(b"", zero)
+
+    def get_all_entry_logs(self) -> dict[str, Any]:
+        """
+        Collect and return all entries in the raft log
+        """
+        current_all_entries = self.raw_node.get_raft().get_raft_log().all_entries()
+        current_all_entry_dicts = []
+
+        # TODO: Improve below logic to avoid code duplication
+        for entry in current_all_entries:
+            entry_dict = entry.to_dict()
+            entry_dict["data"] = entry_data_deserializer(entry.get_data())
+            entry_dict["context"] = pickle_deserialize(entry.get_context())
+            current_all_entry_dicts.append(entry_dict)
+
+        compacted_all_entries = gather_compacted_logs(self.lmdb.core.log_dir_path)
+
+        return {
+            "current_all_entries": current_all_entry_dicts,
+            "compacted_all_entries": compacted_all_entries,
+        }
 
     async def send_message(self, client: RaftClient, message: Message) -> None:
         """
@@ -662,6 +696,9 @@ class RaftNode:
 
             elif isinstance(message, DebugNodeRequest):
                 message.chan.put_nowait(self.inspect())
+
+            elif isinstance(message, DebugEntriesRequest):
+                message.chan.put_nowait(self.get_all_entry_logs())
 
             now = time.time()
             elapsed = now - before

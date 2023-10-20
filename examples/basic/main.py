@@ -20,7 +20,6 @@ from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.fsm import FSM
 from raftify.raft_cluster import RaftCluster
-from raftify.raft_utils import get_all_entry_logs, leave_joint
 from raftify.utils import SocketAddr
 
 
@@ -156,17 +155,6 @@ async def leader(request: web.Request) -> web.Response:
     return web.Response(text=str(cluster.raft_node.get_leader_id()))
 
 
-@routes.get("/progress")
-async def show_progress(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-    if not cluster.raft_node.is_leader():
-        return web.Response(text="Not leader.")
-
-    progress_tracker = cluster.raft_node.raw_node.get_raft().prs().collect()
-    res = [str(pr_tracker.progress()) for pr_tracker in progress_tracker]
-    return web.Response(text=str(res))
-
-
 @routes.get("/merge/{id}/{addr}")
 async def merge_cluster(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
@@ -198,36 +186,12 @@ async def snapshot(request: web.Request) -> web.Response:
     return web.Response(text="Created snapshot successfully.")
 
 
-@routes.get("/entries")
-async def entries(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-
-    all_entries = cluster.raft_node.raw_node.get_raft().get_raft_log().all_entries()
-    res = f"[ {', '.join(list(map(lambda e: str(e), all_entries)))} ]"
-
-    return web.Response(text=res)
-
-
 @routes.get("/unstable")
 async def unstable(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
     return web.Response(
         text=str(cluster.raft_node.raw_node.get_raft().get_raft_log().unstable())
     )
-
-
-@routes.get("/zero")
-async def zero(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-    await leave_joint(cluster.raft_node)
-
-    return web.Response(text=str(""))
-
-
-@routes.get("/debug_entries")
-async def debug_entries(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-    return web.Response(text=get_all_entry_logs(cluster.raft_node))
 
 
 async def main() -> None:

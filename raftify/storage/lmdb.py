@@ -22,6 +22,7 @@ from rraft import (
     UnavailableError,
 )
 
+from raftify.deserializer import entry_data_deserializer, pickle_deserialize
 from raftify.logger import AbstractRaftifyLogger
 
 SNAPSHOT_KEY = b"snapshot"
@@ -202,10 +203,14 @@ class LMDBStorageCore:
             assert cursor.first(), "DB Empty!"
             from_ = decode_int(cursor.key())
 
-            compaction_logs_buf = []
+            compaction_logs = []
             while cursor.key() and decode_int(cursor.key()) < to:
                 entry = rraft.Entry.decode(cursor.value())
-                compaction_logs_buf.append(str(entry))
+                entry_dict = entry.to_dict()
+                entry_dict["data"] = entry_data_deserializer(entry_dict["data"])
+                entry_dict["context"] = pickle_deserialize(entry_dict["context"])
+
+                compaction_logs.append(entry_dict)
 
                 # TODO: Maybe it would be better to include 'last_index' in compact, but when all entries removed from lmdb,
                 # performance issue occurred. (and also see https://github.com/lablup/raftify/issues/47)
@@ -222,7 +227,7 @@ class LMDBStorageCore:
             )
 
             with open(dest_pth, "w") as file:
-                json.dump(compaction_logs_buf, file)
+                json.dump(compaction_logs, file)
 
             self.compaction_log_index += 1
 

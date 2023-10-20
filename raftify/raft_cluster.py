@@ -30,7 +30,7 @@ from raftify.protos import raft_service_pb2
 from raftify.raft_client import RaftClient
 from raftify.raft_node import RaftNode
 from raftify.raft_server import RaftServer
-from raftify.raft_utils import RequestIdResponse, leave_joint
+from raftify.raft_utils import RequestIdResponse
 from raftify.request_message import ConfigChangeReqMessage
 from raftify.response_message import JoinSuccessRespMessage
 from raftify.utils import SocketAddr
@@ -248,7 +248,7 @@ class RaftCluster:
         if isinstance(resp, JoinSuccessRespMessage):
             self.logger.info("All follower nodes successfully joined the cluster.")
             self.raft_node.bootstrap_done = True
-            asyncio.create_task(leave_joint(self.raft_node))
+            asyncio.create_task(self.leave_joint())
             return
         # TODO: handle error cases
 

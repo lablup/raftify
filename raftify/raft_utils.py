@@ -1,4 +1,3 @@
-import asyncio
 import json
 import os
 import re
@@ -6,23 +5,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from rraft import ConfChangeV2
-
 from raftify.peers import Peers
 from raftify.raft_client import RaftClient
-from raftify.raft_node import RaftNode
-
-
-async def leave_joint(raft_node: RaftNode):
-    """
-    Force Empty ConfChange entry to be committed.
-    """
-    # TODO: Execute commit on the more appropriate timing.
-    # If possible, it would be great to switch to use "Auto" confchange transition.
-    await asyncio.sleep(1)
-    zero = ConfChangeV2.default()
-    assert zero.leave_joint(), "Zero ConfChangeV2 must be empty"
-    raft_node.raw_node.propose_conf_change_v2(b"", zero)
 
 
 class RaftNodeRole(Enum):
@@ -50,30 +34,18 @@ def gather_compacted_logs(path: str) -> list[str]:
     return result
 
 
-def get_all_entry_logs(raft_node: RaftNode) -> str:
-    """
-    Collect and return all entries in the raft log
-    """
-    current_all_entries = raft_node.raw_node.get_raft().get_raft_log().all_entries()
-    current_all_entries_logs = "\n".join(
-        list(map(lambda e: str(e), current_all_entries))
-    )
-
-    compacted_all_entries_logs = "\n".join(
-        gather_compacted_logs(raft_node.lmdb.core.log_dir_path)
-    )
-
+def format_all_entries(all_entries: dict[str, Any]) -> str:
     return f"""
 ========= Compacted all entries =========
-{compacted_all_entries_logs}
+{all_entries['compacted_all_entries']}
 
 ========= Existing all entries =========
-{current_all_entries_logs}
+{all_entries['current_all_entries']}
         """.strip()
 
 
 # TODO: Move this into RaftNode if possible
-def print_raft_node(debug_info: dict[str, Any]) -> str:
+def format_raft_node_debugging_info(debug_info: dict[str, Any]) -> str:
     return f"""
 ========= Node info =========
 node_id: {debug_info['node_id']}
