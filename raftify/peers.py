@@ -55,6 +55,9 @@ class Peers:
     def __iter__(self):
         return iter(self.data.values())
 
+    def __aiter__(self):
+        return aiter(self.data.values())
+
     def encode(self) -> bytes:
         peers = Peers({})
         for node_id, peer in self.data.items():
