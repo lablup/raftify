@@ -20,7 +20,7 @@ from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.fsm import FSM
 from raftify.raft_cluster import RaftCluster
-from raftify.raft_utils import get_all_entry_logs, leave_joint, print_raft_node
+from raftify.raft_utils import get_all_entry_logs, leave_joint
 from raftify.utils import SocketAddr
 
 

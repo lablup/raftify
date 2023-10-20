@@ -57,3 +57,17 @@ async def test_apply_confchange_forcely():
     """
     Test when a ConfChange should be committed even though the quorum is not satisfied
     """
+
+
+# TODO: Implement this test
+@pytest.mark.asyncio
+async def test_cluster_merge():
+    """
+    """
+
+
+# TODO: Implement this test
+@pytest.mark.asyncio
+async def test_leader_transfer():
+    """
+    """
