@@ -290,7 +290,6 @@ class RaftNode:
                 peer = self.peers[node_id]
 
                 if peer.state == PeerState.Connected:
-                    self.peers.data[node_id].state = PeerState.Disconnecting
                     self.remove_node(node_id)
 
                     self.logger.error(
@@ -352,9 +351,6 @@ class RaftNode:
         while True:
             try:
                 if self.bootstrap_done:
-                    if self.peers[node_id].state == PeerState.Disconnecting:
-                        return
-
                     await client.send_message(
                         message, timeout=self.raftify_cfg.message_timeout
                     )
@@ -502,6 +498,7 @@ class RaftNode:
                         await self.raft_server.terminate()
                         self.logger.info(f"Node {node_id} quit the cluster.")
                     else:
+                        self.logger.info(f"Node {node_id} removed from the cluster.")
                         self.peers.data[node_id].state = PeerState.Disconnected
                 case _:
                     raise NotImplementedError
@@ -684,7 +681,7 @@ class RaftNode:
                     self.raw_node.step(msg)
                 except rraft.StepPeerNotFoundError:
                     self.logger.warning(
-                        "StepPeerNotFoundError occurred. Ignore this message if RemoveNode happend."
+                        f"StepPeerNotFoundError occurred. Ignore this message if RemoveNode happend, Message: {msg}"
                     )
                     continue
                 except rraft.StepLocalMsgError:
