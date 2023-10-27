@@ -12,6 +12,11 @@ from raftify.utils import SocketAddr
 
 
 class PeerState(StrEnum):
+    """
+    Represent peer's state.
+    Note that the PeerState may not be accurate during the time ConfChange is reflected.
+    """
+
     Preparing = "Preparing"
     Connected = "Connected"
     Disconnected = "Disconnected"

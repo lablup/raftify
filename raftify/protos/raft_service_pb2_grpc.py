@@ -46,6 +46,11 @@ class RaftServiceStub(object):
             request_serializer=eraftpb__pb2.Message.SerializeToString,
             response_deserializer=raft__service__pb2.RaftMessageResponse.FromString,
         )
+        self.Propose = channel.unary_unary(
+            "/raftservice.RaftService/Propose",
+            request_serializer=raft__service__pb2.ProposeArgs.SerializeToString,
+            response_deserializer=raft__service__pb2.RaftMessageResponse.FromString,
+        )
         self.RerouteMessage = channel.unary_unary(
             "/raftservice.RaftService/RerouteMessage",
             request_serializer=raft__service__pb2.RerouteMessageArgs.SerializeToString,
@@ -102,6 +107,12 @@ class RaftServiceServicer(object):
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
 
+    def Propose(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
     def RerouteMessage(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -151,6 +162,11 @@ def add_RaftServiceServicer_to_server(servicer, server):
         "SendMessage": grpc.unary_unary_rpc_method_handler(
             servicer.SendMessage,
             request_deserializer=eraftpb__pb2.Message.FromString,
+            response_serializer=raft__service__pb2.RaftMessageResponse.SerializeToString,
+        ),
+        "Propose": grpc.unary_unary_rpc_method_handler(
+            servicer.Propose,
+            request_deserializer=raft__service__pb2.ProposeArgs.FromString,
             response_serializer=raft__service__pb2.RaftMessageResponse.SerializeToString,
         ),
         "RerouteMessage": grpc.unary_unary_rpc_method_handler(
@@ -342,6 +358,35 @@ class RaftService(object):
             target,
             "/raftservice.RaftService/SendMessage",
             eraftpb__pb2.Message.SerializeToString,
+            raft__service__pb2.RaftMessageResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
+
+    @staticmethod
+    def Propose(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/raftservice.RaftService/Propose",
+            raft__service__pb2.ProposeArgs.SerializeToString,
             raft__service__pb2.RaftMessageResponse.FromString,
             options,
             channel_credentials,

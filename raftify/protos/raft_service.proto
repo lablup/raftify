@@ -10,6 +10,7 @@ service RaftService {
   rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
   rpc ApplyConfigChangeForcely(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
   rpc SendMessage(eraftpb.Message) returns (RaftMessageResponse) {}
+  rpc Propose(ProposeArgs) returns (RaftMessageResponse) {}
   rpc RerouteMessage(RerouteMessageArgs) returns (RaftMessageResponse) {}
   rpc DebugNode(Empty) returns (DebugNodeResponse) {}
   rpc DebugEntries(Empty) returns (DebugNodeResponse) {}
@@ -24,6 +25,10 @@ message DebugNodeResponse {
 
 message DebugEntriesResponse {
   string result = 1;
+}
+
+message ProposeArgs {
+  bytes msg     = 1;
 }
 
 // Used in Static Member's Bootstrap
@@ -81,7 +86,7 @@ enum RerouteMsgType {
 }
 
 message RerouteMessageArgs {
-  bytes proposed_data            = 1;
+  bytes proposed_data              = 1;
   eraftpb.ConfChangeV2 conf_change = 2;
-  RerouteMsgType type            = 3;
+  RerouteMsgType type              = 3;
 }
