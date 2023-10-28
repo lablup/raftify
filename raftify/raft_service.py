@@ -157,17 +157,33 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         self, request: eraftpb_pb2.ConfChangeV2, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.ChangeConfigResponse:
         await self.confchange_req_queue.put((request, False))
-        result = await self.confchange_res_queue.get()
 
-        if isinstance(result, WrongLeaderRespMessage):
-            resp = await self._handle_reroute(
-                result,
-                reroute_msg_type=raft_service_pb2.ConfChange,
-                conf_change=request,
-            )
-            return raft_service_pb2.ChangeConfigResponse(data=resp)
-        elif isinstance(result, RaftOkRespMessage):
-            return raft_service_pb2.ChangeConfigResponse(data=result)
+        res = await self.confchange_res_queue.get()
+
+        match res.result:
+            case raft_service_pb2.ChangeConfig_Success:
+                return raft_service_pb2.ChangeConfigResponse(
+                    data=res.data, result=res.result
+                )
+            case raft_service_pb2.ChangeConfig_WrongLeader:
+                rerouted_resp = await self._handle_reroute(
+                    res,
+                    reroute_msg_type=raft_service_pb2.ConfChange,
+                    conf_change=request,
+                )
+                return raft_service_pb2.ChangeConfigResponse(
+                    data=rerouted_resp, result=rerouted_resp.result
+                )
+            case raft_service_pb2.ChangeConfig_TimeoutError:
+                return raft_service_pb2.ChangeConfigResponse(
+                    data=res.data, result=rerouted_resp.result
+                )
+            case raft_service_pb2.ChangeConfig_UnknownError:
+                return raft_service_pb2.ChangeConfigResponse(
+                    data=b"", result=rerouted_resp.result
+                )
+
+        assert False
 
     async def ApplyConfigChangeForcely(
         self, request: eraftpb_pb2.ConfChangeV2, context: grpc.aio.ServicerContext
