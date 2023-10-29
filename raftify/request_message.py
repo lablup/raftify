@@ -3,8 +3,8 @@ from asyncio import Queue
 from dataclasses import dataclass
 from typing import Optional
 
-from raftify.protos import eraftpb_pb2, raft_service_pb2
-from raftify.utils import PickleSerializer
+from .protos import eraftpb_pb2, raft_service_pb2
+from .utils import PickleSerializer
 
 
 class RaftRequest(metaclass=abc.ABCMeta):
@@ -72,4 +72,9 @@ class DebugNodeRequest(RaftRequest, PickleSerializer):
 
 @dataclass
 class DebugEntriesRequest(RaftRequest, PickleSerializer):
+    chan: Queue
+
+
+@dataclass
+class VersionRequest(RaftRequest, PickleSerializer):
     chan: Queue

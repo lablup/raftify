@@ -5,20 +5,18 @@ from typing import Optional
 
 from rraft import ConfChange, ConfChangeType
 
-from raftify.config import RaftifyConfig
-from raftify.error import UnknownError
-from raftify.logger import AbstractRaftifyLogger
-from raftify.pb_adapter import ConfChangeV2Adapter
-from raftify.protos import eraftpb_pb2, raft_service_pb2
-from raftify.raft_node import RaftNode
-from raftify.request_message import ConfigChangeReqMessage, ProposeReqMessage
-from raftify.response_message import (
+from .error import UnknownError
+from .pb_adapter import ConfChangeV2Adapter
+from .protos import eraftpb_pb2, raft_service_pb2
+from .raft_node import RaftNode
+from .request_message import ConfigChangeReqMessage, ProposeReqMessage
+from .response_message import (
     RaftOkRespMessage,
     RaftRespMessage,
     RaftResponse,
     WrongLeaderRespMessage,
 )
-from raftify.utils import SocketAddr
+from .utils import SocketAddr
 
 
 class Mailbox:
@@ -26,19 +24,11 @@ class Mailbox:
     A mailbox to send messages to a running raft node.
     """
 
-    def __init__(
-        self,
-        addr: SocketAddr,
-        raft_node: RaftNode,
-        message_queue: Queue,
-        logger: AbstractRaftifyLogger,
-        raftify_config: RaftifyConfig,
-    ):
-        self.message_queue = message_queue
+    def __init__(self, raft_node: RaftNode):
         self.raft_node = raft_node
-        self.addr = addr
-        self.logger = logger
-        self.raftify_config = raftify_config
+        self.message_queue = raft_node.message_queue
+        self.logger = raft_node.logger
+        self.raftify_config = raft_node.raftify_cfg
 
     async def __handle_response(
         self,

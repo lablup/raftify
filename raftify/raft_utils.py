@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from raftify.peers import Peers
-from raftify.raft_client import RaftClient
+from .peers import Peers
+from .raft_client import RaftClient
 
 
 class RaftNodeRole(Enum):

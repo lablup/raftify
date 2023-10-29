@@ -1,5 +1,6 @@
 import asyncio
 import math
+import os
 import pickle
 import time
 from asyncio import Queue
@@ -23,17 +24,17 @@ from rraft import (
     Storage,
 )
 
-from raftify.config import RaftifyConfig
-from raftify.deserializer import entry_data_deserializer, pickle_deserialize
-from raftify.fsm import FSM
-from raftify.logger import AbstractRaftifyLogger
-from raftify.pb_adapter import ConfChangeV2Adapter, MessageAdapter
-from raftify.peers import Peer, Peers, PeerState
-from raftify.protos.raft_service_pb2 import RerouteMsgType
-from raftify.raft_client import RaftClient
-from raftify.raft_server import RaftServer
-from raftify.raft_utils import gather_compacted_logs
-from raftify.request_message import (
+from .config import RaftifyConfig
+from .deserializer import entry_data_deserializer, pickle_deserialize
+from .fsm import FSM
+from .logger import AbstractRaftifyLogger
+from .pb_adapter import ConfChangeV2Adapter, MessageAdapter
+from .peers import Peer, Peers, PeerState
+from .protos.raft_service_pb2 import RerouteMsgType
+from .raft_client import RaftClient
+from .raft_server import RaftServer
+from .raft_utils import gather_compacted_logs
+from .request_message import (
     ApplyConfigChangeForcelyReqMessage,
     ClusterBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
@@ -45,8 +46,9 @@ from raftify.request_message import (
     ReportUnreachableReqMessage,
     RequestIdReqMessage,
     RerouteToLeaderReqMessage,
+    VersionRequest,
 )
-from raftify.response_message import (
+from .response_message import (
     IdReservedRespMessage,
     JoinSuccessRespMessage,
     RaftOkRespMessage,
@@ -54,8 +56,8 @@ from raftify.response_message import (
     RaftResponse,
     WrongLeaderRespMessage,
 )
-from raftify.storage.lmdb import LMDBStorage
-from raftify.utils import AtomicInteger, SocketAddr
+from .storage.lmdb import LMDBStorage
+from .utils import AtomicInteger, SocketAddr
 
 
 class RaftNode:
@@ -385,6 +387,18 @@ class RaftNode:
             except Exception:
                 raise
 
+    def get_version(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+
+        version_file_path = os.path.join(current_dir, "VERSION")
+
+        try:
+            with open(version_file_path, "r") as file:
+                version = file.read().strip()
+                return version
+        except FileNotFoundError:
+            return "unknown"
+
     def send_messages(self, messages: list[Message]):
         for message in messages:
             if peer := self.peers.get(message.get_to()):
@@ -696,6 +710,9 @@ class RaftNode:
 
             elif isinstance(message, DebugEntriesRequest):
                 message.chan.put_nowait(self.get_all_entry_logs())
+
+            elif isinstance(message, VersionRequest):
+                message.chan.put_nowait(self.get_version())
 
             now = time.time()
             elapsed = now - before

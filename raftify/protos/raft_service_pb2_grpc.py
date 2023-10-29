@@ -46,6 +46,11 @@ class RaftServiceStub(object):
             request_serializer=eraftpb__pb2.Message.SerializeToString,
             response_deserializer=raft__service__pb2.RaftMessageResponse.FromString,
         )
+        self.Propose = channel.unary_unary(
+            "/raftservice.RaftService/Propose",
+            request_serializer=raft__service__pb2.ProposeArgs.SerializeToString,
+            response_deserializer=raft__service__pb2.RaftMessageResponse.FromString,
+        )
         self.RerouteMessage = channel.unary_unary(
             "/raftservice.RaftService/RerouteMessage",
             request_serializer=raft__service__pb2.RerouteMessageArgs.SerializeToString,
@@ -60,6 +65,11 @@ class RaftServiceStub(object):
             "/raftservice.RaftService/DebugEntries",
             request_serializer=raft__service__pb2.Empty.SerializeToString,
             response_deserializer=raft__service__pb2.DebugNodeResponse.FromString,
+        )
+        self.Version = channel.unary_unary(
+            "/raftservice.RaftService/Version",
+            request_serializer=raft__service__pb2.Empty.SerializeToString,
+            response_deserializer=raft__service__pb2.VersionResponse.FromString,
         )
 
 
@@ -102,6 +112,12 @@ class RaftServiceServicer(object):
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
 
+    def Propose(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
     def RerouteMessage(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -115,6 +131,12 @@ class RaftServiceServicer(object):
         raise NotImplementedError("Method not implemented!")
 
     def DebugEntries(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
+    def Version(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details("Method not implemented!")
@@ -153,6 +175,11 @@ def add_RaftServiceServicer_to_server(servicer, server):
             request_deserializer=eraftpb__pb2.Message.FromString,
             response_serializer=raft__service__pb2.RaftMessageResponse.SerializeToString,
         ),
+        "Propose": grpc.unary_unary_rpc_method_handler(
+            servicer.Propose,
+            request_deserializer=raft__service__pb2.ProposeArgs.FromString,
+            response_serializer=raft__service__pb2.RaftMessageResponse.SerializeToString,
+        ),
         "RerouteMessage": grpc.unary_unary_rpc_method_handler(
             servicer.RerouteMessage,
             request_deserializer=raft__service__pb2.RerouteMessageArgs.FromString,
@@ -167,6 +194,11 @@ def add_RaftServiceServicer_to_server(servicer, server):
             servicer.DebugEntries,
             request_deserializer=raft__service__pb2.Empty.FromString,
             response_serializer=raft__service__pb2.DebugNodeResponse.SerializeToString,
+        ),
+        "Version": grpc.unary_unary_rpc_method_handler(
+            servicer.Version,
+            request_deserializer=raft__service__pb2.Empty.FromString,
+            response_serializer=raft__service__pb2.VersionResponse.SerializeToString,
         ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -354,6 +386,35 @@ class RaftService(object):
         )
 
     @staticmethod
+    def Propose(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/raftservice.RaftService/Propose",
+            raft__service__pb2.ProposeArgs.SerializeToString,
+            raft__service__pb2.RaftMessageResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
+
+    @staticmethod
     def RerouteMessage(
         request,
         target,
@@ -430,6 +491,35 @@ class RaftService(object):
             "/raftservice.RaftService/DebugEntries",
             raft__service__pb2.Empty.SerializeToString,
             raft__service__pb2.DebugNodeResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
+
+    @staticmethod
+    def Version(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/raftservice.RaftService/Version",
+            raft__service__pb2.Empty.SerializeToString,
+            raft__service__pb2.VersionResponse.FromString,
             options,
             channel_credentials,
             insecure,

@@ -9,7 +9,7 @@ build-protoc:
 	python -m black $(PROTO_PATH)/*.{py,pyi}
 	python -m isort $(PROTO_PATH)/*.{py,pyi}
 
-lint:
+fmt:
 	python -m black raftify
 	python -m isort raftify
 	python -m black examples

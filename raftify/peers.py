@@ -6,12 +6,17 @@ from typing import Optional
 
 from rraft import RawNode
 
-# from raftify.logger import AbstractRaftifyLogger
-from raftify.raft_client import RaftClient
-from raftify.utils import SocketAddr
+# from .logger import AbstractRaftifyLogger
+from .raft_client import RaftClient
+from .utils import SocketAddr
 
 
 class PeerState(StrEnum):
+    """
+    Represent peer's state.
+    Note that the PeerState may not be accurate during the time ConfChange is reflected.
+    """
+
     Preparing = "Preparing"
     Connected = "Connected"
     Disconnected = "Disconnected"
@@ -21,6 +26,10 @@ class PeerState(StrEnum):
 
 @dataclass
 class Peer:
+    """
+    Represents the socket address, client object, and state of each node at the network layer.
+    """
+
     addr: SocketAddr
     client: Optional[RaftClient] = None
     state: PeerState = PeerState.Preparing

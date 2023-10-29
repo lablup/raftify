@@ -13,30 +13,30 @@ from rraft import (
     LoggerRef,
 )
 
-from raftify.config import RaftifyConfig
-from raftify.error import (
+from .config import RaftifyConfig
+from .error import (
     ClusterBootstrapError,
     ClusterJoinError,
     LeaderNotFoundError,
     UnknownError,
 )
-from raftify.follower_role import FollowerRole
-from raftify.fsm import FSM
-from raftify.logger import AbstractRaftifyLogger
-from raftify.mailbox import Mailbox
-from raftify.pb_adapter import ConfChangeV2Adapter
-from raftify.peers import Peer, Peers, PeerState
-from raftify.protos import raft_service_pb2
-from raftify.raft_client import RaftClient
-from raftify.raft_node import RaftNode
-from raftify.raft_server import RaftServer
-from raftify.raft_utils import RequestIdResponse
-from raftify.request_message import ConfigChangeReqMessage
-from raftify.response_message import JoinSuccessRespMessage
-from raftify.utils import SocketAddr
+from .follower_role import FollowerRole
+from .fsm import FSM
+from .logger import AbstractRaftifyLogger
+from .mailbox import Mailbox
+from .pb_adapter import ConfChangeV2Adapter
+from .peers import Peer, Peers, PeerState
+from .protos import raft_service_pb2
+from .raft_client import RaftClient
+from .raft_node import RaftNode
+from .raft_server import RaftServer
+from .raft_utils import RequestIdResponse
+from .request_message import ConfigChangeReqMessage
+from .response_message import JoinSuccessRespMessage
+from .utils import SocketAddr
 
 
-class RaftCluster:
+class RaftFacade:
     raft_node: RaftNode | None
     raft_server: RaftServer | None
     raft_node_task: asyncio.Task | None
@@ -81,17 +81,16 @@ class RaftCluster:
         Get the node's `Mailbox`.
         """
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
-        return Mailbox(
-            self.addr,
-            self.raft_node,
-            self.message_queue,
-            self.logger,
-            self.cluster_config,
-        )
+        return Mailbox(self.raft_node)
 
-    def get_peers(self) -> Peers:
+    @property
+    def peers(self) -> Peers:
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
         return self.raft_node.peers
+
+    @property
+    def store(self) -> FSM:
+        return self.fsm
 
     async def create_snapshot(self) -> None:
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"

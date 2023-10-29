@@ -7,7 +7,7 @@ import pickle
 from contextlib import suppress
 from pathlib import Path
 from threading import Lock
-from typing import Optional
+from typing import Optional, cast
 
 import colorlog
 import tomli
@@ -21,7 +21,7 @@ from raftify.deserializer import init_rraft_py_deserializer
 from raftify.fsm import FSM
 from raftify.peers import Peer, Peers
 from raftify.raft_client import RaftClient
-from raftify.raft_cluster import RaftCluster
+from raftify.raft_facade import RaftFacade
 from raftify.utils import SocketAddr
 
 
@@ -111,39 +111,43 @@ class HashStore(FSM):
 
 @routes.get("/get/{id}")
 async def get(request: web.Request) -> web.Response:
-    store: HashStore = request.app["state"]["store"]
+    raft_facade: RaftFacade = request.app["state"]["raft"]
+    store = cast(HashStore, raft_facade.store)
+
     id = request.match_info["id"]
     return web.Response(text=store.get(id))
 
 
 @routes.get("/all")
 async def all(request: web.Request) -> web.Response:
-    store: HashStore = request.app["state"]["store"]
+    raft_facade: RaftFacade = request.app["state"]["raft"]
+    store = cast(HashStore, raft_facade.store)
+
     return web.Response(text=json.dumps(store.as_dict()))
 
 
 @routes.get("/put/{id}/{value}")
 async def put(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
+    raft_facade: RaftFacade = request.app["state"]["raft"]
     id, value = request.match_info["id"], request.match_info["value"]
     message = SetCommand(id, value)
-    result = await cluster.mailbox.send(message.encode())
+    result = await raft_facade.mailbox.send(message.encode())
     return web.Response(text=f'"{str(pickle.loads(result))}"')
 
 
 @routes.get("/leave")
 async def leave(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-    id = cluster.raft_node.get_id()
-    addr = cluster.get_peers()[id].addr
-    await cluster.mailbox.leave(id, addr)
+    raft_facade: RaftFacade = request.app["state"]["raft"]
+    id = raft_facade.raft_node.get_id()
+    addr = raft_facade.peers[id].addr
+    await raft_facade.mailbox.leave(id, addr)
     return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
 
 @routes.get("/peers")
 async def peers(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-    return web.Response(text=str(cluster.get_peers()))
+    raft_facade: RaftFacade = request.app["state"]["raft"]
+    return web.Response(text=str(raft_facade.peers))
 
 
 async def main() -> None:
@@ -175,15 +179,15 @@ async def main() -> None:
         ),
     )
 
-    cluster = RaftCluster(cfg, target_addr, store, slog, logger, peers)
+    raft = RaftFacade(cfg, target_addr, store, slog, logger, peers)
     tasks = []
 
     if bootstrap:
         logger.info("Bootstrap a Raft Cluster")
         node_id = 1
-        cluster.run_raft(node_id)
-        tasks.append(cluster.wait_for_followers_join())
-        tasks.append(cluster.wait_for_termination())
+        raft.run_raft(node_id)
+        tasks.append(raft.wait_for_followers_join())
+        tasks.append(raft.wait_for_termination())
     else:
         assert (
             raft_addr is not None
@@ -193,19 +197,16 @@ async def main() -> None:
         node_id = peers.get_node_id_by_addr(raft_addr)
         assert node_id is not None, "Member Node id is not found"
 
-        cluster.run_raft(node_id)
+        raft.run_raft(node_id)
         leader_client = RaftClient(peers[1].addr)
         await leader_client.member_bootstrap_ready(node_id, 5.0)
-        tasks.append(cluster.wait_for_termination())
+        tasks.append(raft.wait_for_termination())
 
     app_runner = None
     if web_server_addr:
         app = Application()
         app.add_routes(routes)
-        app["state"] = {
-            "store": store,
-            "cluster": cluster,
-        }
+        app["state"] = {"raft": raft}
 
         host, port = web_server_addr.split(":")
         app_runner = web.AppRunner(app)

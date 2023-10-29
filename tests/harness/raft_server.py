@@ -22,7 +22,7 @@ from raftify.deserializer import init_rraft_py_deserializer
 from utils import read_cluster_info, remove_node, write_json, write_node
 
 from raftify.config import RaftifyConfig
-from raftify.raft_cluster import RaftCluster
+from raftify.raft_facade import RaftFacade
 from raftify.utils import SocketAddr
 
 routes = RouteTableDef()
@@ -43,7 +43,7 @@ async def all(request: web.Request) -> web.Response:
 
 @routes.get("/put/{id}/{value}")
 async def put(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
+    cluster: RaftFacade = request.app["state"]["cluster"]
     id, value = request.match_info["id"], request.match_info["value"]
     message = SetCommand(id, value)
     result = await cluster.mailbox.send(message.encode())
@@ -52,18 +52,18 @@ async def put(request: web.Request) -> web.Response:
 
 @routes.get("/leave")
 async def leave(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
+    cluster: RaftFacade = request.app["state"]["cluster"]
     id = cluster.raft_node.get_id()
-    addr = cluster.get_peers()[id].addr
+    addr = cluster.peers[id].addr
     await cluster.mailbox.leave(id, addr)
     return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
 
 @routes.get("/remove/{id}")
 async def remove(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
+    cluster: RaftFacade = request.app["state"]["cluster"]
     id = int(request.match_info["id"])
-    addr = cluster.get_peers()[id].addr
+    addr = cluster.peers[id].addr
     await cluster.mailbox.leave(id, addr)
     return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
@@ -78,19 +78,19 @@ def get_alive_node_ids(peers: Peers) -> list[int]:
 
 @routes.get("/peers")
 async def peers(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-    return web.Response(text=str(cluster.get_peers()))
+    cluster: RaftFacade = request.app["state"]["cluster"]
+    return web.Response(text=str(cluster.peers))
 
 
 @routes.get("/connected_nodes")
 async def connected_nodes(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
-    return web.Response(text=json.dumps(get_alive_node_ids(cluster.get_peers())))
+    cluster: RaftFacade = request.app["state"]["cluster"]
+    return web.Response(text=json.dumps(get_alive_node_ids(cluster.peers)))
 
 
 @routes.get("/leader")
 async def leader(request: web.Request) -> web.Response:
-    cluster: RaftCluster = request.app["state"]["cluster"]
+    cluster: RaftFacade = request.app["state"]["cluster"]
     return web.Response(text=str(cluster.raft_node.get_leader_id()))
 
 
@@ -115,7 +115,7 @@ async def server_main(
         log_dir="./logs",
     )
 
-    cluster = RaftCluster(cfg, raft_addr, store, slog, logger, peers)
+    cluster = RaftFacade(cfg, raft_addr, store, slog, logger, peers)
 
     if raft_node_idx == 0:
         logger.info("Bootstrap a Raft Cluster")
@@ -166,7 +166,7 @@ async def excute_extra_node(node_id: int, raft_addr: SocketAddr, peers: Peers):
     )
 
     store = HashStore()
-    cluster = RaftCluster(cfg, raft_addr, store, slog, logger, peers)
+    cluster = RaftFacade(cfg, raft_addr, store, slog, logger, peers)
     peer_addrs = [peer.addr for peer in peers.data.values()]
 
     request_id_resp = await cluster.request_id(raft_addr, peer_addrs)

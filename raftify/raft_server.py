@@ -4,10 +4,10 @@ from typing import Optional
 
 import grpc
 
-from raftify.logger import AbstractRaftifyLogger
-from raftify.protos import raft_service_pb2_grpc
-from raftify.raft_service import RaftService
-from raftify.utils import SocketAddr
+from .logger import AbstractRaftifyLogger
+from .protos import raft_service_pb2_grpc
+from .raft_service import RaftService
+from .utils import SocketAddr
 
 
 class RaftServer:

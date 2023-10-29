@@ -2,7 +2,7 @@ import abc
 from dataclasses import dataclass
 from typing import Optional
 
-from raftify.utils import PickleSerializer
+from .utils import PickleSerializer
 
 
 class RaftResponse(metaclass=abc.ABCMeta):
