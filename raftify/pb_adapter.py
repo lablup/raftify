@@ -26,19 +26,19 @@ from rraft import (
     SnapshotRef,
 )
 
-from raftify.protos.eraftpb_pb2 import ConfChange as Pb_ConfChange
-from raftify.protos.eraftpb_pb2 import ConfChangeSingle as Pb_ConfChangeSingle
-from raftify.protos.eraftpb_pb2 import ConfChangeTransition as Pb_ConfChangeTransition
-from raftify.protos.eraftpb_pb2 import ConfChangeType as Pb_ConfChangeType
-from raftify.protos.eraftpb_pb2 import ConfChangeV2 as Pb_ConfChangeV2
-from raftify.protos.eraftpb_pb2 import ConfState as Pb_ConfState
-from raftify.protos.eraftpb_pb2 import Entry as Pb_Entry
-from raftify.protos.eraftpb_pb2 import EntryType as Pb_EntryType
-from raftify.protos.eraftpb_pb2 import HardState as Pb_HardState
-from raftify.protos.eraftpb_pb2 import Message as Pb_Message
-from raftify.protos.eraftpb_pb2 import MessageType as Pb_MessageType
-from raftify.protos.eraftpb_pb2 import Snapshot as Pb_Snapshot
-from raftify.protos.eraftpb_pb2 import SnapshotMetadata as Pb_SnapshotMetadata
+from .protos.eraftpb_pb2 import ConfChange as Pb_ConfChange
+from .protos.eraftpb_pb2 import ConfChangeSingle as Pb_ConfChangeSingle
+from .protos.eraftpb_pb2 import ConfChangeTransition as Pb_ConfChangeTransition
+from .protos.eraftpb_pb2 import ConfChangeType as Pb_ConfChangeType
+from .protos.eraftpb_pb2 import ConfChangeV2 as Pb_ConfChangeV2
+from .protos.eraftpb_pb2 import ConfState as Pb_ConfState
+from .protos.eraftpb_pb2 import Entry as Pb_Entry
+from .protos.eraftpb_pb2 import EntryType as Pb_EntryType
+from .protos.eraftpb_pb2 import HardState as Pb_HardState
+from .protos.eraftpb_pb2 import Message as Pb_Message
+from .protos.eraftpb_pb2 import MessageType as Pb_MessageType
+from .protos.eraftpb_pb2 import Snapshot as Pb_Snapshot
+from .protos.eraftpb_pb2 import SnapshotMetadata as Pb_SnapshotMetadata
 
 
 class ProtobufAdapter(metaclass=ABCMeta):

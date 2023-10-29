@@ -188,9 +188,7 @@ class RaftClient:
             lines = res.result.split("\n")
             return "\n".join(lines)
 
-    async def version(
-        self, timeout: float
-    ) -> raft_service_pb2.VersionResponse:
+    async def version(self, timeout: float) -> raft_service_pb2.VersionResponse:
         """
         Request to debug raftify version.
         """

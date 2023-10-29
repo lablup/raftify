@@ -22,8 +22,8 @@ from rraft import (
     UnavailableError,
 )
 
-from raftify.deserializer import entry_data_deserializer, pickle_deserialize
-from raftify.logger import AbstractRaftifyLogger
+from ..deserializer import entry_data_deserializer, pickle_deserialize
+from ..logger import AbstractRaftifyLogger
 
 SNAPSHOT_KEY = b"snapshot"
 LAST_INDEX_KEY = b"last_index"

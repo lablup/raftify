@@ -6,10 +6,10 @@ from typing import Optional
 
 import grpc
 
-from raftify.logger import AbstractRaftifyLogger
-from raftify.protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
-from raftify.raft_client import RaftClient
-from raftify.request_message import (
+from .logger import AbstractRaftifyLogger
+from .protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
+from .raft_client import RaftClient
+from .request_message import (
     ApplyConfigChangeForcelyReqMessage,
     ClusterBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
@@ -22,7 +22,7 @@ from raftify.request_message import (
     RerouteToLeaderReqMessage,
     VersionRequest,
 )
-from raftify.response_message import (
+from .response_message import (
     IdReservedRespMessage,
     JoinSuccessRespMessage,
     RaftErrorRespMessage,
