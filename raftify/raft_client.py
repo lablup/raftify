@@ -12,7 +12,7 @@ from .utils import SocketAddr
 
 class RaftClient:
     """
-    Low level interface to communicate with the RaftCluster.
+    Low level interface to communicate with the RaftFacade.
     """
 
     def __init__(

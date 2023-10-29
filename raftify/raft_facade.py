@@ -36,7 +36,7 @@ from .response_message import JoinSuccessRespMessage
 from .utils import SocketAddr
 
 
-class RaftCluster:
+class RaftFacade:
     raft_node: RaftNode | None
     raft_server: RaftServer | None
     raft_node_task: asyncio.Task | None
@@ -87,6 +87,10 @@ class RaftCluster:
     def peers(self) -> Peers:
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
         return self.raft_node.peers
+
+    @property
+    def store(self) -> FSM:
+        return self.fsm
 
     async def create_snapshot(self) -> None:
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
