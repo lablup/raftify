@@ -1,5 +1,6 @@
 import asyncio
 import math
+import os
 import pickle
 import time
 from asyncio import Queue
@@ -45,6 +46,7 @@ from raftify.request_message import (
     ReportUnreachableReqMessage,
     RequestIdReqMessage,
     RerouteToLeaderReqMessage,
+    VersionRequest,
 )
 from raftify.response_message import (
     IdReservedRespMessage,
@@ -385,6 +387,18 @@ class RaftNode:
             except Exception:
                 raise
 
+    def get_version(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+
+        version_file_path = os.path.join(current_dir, 'VERSION')
+
+        try:
+            with open(version_file_path, 'r') as file:
+                version = file.read().strip()
+                return version
+        except FileNotFoundError:
+            return 'unknown'
+
     def send_messages(self, messages: list[Message]):
         for message in messages:
             if peer := self.peers.get(message.get_to()):
@@ -696,6 +710,9 @@ class RaftNode:
 
             elif isinstance(message, DebugEntriesRequest):
                 message.chan.put_nowait(self.get_all_entry_logs())
+
+            elif isinstance(message, VersionRequest):
+                message.chan.put_nowait(self.get_version())
 
             now = time.time()
             elapsed = now - before

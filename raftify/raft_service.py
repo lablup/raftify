@@ -20,6 +20,7 @@ from raftify.request_message import (
     RaftReqMessage,
     RequestIdReqMessage,
     RerouteToLeaderReqMessage,
+    VersionRequest,
 )
 from raftify.response_message import (
     IdReservedRespMessage,
@@ -42,11 +43,11 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         self.logger = logger
         self.confchange_req_queue: Queue = Queue()
         self.confchange_req_applier = asyncio.create_task(
-            self.confchange_request_applier()
+            self.__handle_confchange_request()
         )
         self.confchange_res_queue: Queue = Queue()
 
-    async def _handle_reroute(
+    async def __handle_reroute(
         self,
         response: WrongLeaderRespMessage,
         reroute_msg_type: raft_service_pb2.RerouteMsgType,
@@ -69,7 +70,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
             # TODO: handle this case. The leader might change in the meanwhile.
             assert False
 
-    async def confchange_request_applier(self):
+    async def __handle_confchange_request(self):
         # TODO: Describe why this queueing is required.
         while True:
             req, force = await self.confchange_req_queue.get()
@@ -166,7 +167,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
                     data=res.data, result=res.result
                 )
             case raft_service_pb2.ChangeConfig_WrongLeader:
-                rerouted_resp = await self._handle_reroute(
+                rerouted_resp = await self.__handle_reroute(
                     res,
                     reroute_msg_type=raft_service_pb2.ConfChange,
                     conf_change=request,
@@ -206,7 +207,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         result = await receiver.get()
 
         if isinstance(result, WrongLeaderRespMessage):
-            resp = await self._handle_reroute(
+            resp = await self.__handle_reroute(
                 result,
                 reroute_msg_type=raft_service_pb2.Propose,
                 proposed_data=request.msg,
@@ -288,3 +289,11 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         await self.message_queue.put(DebugEntriesRequest(receiver))
         debug_info = await asyncio.wait_for(receiver.get(), 2)
         return raft_service_pb2.DebugEntriesResponse(result=json.dumps(debug_info))
+
+    async def Version(
+        self, _request: raft_service_pb2.Empty, _context: grpc.aio.ServicerContext
+    ) -> raft_service_pb2.DebugNodeResponse:
+        receiver: Queue = Queue()
+        await self.message_queue.put(VersionRequest(receiver))
+        result = await asyncio.wait_for(receiver.get(), 2)
+        return raft_service_pb2.VersionResponse(result=result)

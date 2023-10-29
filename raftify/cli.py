@@ -37,6 +37,8 @@ async def async_main():
                         json.loads(await client.debug_node(timeout=5.0))
                     )
                 )
+            case "version":
+                print(await client.version(timeout=5.0))
             case _:
                 print_help()
 

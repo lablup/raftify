@@ -73,3 +73,8 @@ class DebugNodeRequest(RaftRequest, PickleSerializer):
 @dataclass
 class DebugEntriesRequest(RaftRequest, PickleSerializer):
     chan: Queue
+
+
+@dataclass
+class VersionRequest(RaftRequest, PickleSerializer):
+    chan: Queue

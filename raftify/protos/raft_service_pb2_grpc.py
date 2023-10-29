@@ -66,6 +66,11 @@ class RaftServiceStub(object):
             request_serializer=raft__service__pb2.Empty.SerializeToString,
             response_deserializer=raft__service__pb2.DebugNodeResponse.FromString,
         )
+        self.Version = channel.unary_unary(
+            "/raftservice.RaftService/Version",
+            request_serializer=raft__service__pb2.Empty.SerializeToString,
+            response_deserializer=raft__service__pb2.VersionResponse.FromString,
+        )
 
 
 class RaftServiceServicer(object):
@@ -131,6 +136,12 @@ class RaftServiceServicer(object):
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
 
+    def Version(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
 
 def add_RaftServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -183,6 +194,11 @@ def add_RaftServiceServicer_to_server(servicer, server):
             servicer.DebugEntries,
             request_deserializer=raft__service__pb2.Empty.FromString,
             response_serializer=raft__service__pb2.DebugNodeResponse.SerializeToString,
+        ),
+        "Version": grpc.unary_unary_rpc_method_handler(
+            servicer.Version,
+            request_deserializer=raft__service__pb2.Empty.FromString,
+            response_serializer=raft__service__pb2.VersionResponse.SerializeToString,
         ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -475,6 +491,35 @@ class RaftService(object):
             "/raftservice.RaftService/DebugEntries",
             raft__service__pb2.Empty.SerializeToString,
             raft__service__pb2.DebugNodeResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
+
+    @staticmethod
+    def Version(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/raftservice.RaftService/Version",
+            raft__service__pb2.Empty.SerializeToString,
+            raft__service__pb2.VersionResponse.FromString,
             options,
             channel_credentials,
             insecure,

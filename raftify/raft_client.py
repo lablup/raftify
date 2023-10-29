@@ -187,3 +187,17 @@ class RaftClient:
             res = await asyncio.wait_for(stub.DebugEntries(request), timeout)
             lines = res.result.split("\n")
             return "\n".join(lines)
+
+    async def version(
+        self, timeout: float
+    ) -> raft_service_pb2.VersionResponse:
+        """
+        Request to debug raftify version.
+        """
+
+        request = raft_service_pb2.Empty()
+
+        async with self.__create_channel() as channel:
+            stub = raft_service_pb2_grpc.RaftServiceStub(channel)
+            res = await asyncio.wait_for(stub.Version(request), timeout)
+            return res.result
