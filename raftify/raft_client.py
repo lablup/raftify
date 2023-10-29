@@ -5,9 +5,9 @@ from typing import Optional
 import grpc
 from rraft import ConfChangeV2, Message
 
-from raftify.pb_adapter import ConfChangeV2Adapter, MessageAdapter
-from raftify.protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
-from raftify.utils import SocketAddr
+from .pb_adapter import ConfChangeV2Adapter, MessageAdapter
+from .protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
+from .utils import SocketAddr
 
 
 class RaftClient:

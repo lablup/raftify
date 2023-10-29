@@ -121,6 +121,7 @@ async def put(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
     id, value = request.match_info["id"], request.match_info["value"]
     message = SetCommand(id, value)
+
     result = await cluster.mailbox.send(message.encode())
     return web.Response(text=f'"{str(pickle.loads(result))}"')
 
@@ -129,7 +130,7 @@ async def put(request: web.Request) -> web.Response:
 async def leave(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
     id = cluster.raft_node.get_id()
-    addr = cluster.get_peers()[id].addr
+    addr = cluster.peers[id].addr
     await cluster.mailbox.leave(id, addr)
     return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
@@ -138,7 +139,7 @@ async def leave(request: web.Request) -> web.Response:
 async def remove(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
     id = int(request.match_info["id"])
-    addr = cluster.get_peers()[id].addr
+    addr = cluster.peers[id].addr
     await cluster.mailbox.leave(id, addr)
     return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
@@ -146,7 +147,7 @@ async def remove(request: web.Request) -> web.Response:
 @routes.get("/peers")
 async def peers(request: web.Request) -> web.Response:
     cluster: RaftCluster = request.app["state"]["cluster"]
-    return web.Response(text=str(cluster.get_peers()))
+    return web.Response(text=str(cluster.peers))
 
 
 @routes.get("/leader")

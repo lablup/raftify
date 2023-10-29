@@ -23,6 +23,7 @@ from .error import (
 from .follower_role import FollowerRole
 from .fsm import FSM
 from .logger import AbstractRaftifyLogger
+from .mailbox import Mailbox
 from .pb_adapter import ConfChangeV2Adapter
 from .peers import Peer, Peers, PeerState
 from .protos import raft_service_pb2
@@ -74,7 +75,16 @@ class RaftCluster:
     def is_initialized(self) -> bool:
         return self.raft_node is not None and self.raft_server is not None
 
-    def get_peers(self) -> Peers:
+    @property
+    def mailbox(self) -> Mailbox:
+        """
+        Get the node's `Mailbox`.
+        """
+        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
+        return Mailbox(self.raft_node)
+
+    @property
+    def peers(self) -> Peers:
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
         return self.raft_node.peers
 
