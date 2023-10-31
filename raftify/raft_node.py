@@ -612,6 +612,10 @@ class RaftNode:
                         )
                         socket_addrs = pickle.loads(conf_change_v2.get_context())
 
+                        # TODO: Handle RemoveNode case here.
+                        # Actually, RemoveNode case is handled in handle_committed_config_change_entry method.
+                        # So, it is not necessary to handle it here.
+                        # But, it would be better to handle it here to make the code more readable.
                         for addr in socket_addrs:
                             self.peers.ready_peer(addr)
 
@@ -656,7 +660,15 @@ class RaftNode:
 
                 changes = conf_change_v2.get_changes()
                 for change in changes:
-                    self.peers.data[change.get_node_id()].state = PeerState.Disconnected
+                    match change.get_change_type():
+                        case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
+                            self.peers.data[
+                                change.get_node_id()
+                            ].state = PeerState.Connected
+                        case ConfChangeType.RemoveNode:
+                            self.peers.data[
+                                change.get_node_id()
+                            ].state = PeerState.Disconnected
 
             elif isinstance(message, ProposeReqMessage):
                 if not self.is_leader():
