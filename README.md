@@ -98,14 +98,14 @@ class HashStore(FSM):
 ```py
 logger.info("Bootstrap new Raft Cluster")
 node_id = 1
-cluster = RaftCluster(cluster_cfg, target_addr, store, slog, logger)
+cluster = RaftFacade(cluster_cfg, target_addr, store, slog, logger)
 cluster.run_raft(node_id)
 asyncio.create_task(cluster.wait_for_termination())
 ```
 
 #### Bootstrap with initial peers
 
-You can bootstrap raft cluster with initial peers by passing `peers` argument to `RaftCluster`.
+You can bootstrap raft cluster with initial peers by passing `peers` argument to `RaftFacade`.
 
 In this case, the leader node waits until all other follower nodes send cluster join requests. While waiting, it cannot process any requests.
 
@@ -121,7 +121,7 @@ You can bootstrap raft cluster without any peers, and followers can join the clu
 
 ```py
 logger.info("Running in follower mode")
-cluster = RaftCluster(cluster_cfg, raft_addr, store, slog, logger)
+cluster = RaftFacade(cluster_cfg, raft_addr, store, slog, logger)
 request_id_response = await cluster.request_id(raft_addr, peer_addrs)
 cluster.run_raft(request_id_resp.follower_id)
 await cluster.join_cluster(request_id_response)
