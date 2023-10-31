@@ -20,7 +20,6 @@ from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.fsm import FSM
 from raftify.peers import Peer, Peers
-from raftify.raft_client import RaftClient
 from raftify.raft_facade import RaftFacade
 from raftify.utils import SocketAddr
 
@@ -198,8 +197,7 @@ async def main() -> None:
         assert node_id is not None, "Member Node id is not found"
 
         raft.run_raft(node_id)
-        leader_client = RaftClient(peers[1].addr)
-        await leader_client.member_bootstrap_ready(node_id, 5.0)
+        await raft.send_member_bootstrap_ready_msg(node_id)
         tasks.append(raft.wait_for_termination())
 
     app_runner = None

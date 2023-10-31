@@ -100,16 +100,28 @@ class RaftFacade:
             self.raft_node.lmdb.last_index(), hs.get_term()
         )
 
-    def cluster_bootstrap_ready(self) -> bool:
-        return all(
+    async def send_member_bootstrap_ready_msg(
+        self, follower_id: int, leader_id: int = 1
+    ):
+        """
+        Send a `MemberBootstrapReady` message to the leader node.
+        """
+        leader_addr = self.initial_peers[leader_id].addr
+        leader_client = RaftClient(leader_addr)
+        self.peers.connect(leader_id, leader_addr)
+        await leader_client.member_bootstrap_ready(follower_id, timeout=5.0)
+
+    # TODO: It would be great if this process is handled in the RaftFacade without exposing this.
+    async def wait_for_followers_join(self):
+        """
+        Let the leader node wait for join requests from all other initial_peers follower nodes.
+        """
+        await asyncio.sleep(1)
+
+        while not all(
             data.state == PeerState.Connected
             for data in self.initial_peers.data.values()
-        )
-
-    async def wait_for_followers_join(self):
-        """ """
-        await asyncio.sleep(1)
-        while not self.cluster_bootstrap_ready():
+        ):
             self.logger.debug(
                 "Waiting for all peers to make join request to the cluster..."
             )
@@ -132,7 +144,9 @@ class RaftFacade:
         self,
         node_id: int,
     ) -> bool:
-        """ """
+        """
+        Handle Leader transfer.
+        """
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
 
         if not self.raft_node.is_leader():
@@ -145,7 +159,9 @@ class RaftFacade:
     async def request_id(
         self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]
     ) -> RequestIdResponse:
-        """ """
+        """
+        Get a node id from the cluster's leader.
+        """
         # TODO: Block request_id calling until the all cluster's initial peers are ready.
 
         for peer_addr in peer_candidates:
@@ -315,7 +331,9 @@ class RaftFacade:
                 continue
 
     def run_raft(self, node_id: int) -> None:
-        """ """
+        """
+        Run RaftServer and RaftNode coroutines.
+        """
         self.logger.info(
             "Start to run RaftNode. Configuration: " + str(self.cluster_config)
         )
