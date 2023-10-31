@@ -433,9 +433,6 @@ class RaftNode:
         response_queues: dict[AtomicInteger, Queue],
     ) -> None:
         # TODO: persist last_applied_index and implement log entries commit resuming logic
-        # Mostly, you need to save the last apply index to resume applying
-        # after restart. Here we just ignore this because we use a Memory storage.
-
         # _last_apply_index = 0
 
         for entry in committed_entries:
