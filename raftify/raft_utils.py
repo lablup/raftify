@@ -58,22 +58,22 @@ def format_raft_node_debugging_info(debug_info: dict[str, Any]) -> str:
 node_id: {debug_info['node_id']}
 current_leader_id: {debug_info['current_leader_id']}
 
-========= Storage info =========
+========= Persistence info =========
 hard_state: {debug_info['storage']['hard_state']}
 conf_state: {debug_info['storage']['conf_state']}
 last_index: {debug_info['storage']['last_index']}
 snapshot: {debug_info['storage']['snapshot']}
 
-========= Progress =========
+========= Progress tracker =========
 progress: {debug_info['progress']}
 
-========= Peer state =========
+========= Peer states =========
 peer_states: {debug_info['peer_states']}
 
 ========= Raft log =========
-applied: {debug_info['raft_log']['applied']}
-committed: {debug_info['raft_log']['committed']}
-persisted: {debug_info['raft_log']['persisted']}
+last_applied: {debug_info['raft_log']['applied']}
+last_committed: {debug_info['raft_log']['committed']}
+last_persisted: {debug_info['raft_log']['persisted']}
 
 ========= Pending confchange =========
 pending_conf_index: {debug_info['failure']['pending_conf_index']}
