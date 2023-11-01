@@ -25,20 +25,15 @@ async def async_main():
 
         match sys.argv[1]:
             case "all-entries":
-                print(
-                    format_all_entries(
-                        json.loads(await client.debug_entries(timeout=5.0))
-                    )
-                )
+                res = await client.debug_entries(timeout=5.0)
+                print(format_all_entries(json.loads(res.result)))
                 pass
             case "debug":
-                print(
-                    format_raft_node_debugging_info(
-                        json.loads(await client.debug_node(timeout=5.0))
-                    )
-                )
+                res = await client.debug_node(timeout=5.0)
+                print(format_raft_node_debugging_info(json.loads(res.result)))
             case "version":
-                print(await client.version(timeout=5.0))
+                res = await client.version(timeout=5.0)
+                print(res.result)
             case _:
                 print_help()
 
