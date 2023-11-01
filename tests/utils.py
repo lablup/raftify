@@ -20,7 +20,7 @@ def load_peers(peer_filename: str) -> Peers:
 
     return Peers(
         {
-            int(entry["node_id"]): Peer(addr=SocketAddr(entry["ip"], entry["port"]))
+            int(entry["node_id"]): Peer(SocketAddr(entry["ip"], entry["port"]))
             for entry in cfg
         }
     )

@@ -288,16 +288,14 @@ class RaftFacade:
             {
                 **{
                     node_id: Peer(
-                        addr=peer.addr,
-                        client=RaftClient(peer.addr),
-                        state=PeerState.Connected,
+                        peer.addr,
+                        PeerState.Connected,
                     )
                     for node_id, peer in peers.data.items()
                 },
                 leader_id: Peer(
-                    addr=leader_client.addr,
-                    client=leader_client,
-                    state=PeerState.Connected,
+                    leader_client.addr,
+                    PeerState.Connected,
                 ),
             }
         )

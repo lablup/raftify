@@ -1,6 +1,5 @@
 import json
 import pickle
-from dataclasses import dataclass
 from enum import StrEnum
 from typing import Optional
 
@@ -24,15 +23,19 @@ class PeerState(StrEnum):
     Quitted = "Quitted"
 
 
-@dataclass
 class Peer:
     """
     Represents the socket address, client object, and state of each node at the network layer.
     """
 
-    addr: SocketAddr
-    client: Optional[RaftClient] = None
-    state: PeerState = PeerState.Preparing
+    def __init__(
+        self,
+        addr: SocketAddr,
+        state: PeerState = PeerState.Preparing,
+    ):
+        self.addr = addr
+        self.client = RaftClient(addr)
+        self.state = state
 
     def to_dict(self) -> dict:
         return {
@@ -67,7 +70,7 @@ class Peers:
     def encode(self) -> bytes:
         peers = Peers({})
         for node_id, peer in self.data.items():
-            peers[node_id] = Peer(peer.addr, None, peer.state)
+            peers[node_id] = Peer(peer.addr, peer.state)
         return pickle.dumps(peers)
 
     def get(self, node_id: int) -> Optional[Peer]:
@@ -95,7 +98,7 @@ class Peers:
             if next_id == raw_node.get_raft().get_id():
                 next_id += 1
 
-        self.data[next_id] = Peer(client=None, addr=addr)
+        self.data[next_id] = Peer(addr)
         return next_id
 
     def ready_peer(self, addr: SocketAddr) -> None:
@@ -116,7 +119,7 @@ class Peers:
     def connect(self, id: int, addr: SocketAddr) -> None:
         """ """
         if id not in self.data:
-            self.data[id] = Peer(addr, RaftClient(addr), PeerState.Connected)
+            self.data[id] = Peer(addr, PeerState.Connected)
         else:
             self.data[id].addr = addr
             self.data[id].state = PeerState.Connected

@@ -500,9 +500,7 @@ class RaftNode:
                     addr = addrs[cc_idx]
 
                     self.logger.info(f"Node {node_id} ({addr}) joined the cluster.")
-                    self.peers[node_id] = Peer(
-                        addr=addr, client=RaftClient(addr), state=PeerState.Connected
-                    )
+                    self.peers[node_id] = Peer(addr, PeerState.Connected)
                 case ConfChangeType.RemoveNode:
                     if node_id == self.get_id():
                         self.should_exit = True

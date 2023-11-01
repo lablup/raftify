@@ -4,7 +4,6 @@ from concurrent.futures import ProcessPoolExecutor
 import pytest
 from harness.raft_server import run_raft_cluster, spawn_extra_node, wait_for_until
 from raftify.peers import Peer
-from raftify.raft_client import RaftClient
 from raftify.utils import SocketAddr
 from utils import RequestType, killall, load_peers, make_request, reset_fixtures_directory
 
@@ -33,7 +32,7 @@ async def test_data_replication():
         assert resp == "A"
 
     addr = SocketAddr(host="127.0.0.1", port=60064)
-    peers[4] = Peer(addr, client=RaftClient(addr))
+    peers[4] = Peer(addr)
 
     spawn_extra_node(4, addr, peers)
     await wait_for_until("cluster_size >= 4")

@@ -5,7 +5,6 @@ from concurrent.futures import ProcessPoolExecutor
 import pytest
 from harness.raft_server import run_raft_cluster, spawn_extra_node, wait_for_until
 from raftify.peers import Peer
-from raftify.raft_client import RaftClient
 from raftify.utils import SocketAddr
 from utils import RequestType, kill_node, killall, load_peers, make_request, reset_fixtures_directory
 
@@ -40,7 +39,7 @@ async def test_disconnected_node_get_same_node_id():
 
     # Reconnect to the node 2
     addr = SocketAddr(host="127.0.0.1", port=60062)
-    peers[2] = Peer(addr, client=RaftClient(addr))
+    peers[2] = Peer(addr)
     spawn_extra_node(2, addr, peers)
     await wait_for_until("cluster_size >= 3")
 
