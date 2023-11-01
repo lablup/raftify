@@ -53,7 +53,7 @@ from .response_message import (
     JoinSuccessRespMessage,
     RaftOkRespMessage,
     RaftRespMessage,
-    RaftResponse,
+    ResponseMessage,
     WrongLeaderRespMessage,
 )
 from .storage.lmdb import LMDBStorage
@@ -517,7 +517,7 @@ class RaftNode:
             await self.create_snapshot(entry.get_index(), entry.get_term())
 
         if response_queue := response_queues.pop(seq, None):
-            response: RaftResponse
+            response: ResponseMessage
 
             match change_type:
                 case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:

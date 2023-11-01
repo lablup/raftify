@@ -13,7 +13,7 @@ from .request_message import ConfigChangeReqMessage, ProposeReqMessage
 from .response_message import (
     RaftOkRespMessage,
     RaftRespMessage,
-    RaftResponse,
+    ResponseMessage,
     WrongLeaderRespMessage,
 )
 from .utils import SocketAddr
@@ -32,7 +32,7 @@ class Mailbox:
 
     async def __handle_response(
         self,
-        response: RaftResponse,
+        response: ResponseMessage,
         *,
         reroute_msg_type: Optional[raft_service_pb2.RerouteMsgType] = None,
         proposed_data: Optional[bytes] = None,

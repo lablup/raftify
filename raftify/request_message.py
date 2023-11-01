@@ -7,30 +7,33 @@ from .protos import eraftpb_pb2, raft_service_pb2
 from .utils import PickleSerializer
 
 
-class RaftRequest(metaclass=abc.ABCMeta):
+class RequestMessage(metaclass=abc.ABCMeta):
+    """
+    RequestMessages are passed from the RaftServer to the RaftNode via message_queue.
+    """
     pass
 
 
 @dataclass
-class ProposeReqMessage(RaftRequest, PickleSerializer):
+class ProposeReqMessage(RequestMessage, PickleSerializer):
     data: bytes
     chan: Queue
 
 
 @dataclass
-class MemberBootstrapReadyReqMessage(RaftRequest, PickleSerializer):
+class MemberBootstrapReadyReqMessage(RequestMessage, PickleSerializer):
     follower_id: int
     chan: Queue
 
 
 @dataclass
-class ClusterBootstrapReadyReqMessage(RaftRequest, PickleSerializer):
+class ClusterBootstrapReadyReqMessage(RequestMessage, PickleSerializer):
     peers: bytes
     chan: Queue
 
 
 @dataclass
-class RerouteToLeaderReqMessage(RaftRequest, PickleSerializer):
+class RerouteToLeaderReqMessage(RequestMessage, PickleSerializer):
     proposed_data: Optional[bytes]
     conf_change: Optional[eraftpb_pb2.ConfChangeV2]
     type: raft_service_pb2.RerouteMsgType
@@ -38,43 +41,43 @@ class RerouteToLeaderReqMessage(RaftRequest, PickleSerializer):
 
 
 @dataclass
-class ConfigChangeReqMessage(RaftRequest, PickleSerializer):
+class ConfigChangeReqMessage(RequestMessage, PickleSerializer):
     conf_change: eraftpb_pb2.ConfChangeV2
     chan: Queue
 
 
 @dataclass
-class ApplyConfigChangeForcelyReqMessage(RaftRequest, PickleSerializer):
+class ApplyConfigChangeForcelyReqMessage(RequestMessage, PickleSerializer):
     conf_change: eraftpb_pb2.ConfChangeV2
     chan: Queue
 
 
 @dataclass
-class RequestIdReqMessage(RaftRequest, PickleSerializer):
+class RequestIdReqMessage(RequestMessage, PickleSerializer):
     addr: str
     chan: Queue
 
 
 @dataclass
-class ReportUnreachableReqMessage(RaftRequest, PickleSerializer):
+class ReportUnreachableReqMessage(RequestMessage, PickleSerializer):
     node_id: int
 
 
 @dataclass
-class RaftReqMessage(RaftRequest, PickleSerializer):
+class RaftReqMessage(RequestMessage, PickleSerializer):
     msg: eraftpb_pb2.Message
 
 
 @dataclass
-class DebugNodeRequest(RaftRequest, PickleSerializer):
+class DebugNodeRequest(RequestMessage, PickleSerializer):
     chan: Queue
 
 
 @dataclass
-class DebugEntriesRequest(RaftRequest, PickleSerializer):
+class DebugEntriesRequest(RequestMessage, PickleSerializer):
     chan: Queue
 
 
 @dataclass
-class VersionRequest(RaftRequest, PickleSerializer):
+class VersionRequest(RequestMessage, PickleSerializer):
     chan: Queue
