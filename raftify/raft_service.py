@@ -5,6 +5,7 @@ from asyncio import Queue
 from typing import Optional
 
 import grpc
+from rraft import ConfChangeV2
 
 from .logger import AbstractRaftifyLogger
 from .protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
@@ -30,6 +31,7 @@ from .response_message import (
     RaftRespMessage,
     WrongLeaderRespMessage,
 )
+from .utils import SocketAddr
 
 
 class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
@@ -41,11 +43,13 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
     def __init__(self, message_queue: Queue, logger: AbstractRaftifyLogger) -> None:
         self.message_queue = message_queue
         self.logger = logger
-        self.confchange_req_queue: Queue = Queue()
+        self.confchange_req_queue: Queue[tuple[ConfChangeV2, bool]] = Queue()
         self.confchange_req_applier = asyncio.create_task(
             self.__handle_confchange_request()
         )
-        self.confchange_res_queue: Queue = Queue()
+        self.confchange_res_queue: Queue[
+            raft_service_pb2.ChangeConfigResponse
+        ] = Queue()
 
     async def __handle_reroute(
         self,
@@ -53,9 +57,9 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         reroute_msg_type: raft_service_pb2.RerouteMsgType,
         proposed_data: Optional[bytes] = None,
         conf_change: Optional[eraftpb_pb2.ConfChangeV2] = None,
-    ) -> bytes:
+    ):
         leader_addr = response.leader_addr
-        leader_client = RaftClient(leader_addr)
+        leader_client = RaftClient(SocketAddr.from_str(leader_addr))
 
         resp_from_leader = await leader_client.reroute_message(
             reroute_msg_type=reroute_msg_type,
