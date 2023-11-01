@@ -38,15 +38,15 @@ from .request_message import (
     ApplyConfigChangeForcelyReqMessage,
     ClusterBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
-    DebugEntriesRequest,
-    DebugNodeRequest,
+    DebugEntriesReqMessage,
+    DebugNodeReqMessage,
     MemberBootstrapReadyReqMessage,
     ProposeReqMessage,
     RaftReqMessage,
     ReportUnreachableReqMessage,
     RequestIdReqMessage,
     RerouteToLeaderReqMessage,
-    VersionRequest,
+    VersionReqMessage,
 )
 from .response_message import (
     IdReservedRespMessage,
@@ -712,13 +712,13 @@ class RaftNode:
             elif isinstance(message, ReportUnreachableReqMessage):
                 self.raw_node.report_unreachable(message.node_id)
 
-            elif isinstance(message, DebugNodeRequest):
+            elif isinstance(message, DebugNodeReqMessage):
                 message.chan.put_nowait(self.inspect())
 
-            elif isinstance(message, DebugEntriesRequest):
+            elif isinstance(message, DebugEntriesReqMessage):
                 message.chan.put_nowait(self.get_all_entry_logs())
 
-            elif isinstance(message, VersionRequest):
+            elif isinstance(message, VersionReqMessage):
                 message.chan.put_nowait(self.get_version())
 
             now = time.time()

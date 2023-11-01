@@ -63,21 +63,22 @@ class ReportUnreachableReqMessage(RequestMessage, PickleSerializer):
     node_id: int
 
 
+# TODO: Rename this weird type name to something more meaningful
 @dataclass
 class RaftReqMessage(RequestMessage, PickleSerializer):
     msg: eraftpb_pb2.Message
 
 
 @dataclass
-class DebugNodeRequest(RequestMessage, PickleSerializer):
+class DebugNodeReqMessage(RequestMessage, PickleSerializer):
     chan: Queue
 
 
 @dataclass
-class DebugEntriesRequest(RequestMessage, PickleSerializer):
+class DebugEntriesReqMessage(RequestMessage, PickleSerializer):
     chan: Queue
 
 
 @dataclass
-class VersionRequest(RequestMessage, PickleSerializer):
+class VersionReqMessage(RequestMessage, PickleSerializer):
     chan: Queue

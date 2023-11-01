@@ -14,14 +14,14 @@ from .request_message import (
     ApplyConfigChangeForcelyReqMessage,
     ClusterBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
-    DebugEntriesRequest,
-    DebugNodeRequest,
+    DebugEntriesReqMessage,
+    DebugNodeReqMessage,
     MemberBootstrapReadyReqMessage,
     ProposeReqMessage,
     RaftReqMessage,
     RequestIdReqMessage,
     RerouteToLeaderReqMessage,
-    VersionRequest,
+    VersionReqMessage,
 )
 from .response_message import (
     IdReservedRespMessage,
@@ -281,7 +281,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         self, _request: raft_service_pb2.Empty, _context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.DebugNodeResponse:
         receiver: Queue = Queue()
-        await self.message_queue.put(DebugNodeRequest(receiver))
+        await self.message_queue.put(DebugNodeReqMessage(receiver))
         debug_info = await asyncio.wait_for(receiver.get(), 2)
         return raft_service_pb2.DebugNodeResponse(result=json.dumps(debug_info))
 
@@ -289,7 +289,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         self, _request: raft_service_pb2.Empty, _context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.DebugEntriesResponse:
         receiver: Queue = Queue()
-        await self.message_queue.put(DebugEntriesRequest(receiver))
+        await self.message_queue.put(DebugEntriesReqMessage(receiver))
         all_entries = await asyncio.wait_for(receiver.get(), 2)
         return raft_service_pb2.DebugEntriesResponse(result=json.dumps(all_entries))
 
@@ -297,6 +297,6 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         self, _request: raft_service_pb2.Empty, _context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.DebugNodeResponse:
         receiver: Queue = Queue()
-        await self.message_queue.put(VersionRequest(receiver))
+        await self.message_queue.put(VersionReqMessage(receiver))
         result = await asyncio.wait_for(receiver.get(), 2)
         return raft_service_pb2.VersionResponse(result=result)
