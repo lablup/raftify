@@ -39,7 +39,7 @@ class Peer:
 
     def to_dict(self) -> dict:
         return {
-            "client": self.client.to_dict() if self.client is not None else None,
+            "client": self.client.to_dict(),
             "addr": str(self.addr),
             "state": self.state,
         }

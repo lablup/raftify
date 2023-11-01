@@ -194,8 +194,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         self, request: eraftpb_pb2.ConfChangeV2, context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.ChangeConfigResponse:
         await self.confchange_req_queue.put((request, True))
-        res = await self.confchange_res_queue.get()
-        return res
+        return await self.confchange_res_queue.get()
 
     async def SendMessage(
         self, request: eraftpb_pb2.Message, context: grpc.aio.ServicerContext
@@ -291,8 +290,8 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
     ) -> raft_service_pb2.DebugEntriesResponse:
         receiver: Queue = Queue()
         await self.message_queue.put(DebugEntriesRequest(receiver))
-        debug_info = await asyncio.wait_for(receiver.get(), 2)
-        return raft_service_pb2.DebugEntriesResponse(result=json.dumps(debug_info))
+        all_entries = await asyncio.wait_for(receiver.get(), 2)
+        return raft_service_pb2.DebugEntriesResponse(result=json.dumps(all_entries))
 
     async def Version(
         self, _request: raft_service_pb2.Empty, _context: grpc.aio.ServicerContext
