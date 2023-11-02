@@ -12,18 +12,24 @@ def cli():
     pass
 
 
-@cli.command()
+@cli.group()
+def debug():
+    """Debugging commands"""
+    pass
+
+
+@debug.command(name='node')
 @click.argument('addr', type=str)
-async def debug(addr):
+async def debug_node(addr):
     addr = SocketAddr.from_str(addr)
     client = RaftClient(addr)
     res = await client.debug_node(timeout=5.0)
     print(format_raft_node_debugging_info(json.loads(res.result)))
 
 
-@cli.command()
+@debug.command(name='entries')
 @click.argument('addr', type=str)
-async def all_entries(addr):
+async def debug_entries(addr):
     addr = SocketAddr.from_str(addr)
     client = RaftClient(addr)
     res = await client.debug_entries(timeout=5.0)
