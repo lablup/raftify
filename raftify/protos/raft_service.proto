@@ -4,16 +4,16 @@ package raftservice;
 import "eraftpb.proto";
 
 service RaftService {
-  rpc MemberBootstrapReady(MemberBootstrapReadyArgs) returns (RaftMessageResponse) {}
-  rpc ClusterBootstrapReady(ClusterBootstrapReadyArgs) returns (RaftMessageResponse) {}
+  rpc MemberBootstrapReady(MemberBootstrapReadyArgs) returns (MemberBootstrapReadyResponse) {}
+  rpc ClusterBootstrapReady(ClusterBootstrapReadyArgs) returns (ClusterBootstrapReadyResponse) {}
   rpc RequestId(IdRequestArgs) returns (IdRequestResponse) {}
   rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
   rpc ApplyConfigChangeForcely(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
-  rpc SendMessage(eraftpb.Message) returns (RaftMessageResponse) {}
-  rpc Propose(ProposeArgs) returns (RaftMessageResponse) {}
-  rpc RerouteMessage(RerouteMessageArgs) returns (RaftMessageResponse) {}
+  rpc SendMessage(eraftpb.Message) returns (SendMessageResponse) {}
+  rpc Propose(ProposeArgs) returns (ProposeResponse) {}
+  rpc RerouteMessage(RerouteMessageArgs) returns (SendMessageResponse) {}
   rpc DebugNode(Empty) returns (DebugNodeResponse) {}
-  rpc DebugEntries(Empty) returns (DebugNodeResponse) {}
+  rpc DebugEntries(Empty) returns (DebugEntriesResponse) {}
   rpc Version(Empty) returns (VersionResponse) {}
 }
 
@@ -38,8 +38,16 @@ message MemberBootstrapReadyArgs {
   uint64 follower_id              = 1;
 }
 
+message MemberBootstrapReadyResponse {
+
+}
+
 message ClusterBootstrapReadyArgs {
   bytes peers                     = 1;
+}
+
+message ClusterBootstrapReadyResponse {
+
 }
 
 // Used in Propose
@@ -48,10 +56,14 @@ message ProposeArgs {
   bytes msg     = 1;
 }
 
+message ProposeResponse {
+  bytes msg     = 1;
+}
+
 // Used in SendMessage
 
-message RaftMessageResponse {
-  bytes data                     = 1;
+message SendMessageResponse {
+  bytes data = 1;
 }
 
 // Config Change

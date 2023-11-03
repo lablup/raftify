@@ -1,6 +1,7 @@
-import asyncclick as click
 import asyncio
 import json
+
+import asyncclick as click
 
 from .raft_client import RaftClient
 from .raft_utils import format_all_entries, format_raft_node_debugging_info
@@ -18,8 +19,8 @@ def debug():
     pass
 
 
-@debug.command(name='node')
-@click.argument('addr', type=str)
+@debug.command(name="node")
+@click.argument("addr", type=str)
 async def debug_node(addr):
     addr = SocketAddr.from_str(addr)
     client = RaftClient(addr)
@@ -27,8 +28,8 @@ async def debug_node(addr):
     print(format_raft_node_debugging_info(json.loads(res.result)))
 
 
-@debug.command(name='entries')
-@click.argument('addr', type=str)
+@debug.command(name="entries")
+@click.argument("addr", type=str)
 async def debug_entries(addr):
     addr = SocketAddr.from_str(addr)
     client = RaftClient(addr)
@@ -37,7 +38,7 @@ async def debug_entries(addr):
 
 
 @cli.command()
-@click.argument('addr', type=str)
+@click.argument("addr", type=str)
 async def version(addr):
     addr = SocketAddr.from_str(addr)
     client = RaftClient(addr)

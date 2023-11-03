@@ -11,6 +11,7 @@ class RequestMessage(metaclass=abc.ABCMeta):
     """
     RequestMessages are passed from the RaftServer to the RaftNode via message_queue.
     """
+
     pass
 
 
@@ -33,10 +34,8 @@ class ClusterBootstrapReadyReqMessage(RequestMessage, PickleSerializer):
 
 
 @dataclass
-class RerouteToLeaderReqMessage(RequestMessage, PickleSerializer):
-    proposed_data: Optional[bytes]
-    conf_change: Optional[eraftpb_pb2.ConfChangeV2]
-    type: raft_service_pb2.RerouteMsgType
+class RequestIdReqMessage(RequestMessage, PickleSerializer):
+    addr: str
     chan: Queue
 
 
@@ -47,14 +46,16 @@ class ConfigChangeReqMessage(RequestMessage, PickleSerializer):
 
 
 @dataclass
-class ApplyConfigChangeForcelyReqMessage(RequestMessage, PickleSerializer):
-    conf_change: eraftpb_pb2.ConfChangeV2
+class RerouteToLeaderReqMessage(RequestMessage, PickleSerializer):
+    proposed_data: Optional[bytes]
+    conf_change: Optional[eraftpb_pb2.ConfChangeV2]
+    type: raft_service_pb2.RerouteMsgType
     chan: Queue
 
 
 @dataclass
-class RequestIdReqMessage(RequestMessage, PickleSerializer):
-    addr: str
+class ApplyConfigChangeForcelyReqMessage(RequestMessage, PickleSerializer):
+    conf_change: eraftpb_pb2.ConfChangeV2
     chan: Queue
 
 

@@ -66,11 +66,19 @@ class MemberBootstrapReadyArgs(_message.Message):
     follower_id: int
     def __init__(self, follower_id: _Optional[int] = ...) -> None: ...
 
+class MemberBootstrapReadyResponse(_message.Message):
+    __slots__ = []
+    def __init__(self) -> None: ...
+
 class ClusterBootstrapReadyArgs(_message.Message):
     __slots__ = ["peers"]
     PEERS_FIELD_NUMBER: _ClassVar[int]
     peers: bytes
     def __init__(self, peers: _Optional[bytes] = ...) -> None: ...
+
+class ClusterBootstrapReadyResponse(_message.Message):
+    __slots__ = []
+    def __init__(self) -> None: ...
 
 class ProposeArgs(_message.Message):
     __slots__ = ["msg"]
@@ -78,7 +86,13 @@ class ProposeArgs(_message.Message):
     msg: bytes
     def __init__(self, msg: _Optional[bytes] = ...) -> None: ...
 
-class RaftMessageResponse(_message.Message):
+class ProposeResponse(_message.Message):
+    __slots__ = ["msg"]
+    MSG_FIELD_NUMBER: _ClassVar[int]
+    msg: bytes
+    def __init__(self, msg: _Optional[bytes] = ...) -> None: ...
+
+class SendMessageResponse(_message.Message):
     __slots__ = ["data"]
     DATA_FIELD_NUMBER: _ClassVar[int]
     data: bytes

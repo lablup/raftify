@@ -20,7 +20,7 @@ class RaftClient:
     ):
         self.addr = addr
         self.credentials = credentials
-        self.first_failed_time = None
+        self.first_failed_time: Optional[float] = None
 
     def __repr__(self) -> str:
         return f"RaftClient(addr={self.addr})"
@@ -68,7 +68,7 @@ class RaftClient:
 
     async def send_message(
         self, msg: Message, timeout: float
-    ) -> raft_service_pb2.RaftMessageResponse:
+    ) -> raft_service_pb2.SendMessageResponse:
         """
         Request to send a message to the cluster.
         """
@@ -81,7 +81,7 @@ class RaftClient:
 
     async def propose(
         self, data: bytes, timeout: float
-    ) -> raft_service_pb2.RaftMessageResponse:
+    ) -> raft_service_pb2.ProposeResponse:
         """
         Request to send a propose to the cluster.
         """
@@ -105,7 +105,7 @@ class RaftClient:
 
     async def member_bootstrap_ready(
         self, follower_id: int, timeout: float
-    ) -> raft_service_pb2.RaftMessageResponse:
+    ) -> raft_service_pb2.MemberBootstrapReadyResponse:
         """
         Request to notify that a follower is ready to bootstrap.
         From follower to leader.
@@ -124,7 +124,7 @@ class RaftClient:
 
     async def cluster_bootstrap_ready(
         self, peers: bytes, timeout: float
-    ) -> raft_service_pb2.RaftMessageResponse:
+    ) -> raft_service_pb2.ClusterBootstrapReadyResponse:
         """
         Request to notify that a leader is ready to bootstrap the cluster.
         From leader to follower.
@@ -145,7 +145,7 @@ class RaftClient:
         timeout: float,
         msg_bytes: Optional[bytes] = None,
         conf_change: Optional[eraftpb_pb2.ConfChangeV2] = None,
-    ) -> raft_service_pb2.RaftMessageResponse:
+    ) -> raft_service_pb2.SendMessageResponse:
         """
         Request to reroute a message to the leader.
         """

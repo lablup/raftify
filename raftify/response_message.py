@@ -11,6 +11,7 @@ class ResponseMessage(metaclass=abc.ABCMeta):
     Note that ResponseMessage must be passed to prevent a TimeoutError,
     although the timing of its delivery varies depending on the type of message.
     """
+
     pass
 
 
@@ -44,7 +45,22 @@ class RaftErrorRespMessage(ResponseMessage, PickleSerializer):
 
 
 @dataclass
-class RaftOkRespMessage(ResponseMessage, PickleSerializer):
+class ClusterBootstrapReadyRespMessage(ResponseMessage, PickleSerializer):
+    pass
+
+
+@dataclass
+class SendMessageRespMessage(ResponseMessage, PickleSerializer):
+    pass
+
+
+@dataclass
+class MemberBootstrapReadyRespMessage(ResponseMessage, PickleSerializer):
+    pass
+
+
+@dataclass
+class ConfChangeSuccessRespMessage(ResponseMessage, PickleSerializer):
     pass
 
 
@@ -56,3 +72,8 @@ class DebugNodeResponse(ResponseMessage, PickleSerializer):
 @dataclass
 class DebugEntriesResponse(ResponseMessage, PickleSerializer):
     result: dict
+
+
+@dataclass
+class VersionResponse(ResponseMessage, PickleSerializer):
+    result: str

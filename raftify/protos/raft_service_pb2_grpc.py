@@ -19,12 +19,12 @@ class RaftServiceStub(object):
         self.MemberBootstrapReady = channel.unary_unary(
             "/raftservice.RaftService/MemberBootstrapReady",
             request_serializer=raft__service__pb2.MemberBootstrapReadyArgs.SerializeToString,
-            response_deserializer=raft__service__pb2.RaftMessageResponse.FromString,
+            response_deserializer=raft__service__pb2.MemberBootstrapReadyResponse.FromString,
         )
         self.ClusterBootstrapReady = channel.unary_unary(
             "/raftservice.RaftService/ClusterBootstrapReady",
             request_serializer=raft__service__pb2.ClusterBootstrapReadyArgs.SerializeToString,
-            response_deserializer=raft__service__pb2.RaftMessageResponse.FromString,
+            response_deserializer=raft__service__pb2.ClusterBootstrapReadyResponse.FromString,
         )
         self.RequestId = channel.unary_unary(
             "/raftservice.RaftService/RequestId",
@@ -44,17 +44,17 @@ class RaftServiceStub(object):
         self.SendMessage = channel.unary_unary(
             "/raftservice.RaftService/SendMessage",
             request_serializer=eraftpb__pb2.Message.SerializeToString,
-            response_deserializer=raft__service__pb2.RaftMessageResponse.FromString,
+            response_deserializer=raft__service__pb2.SendMessageResponse.FromString,
         )
         self.Propose = channel.unary_unary(
             "/raftservice.RaftService/Propose",
             request_serializer=raft__service__pb2.ProposeArgs.SerializeToString,
-            response_deserializer=raft__service__pb2.RaftMessageResponse.FromString,
+            response_deserializer=raft__service__pb2.ProposeResponse.FromString,
         )
         self.RerouteMessage = channel.unary_unary(
             "/raftservice.RaftService/RerouteMessage",
             request_serializer=raft__service__pb2.RerouteMessageArgs.SerializeToString,
-            response_deserializer=raft__service__pb2.RaftMessageResponse.FromString,
+            response_deserializer=raft__service__pb2.SendMessageResponse.FromString,
         )
         self.DebugNode = channel.unary_unary(
             "/raftservice.RaftService/DebugNode",
@@ -148,12 +148,12 @@ def add_RaftServiceServicer_to_server(servicer, server):
         "MemberBootstrapReady": grpc.unary_unary_rpc_method_handler(
             servicer.MemberBootstrapReady,
             request_deserializer=raft__service__pb2.MemberBootstrapReadyArgs.FromString,
-            response_serializer=raft__service__pb2.RaftMessageResponse.SerializeToString,
+            response_serializer=raft__service__pb2.MemberBootstrapReadyResponse.SerializeToString,
         ),
         "ClusterBootstrapReady": grpc.unary_unary_rpc_method_handler(
             servicer.ClusterBootstrapReady,
             request_deserializer=raft__service__pb2.ClusterBootstrapReadyArgs.FromString,
-            response_serializer=raft__service__pb2.RaftMessageResponse.SerializeToString,
+            response_serializer=raft__service__pb2.ClusterBootstrapReadyResponse.SerializeToString,
         ),
         "RequestId": grpc.unary_unary_rpc_method_handler(
             servicer.RequestId,
@@ -173,17 +173,17 @@ def add_RaftServiceServicer_to_server(servicer, server):
         "SendMessage": grpc.unary_unary_rpc_method_handler(
             servicer.SendMessage,
             request_deserializer=eraftpb__pb2.Message.FromString,
-            response_serializer=raft__service__pb2.RaftMessageResponse.SerializeToString,
+            response_serializer=raft__service__pb2.SendMessageResponse.SerializeToString,
         ),
         "Propose": grpc.unary_unary_rpc_method_handler(
             servicer.Propose,
             request_deserializer=raft__service__pb2.ProposeArgs.FromString,
-            response_serializer=raft__service__pb2.RaftMessageResponse.SerializeToString,
+            response_serializer=raft__service__pb2.ProposeResponse.SerializeToString,
         ),
         "RerouteMessage": grpc.unary_unary_rpc_method_handler(
             servicer.RerouteMessage,
             request_deserializer=raft__service__pb2.RerouteMessageArgs.FromString,
-            response_serializer=raft__service__pb2.RaftMessageResponse.SerializeToString,
+            response_serializer=raft__service__pb2.SendMessageResponse.SerializeToString,
         ),
         "DebugNode": grpc.unary_unary_rpc_method_handler(
             servicer.DebugNode,
@@ -229,7 +229,7 @@ class RaftService(object):
             target,
             "/raftservice.RaftService/MemberBootstrapReady",
             raft__service__pb2.MemberBootstrapReadyArgs.SerializeToString,
-            raft__service__pb2.RaftMessageResponse.FromString,
+            raft__service__pb2.MemberBootstrapReadyResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -258,7 +258,7 @@ class RaftService(object):
             target,
             "/raftservice.RaftService/ClusterBootstrapReady",
             raft__service__pb2.ClusterBootstrapReadyArgs.SerializeToString,
-            raft__service__pb2.RaftMessageResponse.FromString,
+            raft__service__pb2.ClusterBootstrapReadyResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -374,7 +374,7 @@ class RaftService(object):
             target,
             "/raftservice.RaftService/SendMessage",
             eraftpb__pb2.Message.SerializeToString,
-            raft__service__pb2.RaftMessageResponse.FromString,
+            raft__service__pb2.SendMessageResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -403,7 +403,7 @@ class RaftService(object):
             target,
             "/raftservice.RaftService/Propose",
             raft__service__pb2.ProposeArgs.SerializeToString,
-            raft__service__pb2.RaftMessageResponse.FromString,
+            raft__service__pb2.ProposeResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -432,7 +432,7 @@ class RaftService(object):
             target,
             "/raftservice.RaftService/RerouteMessage",
             raft__service__pb2.RerouteMessageArgs.SerializeToString,
-            raft__service__pb2.RaftMessageResponse.FromString,
+            raft__service__pb2.SendMessageResponse.FromString,
             options,
             channel_credentials,
             insecure,

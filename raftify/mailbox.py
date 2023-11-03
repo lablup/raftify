@@ -11,7 +11,7 @@ from .protos import eraftpb_pb2, raft_service_pb2
 from .raft_node import RaftNode
 from .request_message import ConfigChangeReqMessage, ProposeReqMessage
 from .response_message import (
-    RaftOkRespMessage,
+    ClusterBootstrapReadyRespMessage,
     RaftRespMessage,
     ResponseMessage,
     WrongLeaderRespMessage,
@@ -38,7 +38,7 @@ class Mailbox:
         proposed_data: Optional[bytes] = None,
         conf_change: Optional[eraftpb_pb2.ConfChangeV2] = None,
     ) -> Optional[bytes]:
-        if isinstance(response, RaftOkRespMessage):
+        if isinstance(response, ClusterBootstrapReadyRespMessage):
             return None
         if isinstance(response, RaftRespMessage):
             return response.data
@@ -57,7 +57,7 @@ class Mailbox:
                 timeout=self.raftify_config.message_timeout,
             )
 
-            if isinstance(resp_from_leader, raft_service_pb2.RaftMessageResponse):
+            if isinstance(resp_from_leader, raft_service_pb2.SendMessageResponse):
                 return resp_from_leader.data
             else:
                 # TODO: handle this case. The leader might change in the meanwhile.

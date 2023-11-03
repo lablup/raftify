@@ -49,9 +49,11 @@ from .request_message import (
     VersionReqMessage,
 )
 from .response_message import (
+    ClusterBootstrapReadyRespMessage,
+    ConfChangeSuccessRespMessage,
     IdReservedRespMessage,
     JoinSuccessRespMessage,
-    RaftOkRespMessage,
+    MemberBootstrapReadyRespMessage,
     RaftRespMessage,
     ResponseMessage,
     WrongLeaderRespMessage,
@@ -277,6 +279,7 @@ class RaftNode:
         if failed_client.first_failed_time is None:
             failed_client.first_failed_time = time.time()
 
+        assert failed_client.first_failed_time is not None
         elapsed = time.time() - failed_client.first_failed_time
 
         return round(elapsed, 4)
@@ -525,7 +528,7 @@ class RaftNode:
                         assigned_id=node_id, peers=self.peers.encode()
                     )
                 case ConfChangeType.RemoveNode:
-                    response = RaftOkRespMessage()
+                    response = ConfChangeSuccessRespMessage()
                 case _:
                     raise NotImplementedError
 
@@ -579,7 +582,7 @@ class RaftNode:
                 for node_id, peer in self.peers.data.items():
                     peers.connect(node_id, peer.addr)
 
-                message.chan.put_nowait(RaftOkRespMessage())
+                message.chan.put_nowait(ClusterBootstrapReadyRespMessage())
                 self.bootstrap_done = True
 
             elif isinstance(message, MemberBootstrapReadyReqMessage):
@@ -587,7 +590,7 @@ class RaftNode:
                 follower_id = message.follower_id
                 self.logger.info(f"Node {follower_id} request to join the cluster.")
                 self.peers.connect(follower_id, self.peers[follower_id].addr)
-                message.chan.put_nowait(RaftOkRespMessage())
+                message.chan.put_nowait(MemberBootstrapReadyRespMessage())
 
             elif isinstance(message, ConfigChangeReqMessage):
                 if not self.is_leader():
@@ -651,7 +654,7 @@ class RaftNode:
                     raise
 
                 self.raw_node.apply_conf_change_v2(conf_change_v2)
-                message.chan.put_nowait(RaftOkRespMessage())
+                message.chan.put_nowait(ConfChangeSuccessRespMessage())
 
                 changes = conf_change_v2.get_changes()
                 for change in changes:
