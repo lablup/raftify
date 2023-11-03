@@ -1,4 +1,3 @@
-import argparse
 import asyncio
 import json
 import logging
@@ -7,6 +6,7 @@ import pickle
 from pathlib import Path
 from threading import Lock
 from typing import Optional, cast
+import argparse
 
 import colorlog
 import tomli
@@ -198,56 +198,13 @@ async def unstable(request: web.Request) -> web.Response:
 
 
 class Impl(RaftifyContext):
-    async def add_member(self, raft_addr, web_server_addr) -> bytes:
+    def __init__(self) -> None:
+        super().__init__()
         init_rraft_py_deserializer()
-        peer_addrs = load_peer_candidates()
 
-        store = HashStore()
+    async def bootstrap_cluster(self, args):
+        web_server_addr = args[0]
 
-        target_addr = raft_addr
-
-        cfg = RaftifyConfig(
-            log_dir="./logs",
-            raft_config=RaftifyConfig.new_raft_config(
-                {
-                    "election_tick": 10,
-                    "heartbeat_tick": 3,
-                }
-            ),
-        )
-
-        raft = RaftFacade(cfg, target_addr, store, slog, logger)
-        tasks = []
-
-        request_id_resp = await raft.request_id(raft_addr, peer_addrs)
-        raft.run_raft(request_id_resp.follower_id)
-        logger.info("Running in follower mode")
-        await raft.join_cluster(request_id_resp)
-
-        tasks.append(raft.wait_for_termination())
-
-        app_runner = None
-        if web_server_addr:
-            app = Application()
-            app.add_routes(routes)
-            app["state"] = {"raft": raft}
-
-            host, port = web_server_addr.split(":")
-            app_runner = web.AppRunner(app)
-            await app_runner.setup()
-            web_server = web.TCPSite(app_runner, host, port)
-            tasks.append(web_server.start())
-
-        try:
-            await asyncio.gather(*tasks)
-        finally:
-            if app_runner:
-                await app_runner.cleanup()
-                await app_runner.shutdown()
-            pass
-
-    async def bootstrap_cluster(self, web_server_addr):
-        init_rraft_py_deserializer()
         peer_addrs = load_peer_candidates()
 
         store = HashStore()
@@ -295,80 +252,61 @@ class Impl(RaftifyContext):
     async def bootstrap_member(self, args):
         raise NotImplementedError
 
+    async def add_member(self, args) -> bytes:
+        parser = argparse.ArgumentParser()
+        # TODO: How can we handle this??
+        parser.add_argument('addr', help='First option')
+        parser.add_argument('--raft-addr', help='First option')
+        parser.add_argument('--web-server', help='Second option')
+        args = parser.parse_args()
 
-async def main() -> None:
-    init_rraft_py_deserializer()
+        raft_addr = (
+            SocketAddr.from_str(args.raft_addr) if args.raft_addr is not None else None
+        )
+        web_server_addr = args.web_server
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--bootstrap", action=argparse.BooleanOptionalAction, default=None
-    )
-    parser.add_argument("--raft-addr", default=None)
-    parser.add_argument("--web-server", default=None)
+        peer_addrs = load_peer_candidates()
 
-    args = parser.parse_args()
+        store = HashStore()
 
-    bootstrap = args.bootstrap
-    raft_addr = (
-        SocketAddr.from_str(args.raft_addr) if args.raft_addr is not None else None
-    )
-    web_server_addr = args.web_server
+        target_addr = raft_addr
 
-    peer_addrs = load_peer_candidates()
+        cfg = RaftifyConfig(
+            log_dir="./logs",
+            raft_config=RaftifyConfig.new_raft_config(
+                {
+                    "election_tick": 10,
+                    "heartbeat_tick": 3,
+                }
+            ),
+        )
 
-    store = HashStore()
-
-    target_addr = peer_addrs[0] if bootstrap and not raft_addr else raft_addr
-
-    cfg = RaftifyConfig(
-        log_dir="./logs",
-        raft_config=RaftifyConfig.new_raft_config(
-            {
-                "election_tick": 10,
-                "heartbeat_tick": 3,
-            }
-        ),
-    )
-
-    raft = RaftFacade(cfg, target_addr, store, slog, logger)
-    tasks = []
-
-    if bootstrap:
-        logger.info("Bootstrap a Raft Cluster")
-        node_id = 1
-        raft.run_raft(node_id)
-    else:
-        assert (
-            raft_addr is not None
-        ), "Follower node requires a --raft-addr option to join the cluster"
+        raft = RaftFacade(cfg, target_addr, store, slog, logger)
+        tasks = []
 
         request_id_resp = await raft.request_id(raft_addr, peer_addrs)
         raft.run_raft(request_id_resp.follower_id)
         logger.info("Running in follower mode")
         await raft.join_cluster(request_id_resp)
 
-    tasks.append(raft.wait_for_termination())
+        tasks.append(raft.wait_for_termination())
 
-    app_runner = None
-    if web_server_addr:
-        app = Application()
-        app.add_routes(routes)
-        app["state"] = {"raft": raft}
+        app_runner = None
+        if web_server_addr:
+            app = Application()
+            app.add_routes(routes)
+            app["state"] = {"raft": raft}
 
-        host, port = web_server_addr.split(":")
-        app_runner = web.AppRunner(app)
-        await app_runner.setup()
-        web_server = web.TCPSite(app_runner, host, port)
-        tasks.append(web_server.start())
+            host, port = web_server_addr.split(":")
+            app_runner = web.AppRunner(app)
+            await app_runner.setup()
+            web_server = web.TCPSite(app_runner, host, port)
+            tasks.append(web_server.start())
 
-    try:
-        await asyncio.gather(*tasks)
-    finally:
-        if app_runner:
-            await app_runner.cleanup()
-            await app_runner.shutdown()
-
-
-# if __name__ == "__main__":
-#     with suppress(KeyboardInterrupt):
-#         asyncio.run(main())
+        try:
+            await asyncio.gather(*tasks)
+        finally:
+            if app_runner:
+                await app_runner.cleanup()
+                await app_runner.shutdown()
+            pass

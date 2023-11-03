@@ -45,7 +45,9 @@ def debug():
     pass
 
 
-@cli.group()
+@cli.group(context_settings=dict(
+    ignore_unknown_options=True,
+))
 def member():
     """Cluster membership commands"""
     pass
@@ -73,7 +75,7 @@ def load_user_implementation(module_path):
 
 @cli.command(name="bootstrap-cluster")
 @click.argument("module_pth", type=str)
-@click.argument("args")
+@click.argument("args", nargs=-1)
 async def bootstrap_cluster(module_pth, args):
     # TODO: Exclude asyncio.CancelledError exception from suppress
     with suppress(KeyboardInterrupt, asyncio.CancelledError):
@@ -81,15 +83,16 @@ async def bootstrap_cluster(module_pth, args):
         await user_impl.bootstrap_cluster(args)
 
 
-@member.command(name="add")
+@member.command(name="add", context_settings=dict(
+    ignore_unknown_options=True,
+))
 @click.argument("module_pth", type=str)
-@click.argument("arg1")
-@click.argument("arg2")
-async def add_member(module_pth, arg1, arg2):
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
+async def add_member(module_pth, args):
     # TODO: Exclude asyncio.CancelledError exception from suppress
     with suppress(KeyboardInterrupt, asyncio.CancelledError):
         user_impl = load_user_implementation(module_pth)
-        await user_impl.add_member(arg1, arg2)
+        await user_impl.add_member(args)
 
 
 @member.command(name="remove")
