@@ -53,6 +53,22 @@ def member():
     pass
 
 
+def parse_args(args):
+    options = {}
+    arguments = []
+
+    iter_args = iter(args)
+    for arg in iter_args:
+        if arg.startswith('--'):
+            # Assume the format is --option=value
+            option, value = arg[2:].split('=', 1)
+            options[option] = value
+        else:
+            arguments.append(arg)
+
+    return arguments, options
+
+
 def load_module_from_path(path):
     spec = importlib.util.spec_from_file_location("module.name", path)
     module = importlib.util.module_from_spec(spec)
@@ -89,6 +105,8 @@ async def bootstrap_cluster(module_pth, args):
 @click.argument("module_pth", type=str)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 async def add_member(module_pth, args):
+    options, arg_list = parse_args(args)
+
     # TODO: Exclude asyncio.CancelledError exception from suppress
     with suppress(KeyboardInterrupt, asyncio.CancelledError):
         user_impl = load_user_implementation(module_pth)

@@ -253,13 +253,6 @@ class Impl(RaftifyContext):
         raise NotImplementedError
 
     async def add_member(self, args) -> bytes:
-        parser = argparse.ArgumentParser()
-        # TODO: How can we handle this??
-        parser.add_argument('addr', help='First option')
-        parser.add_argument('--raft-addr', help='First option')
-        parser.add_argument('--web-server', help='Second option')
-        args = parser.parse_args()
-
         raft_addr = (
             SocketAddr.from_str(args.raft_addr) if args.raft_addr is not None else None
         )
