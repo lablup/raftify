@@ -59,15 +59,30 @@ def member():
 
 
 def common_member_options(func):
-    @click.option('-p', '--module-path', 'module_path', type=str, required=False, help='The path to the module.')
-    @click.option('-m', '--module-name', 'module_name', type=str, required=False, help='The name of the module.')
+    @click.option(
+        "-p",
+        "--path",
+        "module_path",
+        type=str,
+        required=False,
+        help="The path to the module.",
+    )
+    @click.option(
+        "-m",
+        "--module",
+        "module_name",
+        type=str,
+        required=False,
+        help="The name of the module.",
+    )
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         return await func(*args, **kwargs)
+
     return wrapper
 
 
-def parse_args(args):
+def raw_parse_args(args):
     options = {}
     arguments = []
 
@@ -140,7 +155,7 @@ def load_user_implementation(module_path, module_name):
 @common_member_options
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 async def bootstrap_cluster(module_path, module_name, args):
-    arg_list, options = parse_args(args)
+    arg_list, options = raw_parse_args(args)
 
     # TODO: Exclude asyncio.CancelledError exception from suppress
     with suppress(KeyboardInterrupt, asyncio.CancelledError):
@@ -157,7 +172,7 @@ async def bootstrap_cluster(module_path, module_name, args):
 @common_member_options
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 async def bootstrap_follower(module_path, module_name, args):
-    arg_list, options = parse_args(args)
+    arg_list, options = raw_parse_args(args)
 
     # TODO: Exclude asyncio.CancelledError exception from suppress
     with suppress(KeyboardInterrupt, asyncio.CancelledError):
@@ -174,7 +189,7 @@ async def bootstrap_follower(module_path, module_name, args):
 @common_member_options
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 async def add_member(module_path, module_name, args):
-    arg_list, options = parse_args(args)
+    arg_list, options = raw_parse_args(args)
 
     # TODO: Exclude asyncio.CancelledError exception from suppress
     with suppress(KeyboardInterrupt, asyncio.CancelledError):
