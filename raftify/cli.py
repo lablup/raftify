@@ -2,6 +2,8 @@ import abc
 import asyncio
 import importlib
 import json
+import os
+import sys
 from contextlib import suppress
 
 import asyncclick as click
@@ -83,9 +85,17 @@ def load_module_from_name(module_name):
 
 
 def load_module_from_path(module_path):
-    spec = importlib.util.spec_from_file_location("__raftify-cli.mock", module_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    module_name = os.path.basename(module_path).rsplit(".", 1)[0]
+    module_dir = os.path.dirname(os.path.abspath(module_path))
+    parent_dir, basic_dir = os.path.split(module_dir)
+
+    sys.path.insert(0, parent_dir)
+
+    full_package_name = f"{basic_dir}.{module_name}"
+    module = importlib.import_module(full_package_name)
+
+    sys.path.pop(0)
+
     return module
 
 
