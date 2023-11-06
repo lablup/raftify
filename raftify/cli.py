@@ -127,12 +127,11 @@ def load_user_implementation(module_path, module_name):
         ignore_unknown_options=True,
     ),
 )
+@click.option("--module-path", "--path", "module_path", type=str, help="The path to the module.")
+@click.option("--module-name", "--name", "module_name", type=str, help="The name of the module.")
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
-async def bootstrap_cluster(args):
+async def bootstrap_cluster(module_path, module_name, args):
     arg_list, options = parse_args(args)
-
-    module_path = options.get("module_path", None)
-    module_name = options.get("module_name", None)
 
     # TODO: Exclude asyncio.CancelledError exception from suppress
     with suppress(KeyboardInterrupt, asyncio.CancelledError):
@@ -146,12 +145,11 @@ async def bootstrap_cluster(args):
         ignore_unknown_options=True,
     ),
 )
+@click.option("--module-path", "--path", "module_path", type=str, help="The path to the module.")
+@click.option("--module-name", "--name", "module_name", type=str, help="The name of the module.")
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
-async def bootstrap_follower(args):
+async def bootstrap_follower(module_path, module_name, args):
     arg_list, options = parse_args(args)
-
-    module_path = options.get("module_path", None)
-    module_name = options.get("module_name", None)
 
     # TODO: Exclude asyncio.CancelledError exception from suppress
     with suppress(KeyboardInterrupt, asyncio.CancelledError):
@@ -165,12 +163,11 @@ async def bootstrap_follower(args):
         ignore_unknown_options=True,
     ),
 )
+@click.option("--module-path", "--path", "module_path", type=str, help="The path to the module.")
+@click.option("--module-name", "--name", "module_name", type=str, help="The name of the module.")
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
-async def add_member(args):
+async def add_member(module_path, module_name, args):
     arg_list, options = parse_args(args)
-
-    module_path = options.get("module_path", None)
-    module_name = options.get("module_name", None)
 
     # TODO: Exclude asyncio.CancelledError exception from suppress
     with suppress(KeyboardInterrupt, asyncio.CancelledError):
