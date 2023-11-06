@@ -1,13 +1,24 @@
-import logging
 import pickle
 from typing import Optional
 
-from harness.log import SetCommand
-
-import raftify
+from .abc import AbstractStateMachine
 
 
-class HashStore(raftify.FSM):
+class SetCommand:
+    def __init__(self, key: str, value: str) -> None:
+        self.key = key
+        self.value = value
+
+    def encode(self) -> bytes:
+        return pickle.dumps(self.__dict__)
+
+    @classmethod
+    def decode(cls, packed: bytes) -> "SetCommand":
+        unpacked = pickle.loads(packed)
+        return cls(unpacked["key"], unpacked["value"])
+
+
+class HashStore(AbstractStateMachine):
     def __init__(self):
         self._store = dict()
 
@@ -20,7 +31,6 @@ class HashStore(raftify.FSM):
     async def apply(self, msg: bytes) -> bytes:
         message = SetCommand.decode(msg)
         self._store[message.key] = message.value
-        logging.info(f'SetCommand inserted: ({message.key}, "{message.value}")')
         return pickle.dumps(message.value)
 
     async def snapshot(self) -> bytes:

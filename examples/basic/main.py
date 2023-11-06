@@ -4,8 +4,7 @@ import logging
 import os
 import pickle
 from pathlib import Path
-from threading import Lock
-from typing import Optional, cast
+from typing import cast
 
 import colorlog
 import tomli
@@ -17,9 +16,9 @@ from rraft import default_logger
 from raftify.cli import AbstractRaftifyCLIContext
 from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
-from raftify.fsm import FSM
 from raftify.peers import Peer, Peers
 from raftify.raft_facade import RaftFacade
+from raftify.state_machine.hashstore import HashStore, SetCommand
 from raftify.utils import SocketAddr
 
 
@@ -63,48 +62,6 @@ def load_peers() -> Peers:
 slog = setup_slog()
 logger = setup_logger()
 routes = RouteTableDef()
-
-
-class SetCommand:
-    def __init__(self, key: str, value: str) -> None:
-        self.key = key
-        self.value = value
-
-    def encode(self) -> bytes:
-        return pickle.dumps(self.__dict__)
-
-    @classmethod
-    def decode(cls, packed: bytes) -> "SetCommand":
-        unpacked = pickle.loads(packed)
-        return cls(unpacked["key"], unpacked["value"])
-
-
-class HashStore(FSM):
-    def __init__(self):
-        self._store = dict()
-        self._lock = Lock()
-
-    def get(self, key: str) -> Optional[str]:
-        with self._lock:
-            return self._store.get(key)
-
-    def as_dict(self) -> dict:
-        return self._store
-
-    async def apply(self, msg: bytes) -> bytes:
-        with self._lock:
-            message = SetCommand.decode(msg)
-            self._store[message.key] = message.value
-            logging.info(f'SetCommand inserted: ({message.key}, "{message.value}")')
-            return pickle.dumps(message.value)
-
-    async def snapshot(self) -> bytes:
-        with self._lock:
-            return pickle.dumps(self._store)
-
-    async def restore(self, snapshot: bytes) -> None:
-        with self._lock:
-            self._store = pickle.loads(snapshot)
 
 
 @routes.get("/get/{id}")
