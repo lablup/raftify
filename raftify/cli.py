@@ -22,7 +22,7 @@ class AbstractRaftifyCLIContext(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def bootstrap_member(self, args, options):
+    async def bootstrap_follower(self, args, options):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -83,7 +83,7 @@ def load_module_from_name(module_name):
 
 
 def load_module_from_path(module_path):
-    spec = importlib.util.spec_from_file_location("module.name", module_path)
+    spec = importlib.util.spec_from_file_location("__raftify-cli.mock", module_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -128,6 +128,25 @@ async def bootstrap_cluster(args):
     with suppress(KeyboardInterrupt, asyncio.CancelledError):
         user_impl = load_user_implementation(module_path, module_name)
         await user_impl.bootstrap_cluster(arg_list, options)
+
+
+@cli.command(
+    name="bootstrap-follower",
+    context_settings=dict(
+        ignore_unknown_options=True,
+    ),
+)
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
+async def bootstrap_follower(args):
+    arg_list, options = parse_args(args)
+
+    module_path = options.get("module_path", None)
+    module_name = options.get("module_name", None)
+
+    # TODO: Exclude asyncio.CancelledError exception from suppress
+    with suppress(KeyboardInterrupt, asyncio.CancelledError):
+        user_impl = load_user_implementation(module_path, module_name)
+        await user_impl.bootstrap_follower(arg_list, options)
 
 
 @member.command(
