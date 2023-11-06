@@ -1,5 +1,6 @@
 import abc
 import asyncio
+import functools
 import importlib
 import json
 import os
@@ -55,6 +56,15 @@ def debug():
 def member():
     """Cluster membership commands"""
     pass
+
+
+def common_member_options(func):
+    @click.option('-p', '--module-path', 'module_path', type=str, required=False, help='The path to the module.')
+    @click.option('-m', '--module-name', 'module_name', type=str, required=False, help='The name of the module.')
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        return await func(*args, **kwargs)
+    return wrapper
 
 
 def parse_args(args):
@@ -127,8 +137,7 @@ def load_user_implementation(module_path, module_name):
         ignore_unknown_options=True,
     ),
 )
-@click.option("--module-path", "--path", "module_path", type=str, help="The path to the module.")
-@click.option("--module-name", "--name", "module_name", type=str, help="The name of the module.")
+@common_member_options
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 async def bootstrap_cluster(module_path, module_name, args):
     arg_list, options = parse_args(args)
@@ -145,8 +154,7 @@ async def bootstrap_cluster(module_path, module_name, args):
         ignore_unknown_options=True,
     ),
 )
-@click.option("--module-path", "--path", "module_path", type=str, help="The path to the module.")
-@click.option("--module-name", "--name", "module_name", type=str, help="The name of the module.")
+@common_member_options
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 async def bootstrap_follower(module_path, module_name, args):
     arg_list, options = parse_args(args)
@@ -163,8 +171,7 @@ async def bootstrap_follower(module_path, module_name, args):
         ignore_unknown_options=True,
     ),
 )
-@click.option("--module-path", "--path", "module_path", type=str, help="The path to the module.")
-@click.option("--module-name", "--name", "module_name", type=str, help="The name of the module.")
+@common_member_options
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 async def add_member(module_path, module_name, args):
     arg_list, options = parse_args(args)
@@ -176,8 +183,7 @@ async def add_member(module_path, module_name, args):
 
 
 @member.command(name="remove")
-@click.argument("module_pth", type=str)
-@click.argument("args")
+@common_member_options
 async def remove_member():
     # TODO: Implement this (default)
     pass
