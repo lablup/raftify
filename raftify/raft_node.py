@@ -705,7 +705,7 @@ class RaftNode:
                     self.raw_node.step(msg)
                 except rraft.StepPeerNotFoundError:
                     self.logger.warning(
-                        f"StepPeerNotFoundError occurred. Ignore this message if RemoveNode happend, Message: {msg}"
+                        f"StepPeerNotFoundError occurred. Ignore this message if RemoveNode happened, Message: {msg}"
                     )
                     continue
                 except rraft.StepLocalMsgError:
@@ -748,7 +748,7 @@ class RaftNode:
         snapshot_default = Snapshot.default()
         if ready.snapshot() != snapshot_default.make_ref():
             snapshot = ready.snapshot()
-            self.logger.info("Restoring AbstractStateMachine from the snapshot...")
+            self.logger.info("Restoring FSM from the snapshot...")
             await self.fsm.restore(snapshot.get_data())
             self.lmdb.apply_snapshot(snapshot.clone())
 
