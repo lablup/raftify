@@ -3,7 +3,6 @@ import asyncio
 import functools
 import importlib
 import json
-import os
 import sys
 from contextlib import suppress
 
@@ -62,6 +61,7 @@ def common_member_options(func):
     @click.option(
         "-p",
         "--path",
+        "--module-path",
         "module_path",
         type=str,
         required=False,
@@ -70,6 +70,7 @@ def common_member_options(func):
     @click.option(
         "-m",
         "--module",
+        "--module-name",
         "module_name",
         type=str,
         required=False,
@@ -130,7 +131,7 @@ def load_user_implementation(module_path, module_name):
     elif module_path:
         module = load_module_from_path(module_path)
     else:
-        assert False, "Either module_path or module_name must be provided"
+        assert False, "Either --module-path or --module-name must be provided"
 
     for item_name in dir(module):
         item = getattr(module, item_name)
@@ -156,6 +157,7 @@ def load_user_implementation(module_path, module_name):
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 async def bootstrap_cluster(module_path, module_name, args):
     arg_list, options = raw_parse_args(args)
+    print('module_path!', module_path)
 
     # TODO: Exclude asyncio.CancelledError exception from suppress
     with suppress(KeyboardInterrupt, asyncio.CancelledError):
