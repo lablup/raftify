@@ -1,8 +1,8 @@
 import abc
 import asyncio
-from contextlib import suppress
 import importlib
 import json
+from contextlib import suppress
 
 import asyncclick as click
 
@@ -11,22 +11,22 @@ from .raft_utils import format_all_entries, format_raft_node_debugging_info
 from .utils import SocketAddr
 
 
-class RaftifyContext(metaclass=abc.ABCMeta):
+class AbstractRaftifyCLIContext(metaclass=abc.ABCMeta):
     """
     Custom commands for cluster membership
     Implement this class to add custom commands for cluster membership
     """
 
     @abc.abstractmethod
-    async def bootstrap_cluster(self, args):
+    async def bootstrap_cluster(self, args, options):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def bootstrap_member(self, args):
+    async def bootstrap_member(self, args, options):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def add_member(self, args):
+    async def add_member(self, args, options):
         raise NotImplementedError
 
     async def remove_member(self):
@@ -45,9 +45,11 @@ def debug():
     pass
 
 
-@cli.group(context_settings=dict(
-    ignore_unknown_options=True,
-))
+@cli.group(
+    context_settings=dict(
+        ignore_unknown_options=True,
+    )
+)
 def member():
     """Cluster membership commands"""
     pass
@@ -59,9 +61,11 @@ def parse_args(args):
 
     iter_args = iter(args)
     for arg in iter_args:
-        if arg.startswith('--'):
+        if arg.startswith("--"):
             # Assume the format is --option=value
-            option, value = arg[2:].split('=', 1)
+            option, value = arg[2:].split("=", 1)
+            # Replace all hyphens in the option name with underscores
+            option = option.replace("-", "_")
             options[option] = value
         else:
             arguments.append(arg)
@@ -69,48 +73,80 @@ def parse_args(args):
     return arguments, options
 
 
-def load_module_from_path(path):
-    spec = importlib.util.spec_from_file_location("module.name", path)
+def load_module_from_name(module_name):
+    spec = importlib.util.find_spec(module_name)
+    if spec is None:
+        raise ImportError(f"Module {module_name} not found")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-def load_user_implementation(module_path):
-    module = load_module_from_path(module_path)
+def load_module_from_path(module_path):
+    spec = importlib.util.spec_from_file_location("module.name", module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_user_implementation(module_path, module_name):
+    if module_name:
+        module = load_module_from_name(module_name)
+    elif module_path:
+        module = load_module_from_path(module_path)
+    else:
+        assert False, "Either module_path or module_name must be provided"
+
     for item_name in dir(module):
         item = getattr(module, item_name)
         if (
             isinstance(item, type)
-            and issubclass(item, RaftifyContext)
-            and item is not RaftifyContext
+            and issubclass(item, AbstractRaftifyCLIContext)
+            and item is not AbstractRaftifyCLIContext
         ):
             return item()
-    raise ImportError(f"No implementation of RaftifyContext found in {module_path}")
+
+    raise ImportError(
+        f"No implementation of AbstractRaftifyCLIContext found in {module_path}"
+    )
 
 
-@cli.command(name="bootstrap-cluster")
-@click.argument("module_pth", type=str)
-@click.argument("args", nargs=-1)
-async def bootstrap_cluster(module_pth, args):
-    # TODO: Exclude asyncio.CancelledError exception from suppress
-    with suppress(KeyboardInterrupt, asyncio.CancelledError):
-        user_impl = load_user_implementation(module_pth)
-        await user_impl.bootstrap_cluster(args)
-
-
-@member.command(name="add", context_settings=dict(
-    ignore_unknown_options=True,
-))
-@click.argument("module_pth", type=str)
+@cli.command(
+    name="bootstrap-cluster",
+    context_settings=dict(
+        ignore_unknown_options=True,
+    ),
+)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
-async def add_member(module_pth, args):
-    options, arg_list = parse_args(args)
+async def bootstrap_cluster(args):
+    arg_list, options = parse_args(args)
+
+    module_path = options.get("module_path", None)
+    module_name = options.get("module_name", None)
 
     # TODO: Exclude asyncio.CancelledError exception from suppress
     with suppress(KeyboardInterrupt, asyncio.CancelledError):
-        user_impl = load_user_implementation(module_pth)
-        await user_impl.add_member(args)
+        user_impl = load_user_implementation(module_path, module_name)
+        await user_impl.bootstrap_cluster(arg_list, options)
+
+
+@member.command(
+    name="add",
+    context_settings=dict(
+        ignore_unknown_options=True,
+    ),
+)
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
+async def add_member(args):
+    arg_list, options = parse_args(args)
+
+    module_path = options.get("module_path", None)
+    module_name = options.get("module_name", None)
+
+    # TODO: Exclude asyncio.CancelledError exception from suppress
+    with suppress(KeyboardInterrupt, asyncio.CancelledError):
+        user_impl = load_user_implementation(module_path, module_name)
+        await user_impl.add_member(arg_list, options)
 
 
 @member.command(name="remove")

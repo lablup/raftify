@@ -6,7 +6,6 @@ import pickle
 from pathlib import Path
 from threading import Lock
 from typing import Optional, cast
-import argparse
 
 import colorlog
 import tomli
@@ -15,7 +14,7 @@ from aiohttp.web import Application, RouteTableDef
 from rraft import Logger as Slog
 from rraft import default_logger
 
-from raftify.cli import RaftifyContext
+from raftify.cli import AbstractRaftifyCLIContext
 from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.fsm import FSM
@@ -197,13 +196,13 @@ async def unstable(request: web.Request) -> web.Response:
     )
 
 
-class Impl(RaftifyContext):
+class RaftifyCLIContext(AbstractRaftifyCLIContext):
     def __init__(self) -> None:
         super().__init__()
         init_rraft_py_deserializer()
 
-    async def bootstrap_cluster(self, args):
-        web_server_addr = args[0]
+    async def bootstrap_cluster(self, args, options):
+        web_server_addr = options.get("web_server")
 
         peer_addrs = load_peer_candidates()
 
