@@ -3,6 +3,7 @@ import asyncio
 import functools
 import importlib
 import json
+import os
 import sys
 from contextlib import suppress
 
@@ -111,18 +112,8 @@ def load_module_from_name(module_name):
 
 
 def load_module_from_path(module_path):
-    module_name = os.path.basename(module_path).rsplit(".", 1)[0]
-    module_dir = os.path.dirname(os.path.abspath(module_path))
-    parent_dir, basic_dir = os.path.split(module_dir)
-
-    sys.path.insert(0, parent_dir)
-
-    full_package_name = f"{basic_dir}.{module_name}"
-    module = importlib.import_module(full_package_name)
-
-    sys.path.pop(0)
-
-    return module
+    # TODO: Implement this
+    pass
 
 
 def load_user_implementation(module_path, module_name):
