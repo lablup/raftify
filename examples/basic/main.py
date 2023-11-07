@@ -6,14 +6,15 @@ from typing import cast
 from aiohttp import web
 from aiohttp.web import RouteTableDef
 
+from examples.basic.logger import logger, slog
+from examples.basic.utils import WebServer, build_raftify_cfg, load_peers
 from raftify.cli import AbstractCLIContext
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.raft_facade import RaftFacade
 from raftify.state_machine.hashstore import HashStore, SetCommand
 from raftify.utils import SocketAddr
 
-from examples.basic.logger import logger, slog
-from examples.basic.utils import build_raftify_cfg, load_peers, run_webserver
+# run_webserver
 
 routes = RouteTableDef()
 
@@ -117,37 +118,39 @@ class RaftifyCLIContext(AbstractCLIContext):
         logger.info("Bootstrap a Raft Cluster")
         raft.run_raft(node_id=1)
 
-        await asyncio.gather(
-            raft.wait_for_followers_join(),
-            raft.wait_for_termination(),
-            run_webserver(routes, web_server_addr, raft),
-        )
+        async with WebServer(routes, {"raft": raft}, web_server_addr):
+            await asyncio.gather(
+                raft.wait_for_followers_join(),
+                raft.wait_for_termination(),
+            )
 
     async def bootstrap_follower(self, _args, options):
         raft_addr = SocketAddr.from_str(options["raft_addr"])
         web_server_addr = options["web_server"]
 
-        peers = load_peers()
+        initial_peers = load_peers()
         store = HashStore()
         cfg = build_raftify_cfg()
-        raft = RaftFacade(cfg, raft_addr, store, slog, logger, peers)
+        raft = RaftFacade(cfg, raft_addr, store, slog, logger, initial_peers)
 
         logger.info("Running in follower mode")
-        node_id = peers.get_node_id_by_addr(raft_addr)
+        node_id = initial_peers.get_node_id_by_addr(raft_addr)
         assert node_id is not None, "Member Node id is not found"
 
         raft.run_raft(node_id)
         await raft.send_member_bootstrap_ready_msg(node_id)
 
-        await asyncio.gather(
-            raft.wait_for_termination(), run_webserver(routes, web_server_addr, raft)
-        )
+        async with WebServer(routes, {"raft": raft}, web_server_addr):
+            await asyncio.gather(
+                raft.wait_for_termination(),
+            )
 
     async def add_member(self, _args, options):
         raft_addr = SocketAddr.from_str(options["raft_addr"])
         web_server_addr = options["web_server"]
 
-        peer_addrs = list(map(lambda peer: peer.addr, load_peers()))
+        initial_peers = load_peers()
+        peer_addrs = list(map(lambda peer: peer.addr, initial_peers))
 
         store = HashStore()
         cfg = build_raftify_cfg()
@@ -158,6 +161,7 @@ class RaftifyCLIContext(AbstractCLIContext):
         logger.info("Running in follower mode")
         await raft.join_cluster(request_id_resp)
 
-        await asyncio.gather(
-            raft.wait_for_termination(), run_webserver(routes, web_server_addr, raft)
-        )
+        async with WebServer(routes, {"raft": raft}, web_server_addr):
+            await asyncio.gather(
+                raft.wait_for_termination(),
+            )

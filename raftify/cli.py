@@ -3,9 +3,9 @@ import asyncio
 import functools
 import importlib
 import json
-from contextlib import suppress
 import os
 import sys
+from contextlib import suppress
 
 import asyncclick as click
 
@@ -112,10 +112,10 @@ def load_module_from_name(module_name):
 
 
 def load_module_from_path(path):
-    if os.path.abspath('.') not in sys.path:
-        sys.path.insert(0, os.path.abspath('.'))
+    if os.path.abspath(".") not in sys.path:
+        sys.path.insert(0, os.path.abspath("."))
 
-    module_name = path.split('/')[-1].split('.')[0]
+    module_name = path.split("/")[-1].split(".")[0]
     spec = importlib.util.spec_from_file_location(module_name, path)
     if spec is None:
         raise ImportError(f"Invalid module: {path}")
@@ -145,9 +145,7 @@ def load_user_implementation(module_path, module_name):
         ):
             return item()
 
-    raise ImportError(
-        f"No implementation of AbstractCLIContext found in {module_path}"
-    )
+    raise ImportError(f"No implementation of AbstractCLIContext found in {module_path}")
 
 
 @cli.command(

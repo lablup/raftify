@@ -1,12 +1,12 @@
 from pathlib import Path
+from typing import Any, Iterable
 
 import tomli
 from aiohttp import web
-from aiohttp.web import Application
+from aiohttp.web import AbstractRouteDef
 
 from raftify.config import RaftifyConfig
 from raftify.peers import Peer, Peers
-from raftify.raft_facade import RaftFacade
 from raftify.utils import SocketAddr
 
 
@@ -34,18 +34,23 @@ def build_raftify_cfg():
     )
 
 
-async def run_webserver(routes, web_server_addr: str, raft: RaftFacade):
-    app = Application()
-    app.add_routes(routes)
-    app["state"] = {"raft": raft}
+class WebServer:
+    def __init__(
+        self, routes: Iterable[AbstractRouteDef], state: dict[str, Any], addr: str
+    ):
+        self.app = web.Application()
+        self.app.add_routes(routes)
+        self.app["state"] = state
+        self.host, self.port = addr.split(":")
+        self.runner = None
 
-    host, port = web_server_addr.split(":")
-    app_runner = web.AppRunner(app)
+    async def __aenter__(self):
+        self.runner = web.AppRunner(self.app)
+        await self.runner.setup()
+        self.site = web.TCPSite(self.runner, self.host, self.port)
+        await self.site.start()
+        return self.runner
 
-    try:
-        await app_runner.setup()
-        web_server = web.TCPSite(app_runner, host, port)
-        return web_server.start()
-    finally:
-        await app_runner.cleanup()
-        await app_runner.shutdown()
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.runner.cleanup()
+        await self.runner.shutdown()
