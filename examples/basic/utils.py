@@ -36,7 +36,7 @@ def build_config():
 
 class WebServer:
     def __init__(
-        self, routes: Iterable[AbstractRouteDef], state: dict[str, Any], addr: str
+        self, addr: str, routes: Iterable[AbstractRouteDef], state: dict[str, Any]
     ):
         self.app = web.Application()
         self.app.add_routes(routes)

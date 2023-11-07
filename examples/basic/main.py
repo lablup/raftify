@@ -113,10 +113,10 @@ class RaftifyCLIContext(AbstractCLIContext):
         cfg = build_config()
         raft = RaftFacade(cfg, leader_addr, store, slog, logger, initial_peers)
 
-        logger.info("Bootstrap a Raft Cluster")
+        logger.info("Bootstrapping Raft Cluster...")
         raft.run_raft(node_id=1)
 
-        async with WebServer(routes, {"raft": raft}, web_server_addr):
+        async with WebServer(web_server_addr, routes, {"raft": raft}):
             await asyncio.gather(
                 raft.wait_for_followers_join(),
                 raft.wait_for_termination(),
@@ -131,14 +131,14 @@ class RaftifyCLIContext(AbstractCLIContext):
         cfg = build_config()
         raft = RaftFacade(cfg, raft_addr, store, slog, logger, initial_peers)
 
-        logger.info("Running in follower mode")
+        logger.info("Participating in Raft Cluster...")
         node_id = initial_peers.get_node_id_by_addr(raft_addr)
-        assert node_id is not None, "Member Node id is not found"
+        assert node_id is not None, "Member node_id is not found"
 
         raft.run_raft(node_id)
         await raft.send_member_bootstrap_ready_msg(node_id)
 
-        async with WebServer(routes, {"raft": raft}, web_server_addr):
+        async with WebServer(web_server_addr, routes, {"raft": raft}):
             await asyncio.gather(
                 raft.wait_for_termination(),
             )
@@ -156,10 +156,10 @@ class RaftifyCLIContext(AbstractCLIContext):
 
         request_id_resp = await raft.request_id(raft_addr, peer_addrs)
         raft.run_raft(request_id_resp.follower_id)
-        logger.info("Running in follower mode")
+        logger.info("Running in follower mode...")
         await raft.join_cluster(request_id_resp)
 
-        async with WebServer(routes, {"raft": raft}, web_server_addr):
+        async with WebServer(web_server_addr, routes, {"raft": raft}):
             await asyncio.gather(
                 raft.wait_for_termination(),
             )
