@@ -12,8 +12,8 @@ from raftify.raft_facade import RaftFacade
 from raftify.state_machine.hashstore import HashStore, SetCommand
 from raftify.utils import SocketAddr
 
-from .logger import logger, slog
-from .utils import build_raftify_cfg, load_peers, run_webserver
+from examples.basic.logger import logger, slog
+from examples.basic.utils import build_raftify_cfg, load_peers, run_webserver
 
 routes = RouteTableDef()
 

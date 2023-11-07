@@ -4,6 +4,8 @@ import functools
 import importlib
 import json
 from contextlib import suppress
+import os
+import sys
 
 import asyncclick as click
 
@@ -30,7 +32,7 @@ class AbstractCLIContext(metaclass=abc.ABCMeta):
     async def add_member(self, args, options):
         raise NotImplementedError
 
-    async def remove_member(self):
+    async def remove_member(self, args, options):
         # TODO: Implement this (default)
         pass
 
@@ -109,9 +111,21 @@ def load_module_from_name(module_name):
     return module
 
 
-def load_module_from_path(module_path):
-    # TODO: Implement this
-    pass
+def load_module_from_path(path):
+    if os.path.abspath('.') not in sys.path:
+        sys.path.insert(0, os.path.abspath('.'))
+
+    module_name = path.split('/')[-1].split('.')[0]
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None:
+        raise ImportError(f"Invalid module: {path}")
+
+    module = importlib.util.module_from_spec(spec)
+
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+
+    return module
 
 
 def load_user_implementation(module_path, module_name):
