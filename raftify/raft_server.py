@@ -35,7 +35,9 @@ class RaftServer:
         else:
             self.grpc_server.add_insecure_port(str(self.addr))
 
-        self.logger.debug(f'Start listening gRPC requests on "{self.addr}"...')
+        self.logger.debug(
+            f'RaftServer starts to listen gRPC requests on "{self.addr}"...'
+        )
 
         raft_service_pb2_grpc.add_RaftServiceServicer_to_server(
             RaftService(self.message_queue, self.logger), self.grpc_server
@@ -48,4 +50,4 @@ class RaftServer:
     async def terminate(self, grace: Optional[float] = None) -> None:
         assert self.grpc_server is not None, "gRPC server is not running."
         await self.grpc_server.stop(grace)
-        self.logger.debug("gRPC server has been terminated.")
+        self.logger.debug("RaftServer quits to listen gRPC requests.")

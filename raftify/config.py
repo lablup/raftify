@@ -78,7 +78,7 @@ class RaftifyConfig:
         self.snapshot_interval = snapshot_interval
         self.tick_interval = tick_interval
         self.lmdb_map_size = lmdb_map_size
-        self.raft_config = raft_config or Config.default()
+        self.raft_config = raft_config
 
     @staticmethod
     def new_raft_config(cfg_dict: dict) -> "Config":

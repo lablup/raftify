@@ -13,12 +13,11 @@ from aiohttp import web
 from aiohttp.web import Application, RouteTableDef
 from aiotools import process_index
 from harness.constant import CLUSTER_INFO_PATH, RAFT_ADDRS, WEB_SERVER_ADDRS
-from harness.log import SetCommand
 from harness.logger import logger, slog
-from harness.store import HashStore
 from raftify.peers import PeerState, Peers
 from raftify.raft_client import RaftClient
 from raftify.deserializer import init_rraft_py_deserializer
+from raftify.state_machine.hashstore import HashStore, SetCommand
 from utils import read_cluster_info, remove_node, write_json, write_node
 
 from raftify.config import RaftifyConfig
@@ -104,7 +103,7 @@ async def server_main(
     """
     init_rraft_py_deserializer()
 
-    peers = args[0]
+    peers: Peers = args[0]
 
     store = HashStore()
     raft_node_idx = process_index.get()

@@ -21,7 +21,6 @@ from .error import (
     UnknownError,
 )
 from .follower_role import FollowerRole
-from .fsm import FSM
 from .logger import AbstractRaftifyLogger
 from .mailbox import Mailbox
 from .pb_adapter import ConfChangeV2Adapter
@@ -33,6 +32,7 @@ from .raft_server import RaftServer
 from .raft_utils import RequestIdResponse
 from .request_message import ConfigChangeReqMessage
 from .response_message import JoinSuccessRespMessage
+from .state_machine.abc import AbstractStateMachine
 from .utils import SocketAddr
 
 
@@ -46,7 +46,7 @@ class RaftFacade:
         self,
         cluster_config: RaftifyConfig,
         addr: SocketAddr,
-        fsm: FSM,
+        fsm: AbstractStateMachine,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
         initial_peers: Peers = Peers({}),
@@ -89,7 +89,7 @@ class RaftFacade:
         return self.raft_node.peers
 
     @property
-    def store(self) -> FSM:
+    def store(self) -> AbstractStateMachine:
         return self.fsm
 
     async def create_snapshot(self) -> None:

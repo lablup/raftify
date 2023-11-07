@@ -1,9 +1,9 @@
 import abc
 
 
-class FSM(metaclass=abc.ABCMeta):
+class AbstractStateMachine(metaclass=abc.ABCMeta):
     """
-    A Finite State Machine (FSM) abstract class to be utilized within a Raft framework.
+    A Finite State Machine (FSM) class.
     This class is designed to apply commands to a state, take snapshots of the state,
     and restore the state from a snapshot.
     """

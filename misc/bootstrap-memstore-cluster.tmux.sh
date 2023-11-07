@@ -1,8 +1,8 @@
 #!/bin/bash
 
 if [ -z "$1" ]; then
-  echo "Usage: $0 <number-of-panels>"
-  exit 1
+	echo "Usage: $0 <number-of-panels>"
+	exit 1
 fi
 
 N=$1
@@ -10,14 +10,14 @@ N=$1
 PANEL_NUM=1
 
 bootstrap() {
-	tmux send-keys "python ./examples/basic/main.py --bootstrap --web-server=127.0.0.1:8001" C-m
+	tmux send-keys "raftify-cli bootstrap-cluster --module-path=examples/basic/main.py --web-server=127.0.0.1:8001" C-m
 }
 
 join_cluster() {
 	if [ $PANEL_NUM -ne $N ]
 	then
 		sleep 0.5
-		tmux send-keys "sleep 2; python ./examples/basic/main.py --raft-addr=127.0.0.1:6006${PANEL_NUM} --web-server=127.0.0.1:800${PANEL_NUM}" C-m
+		tmux send-keys "sleep 2; raftify-cli bootstrap-follower --module-path=examples/basic/main.py --raft-addr=127.0.0.1:6006${PANEL_NUM} --web-server=127.0.0.1:800${PANEL_NUM}" C-m
 	fi
 }
 

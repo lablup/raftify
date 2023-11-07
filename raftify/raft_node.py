@@ -26,7 +26,6 @@ from rraft import (
 
 from .config import RaftifyConfig
 from .deserializer import entry_data_deserializer, pickle_deserialize
-from .fsm import FSM
 from .logger import AbstractRaftifyLogger
 from .pb_adapter import ConfChangeV2Adapter, MessageAdapter
 from .peers import Peer, Peers, PeerState
@@ -58,6 +57,7 @@ from .response_message import (
     ResponseMessage,
     WrongLeaderRespMessage,
 )
+from .state_machine.abc import AbstractStateMachine
 from .storage.lmdb import LMDBStorage
 from .utils import AtomicInteger, SocketAddr
 
@@ -70,7 +70,7 @@ class RaftNode:
         raft_server: RaftServer,
         peers: Peers,
         message_queue: Queue,
-        fsm: FSM,
+        fsm: AbstractStateMachine,
         lmdb: LMDBStorage,
         storage: Storage,
         seq: AtomicInteger,
@@ -98,7 +98,7 @@ class RaftNode:
         cls,
         *,
         message_queue: Queue,
-        fsm: FSM,
+        fsm: AbstractStateMachine,
         raft_server: RaftServer,
         peers: Peers,
         slog: Logger | LoggerRef,
@@ -155,7 +155,7 @@ class RaftNode:
         *,
         message_queue: Queue,
         id: int,
-        fsm: FSM,
+        fsm: AbstractStateMachine,
         raft_server: RaftServer,
         peers: Peers,
         slog: Logger | LoggerRef,
@@ -705,7 +705,7 @@ class RaftNode:
                     self.raw_node.step(msg)
                 except rraft.StepPeerNotFoundError:
                     self.logger.warning(
-                        f"StepPeerNotFoundError occurred. Ignore this message if RemoveNode happend, Message: {msg}"
+                        f"StepPeerNotFoundError occurred. Ignore this message if RemoveNode happened, Message: {msg}"
                     )
                     continue
                 except rraft.StepLocalMsgError:

@@ -48,8 +48,6 @@ class Mailbox:
             leader_id = self.raft_node.get_leader_id()
             leader = self.raft_node.peers[leader_id]
 
-            assert leader and leader.client is not None
-
             resp_from_leader = await leader.client.reroute_message(
                 reroute_msg_type=reroute_msg_type,
                 conf_change=conf_change,
