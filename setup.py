@@ -24,6 +24,7 @@ build_requires = get_requirements("build")
 setup(
     name="raftify",
     version=VERSION,
+    description="Experimental Async Raft framework for Python application",
     long_description=README,
     long_description_content_type='text/markdown',
     author="Lablup Inc.",
