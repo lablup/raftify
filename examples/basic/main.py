@@ -2,17 +2,13 @@ import argparse
 import asyncio
 from contextlib import suppress
 
-from aiohttp import web
-from aiohttp.web import Application
-
-from raftify.config import RaftifyConfig
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.state_machine.hashstore import HashStore
 from raftify.raft_facade import RaftFacade
 from raftify.utils import SocketAddr
 
 from examples.basic.logger import logger, slog
-from examples.basic.utils import load_peers
+from examples.basic.utils import WebServer, build_config, load_peers
 from examples.basic.web_server import routes
 
 
@@ -35,16 +31,7 @@ async def main() -> None:
     store = HashStore()
     target_addr = peers[1].addr if bootstrap and not raft_addr else raft_addr
 
-    cfg = RaftifyConfig(
-        log_dir="./logs",
-        raft_config=RaftifyConfig.new_raft_config(
-            {
-                "election_tick": 10,
-                "heartbeat_tick": 3,
-            }
-        ),
-    )
-
+    cfg = build_config()
     raft = RaftFacade(cfg, target_addr, store, slog, logger, peers)
     tasks = []
 
@@ -67,24 +54,8 @@ async def main() -> None:
         await raft.send_member_bootstrap_ready_msg(node_id)
         tasks.append(raft.wait_for_termination())
 
-    app_runner = None
-    if web_server_addr:
-        app = Application()
-        app.add_routes(routes)
-        app["state"] = {"raft": raft}
-
-        host, port = web_server_addr.split(":")
-        app_runner = web.AppRunner(app)
-        await app_runner.setup()
-        web_server = web.TCPSite(app_runner, host, port)
-        tasks.append(web_server.start())
-
-    try:
+    async with WebServer(web_server_addr, routes, {"raft": raft}):
         await asyncio.gather(*tasks)
-    finally:
-        if app_runner:
-            await app_runner.cleanup()
-            await app_runner.shutdown()
 
 
 if __name__ == "__main__":
