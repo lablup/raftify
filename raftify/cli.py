@@ -3,8 +3,6 @@ import asyncio
 import functools
 import importlib
 import json
-import os
-import sys
 from contextlib import suppress
 
 import asyncclick as click
@@ -14,7 +12,7 @@ from .raft_utils import format_all_entries, format_raft_node_debugging_info
 from .utils import SocketAddr
 
 
-class AbstractRaftifyCLIContext(metaclass=abc.ABCMeta):
+class AbstractCLIContext(metaclass=abc.ABCMeta):
     """
     Custom commands for cluster membership
     Implement this class to add custom commands for cluster membership
@@ -128,13 +126,13 @@ def load_user_implementation(module_path, module_name):
         item = getattr(module, item_name)
         if (
             isinstance(item, type)
-            and issubclass(item, AbstractRaftifyCLIContext)
-            and item is not AbstractRaftifyCLIContext
+            and issubclass(item, AbstractCLIContext)
+            and item is not AbstractCLIContext
         ):
             return item()
 
     raise ImportError(
-        f"No implementation of AbstractRaftifyCLIContext found in {module_path}"
+        f"No implementation of AbstractCLIContext found in {module_path}"
     )
 
 
@@ -148,7 +146,6 @@ def load_user_implementation(module_path, module_name):
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 async def bootstrap_cluster(module_path, module_name, args):
     arg_list, options = raw_parse_args(args)
-    print('module_path!', module_path)
 
     # TODO: Exclude asyncio.CancelledError exception from suppress
     with suppress(KeyboardInterrupt, asyncio.CancelledError):

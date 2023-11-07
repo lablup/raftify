@@ -6,7 +6,7 @@ from typing import cast
 from aiohttp import web
 from aiohttp.web import RouteTableDef
 
-from raftify.cli import AbstractRaftifyCLIContext
+from raftify.cli import AbstractCLIContext
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.raft_facade import RaftFacade
 from raftify.state_machine.hashstore import HashStore, SetCommand
@@ -98,7 +98,7 @@ async def unstable(request: web.Request) -> web.Response:
     )
 
 
-class RaftifyCLIContext(AbstractRaftifyCLIContext):
+class RaftifyCLIContext(AbstractCLIContext):
     def __init__(self) -> None:
         super().__init__()
         init_rraft_py_deserializer()
