@@ -7,14 +7,12 @@ from aiohttp import web
 from aiohttp.web import RouteTableDef
 
 from examples.basic.logger import logger, slog
-from examples.basic.utils import WebServer, build_raftify_cfg, load_peers
+from examples.basic.utils import WebServer, build_config, load_peers
 from raftify.cli import AbstractCLIContext
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.raft_facade import RaftFacade
 from raftify.state_machine.hashstore import HashStore, SetCommand
 from raftify.utils import SocketAddr
-
-# run_webserver
 
 routes = RouteTableDef()
 
@@ -112,7 +110,7 @@ class RaftifyCLIContext(AbstractCLIContext):
         leader_addr = initial_peers[leader_node_id].addr
 
         store = HashStore()
-        cfg = build_raftify_cfg()
+        cfg = build_config()
         raft = RaftFacade(cfg, leader_addr, store, slog, logger, initial_peers)
 
         logger.info("Bootstrap a Raft Cluster")
@@ -130,7 +128,7 @@ class RaftifyCLIContext(AbstractCLIContext):
 
         initial_peers = load_peers()
         store = HashStore()
-        cfg = build_raftify_cfg()
+        cfg = build_config()
         raft = RaftFacade(cfg, raft_addr, store, slog, logger, initial_peers)
 
         logger.info("Running in follower mode")
@@ -153,7 +151,7 @@ class RaftifyCLIContext(AbstractCLIContext):
         peer_addrs = list(map(lambda peer: peer.addr, initial_peers))
 
         store = HashStore()
-        cfg = build_raftify_cfg()
+        cfg = build_config()
         raft = RaftFacade(cfg, raft_addr, store, slog, logger)
 
         request_id_resp = await raft.request_id(raft_addr, peer_addrs)
