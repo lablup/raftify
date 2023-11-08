@@ -20,6 +20,7 @@ class RaftifyConfig:
         Snapshots are also created after configuration changes are applied.
     - lmdb_map_size: Maximum size lmdb database may grow to.
     - tick_interval: Interval between Raft ticks.
+    - cluster_id: Cluster ID.
     """
 
     raft_config_keys = [
@@ -57,6 +58,8 @@ class RaftifyConfig:
 
     lmdb_map_size: int
 
+    cluster_id: str
+
     def __init__(
         self,
         *,
@@ -69,6 +72,7 @@ class RaftifyConfig:
         snapshot_interval: float = 0.0,
         tick_interval: float = 0.1,
         lmdb_map_size: int = 1024 * 1024 * 1024,
+        cluster_id: str = "default",
     ) -> None:
         self.log_dir = log_dir
         self.max_retry_cnt = max_retry_cnt
@@ -79,6 +83,7 @@ class RaftifyConfig:
         self.tick_interval = tick_interval
         self.lmdb_map_size = lmdb_map_size
         self.raft_config = raft_config
+        self.cluster_id = cluster_id
 
     @staticmethod
     def new_raft_config(cfg_dict: dict) -> "Config":

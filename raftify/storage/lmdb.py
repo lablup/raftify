@@ -64,10 +64,11 @@ class LMDBStorageCore:
         cls,
         map_size: int,
         log_dir_path: str,
+        cluster_id: str,
         node_id: int,
         logger: AbstractRaftifyLogger,
     ) -> "LMDBStorageCore":
-        log_dir_path = os.path.join(log_dir_path, f"node-{node_id}")
+        log_dir_path = os.path.join(log_dir_path, cluster_id, f"node-{node_id}")
 
         os.makedirs(log_dir_path, exist_ok=True)
 
@@ -310,10 +311,13 @@ class LMDBStorage:
         cls,
         map_size: int,
         log_dir_path: str,
+        cluster_id: str,
         node_id: int,
         logger: AbstractRaftifyLogger,
     ) -> "LMDBStorage":
-        core = LMDBStorageCore.create(map_size, log_dir_path, node_id, logger)
+        core = LMDBStorageCore.create(
+            map_size, log_dir_path, cluster_id, node_id, logger
+        )
         return cls(core, logger)
 
     def compact(self, index: int) -> None:
