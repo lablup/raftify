@@ -68,7 +68,7 @@ message SendMessageResponse {
 
 // Config Change
 
-enum ChangeConfigResult {
+enum ChangeConfigResultType {
   ChangeConfig_Success                    = 0;
   ChangeConfig_WrongLeader                = 1;
   ChangeConfig_TimeoutError               = 2;
@@ -76,8 +76,8 @@ enum ChangeConfigResult {
 }
 
 message ChangeConfigResponse {
-  ChangeConfigResult result      = 1;
-  bytes data                     = 2;
+  ChangeConfigResultType result      = 1;
+  bytes data                         = 2;
 }
 
 // IdRequest for Dynamic Membership
@@ -86,14 +86,14 @@ message IdRequestArgs {
   string addr                    = 1;
 }
 
-enum IdRequestResult {
+enum IdRequestResultType {
   IdRequest_Success              = 0;
   IdRequest_Error                = 1;
   IdRequest_WrongLeader          = 2;
 }
 
 message IdRequestResponse {
-  IdRequestResult result         = 1;
+  IdRequestResultType result     = 1;
   uint64 leader_id               = 2;
   string leader_addr             = 3;
   uint64 reserved_id             = 4;

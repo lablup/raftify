@@ -16,7 +16,7 @@ _sym_db = _symbol_database.Default()
 from . import eraftpb_pb2 as eraftpb__pb2
 
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
-    b'\n\x12raft_service.proto\x12\x0braftservice\x1a\reraftpb.proto"\x07\n\x05\x45mpty"#\n\x11\x44\x65\x62ugNodeResponse\x12\x0e\n\x06result\x18\x01 \x01(\t"&\n\x14\x44\x65\x62ugEntriesResponse\x12\x0e\n\x06result\x18\x01 \x01(\t"!\n\x0fVersionResponse\x12\x0e\n\x06result\x18\x01 \x01(\t"/\n\x18MemberBootstrapReadyArgs\x12\x13\n\x0b\x66ollower_id\x18\x01 \x01(\x04"\x1e\n\x1cMemberBootstrapReadyResponse"*\n\x19\x43lusterBootstrapReadyArgs\x12\r\n\x05peers\x18\x01 \x01(\x0c"\x1f\n\x1d\x43lusterBootstrapReadyResponse"\x1a\n\x0bProposeArgs\x12\x0b\n\x03msg\x18\x01 \x01(\x0c"\x1e\n\x0fProposeResponse\x12\x0b\n\x03msg\x18\x01 \x01(\x0c"#\n\x13SendMessageResponse\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x0c"U\n\x14\x43hangeConfigResponse\x12/\n\x06result\x18\x01 \x01(\x0e\x32\x1f.raftservice.ChangeConfigResult\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c"\x1d\n\rIdRequestArgs\x12\x0c\n\x04\x61\x64\x64r\x18\x01 \x01(\t"\x8d\x01\n\x11IdRequestResponse\x12,\n\x06result\x18\x01 \x01(\x0e\x32\x1c.raftservice.IdRequestResult\x12\x11\n\tleader_id\x18\x02 \x01(\x04\x12\x13\n\x0bleader_addr\x18\x03 \x01(\t\x12\x13\n\x0breserved_id\x18\x04 \x01(\x04\x12\r\n\x05peers\x18\x05 \x01(\x0c"\x82\x01\n\x12RerouteMessageArgs\x12\x15\n\rproposed_data\x18\x01 \x01(\x0c\x12*\n\x0b\x63onf_change\x18\x02 \x01(\x0b\x32\x15.eraftpb.ConfChangeV2\x12)\n\x04type\x18\x03 \x01(\x0e\x32\x1b.raftservice.RerouteMsgType*\x8a\x01\n\x12\x43hangeConfigResult\x12\x18\n\x14\x43hangeConfig_Success\x10\x00\x12\x1c\n\x18\x43hangeConfig_WrongLeader\x10\x01\x12\x1d\n\x19\x43hangeConfig_TimeoutError\x10\x02\x12\x1d\n\x19\x43hangeConfig_UnknownError\x10\x03*X\n\x0fIdRequestResult\x12\x15\n\x11IdRequest_Success\x10\x00\x12\x13\n\x0fIdRequest_Error\x10\x01\x12\x19\n\x15IdRequest_WrongLeader\x10\x02*-\n\x0eRerouteMsgType\x12\x0e\n\nConfChange\x10\x00\x12\x0b\n\x07Propose\x10\x01\x32\x83\x07\n\x0bRaftService\x12j\n\x14MemberBootstrapReady\x12%.raftservice.MemberBootstrapReadyArgs\x1a).raftservice.MemberBootstrapReadyResponse"\x00\x12m\n\x15\x43lusterBootstrapReady\x12&.raftservice.ClusterBootstrapReadyArgs\x1a*.raftservice.ClusterBootstrapReadyResponse"\x00\x12I\n\tRequestId\x12\x1a.raftservice.IdRequestArgs\x1a\x1e.raftservice.IdRequestResponse"\x00\x12J\n\x0c\x43hangeConfig\x12\x15.eraftpb.ConfChangeV2\x1a!.raftservice.ChangeConfigResponse"\x00\x12V\n\x18\x41pplyConfigChangeForcely\x12\x15.eraftpb.ConfChangeV2\x1a!.raftservice.ChangeConfigResponse"\x00\x12\x43\n\x0bSendMessage\x12\x10.eraftpb.Message\x1a .raftservice.SendMessageResponse"\x00\x12\x43\n\x07Propose\x12\x18.raftservice.ProposeArgs\x1a\x1c.raftservice.ProposeResponse"\x00\x12U\n\x0eRerouteMessage\x12\x1f.raftservice.RerouteMessageArgs\x1a .raftservice.SendMessageResponse"\x00\x12\x41\n\tDebugNode\x12\x12.raftservice.Empty\x1a\x1e.raftservice.DebugNodeResponse"\x00\x12G\n\x0c\x44\x65\x62ugEntries\x12\x12.raftservice.Empty\x1a!.raftservice.DebugEntriesResponse"\x00\x12=\n\x07Version\x12\x12.raftservice.Empty\x1a\x1c.raftservice.VersionResponse"\x00\x62\x06proto3'
+    b'\n\x12raft_service.proto\x12\x0braftservice\x1a\reraftpb.proto"\x07\n\x05\x45mpty"#\n\x11\x44\x65\x62ugNodeResponse\x12\x0e\n\x06result\x18\x01 \x01(\t"&\n\x14\x44\x65\x62ugEntriesResponse\x12\x0e\n\x06result\x18\x01 \x01(\t"!\n\x0fVersionResponse\x12\x0e\n\x06result\x18\x01 \x01(\t"/\n\x18MemberBootstrapReadyArgs\x12\x13\n\x0b\x66ollower_id\x18\x01 \x01(\x04"\x1e\n\x1cMemberBootstrapReadyResponse"*\n\x19\x43lusterBootstrapReadyArgs\x12\r\n\x05peers\x18\x01 \x01(\x0c"\x1f\n\x1d\x43lusterBootstrapReadyResponse"\x1a\n\x0bProposeArgs\x12\x0b\n\x03msg\x18\x01 \x01(\x0c"\x1e\n\x0fProposeResponse\x12\x0b\n\x03msg\x18\x01 \x01(\x0c"#\n\x13SendMessageResponse\x12\x0c\n\x04\x64\x61ta\x18\x01 \x01(\x0c"Y\n\x14\x43hangeConfigResponse\x12\x33\n\x06result\x18\x01 \x01(\x0e\x32#.raftservice.ChangeConfigResultType\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c"\x1d\n\rIdRequestArgs\x12\x0c\n\x04\x61\x64\x64r\x18\x01 \x01(\t"\x91\x01\n\x11IdRequestResponse\x12\x30\n\x06result\x18\x01 \x01(\x0e\x32 .raftservice.IdRequestResultType\x12\x11\n\tleader_id\x18\x02 \x01(\x04\x12\x13\n\x0bleader_addr\x18\x03 \x01(\t\x12\x13\n\x0breserved_id\x18\x04 \x01(\x04\x12\r\n\x05peers\x18\x05 \x01(\x0c"\x82\x01\n\x12RerouteMessageArgs\x12\x15\n\rproposed_data\x18\x01 \x01(\x0c\x12*\n\x0b\x63onf_change\x18\x02 \x01(\x0b\x32\x15.eraftpb.ConfChangeV2\x12)\n\x04type\x18\x03 \x01(\x0e\x32\x1b.raftservice.RerouteMsgType*\x8e\x01\n\x16\x43hangeConfigResultType\x12\x18\n\x14\x43hangeConfig_Success\x10\x00\x12\x1c\n\x18\x43hangeConfig_WrongLeader\x10\x01\x12\x1d\n\x19\x43hangeConfig_TimeoutError\x10\x02\x12\x1d\n\x19\x43hangeConfig_UnknownError\x10\x03*\\\n\x13IdRequestResultType\x12\x15\n\x11IdRequest_Success\x10\x00\x12\x13\n\x0fIdRequest_Error\x10\x01\x12\x19\n\x15IdRequest_WrongLeader\x10\x02*-\n\x0eRerouteMsgType\x12\x0e\n\nConfChange\x10\x00\x12\x0b\n\x07Propose\x10\x01\x32\x83\x07\n\x0bRaftService\x12j\n\x14MemberBootstrapReady\x12%.raftservice.MemberBootstrapReadyArgs\x1a).raftservice.MemberBootstrapReadyResponse"\x00\x12m\n\x15\x43lusterBootstrapReady\x12&.raftservice.ClusterBootstrapReadyArgs\x1a*.raftservice.ClusterBootstrapReadyResponse"\x00\x12I\n\tRequestId\x12\x1a.raftservice.IdRequestArgs\x1a\x1e.raftservice.IdRequestResponse"\x00\x12J\n\x0c\x43hangeConfig\x12\x15.eraftpb.ConfChangeV2\x1a!.raftservice.ChangeConfigResponse"\x00\x12V\n\x18\x41pplyConfigChangeForcely\x12\x15.eraftpb.ConfChangeV2\x1a!.raftservice.ChangeConfigResponse"\x00\x12\x43\n\x0bSendMessage\x12\x10.eraftpb.Message\x1a .raftservice.SendMessageResponse"\x00\x12\x43\n\x07Propose\x12\x18.raftservice.ProposeArgs\x1a\x1c.raftservice.ProposeResponse"\x00\x12U\n\x0eRerouteMessage\x12\x1f.raftservice.RerouteMessageArgs\x1a .raftservice.SendMessageResponse"\x00\x12\x41\n\tDebugNode\x12\x12.raftservice.Empty\x1a\x1e.raftservice.DebugNodeResponse"\x00\x12G\n\x0c\x44\x65\x62ugEntries\x12\x12.raftservice.Empty\x1a!.raftservice.DebugEntriesResponse"\x00\x12=\n\x07Version\x12\x12.raftservice.Empty\x1a\x1c.raftservice.VersionResponse"\x00\x62\x06proto3'
 )
 
 _globals = globals()
@@ -24,12 +24,12 @@ _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, "raft_service_pb2", _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
     DESCRIPTOR._options = None
-    _globals["_CHANGECONFIGRESULT"]._serialized_start = 822
-    _globals["_CHANGECONFIGRESULT"]._serialized_end = 960
-    _globals["_IDREQUESTRESULT"]._serialized_start = 962
-    _globals["_IDREQUESTRESULT"]._serialized_end = 1050
-    _globals["_REROUTEMSGTYPE"]._serialized_start = 1052
-    _globals["_REROUTEMSGTYPE"]._serialized_end = 1097
+    _globals["_CHANGECONFIGRESULTTYPE"]._serialized_start = 830
+    _globals["_CHANGECONFIGRESULTTYPE"]._serialized_end = 972
+    _globals["_IDREQUESTRESULTTYPE"]._serialized_start = 974
+    _globals["_IDREQUESTRESULTTYPE"]._serialized_end = 1066
+    _globals["_REROUTEMSGTYPE"]._serialized_start = 1068
+    _globals["_REROUTEMSGTYPE"]._serialized_end = 1113
     _globals["_EMPTY"]._serialized_start = 50
     _globals["_EMPTY"]._serialized_end = 57
     _globals["_DEBUGNODERESPONSE"]._serialized_start = 59
@@ -53,13 +53,13 @@ if _descriptor._USE_C_DESCRIPTORS == False:
     _globals["_SENDMESSAGERESPONSE"]._serialized_start = 389
     _globals["_SENDMESSAGERESPONSE"]._serialized_end = 424
     _globals["_CHANGECONFIGRESPONSE"]._serialized_start = 426
-    _globals["_CHANGECONFIGRESPONSE"]._serialized_end = 511
-    _globals["_IDREQUESTARGS"]._serialized_start = 513
-    _globals["_IDREQUESTARGS"]._serialized_end = 542
-    _globals["_IDREQUESTRESPONSE"]._serialized_start = 545
-    _globals["_IDREQUESTRESPONSE"]._serialized_end = 686
-    _globals["_REROUTEMESSAGEARGS"]._serialized_start = 689
-    _globals["_REROUTEMESSAGEARGS"]._serialized_end = 819
-    _globals["_RAFTSERVICE"]._serialized_start = 1100
-    _globals["_RAFTSERVICE"]._serialized_end = 1999
+    _globals["_CHANGECONFIGRESPONSE"]._serialized_end = 515
+    _globals["_IDREQUESTARGS"]._serialized_start = 517
+    _globals["_IDREQUESTARGS"]._serialized_end = 546
+    _globals["_IDREQUESTRESPONSE"]._serialized_start = 549
+    _globals["_IDREQUESTRESPONSE"]._serialized_end = 694
+    _globals["_REROUTEMESSAGEARGS"]._serialized_start = 697
+    _globals["_REROUTEMESSAGEARGS"]._serialized_end = 827
+    _globals["_RAFTSERVICE"]._serialized_start = 1116
+    _globals["_RAFTSERVICE"]._serialized_end = 2015
 # @@protoc_insertion_point(module_scope)

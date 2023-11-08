@@ -10,31 +10,31 @@ from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-class ChangeConfigResult(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class ChangeConfigResultType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []
-    ChangeConfig_Success: _ClassVar[ChangeConfigResult]
-    ChangeConfig_WrongLeader: _ClassVar[ChangeConfigResult]
-    ChangeConfig_TimeoutError: _ClassVar[ChangeConfigResult]
-    ChangeConfig_UnknownError: _ClassVar[ChangeConfigResult]
+    ChangeConfig_Success: _ClassVar[ChangeConfigResultType]
+    ChangeConfig_WrongLeader: _ClassVar[ChangeConfigResultType]
+    ChangeConfig_TimeoutError: _ClassVar[ChangeConfigResultType]
+    ChangeConfig_UnknownError: _ClassVar[ChangeConfigResultType]
 
-class IdRequestResult(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class IdRequestResultType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []
-    IdRequest_Success: _ClassVar[IdRequestResult]
-    IdRequest_Error: _ClassVar[IdRequestResult]
-    IdRequest_WrongLeader: _ClassVar[IdRequestResult]
+    IdRequest_Success: _ClassVar[IdRequestResultType]
+    IdRequest_Error: _ClassVar[IdRequestResultType]
+    IdRequest_WrongLeader: _ClassVar[IdRequestResultType]
 
 class RerouteMsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []
     ConfChange: _ClassVar[RerouteMsgType]
     Propose: _ClassVar[RerouteMsgType]
 
-ChangeConfig_Success: ChangeConfigResult
-ChangeConfig_WrongLeader: ChangeConfigResult
-ChangeConfig_TimeoutError: ChangeConfigResult
-ChangeConfig_UnknownError: ChangeConfigResult
-IdRequest_Success: IdRequestResult
-IdRequest_Error: IdRequestResult
-IdRequest_WrongLeader: IdRequestResult
+ChangeConfig_Success: ChangeConfigResultType
+ChangeConfig_WrongLeader: ChangeConfigResultType
+ChangeConfig_TimeoutError: ChangeConfigResultType
+ChangeConfig_UnknownError: ChangeConfigResultType
+IdRequest_Success: IdRequestResultType
+IdRequest_Error: IdRequestResultType
+IdRequest_WrongLeader: IdRequestResultType
 ConfChange: RerouteMsgType
 Propose: RerouteMsgType
 
@@ -102,11 +102,11 @@ class ChangeConfigResponse(_message.Message):
     __slots__ = ["result", "data"]
     RESULT_FIELD_NUMBER: _ClassVar[int]
     DATA_FIELD_NUMBER: _ClassVar[int]
-    result: ChangeConfigResult
+    result: ChangeConfigResultType
     data: bytes
     def __init__(
         self,
-        result: _Optional[_Union[ChangeConfigResult, str]] = ...,
+        result: _Optional[_Union[ChangeConfigResultType, str]] = ...,
         data: _Optional[bytes] = ...,
     ) -> None: ...
 
@@ -123,14 +123,14 @@ class IdRequestResponse(_message.Message):
     LEADER_ADDR_FIELD_NUMBER: _ClassVar[int]
     RESERVED_ID_FIELD_NUMBER: _ClassVar[int]
     PEERS_FIELD_NUMBER: _ClassVar[int]
-    result: IdRequestResult
+    result: IdRequestResultType
     leader_id: int
     leader_addr: str
     reserved_id: int
     peers: bytes
     def __init__(
         self,
-        result: _Optional[_Union[IdRequestResult, str]] = ...,
+        result: _Optional[_Union[IdRequestResultType, str]] = ...,
         leader_id: _Optional[int] = ...,
         leader_addr: _Optional[str] = ...,
         reserved_id: _Optional[int] = ...,
