@@ -1,6 +1,5 @@
 import json
 import os
-from threading import Lock
 from typing import List, Optional
 
 import lmdb
@@ -41,7 +40,7 @@ def decode_int(v: bytes) -> int:
     return int(v.decode())
 
 
-class LMDBStorageCore:
+class LMDBStorage:
     def __init__(
         self,
         log_dir_path: str,
@@ -67,7 +66,7 @@ class LMDBStorageCore:
         cluster_id: str,
         node_id: int,
         logger: AbstractRaftifyLogger,
-    ) -> "LMDBStorageCore":
+    ) -> "LMDBStorage":
         log_dir_path = os.path.join(log_dir_path, cluster_id, f"node-{node_id}")
 
         os.makedirs(log_dir_path, exist_ok=True)
@@ -299,81 +298,3 @@ class LMDBStorageCore:
             raise StoreError(UnavailableError())
 
         return entry.get_term() if entry else 0
-
-
-class LMDBStorage:
-    def __init__(self, core: LMDBStorageCore, logger: AbstractRaftifyLogger):
-        self.core = core
-        self.logger = logger
-
-    @classmethod
-    def create(
-        cls,
-        map_size: int,
-        log_dir_path: str,
-        cluster_id: str,
-        node_id: int,
-        logger: AbstractRaftifyLogger,
-    ) -> "LMDBStorage":
-        core = LMDBStorageCore.create(
-            map_size, log_dir_path, cluster_id, node_id, logger
-        )
-        return cls(core, logger)
-
-    def compact(self, index: int) -> None:
-        with Lock():
-            self.core.compact(index)
-
-    def append(self, entries: List[Entry] | List[EntryRef]) -> None:
-        with Lock():
-            self.core.append(entries)
-
-    def set_hard_state(self, hard_state: HardState | HardStateRef) -> None:
-        with Lock():
-            self.core.set_hard_state(hard_state)
-
-    def set_conf_state(self, conf_state: ConfState | ConfStateRef) -> None:
-        with Lock():
-            self.core.set_conf_state(conf_state)
-
-    def create_snapshot(self, data: bytes, index: int, term: int) -> None:
-        with Lock():
-            self.core.create_snapshot(data, index, term)
-
-    def apply_snapshot(self, snapshot: Snapshot | SnapshotRef) -> None:
-        with Lock():
-            self.core.apply_snapshot(snapshot)
-
-    def initial_state(self) -> RaftState:
-        with Lock():
-            return self.core.initial_state()
-
-    def entries(
-        self,
-        low: int,
-        high: int,
-        ctx: GetEntriesContext | GetEntriesContextRef,
-        max_size: Optional[int] = None,
-    ) -> List[Entry]:
-        with Lock():
-            return self.core.entries(low, high, ctx, max_size)
-
-    def term(self, index: int) -> int:
-        with Lock():
-            return self.core.term(index)
-
-    def first_index(self) -> int:
-        with Lock():
-            return self.core.first_index()
-
-    def last_index(self) -> int:
-        with Lock():
-            return self.core.last_index()
-
-    def snapshot(self, request_index: int, to: int) -> Snapshot:
-        with Lock():
-            return self.core.snapshot(request_index, to)
-
-    def set_hard_state_comit(self, comit: int) -> None:
-        with Lock():
-            return self.core.set_hard_state_comit(comit)

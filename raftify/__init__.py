@@ -13,7 +13,7 @@ from .raft_server import RaftServer  # noqa: F401
 from .raft_utils import RaftNodeRole  # noqa: F401
 from .state_machine.abc import AbstractStateMachine  # noqa: F401
 from .state_machine.hashstore import HashStore, SetCommand  # noqa: F401
-from .storage.lmdb import LMDBStorage, LMDBStorageCore  # noqa: F401
+from .storage.lmdb import LMDBStorage  # noqa: F401
 from .utils import PickleSerializer, SocketAddr  # noqa: F401
 
 __all__ = [
