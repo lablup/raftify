@@ -20,7 +20,14 @@ install:
 	pip install .
 
 clean:
+	rm -rf dist
 	rm -rf logs
+	rm -rf build
+	rm -rf .mypy_cache
+	rm -rf .pytest_cache
+	rm -rf .benchmarks
+	rm -rf raftify.egg-info
+	find . -type d -name '__pycache__' -exec rm -rf {} +
 
 reinstall:
 	make clean
