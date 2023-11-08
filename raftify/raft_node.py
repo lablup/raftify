@@ -2,6 +2,7 @@ import asyncio
 import math
 import os
 import pickle
+import shutil
 import time
 from asyncio import Queue
 from typing import Any
@@ -113,6 +114,8 @@ class RaftNode:
 
         cfg.set_id(1)
         cfg.validate()
+
+        shutil.rmtree(os.path.join(raftify_cfg.log_dir, raftify_cfg.cluster_id))
 
         lmdb = LMDBStorage.create(
             map_size=raftify_cfg.lmdb_map_size,
