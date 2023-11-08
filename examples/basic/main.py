@@ -2,14 +2,13 @@ import argparse
 import asyncio
 from contextlib import suppress
 
-from raftify.deserializer import init_rraft_py_deserializer
-from raftify.state_machine.hashstore import HashStore
-from raftify.raft_facade import RaftFacade
-from raftify.utils import SocketAddr
-
 from examples.basic.logger import logger, slog
 from examples.basic.utils import WebServer, build_config, load_peers
 from examples.basic.web_server import routes
+from raftify.deserializer import init_rraft_py_deserializer
+from raftify.raft_facade import RaftFacade
+from raftify.state_machine.hashstore import HashStore
+from raftify.utils import SocketAddr
 
 
 async def main() -> None:

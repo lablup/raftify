@@ -184,16 +184,14 @@ class RaftFacade:
                 match resp.result:
                     case raft_service_pb2.IdRequest_Success:
                         leader_addr = peer_addr
-                        resp_dict = pickle.loads(resp.data)
-                        leader_id = resp_dict["leader_id"]
-                        node_id = resp_dict["reserved_id"]
-                        raw_peers = resp_dict["peers"]
+                        leader_id = resp.leader_id
+                        node_id = resp.reserved_id
 
-                        peer_addrs = Peers.decode(raw_peers)
+                        peer_addrs = pickle.loads(resp.peers)
+
                         break
                     case raft_service_pb2.IdRequest_WrongLeader:
-                        resp_dict = pickle.loads(resp.data)
-                        peer_addr = resp_dict["leader_addr"]
+                        peer_addr = resp.leader_addr
                         self.logger.info(
                             f"Sent message to the wrong leader, retrying with the peer at {peer_addr} "
                             f"assuming that it is leader node."

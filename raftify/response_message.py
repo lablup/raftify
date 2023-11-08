@@ -24,14 +24,14 @@ class WrongLeaderRespMessage(ResponseMessage, PickleSerializer):
 @dataclass
 class JoinSuccessRespMessage(ResponseMessage, PickleSerializer):
     assigned_id: int
-    peers: bytes
+    raw_peers: bytes
 
 
 @dataclass
 class IdReservedRespMessage(ResponseMessage, PickleSerializer):
     leader_id: int
     reserved_id: int
-    peers: bytes
+    raw_peers: bytes
 
 
 @dataclass

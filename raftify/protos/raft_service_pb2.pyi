@@ -117,15 +117,24 @@ class IdRequestArgs(_message.Message):
     def __init__(self, addr: _Optional[str] = ...) -> None: ...
 
 class IdRequestResponse(_message.Message):
-    __slots__ = ["result", "data"]
+    __slots__ = ["result", "leader_id", "leader_addr", "reserved_id", "peers"]
     RESULT_FIELD_NUMBER: _ClassVar[int]
-    DATA_FIELD_NUMBER: _ClassVar[int]
+    LEADER_ID_FIELD_NUMBER: _ClassVar[int]
+    LEADER_ADDR_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_ID_FIELD_NUMBER: _ClassVar[int]
+    PEERS_FIELD_NUMBER: _ClassVar[int]
     result: IdRequestResult
-    data: bytes
+    leader_id: int
+    leader_addr: str
+    reserved_id: int
+    peers: bytes
     def __init__(
         self,
         result: _Optional[_Union[IdRequestResult, str]] = ...,
-        data: _Optional[bytes] = ...,
+        leader_id: _Optional[int] = ...,
+        leader_addr: _Optional[str] = ...,
+        reserved_id: _Optional[int] = ...,
+        peers: _Optional[bytes] = ...,
     ) -> None: ...
 
 class RerouteMessageArgs(_message.Message):

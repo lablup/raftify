@@ -64,7 +64,7 @@ class RaftServiceStub(object):
         self.DebugEntries = channel.unary_unary(
             "/raftservice.RaftService/DebugEntries",
             request_serializer=raft__service__pb2.Empty.SerializeToString,
-            response_deserializer=raft__service__pb2.DebugNodeResponse.FromString,
+            response_deserializer=raft__service__pb2.DebugEntriesResponse.FromString,
         )
         self.Version = channel.unary_unary(
             "/raftservice.RaftService/Version",
@@ -193,7 +193,7 @@ def add_RaftServiceServicer_to_server(servicer, server):
         "DebugEntries": grpc.unary_unary_rpc_method_handler(
             servicer.DebugEntries,
             request_deserializer=raft__service__pb2.Empty.FromString,
-            response_serializer=raft__service__pb2.DebugNodeResponse.SerializeToString,
+            response_serializer=raft__service__pb2.DebugEntriesResponse.SerializeToString,
         ),
         "Version": grpc.unary_unary_rpc_method_handler(
             servicer.Version,
@@ -490,7 +490,7 @@ class RaftService(object):
             target,
             "/raftservice.RaftService/DebugEntries",
             raft__service__pb2.Empty.SerializeToString,
-            raft__service__pb2.DebugNodeResponse.FromString,
+            raft__service__pb2.DebugEntriesResponse.FromString,
             options,
             channel_credentials,
             insecure,

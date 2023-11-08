@@ -91,22 +91,17 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         response = await receiver.get()
 
         if isinstance(response, WrongLeaderRespMessage):
-            leader_id, leader_addr = response.leader_id, response.leader_addr
-
             return raft_service_pb2.IdRequestResponse(
+                leader_id=response.leader_id,
+                leader_addr=response.leader_addr,
                 result=raft_service_pb2.IdRequest_WrongLeader,
-                data=pickle.dumps({"leader_id": leader_id, "leader_addr": leader_addr}),
             )
         elif isinstance(response, IdReservedRespMessage):
-            reserved_id = response.reserved_id
-            peers = response.peers
-            leader_id = response.leader_id
-
             return raft_service_pb2.IdRequestResponse(
                 result=raft_service_pb2.IdRequest_Success,
-                data=pickle.dumps(
-                    {"leader_id": leader_id, "reserved_id": reserved_id, "peers": peers}
-                ),
+                leader_id=response.leader_id,
+                reserved_id=response.reserved_id,
+                peers=response.raw_peers,
             )
         else:
             assert False, "Unreachable"

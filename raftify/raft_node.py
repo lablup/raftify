@@ -525,7 +525,7 @@ class RaftNode:
             match change_type:
                 case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
                     response = JoinSuccessRespMessage(
-                        assigned_id=node_id, peers=self.peers.encode()
+                        assigned_id=node_id, raw_peers=self.peers.encode()
                     )
                 case ConfChangeType.RemoveNode:
                     response = ConfChangeSuccessRespMessage()
@@ -691,7 +691,7 @@ class RaftNode:
                         IdReservedRespMessage(
                             leader_id=self.get_leader_id(),
                             reserved_id=reserved_id,
-                            peers=self.peers.encode(),
+                            raw_peers=self.peers.encode(),
                         )
                     )
 

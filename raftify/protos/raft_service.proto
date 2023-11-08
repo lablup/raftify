@@ -94,7 +94,10 @@ enum IdRequestResult {
 
 message IdRequestResponse {
   IdRequestResult result         = 1;
-  bytes data                     = 2;
+  uint64 leader_id               = 2;
+  string leader_addr             = 3;
+  uint64 reserved_id             = 4;
+  bytes peers                    = 5;
 }
 
 // Message Rerouting
