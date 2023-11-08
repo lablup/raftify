@@ -106,6 +106,9 @@ class RaftNode:
         raftify_cfg: RaftifyConfig,
         bootstrap_done: bool,
     ) -> "RaftNode":
+        """
+        Create new RaftCluster and bootstrap this RaftNode as a leader.
+        """
         cfg = raftify_cfg.raft_config
 
         cfg.set_id(1)
@@ -164,6 +167,9 @@ class RaftNode:
         raftify_cfg: RaftifyConfig,
         bootstrap_done: bool,
     ) -> "RaftNode":
+        """
+        Add new RaftNode to the existing RaftCluster and bootstrap this RaftNode as a follower.
+        """
         cfg = raftify_cfg.raft_config
 
         cfg.set_id(id)
