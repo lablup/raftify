@@ -44,7 +44,7 @@ def cli():
 
 @cli.group()
 def debug():
-    """Debugging commands"""
+    """Group of commands debugging raft cluster"""
     pass
 
 
@@ -54,7 +54,7 @@ def debug():
     )
 )
 def member():
-    """Cluster membership commands"""
+    """Group of commands managing cluster membership"""
     pass
 
 

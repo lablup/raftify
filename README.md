@@ -137,7 +137,7 @@ raftify supports CLI commands to make this process more convenient.
 For example,
 
 ```
-$ raftify-cli debug 127.0.0.1:60061
+$ raftify-cli debug node 127.0.0.1:60061
 ```
 
 ## References

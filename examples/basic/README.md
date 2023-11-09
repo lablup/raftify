@@ -2,7 +2,7 @@
 
 The example codes can be used as test codes for raftify development and also as sample codes.
 
-## Entry point
+## Bootstrap and Interaction Examples
 
 ### Bootstrap cluster thorough raftify CLI
 
@@ -14,4 +14,12 @@ The example codes can be used as test codes for raftify development and also as 
 
 ```
 ❯ python -m examples.basic.main --bootstrap --web-server=127.0.0.1:8001
+```
+
+### Interact with RaftCluster
+
+Here are some code examples that use RaftClient, which is available for interacting with a Raft cluster.
+
+```
+❯ python ./examples/basic/client_example.py
 ```
