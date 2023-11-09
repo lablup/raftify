@@ -320,10 +320,8 @@ class RaftNode:
                         f"because the requests to the connection kept failed."
                     )
 
-    def should_retry(self, message: Message, current_retry_count: int) -> bool:
+    def should_retry(self, node_id: int, current_retry_count: int) -> bool:
         """ """
-        node_id = message.get_to()
-
         if node_id not in self.peers.keys():
             return False
 
@@ -371,8 +369,7 @@ class RaftNode:
 
     async def send_message(self, client: RaftClient, message: Message) -> None:
         """
-        Attempt to send a message 'max_retry_cnt' times at 'message_timeout' interval.
-        If 'auto_remove_node' is set to True, the send function will remove the node from the cluster automatically.
+        Attempt to send a message through the given client.
         """
 
         node_id = message.get_to()
@@ -385,20 +382,20 @@ class RaftNode:
                         message, timeout=self.raftify_cfg.message_timeout
                     )
 
-                    failed_client = self.peers[node_id].client
-                    assert failed_client is not None
-                    failed_client.first_failed_time = None
+                    self.peers[node_id].client.first_failed_time = None
                 return
             except grpc.aio.AioRpcError or asyncio.TimeoutError as err:
                 if not isinstance(err, asyncio.TimeoutError):
-                    if not err.code() == grpc.StatusCode.UNAVAILABLE:
+                    if err.code() != grpc.StatusCode.UNAVAILABLE:
                         raise
 
                 await self.report_unreachable(node_id)
                 elapsed = self.get_elapsed_time_from_first_connection_lost(node_id)
-                self.logger.warning(
-                    f"Failed to connect to node {node_id}, elapsed from failure: {format(elapsed, '.4f')}s"
-                )
+
+                if elapsed < self.raftify_cfg.node_auto_remove_threshold:
+                    self.logger.warning(
+                        f"Failed to connect to node {node_id}, elapsed from first failure: {format(elapsed, '.4f')}s"
+                    )
 
                 if self.is_leader():
                     self.handle_node_auto_removal(elapsed, node_id)
@@ -406,7 +403,7 @@ class RaftNode:
                 if not isinstance(err, asyncio.TimeoutError):
                     await asyncio.sleep(self.raftify_cfg.message_timeout)
 
-                if self.should_retry(message, current_retry_count):
+                if self.should_retry(message.get_to(), current_retry_count):
                     current_retry_count += 1
                     continue
                 else:
