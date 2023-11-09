@@ -128,18 +128,6 @@ await cluster.join_cluster(request_id_response)
 asyncio.create_task(cluster.wait_for_termination())
 ```
 
-### Debug RaftNode
-
-Through RaftClient's DebugNode request, you can obtain detailed debugging information of the specific Raft node in JSON format.
-
-raftify supports CLI commands to make this process more convenient.
-
-For example,
-
-```
-$ raftify-cli debug node 127.0.0.1:60061
-```
-
 ## References
 
 This library was inspired by a wide variety of previous lift implementations.
