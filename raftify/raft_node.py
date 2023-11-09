@@ -786,7 +786,7 @@ class RaftNode:
         snapshot_default = Snapshot.default()
         if ready.snapshot() != snapshot_default.make_ref():
             snapshot = ready.snapshot()
-            self.logger.info("Restoring FSM from the snapshot...")
+            self.logger.info("Restoring a state machine from the snapshot...")
             await self.fsm.restore(snapshot.get_data())
             self.lmdb.apply_snapshot(snapshot.clone())
 
