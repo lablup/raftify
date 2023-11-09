@@ -273,7 +273,7 @@ class RaftNode:
                 "has_pending_conf": self.raw_node.get_raft().has_pending_conf(),
             },
             "peer_states": {
-                node_id: peer.to_dict() for node_id, peer in self.peers.data.items()
+                node_id: peer.to_dict() for node_id, peer in self.peers.items()
             },
         }
 
@@ -304,7 +304,7 @@ class RaftNode:
     def handle_node_auto_removal(self, elapsed: float, node_id: int) -> None:
         assert self.is_leader()
 
-        if node_id not in self.peers.data.keys():
+        if node_id not in self.peers.keys():
             return
 
         if elapsed >= self.raftify_cfg.node_auto_remove_threshold:
@@ -324,7 +324,7 @@ class RaftNode:
         """ """
         node_id = message.get_to()
 
-        if node_id not in self.peers.data.keys():
+        if node_id not in self.peers.keys():
             return False
 
         return current_retry_count < self.raftify_cfg.max_retry_cnt
@@ -440,9 +440,7 @@ class RaftNode:
 
     async def send_wrongleader_response(self, channel: Queue) -> None:
         # TODO: Make this follower to new cluster's leader
-        assert (
-            self.get_leader_id() in self.peers.data
-        ), "Leader node not found in peers!"
+        assert self.get_leader_id() in self.peers, "Leader node not found in peers!"
 
         try:
             # TODO: handle error here
@@ -536,7 +534,7 @@ class RaftNode:
                         self.logger.info(f"Node {node_id} quit the cluster.")
                     else:
                         self.logger.info(f"Node {node_id} removed from the cluster.")
-                        self.peers.data[node_id].state = PeerState.Disconnected
+                        self.peers[node_id].state = PeerState.Disconnected
                 case _:
                     raise NotImplementedError
 
@@ -604,7 +602,7 @@ class RaftNode:
                 )
                 peers = Peers.decode(message.peers)
                 self.peers = peers
-                for node_id, peer in self.peers.data.items():
+                for node_id, peer in self.peers.items():
                     peers.connect(node_id, peer.addr)
 
                 message.chan.put_nowait(ClusterBootstrapReadyRespMessage())
@@ -685,11 +683,9 @@ class RaftNode:
                 for change in changes:
                     match change.get_change_type():
                         case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
-                            self.peers.data[
-                                change.get_node_id()
-                            ].state = PeerState.Connected
+                            self.peers[change.get_node_id()].state = PeerState.Connected
                         case ConfChangeType.RemoveNode:
-                            self.peers.data[
+                            self.peers[
                                 change.get_node_id()
                             ].state = PeerState.Disconnected
 

@@ -119,8 +119,7 @@ class RaftFacade:
         await asyncio.sleep(1)
 
         while not all(
-            data.state == PeerState.Connected
-            for data in self.initial_peers.data.values()
+            data.state == PeerState.Connected for data in self.initial_peers.values()
         ):
             self.logger.debug(
                 "Waiting for all peers to make join request to the cluster..."
@@ -132,7 +131,7 @@ class RaftFacade:
         )
         await self.__join_followers()
 
-        for node_id, peer in self.initial_peers.data.items():
+        for node_id, peer in self.initial_peers.items():
             if node_id == 1:
                 continue
 
@@ -230,9 +229,9 @@ class RaftFacade:
         changes = []
         node_addrs = []
 
-        for node_id in self.initial_peers.data.keys():
+        for node_id in self.initial_peers.keys():
             # Skip leader
-            if self.addr == self.initial_peers.data[node_id].addr:
+            if self.addr == self.initial_peers[node_id].addr:
                 continue
 
             conf_change = ConfChangeSingle.default()
@@ -290,7 +289,7 @@ class RaftFacade:
                         peer.addr,
                         PeerState.Connected,
                     )
-                    for node_id, peer in peers.data.items()
+                    for node_id, peer in peers.items()
                 },
                 leader_id: Peer(
                     leader_client.addr,

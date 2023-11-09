@@ -70,7 +70,7 @@ async def remove(request: web.Request) -> web.Response:
 def get_alive_node_ids(peers: Peers) -> list[int]:
     return [
         node_id
-        for node_id, peer in peers.data.items()
+        for node_id, peer in peers.items()
         if peer.state == PeerState.Connected
     ]
 
@@ -168,7 +168,7 @@ async def excute_extra_node(node_id: int, raft_addr: SocketAddr, peers: Peers):
 
     store = HashStore()
     cluster = RaftFacade(cfg, raft_addr, store, slog, logger, peers)
-    peer_addrs = [peer.addr for peer in peers.data.values()]
+    peer_addrs = [peer.addr for peer in peers.values()]
 
     request_id_resp = await cluster.request_id(raft_addr, peer_addrs)
     cluster.run_raft(request_id_resp.follower_id)
