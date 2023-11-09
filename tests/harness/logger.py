@@ -5,6 +5,13 @@ import colorlog
 from rraft import default_logger
 
 
+def debug_mode_enabled():
+    try:
+        return os.environ["DEBUG"] == "1"
+    except KeyError:
+        return False
+
+
 def setup_logger() -> logging.Logger:
     log_format = "%(asctime)s - " "%(log_color)s%(levelname)-8s - %(message)s%(reset)s"
 
@@ -17,8 +24,9 @@ def setup_logger() -> logging.Logger:
         "asctime": "grey",
     }
 
+    level = logging.DEBUG if debug_mode_enabled() else logging.INFO
     colorlog.basicConfig(
-        level=logging.DEBUG, format=log_format, log_colors=log_colors_config
+        level=level, format=log_format, log_colors=log_colors_config
     )
     return logging.getLogger()
 
@@ -26,7 +34,7 @@ def setup_logger() -> logging.Logger:
 def setup_slog():
     # Set up rraft-py's slog log-level to Debug.
     # TODO: This method should be improved in rraft-py.
-    os.environ["RUST_LOG"] = "DEBUG"
+    os.environ["RUST_LOG"] = "DEBUG" if debug_mode_enabled() else "INFO"
     return default_logger()
 
 
