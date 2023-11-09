@@ -11,6 +11,7 @@ from rraft import (
     ConfChangeV2,
     Logger,
     LoggerRef,
+    RawNode,
 )
 
 from .config import RaftifyConfig
@@ -92,6 +93,10 @@ class RaftFacade:
     def store(self) -> AbstractStateMachine:
         return self.fsm
 
+    @property
+    def raw_node(self) -> RawNode:
+        return self.raft_node.raw_node
+
     async def create_snapshot(self) -> None:
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
 
@@ -127,7 +132,7 @@ class RaftFacade:
             await asyncio.sleep(2)
 
         self.logger.debug(
-            "Received All followers join request, preparing to bootstrap the cluster."
+            "Received All follower nodes join requests, preparing to bootstrap the cluster..."
         )
         await self.__join_followers()
 
@@ -138,22 +143,6 @@ class RaftFacade:
             raw_peers = self.initial_peers.encode()
             assert peer.client is not None
             await peer.client.cluster_bootstrap_ready(raw_peers, 5.0)
-
-    def transfer_leader(
-        self,
-        node_id: int,
-    ) -> bool:
-        """
-        Handle Leader transfer.
-        """
-        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
-
-        if not self.raft_node.is_leader():
-            self.logger.warning("LeaderTransfer requested but not leader!")
-            return False
-
-        self.raft_node.raw_node.transfer_leader(node_id)
-        return True
 
     async def request_id(
         self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]
@@ -263,7 +252,8 @@ class RaftFacade:
             self.raft_node.bootstrap_done = True
             asyncio.create_task(self.raft_node.leave_joint())
             return
-        # TODO: handle error cases
+
+        raise ClusterBootstrapError(cause="Bootstrap failed! Response: " + str(resp))
 
     async def join_cluster(
         self,
@@ -340,11 +330,11 @@ class RaftFacade:
         if node_id == 1:
             self.initial_peers.connect(node_id, self.addr)
 
-            self.raft_node = RaftNode.bootstrap_leader(
+            self.raft_node = RaftNode.bootstrap_cluster(
                 message_queue=self.message_queue,
                 fsm=self.fsm,
                 raft_server=self.raft_server,
-                peers=self.initial_peers,
+                initial_peers=self.initial_peers,
                 slog=self.slog,
                 logger=self.logger,
                 raftify_cfg=self.cluster_config,

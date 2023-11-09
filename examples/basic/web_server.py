@@ -74,7 +74,7 @@ async def transfer_leader(request: web.Request) -> web.Response:
     raft_facade: RaftFacade = request.app["state"]["raft"]
     target_node_id = int(request.match_info["id"])
 
-    raft_facade.transfer_leader(target_node_id)
+    raft_facade.raft_node.transfer_leader(target_node_id)
     return web.Response(text="Leader transferred successfully.")
 
 

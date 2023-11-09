@@ -74,8 +74,8 @@ class RaftNode:
         fsm: AbstractStateMachine,
         lmdb: LMDBStorage,
         storage: Storage,
-        seq: AtomicInteger,
-        last_snap_time: float,
+        response_seq: AtomicInteger,
+        last_snapshot_created: float,
         logger: AbstractRaftifyLogger,
         raftify_cfg: RaftifyConfig,
         bootstrap_done: bool,
@@ -87,29 +87,34 @@ class RaftNode:
         self.fsm = fsm
         self.lmdb = lmdb
         self.storage = storage
-        self.seq = seq
-        self.last_snap_time = last_snap_time
+        self.response_seq = response_seq
+        self.last_snapshot_created = last_snapshot_created
         self.logger = logger
         self.should_exit = False
         self.raftify_cfg = raftify_cfg
         self.bootstrap_done = bootstrap_done
 
     @classmethod
-    def bootstrap_leader(
+    def bootstrap_cluster(
         cls,
         *,
         message_queue: Queue,
         fsm: AbstractStateMachine,
         raft_server: RaftServer,
-        peers: Peers,
+        initial_peers: Peers,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
         raftify_cfg: RaftifyConfig,
         bootstrap_done: bool,
     ) -> "RaftNode":
         """
-        Create new RaftCluster and bootstrap this RaftNode as a leader.
+        Create new RaftCluster and make this RaftNode as a leader.
         """
+        # TODO: Support the below case.
+        assert (
+            len(initial_peers) != 1
+        ), "The number of initial peers should be more than 2 or equals to 0."
+
         cfg = raftify_cfg.raft_config
 
         cfg.set_id(1)
@@ -139,8 +144,8 @@ class RaftNode:
         storage = Storage(lmdb)
         raw_node = RawNode(cfg, storage, slog)
 
-        seq = AtomicInteger(0)
-        last_snap_time = time.time()
+        response_seq = AtomicInteger(0)
+        last_snapshot_created = time.time()
 
         raw_node.get_raft().become_candidate()
         raw_node.get_raft().become_leader()
@@ -148,13 +153,13 @@ class RaftNode:
         return cls(
             raw_node=raw_node,
             raft_server=raft_server,
-            peers=peers,
+            peers=initial_peers,
             message_queue=message_queue,
             fsm=fsm,
             lmdb=lmdb,
             storage=storage,
-            seq=seq,
-            last_snap_time=last_snap_time,
+            response_seq=response_seq,
+            last_snapshot_created=last_snapshot_created,
             logger=logger,
             raftify_cfg=raftify_cfg,
             bootstrap_done=bootstrap_done,
@@ -195,8 +200,8 @@ class RaftNode:
         storage = Storage(lmdb)
         raw_node = RawNode(cfg, storage, slog)
 
-        seq = AtomicInteger(0)
-        last_snap_time = time.time()
+        response_seq = AtomicInteger(0)
+        last_snapshot_created = time.time()
 
         return cls(
             raw_node=raw_node,
@@ -206,8 +211,8 @@ class RaftNode:
             fsm=fsm,
             lmdb=lmdb,
             storage=storage,
-            seq=seq,
-            last_snap_time=last_snap_time,
+            response_seq=response_seq,
+            last_snapshot_created=last_snapshot_created,
             logger=logger,
             raftify_cfg=raftify_cfg,
             bootstrap_done=bootstrap_done,
@@ -221,6 +226,20 @@ class RaftNode:
 
     def is_leader(self) -> bool:
         return self.get_id() == self.get_leader_id()
+
+    def transfer_leader(
+        self,
+        node_id: int,
+    ) -> bool:
+        """
+        Handle Leader transfer.
+        """
+        if not self.is_leader():
+            self.logger.warning("LeaderTransfer requested but not leader!")
+            return False
+
+        self.raw_node.transfer_leader(node_id)
+        return True
 
     def remove_node(self, node_id: int) -> None:
         conf_change = ConfChange.default()
@@ -277,7 +296,7 @@ class RaftNode:
             },
         }
 
-    async def report_unreachable(self, node_id: int) -> None:
+    async def report_node_unreachable(self, node_id: int) -> None:
         try:
             await self.message_queue.put(ReportUnreachableReqMessage(node_id))
         except Exception as e:
@@ -389,7 +408,7 @@ class RaftNode:
                     if err.code() != grpc.StatusCode.UNAVAILABLE:
                         raise
 
-                await self.report_unreachable(node_id)
+                await self.report_node_unreachable(node_id)
                 elapsed = self.get_elapsed_time_from_first_connection_lost(node_id)
 
                 if elapsed < self.raftify_cfg.node_auto_remove_threshold:
@@ -470,7 +489,7 @@ class RaftNode:
                     raise NotImplementedError
 
     async def create_snapshot(self, index: int, term: int) -> None:
-        self.last_snap_time = time.time()
+        self.last_snapshot_created = time.time()
         snapshot_data = await self.fsm.snapshot()
 
         last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
@@ -484,15 +503,16 @@ class RaftNode:
         if not entry.get_data():
             return
 
-        seq = AtomicInteger(pickle.loads(entry.get_context()))
+        response_seq = AtomicInteger(pickle.loads(entry.get_context()))
         data = await self.fsm.apply(entry.get_data())
 
-        if response_queue := response_queues.pop(seq, None):
+        if response_queue := response_queues.pop(response_seq, None):
             response_queue.put_nowait(RaftRespMessage(data))
 
         if (
             self.raftify_cfg.snapshot_interval > 0
-            and time.time() > self.last_snap_time + self.raftify_cfg.snapshot_interval
+            and time.time()
+            > self.last_snapshot_created + self.raftify_cfg.snapshot_interval
         ):
             await self.create_snapshot(entry.get_index(), entry.get_term())
 
@@ -508,7 +528,7 @@ class RaftNode:
                 await self.create_snapshot(entry.get_index(), entry.get_term())
             return
 
-        seq = AtomicInteger(pickle.loads(entry.get_context()))
+        response_seq = AtomicInteger(pickle.loads(entry.get_context()))
         conf_change_v2 = ConfChangeV2.decode(entry.get_data())
 
         conf_changes = conf_change_v2.get_changes()
@@ -539,7 +559,7 @@ class RaftNode:
             self.lmdb.set_conf_state(conf_state)
             await self.create_snapshot(entry.get_index(), entry.get_term())
 
-        if response_queue := response_queues.pop(seq, None):
+        if response_queue := response_queues.pop(response_seq, None):
             response: ResponseMessage
 
             match change_type:
@@ -637,9 +657,9 @@ class RaftNode:
                         for addr in socket_addrs:
                             self.peers.ready_peer(addr)
 
-                        await self.seq.increase()
-                        response_queues[self.seq] = message.chan
-                        context = pickle.dumps(self.seq.value)
+                        await self.response_seq.increase()
+                        response_queues[self.response_seq] = message.chan
+                        context = pickle.dumps(self.response_seq.value)
 
                         try:
                             self.raw_node.propose_conf_change_v2(
@@ -647,7 +667,7 @@ class RaftNode:
                             )
 
                             self.logger.debug(
-                                f"Proposed new config change..., seq={self.seq.value}, {conf_change_v2=}"
+                                f"Proposed new config change..., seq={self.response_seq.value}, {conf_change_v2=}"
                             )
                         except rraft.ProposalDroppedError:
                             # TODO: Study when it happens and handle it.
@@ -657,9 +677,9 @@ class RaftNode:
                 # Ignore all pending conf changes and apply the given conf change forcely.
                 # This won't persist the conf changes, but apply them successfully.
 
-                await self.seq.increase()
-                response_queues[self.seq] = message.chan
-                context = pickle.dumps(self.seq.value)
+                await self.response_seq.increase()
+                response_queues[self.response_seq] = message.chan
+                context = pickle.dumps(self.response_seq.value)
 
                 conf_change_v2 = ConfChangeV2Adapter.from_pb(message.conf_change)
 
@@ -691,9 +711,9 @@ class RaftNode:
                     # TODO: retry strategy in case of failure
                     await self.send_wrongleader_response(message.chan)
                 else:
-                    await self.seq.increase()
-                    response_queues[self.seq] = message.chan
-                    context = pickle.dumps(self.seq.value)
+                    await self.response_seq.increase()
+                    response_queues[self.response_seq] = message.chan
+                    context = pickle.dumps(self.response_seq.value)
                     self.raw_node.propose(context, message.data)
 
             elif isinstance(message, RequestIdReqMessage):
