@@ -191,9 +191,8 @@ class RaftFacade:
 
                         break
                     case raft_service_pb2.IdRequest_WrongLeader:
-                        peer_addr = resp.leader_addr
                         self.logger.info(
-                            f"Sent message to the wrong leader, retrying with the peer at {peer_addr} "
+                            f"Sent message to the wrong leader, retrying with the peer at {resp.leader_addr} "
                             f"assuming that it is leader node."
                         )
                         continue

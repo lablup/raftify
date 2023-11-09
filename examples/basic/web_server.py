@@ -50,7 +50,7 @@ async def leave(request: web.Request) -> web.Response:
 
 @routes.get("/remove/{id}")
 async def remove(request: web.Request) -> web.Response:
-    cluster: RaftFacade = request.app["state"]["cluster"]
+    cluster: RaftFacade = request.app["state"]["raft"]
     id = int(request.match_info["id"])
     addr = cluster.peers[id].addr
     await cluster.mailbox.leave(id, addr)
