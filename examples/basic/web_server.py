@@ -5,8 +5,9 @@ from typing import cast
 from aiohttp import web
 from aiohttp.web import RouteTableDef
 
+from raftify.log_entry.set_command import SetCommand
 from raftify.raft_facade import RaftFacade
-from raftify.state_machine.hashstore import HashStore, SetCommand
+from raftify.state_machine.hashstore import HashStore
 
 routes = RouteTableDef()
 """

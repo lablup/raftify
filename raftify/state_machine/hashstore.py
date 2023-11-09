@@ -1,21 +1,9 @@
 import pickle
 from typing import Optional
 
-from .abc import AbstractLogEntry, AbstractStateMachine
+from raftify.log_entry.set_command import SetCommand
 
-
-class SetCommand(AbstractLogEntry):
-    def __init__(self, key: str, value: str) -> None:
-        self.key = key
-        self.value = value
-
-    def encode(self) -> bytes:
-        return pickle.dumps(self.__dict__)
-
-    @classmethod
-    def decode(cls, packed: bytes) -> "SetCommand":
-        unpacked = pickle.loads(packed)
-        return cls(unpacked["key"], unpacked["value"])
+from .abc import AbstractStateMachine
 
 
 class HashStore(AbstractStateMachine):

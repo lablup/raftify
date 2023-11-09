@@ -1,7 +1,7 @@
 import asyncio
 
+from raftify.log_entry.set_command import SetCommand
 from raftify.raft_client import RaftClient
-from raftify.state_machine.hashstore import SetCommand
 
 
 async def main() -> None:
