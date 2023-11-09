@@ -2,6 +2,8 @@ from dataclasses import dataclass
 
 from rraft import Config
 
+DEFAULT_CLUSTER_ID = "default"
+
 
 @dataclass
 class RaftifyConfig:
@@ -76,7 +78,7 @@ class RaftifyConfig:
         snapshot_interval: float = 0.0,
         tick_interval: float = 0.1,
         lmdb_map_size: int = 1024 * 1024 * 1024,
-        cluster_id: str = "default",
+        cluster_id: str = DEFAULT_CLUSTER_ID,
     ) -> None:
         self.log_dir = log_dir
         self.compacted_log_dir = compacted_log_dir

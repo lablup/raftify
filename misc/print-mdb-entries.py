@@ -2,6 +2,7 @@ import os
 import sys
 import lmdb
 import rraft
+from raftify.config import DEFAULT_CLUSTER_ID
 from raftify.deserializer import init_rraft_py_deserializer
 from raftify.storage.lmdb import SNAPSHOT_KEY, LAST_INDEX_KEY, HARD_STATE_KEY, CONF_STATE_KEY
 
@@ -11,7 +12,7 @@ def main(argv):
     idx = argv[1]
     assert idx.isdigit(), "idx must be a number"
 
-    env = lmdb.open(f"{os.getcwd()}/logs/default/node-{idx}", max_dbs=2)
+    env = lmdb.open(f"{os.getcwd()}/logs/{DEFAULT_CLUSTER_ID}/node-{idx}", max_dbs=2)
 
     entries_db = env.open_db(b"entries")
 
