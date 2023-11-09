@@ -1,7 +1,7 @@
 import logging
 import os
-import colorlog
 
+import colorlog
 from rraft import default_logger
 
 
@@ -25,9 +25,7 @@ def setup_logger() -> logging.Logger:
     }
 
     level = logging.DEBUG if debug_mode_enabled() else logging.INFO
-    colorlog.basicConfig(
-        level=level, format=log_format, log_colors=log_colors_config
-    )
+    colorlog.basicConfig(level=level, format=log_format, log_colors=log_colors_config)
     return logging.getLogger()
 
 

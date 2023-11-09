@@ -1,22 +1,29 @@
 import asyncio
-from concurrent.futures import ProcessPoolExecutor
 import json
+from concurrent.futures import ProcessPoolExecutor
 
 import pytest
+from constant import THREE_NODE_EXAMPLE
 from harness.raft_server import run_raft_cluster, wait_for_until
-from utils import RequestType, kill_node, killall, load_peers, make_request, reset_fixtures_directory
+from utils import (
+    RequestType,
+    kill_node,
+    killall,
+    load_peers,
+    make_request,
+    reset_fixtures_directory,
+)
 
 
 # TODO: Maybe it would be better to replace RerouteMessage with network layer's implementation for simplicity.
 @pytest.mark.asyncio
 async def test_message_rerouting():
-    """
-    """
+    """ """
 
     reset_fixtures_directory()
     loop = asyncio.get_running_loop()
     executor = ProcessPoolExecutor()
-    peers = load_peers("3-node-example.toml")
+    peers = load_peers(THREE_NODE_EXAMPLE)
 
     loop.run_in_executor(executor, run_raft_cluster, peers)
     await wait_for_until("cluster_size >= 3")

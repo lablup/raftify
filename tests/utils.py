@@ -4,11 +4,11 @@ import os
 import re
 import shutil
 import signal
+from pathlib import Path
 
 import requests
-from harness.constant import CLUSTER_INFO_PATH, WEB_SERVER_ADDRS
-from pathlib import Path
 import tomli
+from harness.constant import CLUSTER_INFO_PATH, WEB_SERVER_ADDRS
 
 from raftify.peers import Peer, Peers
 from raftify.utils import SocketAddr

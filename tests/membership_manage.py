@@ -3,10 +3,19 @@ import json
 from concurrent.futures import ProcessPoolExecutor
 
 import pytest
+from constant import THREE_NODE_EXAMPLE
 from harness.raft_server import run_raft_cluster, spawn_extra_node, wait_for_until
+from utils import (
+    RequestType,
+    kill_node,
+    killall,
+    load_peers,
+    make_request,
+    reset_fixtures_directory,
+)
+
 from raftify.peers import Peer
 from raftify.utils import SocketAddr
-from utils import RequestType, kill_node, killall, load_peers, make_request, reset_fixtures_directory
 
 
 @pytest.mark.asyncio
@@ -18,7 +27,7 @@ async def test_disconnected_node_get_same_node_id():
     reset_fixtures_directory()
     loop = asyncio.get_running_loop()
     executor = ProcessPoolExecutor()
-    peers = load_peers("3-node-example.toml")
+    peers = load_peers(THREE_NODE_EXAMPLE)
 
     loop.run_in_executor(executor, run_raft_cluster, peers)
     await wait_for_until("cluster_size >= 3")
@@ -31,8 +40,8 @@ async def test_disconnected_node_get_same_node_id():
     await kill_node(2)
     await wait_for_until("cluster_size <= 2")
     peers_states_2 = json.loads(make_request(RequestType.GET, 1, "/peers"))
-    assert list(peers_states_2.keys()) == ['1', '2', '3']
-    assert peers_states_2['2']["state"] != "Connected"
+    assert list(peers_states_2.keys()) == ["1", "2", "3"]
+    assert peers_states_2["2"]["state"] != "Connected"
 
     peers_2 = json.loads(make_request(RequestType.GET, 1, "/connected_nodes"))
     assert peers_2 == [1, 3]
@@ -61,12 +70,10 @@ async def test_apply_confchange_forcely():
 # TODO: Implement this test
 @pytest.mark.asyncio
 async def test_cluster_merge():
-    """
-    """
+    """ """
 
 
 # TODO: Implement this test
 @pytest.mark.asyncio
 async def test_leader_transfer():
-    """
-    """
+    """ """

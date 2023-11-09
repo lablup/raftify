@@ -2,6 +2,7 @@ import asyncio
 from concurrent.futures import ProcessPoolExecutor
 
 import pytest
+from constant import FIVE_NODE_EXAMPLE, THREE_NODE_EXAMPLE
 from harness.raft_server import run_raft_cluster, wait_for_until
 from utils import (
     RequestType,
@@ -25,7 +26,7 @@ async def test_leader_election_three_node_example():
     reset_fixtures_directory()
     loop = asyncio.get_running_loop()
     executor = ProcessPoolExecutor()
-    peers = load_peers("3-node-example.toml")
+    peers = load_peers(THREE_NODE_EXAMPLE)
 
     loop.run_in_executor(executor, run_raft_cluster, peers)
     await wait_for_until("cluster_size >= 3")
@@ -56,7 +57,7 @@ async def test_leader_election_five_node_example():
     reset_fixtures_directory()
     loop = asyncio.get_running_loop()
     executor = ProcessPoolExecutor()
-    peers = load_peers("5-node-example.toml")
+    peers = load_peers(FIVE_NODE_EXAMPLE)
 
     loop.run_in_executor(executor, run_raft_cluster, peers)
     await wait_for_until("cluster_size >= 5")

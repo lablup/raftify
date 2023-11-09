@@ -14,14 +14,14 @@ from aiohttp.web import Application, RouteTableDef
 from aiotools import process_index
 from harness.constant import CLUSTER_INFO_PATH, RAFT_ADDRS, WEB_SERVER_ADDRS
 from harness.logger import logger, slog
-from raftify.peers import PeerState, Peers
-from raftify.raft_client import RaftClient
-from raftify.deserializer import init_rraft_py_deserializer
-from raftify.state_machine.hashstore import HashStore, SetCommand
 from utils import read_cluster_info, remove_node, write_json, write_node
 
 from raftify.config import RaftifyConfig
+from raftify.deserializer import init_rraft_py_deserializer
+from raftify.peers import Peers, PeerState
+from raftify.raft_client import RaftClient
 from raftify.raft_facade import RaftFacade
+from raftify.state_machine.hashstore import HashStore, SetCommand
 from raftify.utils import SocketAddr
 
 routes = RouteTableDef()
@@ -69,9 +69,7 @@ async def remove(request: web.Request) -> web.Response:
 
 def get_alive_node_ids(peers: Peers) -> list[int]:
     return [
-        node_id
-        for node_id, peer in peers.items()
-        if peer.state == PeerState.Connected
+        node_id for node_id, peer in peers.items() if peer.state == PeerState.Connected
     ]
 
 
@@ -196,10 +194,7 @@ async def excute_extra_node(node_id: int, raft_addr: SocketAddr, peers: Peers):
 
     write_node(node_id, {"addr": str(raft_addr), "pid": os.getpid()})
 
-    await asyncio.gather(
-        cluster.wait_for_termination(),
-        web_server.start()
-    )
+    await asyncio.gather(cluster.wait_for_termination(), web_server.start())
 
 
 def run_in_new_process(cb, *args):
@@ -214,7 +209,9 @@ def run_in_new_process(cb, *args):
 
 
 def spawn_extra_node(node_id: int, raft_addr: SocketAddr, peers: Peers):
-    p = multiprocessing.Process(target=run_in_new_process, args=(excute_extra_node, node_id, raft_addr, peers))
+    p = multiprocessing.Process(
+        target=run_in_new_process, args=(excute_extra_node, node_id, raft_addr, peers)
+    )
     p.start()
 
 
