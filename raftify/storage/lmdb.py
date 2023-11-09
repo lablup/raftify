@@ -80,6 +80,7 @@ class LMDBStorage:
         )
 
         os.makedirs(log_dir_path, exist_ok=True)
+        os.makedirs(compacted_log_dir_path, exist_ok=True)
 
         try:
             env: lmdb.Environment = lmdb.open(

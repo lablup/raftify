@@ -1,6 +1,7 @@
 import json
 from dataclasses import dataclass
 from enum import Enum
+import os
 from typing import Any
 
 from .peers import Peers
@@ -20,6 +21,8 @@ class RequestIdResponse:
 
 
 def append_to_json_file(dest_path: str, new_data: Any):
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+
     try:
         with open(dest_path, "r", encoding="utf-8") as file:
             data = json.load(file)
