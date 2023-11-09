@@ -22,8 +22,8 @@ class RaftifyConfig:
     - snapshot_interval: Interval between snapshots.
         Set to 0 to disable.
         Snapshots are also created after configuration changes are applied.
-    - lmdb_map_size: Maximum size lmdb database may grow to.
-    - tick_interval: Interval between Raft ticks.
+    - lmdb_map_size: Maximum file size mdb could occupy.
+    - tick_interval: Interval between Raft scheduler's each ticks.
     - cluster_id: Cluster ID.
     """
 
