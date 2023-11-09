@@ -68,7 +68,7 @@ class Peers:
         return len(self.data)
 
     def __iter__(self):
-        return iter(self.data.values())
+        return iter(self.data.keys())
 
     def keys(self):
         return self.data.keys()
