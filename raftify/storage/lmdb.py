@@ -1,6 +1,4 @@
-import json
 import os
-from datetime import datetime
 from typing import List, Optional
 
 import lmdb
@@ -21,6 +19,8 @@ from rraft import (
     StoreError,
     UnavailableError,
 )
+
+from raftify.raft_utils import append_to_json_file
 
 from ..deserializer import entry_data_deserializer, pickle_deserialize
 from ..logger import AbstractRaftifyLogger
@@ -235,13 +235,13 @@ class LMDBStorage:
                         f"Try to delete item at {decode_int(cursor.key())}, but not exist!"
                     )
 
-            dest_pth = os.path.join(
-                self.compacted_log_dir_path,
-                f"compacted-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.json",
+            append_to_json_file(
+                os.path.join(
+                    self.compacted_log_dir_path,
+                    "compacted-logs.json",
+                ),
+                compaction_logs,
             )
-
-            with open(dest_pth, "w") as file:
-                json.dump(compaction_logs, file)
 
             if to > from_:
                 self.logger.info(f"Entries [{from_}, {to}) deleted successfully.")

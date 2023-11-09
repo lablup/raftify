@@ -1,6 +1,5 @@
 import json
 import os
-import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -21,17 +20,16 @@ class RequestIdResponse:
     peers: Peers
 
 
-def gather_compacted_logs(path: str) -> list[str]:
-    result = []
-    node_pattern = re.compile(r"compacted-logs-(\d+)\.json$")
+def append_to_json_file(dest_path: str, new_data: Any):
+    if os.path.exists(dest_path):
+        with open(dest_path, "r", encoding="utf-8") as file:
+            data = json.load(file)
+            data.extend(new_data)
+    else:
+        data = new_data
 
-    for filename in sorted(os.listdir(path)):
-        match = node_pattern.match(filename)
-        if match:
-            with open(os.path.join(path, filename), "r") as file:
-                result += json.load(file)
-
-    return result
+    with open(dest_path, "w", encoding="utf-8") as file:
+        json.dump(data, file, indent=4)
 
 
 def format_all_entries(all_entries: dict[str, Any]) -> str:

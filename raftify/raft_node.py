@@ -1,4 +1,5 @@
 import asyncio
+import json
 import math
 import os
 import pickle
@@ -33,7 +34,6 @@ from .peers import Peer, Peers, PeerState
 from .protos.raft_service_pb2 import RerouteMsgType
 from .raft_client import RaftClient
 from .raft_server import RaftServer
-from .raft_utils import gather_compacted_logs
 from .request_message import (
     ApplyConfigChangeForcelyReqMessage,
     ClusterBootstrapReadyReqMessage,
@@ -352,7 +352,15 @@ class RaftNode:
             entry_dict["context"] = pickle_deserialize(entry.get_context())
             current_all_entry_dicts.append(entry_dict)
 
-        compacted_all_entries = gather_compacted_logs(self.lmdb.log_dir_path)
+        compacted_logs_path = os.path.join(
+            self.lmdb.compacted_log_dir_path, "compacted-logs.json"
+        )
+
+        if os.path.exists(compacted_logs_path):
+            with open(compacted_logs_path, "r", encoding="utf-8") as file:
+                compacted_all_entries = json.load(file)
+        else:
+            compacted_all_entries = []
 
         return {
             "current_all_entries": current_all_entry_dicts,
