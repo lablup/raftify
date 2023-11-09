@@ -1,7 +1,15 @@
-# raftify example - Multiprocessing structure using `aiotools.start_server`
+# Tests
 
-This directory is a part of the raftify example code.
+This test raftify's basic functions through multiprocessing structure using the [aiotools.start_server](https://github.com/achimnol/aiotools#async-server) API.
 
-This example test raftify's basic functions through multiprocessing structure using the [aiotools.start_server](https://github.com/achimnol/aiotools#async-server) API.
+## How to run tests
 
-In this example, a single process create a leader-follower structure's cluster through a multiprocessing.
+```
+❯ make test
+```
+
+To enable debug mode,
+
+```
+❯ DEBUG=1 make test
+```
