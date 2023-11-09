@@ -4,7 +4,7 @@ LEADER_ELECTION_TESTS = \
 
 test-leader-election:
 	@for test in $(LEADER_ELECTION_TESTS); do \
-		python -m pytest -s -v leader_election.py::$$test; \
+		python3 -m pytest -s -v leader_election.py::$$test; \
 	done
 
 DATA_REPLICATION_TESTS = \
@@ -12,7 +12,7 @@ DATA_REPLICATION_TESTS = \
 
 test-data-replication:
 	@for test in $(DATA_REPLICATION_TESTS); do \
-		python -m pytest -s -v data_replication.py::$$test; \
+		python3 -m pytest -s -v data_replication.py::$$test; \
 	done
 
 MEMBERSHIP_MANAGE_TESTS = \
@@ -20,7 +20,7 @@ MEMBERSHIP_MANAGE_TESTS = \
 
 test-membership-manage:
 	@for test in $(MEMBERSHIP_MANAGE_TESTS); do \
-		python -m pytest -s -v membership_manage.py::$$test; \
+		python3 -m pytest -s -v membership_manage.py::$$test; \
 	done
 
 NETWORK_TESTS = \
@@ -28,7 +28,7 @@ NETWORK_TESTS = \
 
 test-network:
 	@for test in $(NETWORK_TESTS); do \
-		python -m pytest -s -v network.py::$$test; \
+		python3 -m pytest -s -v network.py::$$test; \
 	done
 
 test:
