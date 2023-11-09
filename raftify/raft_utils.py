@@ -1,5 +1,4 @@
 import json
-import os
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -21,11 +20,11 @@ class RequestIdResponse:
 
 
 def append_to_json_file(dest_path: str, new_data: Any):
-    if os.path.exists(dest_path):
+    try:
         with open(dest_path, "r", encoding="utf-8") as file:
             data = json.load(file)
             data.extend(new_data)
-    else:
+    except FileNotFoundError:
         data = new_data
 
     with open(dest_path, "w", encoding="utf-8") as file:
