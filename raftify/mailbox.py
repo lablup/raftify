@@ -12,6 +12,7 @@ from .raft_node import RaftNode
 from .request_message import ConfigChangeReqMessage, ProposeReqMessage
 from .response_message import (
     ClusterBootstrapReadyRespMessage,
+    ConfChangeSuccessRespMessage,
     RaftRespMessage,
     ResponseMessage,
     WrongLeaderRespMessage,
@@ -42,6 +43,8 @@ class Mailbox:
             return None
         if isinstance(response, RaftRespMessage):
             return response.data
+        elif isinstance(response, ConfChangeSuccessRespMessage):
+            return None
         elif isinstance(response, WrongLeaderRespMessage):
             assert reroute_msg_type is not None
 
