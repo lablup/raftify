@@ -16,7 +16,10 @@ class RaftClient:
     """
 
     def __init__(
-        self, addr: str | SocketAddr, *, credentials: Optional[grpc.ServerCredentials] = None
+        self,
+        addr: str | SocketAddr,
+        *,
+        credentials: Optional[grpc.ServerCredentials] = None,
     ):
         if isinstance(addr, str):
             addr = SocketAddr.from_str(addr)
@@ -44,29 +47,29 @@ class RaftClient:
         self, conf_change: ConfChangeV2, timeout: float = math.inf
     ) -> raft_service_pb2.ChangeConfigResponse:
         """
-        Request to membership config change of the cluster.
+        Request for membership config change of the cluster.
         """
 
-        request = ConfChangeV2Adapter.to_pb(conf_change)
+        request_args = ConfChangeV2Adapter.to_pb(conf_change)
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
-            return await asyncio.wait_for(stub.ChangeConfig(request), timeout)
+            return await asyncio.wait_for(stub.ChangeConfig(request_args), timeout)
 
     async def apply_change_config_forcely(
         self, conf_change: ConfChangeV2, timeout: float = math.inf
     ) -> raft_service_pb2.ChangeConfigResponse:
         """
-        Request to membership config change of the cluster and apply it forcely.
+        Request for membership config change of the cluster.
         Note that this method is not safe and even not verified.
         """
 
-        request = ConfChangeV2Adapter.to_pb(conf_change)
+        request_args = ConfChangeV2Adapter.to_pb(conf_change)
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
             return await asyncio.wait_for(
-                stub.ApplyConfigChangeForcely(request), timeout
+                stub.ApplyConfigChangeForcely(request_args), timeout
             )
 
     async def send_message(
@@ -76,11 +79,11 @@ class RaftClient:
         Request to send a message to the cluster.
         """
 
-        request = MessageAdapter.to_pb(msg)
+        request_args = MessageAdapter.to_pb(msg)
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
-            return await asyncio.wait_for(stub.SendMessage(request), timeout)
+            return await asyncio.wait_for(stub.SendMessage(request_args), timeout)
 
     async def propose(
         self, data: bytes, timeout: float = 5.0
@@ -89,9 +92,11 @@ class RaftClient:
         Request to send a propose to the cluster.
         """
 
+        request_args = raft_service_pb2.ProposeArgs(msg=data)
+
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
-            return await asyncio.wait_for(stub.Propose(data), timeout)
+            return await asyncio.wait_for(stub.Propose(request_args), timeout)
 
     async def request_id(
         self, addr: SocketAddr, timeout: float = 5.0
@@ -153,7 +158,7 @@ class RaftClient:
         Request to reroute a message to the leader.
         """
 
-        request = raft_service_pb2.RerouteMessageArgs(
+        request_args = raft_service_pb2.RerouteMessageArgs(
             proposed_data=msg_bytes or b"",
             conf_change=conf_change,
             type=reroute_msg_type,
@@ -161,7 +166,7 @@ class RaftClient:
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
-            return await asyncio.wait_for(stub.RerouteMessage(request), timeout)
+            return await asyncio.wait_for(stub.RerouteMessage(request_args), timeout)
 
     async def debug_node(
         self, timeout: float = 5.0
@@ -170,11 +175,11 @@ class RaftClient:
         Request to debug the node.
         """
 
-        request = raft_service_pb2.Empty()
+        request_args = raft_service_pb2.Empty()
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
-            return await asyncio.wait_for(stub.DebugNode(request), timeout)
+            return await asyncio.wait_for(stub.DebugNode(request_args), timeout)
 
     async def debug_entries(
         self, timeout: float = 5.0
@@ -183,19 +188,19 @@ class RaftClient:
         Request to debug the node.
         """
 
-        request = raft_service_pb2.Empty()
+        request_args = raft_service_pb2.Empty()
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
-            return await asyncio.wait_for(stub.DebugEntries(request), timeout)
+            return await asyncio.wait_for(stub.DebugEntries(request_args), timeout)
 
     async def version(self, timeout: float = 5.0) -> raft_service_pb2.VersionResponse:
         """
         Request to get RaftServer's raftify version.
         """
 
-        request = raft_service_pb2.Empty()
+        request_args = raft_service_pb2.Empty()
 
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
-            return await asyncio.wait_for(stub.Version(request), timeout)
+            return await asyncio.wait_for(stub.Version(request_args), timeout)
