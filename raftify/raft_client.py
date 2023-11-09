@@ -16,8 +16,11 @@ class RaftClient:
     """
 
     def __init__(
-        self, addr: SocketAddr, *, credentials: Optional[grpc.ServerCredentials] = None
+        self, addr: str | SocketAddr, *, credentials: Optional[grpc.ServerCredentials] = None
     ):
+        if isinstance(addr, str):
+            addr = SocketAddr.from_str(addr)
+
         self.addr = addr
         self.credentials = credentials
         self.first_failed_time: Optional[float] = None

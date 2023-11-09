@@ -30,9 +30,12 @@ class Peer:
 
     def __init__(
         self,
-        addr: SocketAddr,
+        addr: str | SocketAddr,
         state: PeerState = PeerState.Preparing,
     ):
+        if isinstance(addr, str):
+            addr = SocketAddr.from_str(addr)
+
         self.addr = addr
         self.client = RaftClient(addr)
         self.state = state
