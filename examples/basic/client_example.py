@@ -10,8 +10,18 @@ async def main() -> None:
     Please bootstrap the Raft cluster before running this script.
     """
 
+    print("---Message propose---")
     await RaftClient("127.0.0.1:60061").propose(SetCommand("1", "A").encode())
+
+    print("---Message propose rerouting---")
     await RaftClient("127.0.0.1:60062").propose(SetCommand("2", "A").encode())
+
+    print("---Debug node result---", await RaftClient("127.0.0.1:60061").debug_node())
+
+    print(
+        "---Debug entries result---",
+        await RaftClient("127.0.0.1:60061").debug_entries(),
+    )
 
 
 if __name__ == "__main__":

@@ -76,7 +76,8 @@ class RaftClient:
         self, msg: Message, timeout: float = 5.0
     ) -> raft_service_pb2.SendMessageResponse:
         """
-        Request to send a message to the cluster.
+        Low level API to send a Raft Message to the cluster.
+        If you are not certain about what this function does, do not use it.
         """
 
         request_args = MessageAdapter.to_pb(msg)
