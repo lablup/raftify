@@ -79,7 +79,7 @@ class HashStore(AbstractStateMachine):
         message = SetCommand.decode(msg)
         self._store[message.key] = message.value
         logging.info(f'SetCommand inserted: ({message.key}, "{message.value}")')
-        return pickle.dumps(message.value)
+        return msg
 
     async def snapshot(self) -> bytes:
         return pickle.dumps(self._store)
