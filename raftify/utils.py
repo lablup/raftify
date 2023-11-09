@@ -1,6 +1,14 @@
 import asyncio
+import os
 import pickle
 from dataclasses import dataclass
+
+
+def get_filesize(path: str) -> int:
+    try:
+        return os.path.getsize(path)
+    except FileNotFoundError:
+        return 0
 
 
 class PickleSerializer:

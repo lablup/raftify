@@ -21,6 +21,7 @@ from rraft import (
 )
 
 from raftify.raft_utils import append_to_json_file
+from raftify.utils import get_filesize
 
 from ..deserializer import entry_data_deserializer, pickle_deserialize
 from ..logger import AbstractRaftifyLogger
@@ -46,6 +47,7 @@ class LMDBStorage:
         self,
         log_dir_path: str,
         compacted_log_dir_path: str,
+        compacted_logs_size_threshold: int,
         node_id: int,
         env: lmdb.Environment,
         entries_db: lmdb._Database,
@@ -59,6 +61,7 @@ class LMDBStorage:
         self.logger = logger
         self.log_dir_path = log_dir_path
         self.compacted_log_dir_path = compacted_log_dir_path
+        self.compacted_logs_size_threshold = compacted_logs_size_threshold
 
     @classmethod
     def create(
@@ -66,6 +69,7 @@ class LMDBStorage:
         map_size: int,
         log_dir_path: str,
         compacted_log_dir_path: str,
+        compacted_logs_size_threshold: int,
         cluster_id: str,
         node_id: int,
         logger: AbstractRaftifyLogger,
@@ -93,6 +97,7 @@ class LMDBStorage:
         core = cls(
             log_dir_path,
             compacted_log_dir_path,
+            compacted_logs_size_threshold,
             node_id,
             env,
             entries_db,
@@ -235,11 +240,22 @@ class LMDBStorage:
                         f"Try to delete item at {decode_int(cursor.key())}, but not exist!"
                     )
 
+            compacted_log_dir_path = os.path.join(
+                self.compacted_log_dir_path,
+                "compacted-logs.json",
+            )
+
+            if (
+                get_filesize(compacted_log_dir_path)
+                > self.compacted_logs_size_threshold
+            ):
+                self.logger.info(
+                    f"Compacted log size is over {self.compacted_logs_size_threshold}. Removing all previous compacted logs."
+                )
+                os.remove(compacted_log_dir_path)
+
             append_to_json_file(
-                os.path.join(
-                    self.compacted_log_dir_path,
-                    "compacted-logs.json",
-                ),
+                compacted_log_dir_path,
                 compaction_logs,
             )
 
