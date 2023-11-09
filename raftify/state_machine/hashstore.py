@@ -1,10 +1,10 @@
 import pickle
 from typing import Optional
 
-from .abc import AbstractStateMachine
+from .abc import AbstractLogEntry, AbstractStateMachine
 
 
-class SetCommand:
+class SetCommand(AbstractLogEntry):
     def __init__(self, key: str, value: str) -> None:
         self.key = key
         self.value = value

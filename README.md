@@ -51,8 +51,8 @@ I strongly recommend to read the basic [memstore example code](https://github.co
 ### Define your own log entry
 
 ```py
-class SetCommand:
-    def __init__(self, key: int, value: str) -> None:
+class SetCommand(AbstractLogEntry):
+    def __init__(self, key: str, value: str) -> None:
         self.key = key
         self.value = value
 
@@ -68,29 +68,24 @@ class SetCommand:
 ### Define your application Raft FSM
 
 ```py
-class HashStore(FSM):
+class HashStore(AbstractStateMachine):
     def __init__(self):
         self._store = dict()
-        self._lock = Lock()
 
     def get(self, key: str) -> Optional[str]:
-        with self._lock:
-            return self._store.get(key)
+        return self._store.get(key)
 
     async def apply(self, msg: bytes) -> bytes:
-        with self._lock:
-            message = SetCommand.decode(msg)
-            self._store[message.key] = message.value
-            logging.info(f'SetCommand inserted: ({message.key}, "{message.value}")')
-            return pickle.dumps(message.value)
+        message = SetCommand.decode(msg)
+        self._store[message.key] = message.value
+        logging.info(f'SetCommand inserted: ({message.key}, "{message.value}")')
+        return pickle.dumps(message.value)
 
     async def snapshot(self) -> bytes:
-        with self._lock:
-            return pickle.dumps(self._store)
+        return pickle.dumps(self._store)
 
     async def restore(self, snapshot: bytes) -> None:
-        with self._lock:
-            self._store = pickle.loads(snapshot)
+        self._store = pickle.loads(snapshot)
 ```
 
 ### Bootstrap a raft cluster
