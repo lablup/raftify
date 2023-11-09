@@ -115,11 +115,14 @@ class RaftNode:
         cfg.set_id(1)
         cfg.validate()
 
-        shutil.rmtree(os.path.join(raftify_cfg.log_dir, raftify_cfg.cluster_id))
+        prev_logs_dir = os.path.join(raftify_cfg.log_dir, raftify_cfg.cluster_id)
+        if os.path.exists(prev_logs_dir):
+            shutil.rmtree(prev_logs_dir)
 
         lmdb = LMDBStorage.create(
             map_size=raftify_cfg.lmdb_map_size,
             log_dir_path=raftify_cfg.log_dir,
+            compacted_log_dir_path=raftify_cfg.compacted_log_dir,
             cluster_id=raftify_cfg.cluster_id,
             node_id=1,
             logger=logger,
@@ -181,6 +184,7 @@ class RaftNode:
         lmdb = LMDBStorage.create(
             map_size=raftify_cfg.lmdb_map_size,
             log_dir_path=raftify_cfg.log_dir,
+            compacted_log_dir_path=raftify_cfg.compacted_log_dir,
             cluster_id=raftify_cfg.cluster_id,
             node_id=id,
             logger=logger,
@@ -236,9 +240,9 @@ class RaftNode:
         """
 
         progress_trackers = self.raw_node.get_raft().prs().collect()
-        hs = self.lmdb.core.hard_state()
-        cs = self.lmdb.core.conf_state()
-        snapshot = self.lmdb.core.snapshot(0, 0)
+        hs = self.lmdb.hard_state()
+        cs = self.lmdb.conf_state()
+        snapshot = self.lmdb.snapshot(0, 0)
         snapshot_dict = snapshot.to_dict()
         snapshot_dict["data"] = pickle_deserialize(snapshot.get_data())
 
@@ -249,7 +253,7 @@ class RaftNode:
                 "hard_state": hs.to_dict(),
                 "conf_state": cs.to_dict(),
                 "snapshot": snapshot_dict,
-                "last_index": self.lmdb.core.last_index(),
+                "last_index": self.lmdb.last_index(),
             },
             "progress": [
                 pr_tracker.progress().to_dict() for pr_tracker in progress_trackers
@@ -348,7 +352,7 @@ class RaftNode:
             entry_dict["context"] = pickle_deserialize(entry.get_context())
             current_all_entry_dicts.append(entry_dict)
 
-        compacted_all_entries = gather_compacted_logs(self.lmdb.core.log_dir_path)
+        compacted_all_entries = gather_compacted_logs(self.lmdb.log_dir_path)
 
         return {
             "current_all_entries": current_all_entry_dicts,

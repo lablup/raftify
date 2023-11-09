@@ -112,6 +112,7 @@ async def server_main(
 
     cfg = RaftifyConfig(
         log_dir="./logs",
+        compacted_log_dir="./logs",
     )
 
     cluster = RaftFacade(cfg, raft_addr, store, slog, logger, peers)
@@ -162,6 +163,7 @@ async def excute_extra_node(node_id: int, raft_addr: SocketAddr, peers: Peers):
     init_rraft_py_deserializer()
     cfg = RaftifyConfig(
         log_dir="./logs",
+        compacted_log_dir="./logs",
     )
 
     store = HashStore()

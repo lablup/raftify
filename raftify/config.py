@@ -11,6 +11,7 @@ class RaftifyConfig:
     Attributes:
     - raft_config: Configuration object. Uses default settings if not provided.
     - log_dir: Directory path where log files are stored.
+    - compacted_log_dir: Directory path where compacted log files are stored.
     - max_retry_cnt: Maximum number of retries for a request.
     - auto_remove_node: Whether to automatically remove a node from the cluster if it keeps not responding.
     - node_auto_remove_threshold: Threshold for the node auto removal.
@@ -44,6 +45,8 @@ class RaftifyConfig:
 
     log_dir: str
 
+    compacted_log_dir: str
+
     max_retry_cnt: int
 
     message_timeout: float
@@ -64,6 +67,7 @@ class RaftifyConfig:
         self,
         *,
         log_dir: str = "./",
+        compacted_log_dir: str = "./",
         message_timeout: float = 5.0,
         max_retry_cnt: int = 2,
         auto_remove_node: bool = True,
@@ -75,6 +79,7 @@ class RaftifyConfig:
         cluster_id: str = "default",
     ) -> None:
         self.log_dir = log_dir
+        self.compacted_log_dir = compacted_log_dir
         self.max_retry_cnt = max_retry_cnt
         self.message_timeout = message_timeout
         self.auto_remove_node = auto_remove_node

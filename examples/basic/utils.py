@@ -25,6 +25,7 @@ def load_peers() -> Peers:
 def build_config():
     return RaftifyConfig(
         log_dir="./logs",
+        compacted_log_dir="./logs",
         raft_config=RaftifyConfig.new_raft_config(
             {
                 "election_tick": 10,

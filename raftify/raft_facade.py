@@ -95,14 +95,14 @@ class RaftFacade:
     async def create_snapshot(self) -> None:
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
 
-        hs = self.raft_node.lmdb.core.hard_state()
+        hs = self.raft_node.lmdb.hard_state()
         await self.raft_node.create_snapshot(
             self.raft_node.lmdb.last_index(), hs.get_term()
         )
 
     async def send_member_bootstrap_ready_msg(
         self, follower_id: int, leader_id: int = 1
-    ):
+    ) -> None:
         """
         Send a `MemberBootstrapReady` message to the leader node.
         """
@@ -112,7 +112,7 @@ class RaftFacade:
         await leader_client.member_bootstrap_ready(follower_id, timeout=5.0)
 
     # TODO: It would be great if this process is handled in the RaftFacade without exposing this.
-    async def wait_for_followers_join(self):
+    async def wait_for_followers_join(self) -> None:
         """
         Let the leader node wait for join requests from all other initial_peers follower nodes.
         """
@@ -160,7 +160,7 @@ class RaftFacade:
         self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]
     ) -> RequestIdResponse:
         """
-        Get a node id from the cluster's leader.
+        Get a node id from the cluster's leader through `peer_candidates`.
         """
         # TODO: Block request_id calling until the all cluster's initial peers are ready.
 
@@ -216,7 +216,9 @@ class RaftFacade:
     async def __join_followers(
         self,
     ) -> None:
-        """ """
+        """
+        Commit the configuration change to add all follower nodes to the cluster.
+        """
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
         assert self.raft_node.is_leader(), (
             "Only leader can add a new node to the cluster!, "
@@ -271,7 +273,7 @@ class RaftFacade:
         role: FollowerRole = FollowerRole.Voter,
     ) -> None:
         """
-        Try to join a new cluster through `peer_candidates` and get `node id` from the cluster's leader.
+        Try to join the cluster with the given `request_id_response`.
         """
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
         # Cluster bootstrap should be done before calling this method.
@@ -367,7 +369,9 @@ class RaftFacade:
         self.raft_node_task = asyncio.create_task(self.raft_node.run())
 
     async def wait_for_termination(self) -> None:
-        """ """
+        """
+        Wait for the termination of RaftServer and RaftNode coroutines.
+        """
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
         assert self.raft_server_task and self.raft_node_task
 
