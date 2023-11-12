@@ -106,7 +106,10 @@ class RaftFacade:
         )
 
     async def send_member_bootstrap_ready_msg(
-        self, follower_id: int, leader_id: int = 1
+        self,
+        follower_id: int,
+        leader_id: int = 1,
+        timeout: float = 5.0,
     ) -> None:
         """
         Send a `MemberBootstrapReady` message to the leader node.
@@ -117,7 +120,7 @@ class RaftFacade:
 
         while True:
             try:
-                await leader_client.member_bootstrap_ready(follower_id, timeout=5.0)
+                await leader_client.member_bootstrap_ready(follower_id, timeout)
                 return
             except (grpc.aio.AioRpcError, asyncio.TimeoutError):
                 self.logger.debug(
