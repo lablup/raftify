@@ -114,7 +114,20 @@ class RaftFacade:
         leader_addr = self.initial_peers[leader_id].addr
         leader_client = RaftClient(leader_addr)
         self.peers.connect(leader_id, leader_addr)
-        await leader_client.member_bootstrap_ready(follower_id, timeout=5.0)
+
+        while True:
+            try:
+                await leader_client.member_bootstrap_ready(follower_id, timeout=5.0)
+                return
+            except grpc.aio.AioRpcError or asyncio.TimeoutError as err:
+                if not isinstance(err, asyncio.TimeoutError):
+                    if err.code() != grpc.StatusCode.UNAVAILABLE:
+                        # Unknown error
+                        raise ClusterBootstrapError(cause=err)
+                self.logger.debug(
+                    "Wait for the node containing the leader manager process to be bootstrapped first..."
+                )
+                await asyncio.sleep(2)
 
     # TODO: It would be great if this process is handled in the RaftFacade without exposing this.
     async def wait_for_followers_join(self) -> None:

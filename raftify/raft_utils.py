@@ -1,7 +1,7 @@
 import json
+import os
 from dataclasses import dataclass
 from enum import Enum
-import os
 from typing import Any
 
 from .peers import Peers
