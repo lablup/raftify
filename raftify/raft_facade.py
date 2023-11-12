@@ -119,11 +119,7 @@ class RaftFacade:
             try:
                 await leader_client.member_bootstrap_ready(follower_id, timeout=5.0)
                 return
-            except grpc.aio.AioRpcError or asyncio.TimeoutError as err:
-                if not isinstance(err, asyncio.TimeoutError):
-                    if err.code() != grpc.StatusCode.UNAVAILABLE:
-                        # Unknown error
-                        raise ClusterBootstrapError(cause=err)
+            except (grpc.aio.AioRpcError, asyncio.TimeoutError):
                 self.logger.debug(
                     "Wait for the node containing the leader manager process to be bootstrapped first..."
                 )

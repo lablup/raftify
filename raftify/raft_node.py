@@ -403,7 +403,7 @@ class RaftNode:
 
                     self.peers[node_id].client.first_failed_time = None
                 return
-            except grpc.aio.AioRpcError or asyncio.TimeoutError as err:
+            except (grpc.aio.AioRpcError, asyncio.TimeoutError) as err:
                 if not isinstance(err, asyncio.TimeoutError):
                     if err.code() != grpc.StatusCode.UNAVAILABLE:
                         raise
