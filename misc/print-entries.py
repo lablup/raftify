@@ -4,7 +4,13 @@ import lmdb
 import rraft
 from raftify.config import DEFAULT_CLUSTER_ID
 from raftify.deserializer import init_rraft_py_deserializer
-from raftify.storage.lmdb import SNAPSHOT_KEY, LAST_INDEX_KEY, HARD_STATE_KEY, CONF_STATE_KEY
+from raftify.storage.lmdb import (
+    SNAPSHOT_KEY,
+    LAST_INDEX_KEY,
+    HARD_STATE_KEY,
+    CONF_STATE_KEY,
+    LAST_APPLIED_KEY,
+)
 
 
 def main(argv):
@@ -16,7 +22,7 @@ def main(argv):
 
     entries_db = env.open_db(b"entries")
 
-    print('---- Entries ----')
+    print("---- Entries ----")
     with env.begin(db=entries_db) as txn:
         cursor = txn.cursor()
         for key, value in cursor:
@@ -24,7 +30,7 @@ def main(argv):
 
     metadata_db = env.open_db(b"meta")
 
-    print('---- Metadata ----')
+    print("---- Metadata ----")
     with env.begin(db=metadata_db) as txn:
         cursor = txn.cursor()
         for key, value in cursor:
@@ -32,6 +38,8 @@ def main(argv):
                 print(f'Key: "snapshot", Value: "{rraft.Snapshot.decode(value)}"')
             elif key == LAST_INDEX_KEY:
                 print(f'Key: "last_index", Value: "{int(value.decode())}"')
+            elif key == LAST_APPLIED_KEY:
+                print(f'Key: "last_applied", Value: "{int(value.decode())}"')
             elif key == HARD_STATE_KEY:
                 print(f'Key: "hard_state", Value: "{rraft.HardState.decode(value)}"')
             elif key == CONF_STATE_KEY:

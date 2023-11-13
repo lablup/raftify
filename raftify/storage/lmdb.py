@@ -28,6 +28,7 @@ from ..logger import AbstractRaftifyLogger
 
 SNAPSHOT_KEY = b"snapshot"
 LAST_INDEX_KEY = b"last_index"
+LAST_APPLIED_KEY = b"last_applied"
 HARD_STATE_KEY = b"hard_state"
 CONF_STATE_KEY = b"conf_state"
 
@@ -169,6 +170,14 @@ class LMDBStorage:
 
     def set_last_index(self, index: int) -> None:
         self.__metadata_put(LAST_INDEX_KEY, encode_int(index))
+
+    def last_applied(self) -> int:
+        with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
+            last_applied = meta_reader.get(LAST_APPLIED_KEY)
+            return decode_int(last_applied) if last_applied else 0
+
+    def set_last_applied(self, index: int) -> None:
+        self.__metadata_put(LAST_APPLIED_KEY, encode_int(index))
 
     def entry(self, index: int) -> Optional[Entry]:
         with self.env.begin(write=False, db=self.entries_db) as entry_reader:

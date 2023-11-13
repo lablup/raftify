@@ -474,9 +474,6 @@ class RaftNode:
         committed_entries: list[Entry] | list[EntryRef],
         response_queues: dict[AtomicInteger, Queue],
     ) -> None:
-        # TODO: persist last_applied_index and implement log entries commit resuming logic
-        # _last_apply_index = 0
-
         for entry in committed_entries:
             match entry.get_entry_type():
                 case EntryType.EntryNormal:
@@ -487,6 +484,8 @@ class RaftNode:
                     )
                 case _:
                     raise NotImplementedError
+
+            self.lmdb.set_last_applied(entry.get_index())
 
     async def create_snapshot(self, index: int, term: int) -> None:
         self.last_snapshot_created = time.time()
