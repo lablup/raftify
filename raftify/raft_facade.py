@@ -302,6 +302,11 @@ class RaftFacade:
             cs = self.raw_node.apply_conf_change_v2(cc)
             self.raft_node.lmdb.set_conf_state(cs)
 
+        unstable = raft_log.unstable()
+        unstable.set_entries(entries)
+
+        unstable.stable_entries(last_index + len(entries), 1)
+
         self.raft_node.lmdb.append(entries)
         await self.create_snapshot()
 
