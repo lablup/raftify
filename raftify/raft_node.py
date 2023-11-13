@@ -123,7 +123,7 @@ class RaftNode:
 
         prev_logs_dir = os.path.join(raftify_cfg.log_dir, raftify_cfg.cluster_id)
         if os.path.exists(prev_logs_dir):
-            shutil.rmtree(prev_logs_dir)
+            shutil.rmtree(prev_logs_dir, ignore_errors=True)
 
         lmdb = LMDBStorage.create(
             map_size=raftify_cfg.lmdb_map_size,
