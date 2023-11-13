@@ -220,6 +220,7 @@ class RaftFacade:
             "use `join_cluster` method instead."
         )
 
+        # Make the leader node has snapshot.
         await self.create_snapshot()
 
         last_index = self.raft_node.lmdb.last_index()
@@ -258,6 +259,7 @@ class RaftFacade:
         unstable.stable_entries(last_index + len(entries), 1)
 
         self.raft_node.lmdb.append(entries)
+        # Update the snapshot.
         await self.create_snapshot()
 
         raft_log.set_committed(last_index + len(entries))
