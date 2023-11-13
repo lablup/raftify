@@ -205,3 +205,14 @@ class RaftClient:
         async with self.__create_channel() as channel:
             stub = raft_service_pb2_grpc.RaftServiceStub(channel)
             return await asyncio.wait_for(stub.Version(request_args), timeout)
+
+    async def get_peers(
+        self, timeout: float = 5.0
+    ) -> raft_service_pb2.GetPeersResponse:
+        """ """
+
+        request_args = raft_service_pb2.Empty()
+
+        async with self.__create_channel() as channel:
+            stub = raft_service_pb2_grpc.RaftServiceStub(channel)
+            return await asyncio.wait_for(stub.GetPeers(request_args), timeout)

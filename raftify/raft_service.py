@@ -15,6 +15,7 @@ from .request_message import (
     ConfigChangeReqMessage,
     DebugEntriesReqMessage,
     DebugNodeReqMessage,
+    GetPeersReqMessage,
     MemberBootstrapReadyReqMessage,
     ProposeReqMessage,
     RaftReqMessage,
@@ -300,3 +301,11 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         await self.message_queue.put(VersionReqMessage(receiver))
         result = await asyncio.wait_for(receiver.get(), 2)
         return raft_service_pb2.VersionResponse(result=result)
+
+    async def GetPeers(
+        self, _request: raft_service_pb2.Empty, _context: grpc.aio.ServicerContext
+    ) -> raft_service_pb2.GetPeersResponse:
+        receiver: Queue = Queue()
+        await self.message_queue.put(GetPeersReqMessage(receiver))
+        result = await asyncio.wait_for(receiver.get(), 2)
+        return raft_service_pb2.GetPeersResponse(peers=result)

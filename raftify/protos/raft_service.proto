@@ -12,12 +12,17 @@ service RaftService {
   rpc SendMessage(eraftpb.Message) returns (SendMessageResponse) {}
   rpc Propose(ProposeArgs) returns (ProposeResponse) {}
   rpc RerouteMessage(RerouteMessageArgs) returns (SendMessageResponse) {}
+  rpc GetPeers(Empty) returns (GetPeersResponse) {}
   rpc DebugNode(Empty) returns (DebugNodeResponse) {}
   rpc DebugEntries(Empty) returns (DebugEntriesResponse) {}
   rpc Version(Empty) returns (VersionResponse) {}
 }
 
 message Empty {
+}
+
+message GetPeersResponse {
+  bytes peers = 1;
 }
 
 message DebugNodeResponse {

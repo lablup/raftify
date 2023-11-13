@@ -83,3 +83,8 @@ class DebugEntriesReqMessage(RequestMessage, PickleSerializer):
 @dataclass
 class VersionReqMessage(RequestMessage, PickleSerializer):
     chan: Queue
+
+
+@dataclass
+class GetPeersReqMessage(RequestMessage, PickleSerializer):
+    chan: Queue

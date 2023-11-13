@@ -56,6 +56,11 @@ class RaftServiceStub(object):
             request_serializer=raft__service__pb2.RerouteMessageArgs.SerializeToString,
             response_deserializer=raft__service__pb2.SendMessageResponse.FromString,
         )
+        self.GetPeers = channel.unary_unary(
+            "/raftservice.RaftService/GetPeers",
+            request_serializer=raft__service__pb2.Empty.SerializeToString,
+            response_deserializer=raft__service__pb2.GetPeersResponse.FromString,
+        )
         self.DebugNode = channel.unary_unary(
             "/raftservice.RaftService/DebugNode",
             request_serializer=raft__service__pb2.Empty.SerializeToString,
@@ -124,6 +129,12 @@ class RaftServiceServicer(object):
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
 
+    def GetPeers(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
     def DebugNode(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -184,6 +195,11 @@ def add_RaftServiceServicer_to_server(servicer, server):
             servicer.RerouteMessage,
             request_deserializer=raft__service__pb2.RerouteMessageArgs.FromString,
             response_serializer=raft__service__pb2.SendMessageResponse.SerializeToString,
+        ),
+        "GetPeers": grpc.unary_unary_rpc_method_handler(
+            servicer.GetPeers,
+            request_deserializer=raft__service__pb2.Empty.FromString,
+            response_serializer=raft__service__pb2.GetPeersResponse.SerializeToString,
         ),
         "DebugNode": grpc.unary_unary_rpc_method_handler(
             servicer.DebugNode,
@@ -433,6 +449,35 @@ class RaftService(object):
             "/raftservice.RaftService/RerouteMessage",
             raft__service__pb2.RerouteMessageArgs.SerializeToString,
             raft__service__pb2.SendMessageResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
+
+    @staticmethod
+    def GetPeers(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/raftservice.RaftService/GetPeers",
+            raft__service__pb2.Empty.SerializeToString,
+            raft__service__pb2.GetPeersResponse.FromString,
             options,
             channel_credentials,
             insecure,

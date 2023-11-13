@@ -40,6 +40,7 @@ from .request_message import (
     ConfigChangeReqMessage,
     DebugEntriesReqMessage,
     DebugNodeReqMessage,
+    GetPeersReqMessage,
     MemberBootstrapReadyReqMessage,
     ProposeReqMessage,
     RaftReqMessage,
@@ -749,6 +750,9 @@ class RaftNode:
                 except rraft.StepLocalMsgError:
                     # TODO: Study what is LocalMsg and when it happens and handle it.
                     raise
+
+            elif isinstance(message, GetPeersReqMessage):
+                message.chan.put_nowait(pickle.dumps(self.peers))
 
             elif isinstance(message, ReportUnreachableReqMessage):
                 self.raw_node.report_unreachable(message.node_id)

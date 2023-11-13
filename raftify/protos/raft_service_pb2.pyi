@@ -42,6 +42,12 @@ class Empty(_message.Message):
     __slots__ = []
     def __init__(self) -> None: ...
 
+class GetPeersResponse(_message.Message):
+    __slots__ = ["peers"]
+    PEERS_FIELD_NUMBER: _ClassVar[int]
+    peers: bytes
+    def __init__(self, peers: _Optional[bytes] = ...) -> None: ...
+
 class DebugNodeResponse(_message.Message):
     __slots__ = ["result"]
     RESULT_FIELD_NUMBER: _ClassVar[int]

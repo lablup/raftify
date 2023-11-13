@@ -1,4 +1,5 @@
 import asyncio
+import pickle
 
 from raftify.log_entry.set_command import SetCommand
 from raftify.raft_client import RaftClient
@@ -19,8 +20,8 @@ async def main() -> None:
     print("---Debug node result---", await RaftClient("127.0.0.1:60061").debug_node())
 
     print(
-        "---Debug entries result---",
-        await RaftClient("127.0.0.1:60061").debug_entries(),
+        "---Debug peers---",
+        pickle.loads((await RaftClient("127.0.0.1:60061").get_peers()).peers),
     )
 
 

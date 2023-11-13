@@ -77,3 +77,8 @@ class DebugEntriesResponse(ResponseMessage, PickleSerializer):
 @dataclass
 class VersionResponse(ResponseMessage, PickleSerializer):
     result: str
+
+
+@dataclass
+class GetPeersResponse(ResponseMessage, PickleSerializer):
+    raw_peers: bytes
