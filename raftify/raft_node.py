@@ -529,6 +529,10 @@ class RaftNode:
                 await self.create_snapshot(entry.get_index(), entry.get_term())
             return
 
+        # Already applied entries
+        if not entry.get_context():
+            return
+
         response_seq = AtomicInteger(pickle.loads(entry.get_context()))
         conf_change_v2 = ConfChangeV2.decode(entry.get_data())
 
