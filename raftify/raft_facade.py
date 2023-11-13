@@ -5,10 +5,7 @@ from asyncio import Queue
 import grpc
 from rraft import (
     ConfChange,
-    ConfChangeSingle,
-    ConfChangeTransition,
     ConfChangeType,
-    ConfChangeV2,
     Entry,
     EntryType,
     Logger,
@@ -18,7 +15,6 @@ from rraft import (
 
 from .config import RaftifyConfig
 from .error import (
-    ClusterBootstrapError,
     ClusterJoinError,
     LeaderNotFoundError,
     UnknownError,
@@ -26,15 +22,12 @@ from .error import (
 from .follower_role import FollowerRole
 from .logger import AbstractRaftifyLogger
 from .mailbox import Mailbox
-from .pb_adapter import ConfChangeV2Adapter
 from .peers import Peer, Peers, PeerState
 from .protos import raft_service_pb2
 from .raft_client import RaftClient
 from .raft_node import RaftNode
 from .raft_server import RaftServer
 from .raft_utils import RequestIdResponse
-from .request_message import ConfigChangeReqMessage
-from .response_message import JoinSuccessRespMessage
 from .state_machine.abc import AbstractStateMachine
 from .utils import SocketAddr
 
@@ -227,48 +220,6 @@ class RaftFacade:
             "use `join_cluster` method instead."
         )
 
-        # conf_change_v2 = ConfChangeV2.default()
-        # conf_change_v2.set_transition(ConfChangeTransition.Explicit)
-        # changes = []
-        # node_addrs = []
-
-        # for node_id in self.initial_peers.keys():
-        #     # Skip leader
-        #     if self.addr == self.initial_peers[node_id].addr:
-        #         continue
-
-        #     conf_change = ConfChangeSingle.default()
-        #     conf_change.set_node_id(node_id)
-        #     conf_change.set_change_type(ConfChangeType.AddNode)
-        #     changes.append(conf_change)
-        #     node_addrs.append(self.initial_peers[node_id].addr)
-
-        # conf_change_v2.set_changes(changes)
-        # conf_change_v2.set_context(pickle.dumps(node_addrs))
-
-        # try:
-        #     receiver: Queue = Queue()
-        #     await self.raft_node.message_queue.put(
-        #         ConfigChangeReqMessage(
-        #             ConfChangeV2Adapter.to_pb(conf_change_v2), receiver
-        #         )
-        #     )
-        #     resp = await asyncio.wait_for(receiver.get(), 2)
-
-        # except grpc.aio.AioRpcError as e:
-        #     raise ClusterBootstrapError(cause=e)
-
-        # except Exception as e:
-        #     raise ClusterBootstrapError(cause=e)
-
-        # if isinstance(resp, JoinSuccessRespMessage):
-        #     self.logger.info("All follower nodes successfully joined the cluster.")
-        #     self.raft_node.bootstrap_done = True
-        #     asyncio.create_task(self.raft_node.leave_joint())
-        #     return
-
-        # raise ClusterBootstrapError(cause="Bootstrap failed! Response: " + str(resp))
-
         await self.create_snapshot()
 
         last_index = self.raft_node.lmdb.last_index()
@@ -304,7 +255,6 @@ class RaftFacade:
 
         unstable = raft_log.unstable()
         unstable.set_entries(entries)
-
         unstable.stable_entries(last_index + len(entries), 1)
 
         self.raft_node.lmdb.append(entries)
