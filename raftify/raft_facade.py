@@ -299,9 +299,12 @@ class RaftFacade:
             entries.append(e)
 
         for cc in ccs:
-            self.raw_node.apply_conf_change_v2(cc)
+            cs = self.raw_node.apply_conf_change_v2(cc)
+            self.raft_node.lmdb.set_conf_state(cs)
 
-        print('last_index + len(entries)', last_index + len(entries))
+        self.raft_node.lmdb.append(entries)
+        await self.create_snapshot()
+
         raft_log.set_committed(last_index + len(entries))
         self.raft_node.bootstrap_done = True
 

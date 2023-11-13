@@ -529,7 +529,7 @@ class RaftNode:
                 await self.create_snapshot(entry.get_index(), entry.get_term())
             return
 
-        # Already applied entries
+        # Block already applied entries handling
         if not entry.get_context():
             return
 
