@@ -77,7 +77,7 @@ class Mailbox:
 
         try:
             resp = await self.__handle_response(
-                await asyncio.wait_for(receiver.get(), 2),
+                await asyncio.wait_for(receiver.get(), 5.0),
                 reroute_msg_type=raft_service_pb2.Propose,
                 proposed_data=message,
             )
