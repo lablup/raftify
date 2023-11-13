@@ -10,6 +10,14 @@ from raftify.peers import Peer, Peers
 from raftify.utils import SocketAddr
 
 
+def load_peer_candidates() -> list[SocketAddr]:
+    path = Path(__file__).parent / "peer-candidates.toml"
+    return [
+        SocketAddr.from_str(addr)
+        for addr in tomli.loads(path.read_text())["raft"]["peer-candidates"]
+    ]
+
+
 def load_peers() -> Peers:
     path = Path(__file__).parent / "config.toml"
     cfg = tomli.loads(path.read_text())["raft"]["peers"]
