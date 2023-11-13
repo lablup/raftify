@@ -141,6 +141,7 @@ class LMDBStorage:
     def set_conf_state(self, conf_state: ConfState | ConfStateRef) -> None:
         self.__metadata_put(CONF_STATE_KEY, conf_state.encode())
 
+    # TODO: Handle _request_index and _to
     def snapshot(self, _request_index: int, _to: int) -> Snapshot:
         with self.env.begin(write=False, db=self.metadata_db) as meta_reader:
             snapshot = meta_reader.get(SNAPSHOT_KEY)
@@ -272,12 +273,12 @@ class LMDBStorage:
                 for entry in entries:
                     # assert entry.get_index() == last_index + 1
                     index = entry.get_index()
-                    entry_writer.put(encode_int(index), entry.encode())
+                    entry_writer.put(encode_int(index), entry.encode(), overwrite=False)
                     last_index = max(index, last_index)
 
             self.set_last_index(last_index)
         except lmdb.MapFullError:
-            self.logger.info("MDB is full. Clearing previous logs and trying again.")
+            self.logger.info("MDB is full. Clearing previous log entries and trying to append again.")
             self.compact(last_index - 1)
             self.append(entries)
 
