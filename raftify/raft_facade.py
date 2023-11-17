@@ -10,15 +10,13 @@ from rraft import (
     EntryType,
     Logger,
     LoggerRef,
+    Raft,
+    RaftLog,
     RawNode,
 )
 
 from .config import RaftifyConfig
-from .error import (
-    ClusterJoinError,
-    LeaderNotFoundError,
-    UnknownError,
-)
+from .error import ClusterJoinError, LeaderNotFoundError, UnknownError
 from .follower_role import FollowerRole
 from .logger import AbstractRaftifyLogger
 from .mailbox import Mailbox
@@ -90,7 +88,18 @@ class RaftFacade:
 
     @property
     def raw_node(self) -> RawNode:
+        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
         return self.raft_node.raw_node
+
+    @property
+    def raft(self) -> Raft:
+        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
+        return self.raft_node.raw_node.get_raft()
+
+    @property
+    def raft_log(self) -> RaftLog:
+        assert self.raft_node and self.raft_server, "The raft node is not initialized!"
+        return self.raft_node.raw_node.get_raft().get_raft_log()
 
     async def create_snapshot(self) -> None:
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"

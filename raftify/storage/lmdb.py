@@ -278,7 +278,9 @@ class LMDBStorage:
 
             self.set_last_index(last_index)
         except lmdb.MapFullError:
-            self.logger.info("MDB is full. Clearing previous log entries and trying to append again.")
+            self.logger.info(
+                "MDB is full. Clearing previous log entries and trying to append again."
+            )
             self.compact(last_index - 1)
             self.append(entries)
 
