@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from tabulate import tabulate
+
 from .peers import Peers
 from .raft_client import RaftClient
 
@@ -52,23 +54,31 @@ def format_raft_node_debugging_info(debug_info: dict[str, Any]) -> str:
     """
     debug_info: result of raftify.raft_client.RaftClient.debug_node
     """
+    is_leader = debug_info["node_id"] == debug_info["current_leader_id"]
+
+    peers_tbl = []
+    for id, info in debug_info["peer_states"].items():
+        row = [id, info["client"]["addr"], info["state"]]
+        peers_tbl.append(row)
 
     return f"""
-========= Node info =========
+========= Outline =========
 node_id: {debug_info['node_id']}
-current_leader_id: {debug_info['current_leader_id']}
+leader_id: {debug_info['current_leader_id']}
 
 ========= Persistence info =========
-hard_state: {debug_info['storage']['hard_state']}
-conf_state: {debug_info['storage']['conf_state']}
-last_index: {debug_info['storage']['last_index']}
-snapshot: {debug_info['storage']['snapshot']}
+{tabulate([
+    ["Hard State", debug_info['storage']['hard_state']],
+    ["Conf State", debug_info['storage']['conf_state']],
+    ["Last Index", debug_info['storage']['last_index']],
+    ["Snapshot", debug_info['storage']['snapshot']]
+], headers=['Key', 'Value'], tablefmt="grid")}
 
 ========= Progress tracker =========
-progress: {debug_info['progress']}
+{tabulate(debug_info['progress'], headers="keys", tablefmt="grid") if is_leader else "(not leader node)"}
 
 ========= Peer states =========
-peer_states: {debug_info['peer_states']}
+{tabulate(peers_tbl, headers=['ID', 'Addr', 'State'], tablefmt="grid")}
 
 ========= Raft log =========
 last_applied: {debug_info['raft_log']['applied']}

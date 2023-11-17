@@ -5,3 +5,4 @@ protobuf>=4.23.4
 rraft-py>=0.2.24
 anyio>=4.0.0
 asyncclick>=8.1.3.4
+tabulate>=0.8.10
