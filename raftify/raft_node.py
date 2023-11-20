@@ -26,6 +26,8 @@ from rraft import (
     Storage,
 )
 
+from raftify.storage.memstore import MemStorage
+
 from .config import RaftifyConfig
 from .deserializer import entry_data_deserializer, pickle_deserialize
 from .logger import AbstractRaftifyLogger
@@ -73,7 +75,8 @@ class RaftNode:
         peers: Peers,
         message_queue: Queue,
         fsm: AbstractStateMachine,
-        lmdb: LMDBStorage,
+        mem_storage: MemStorage,
+        # lmdb: LMDBStorage,
         storage: Storage,
         response_seq: AtomicInteger,
         last_snapshot_created: float,
@@ -86,7 +89,8 @@ class RaftNode:
         self.peers = peers
         self.message_queue = message_queue
         self.fsm = fsm
-        self.lmdb = lmdb
+        # self.lmdb = lmdb
+        self.mem_storage = mem_storage
         self.storage = storage
         self.response_seq = response_seq
         self.last_snapshot_created = last_snapshot_created
@@ -125,24 +129,27 @@ class RaftNode:
         if os.path.exists(prev_logs_dir):
             shutil.rmtree(prev_logs_dir, ignore_errors=True)
 
-        lmdb = LMDBStorage.create(
-            map_size=raftify_cfg.lmdb_map_size,
-            log_dir_path=raftify_cfg.log_dir,
-            compacted_log_dir_path=raftify_cfg.compacted_log_dir,
-            compacted_logs_size_threshold=raftify_cfg.compacted_logs_size_threshold,
-            cluster_id=raftify_cfg.cluster_id,
-            node_id=1,
-            logger=logger,
-        )
+        # lmdb = LMDBStorage.create(
+        #     map_size=raftify_cfg.lmdb_map_size,
+        #     log_dir_path=raftify_cfg.log_dir,
+        #     compacted_log_dir_path=raftify_cfg.compacted_log_dir,
+        #     compacted_logs_size_threshold=raftify_cfg.compacted_logs_size_threshold,
+        #     cluster_id=raftify_cfg.cluster_id,
+        #     node_id=1,
+        #     logger=logger,
+        # )
+
+        mem_storage = MemStorage.create(logger=logger)
 
         snapshot = Snapshot.default()
-        snapshot.get_metadata().set_index(0)
-        snapshot.get_metadata().set_term(0)
+        snapshot.get_metadata().set_index(1)
+        snapshot.get_metadata().set_term(1)
         snapshot.get_metadata().get_conf_state().set_voters([1])
 
-        lmdb.apply_snapshot(snapshot)
+        # lmdb.apply_snapshot(snapshot)
+        mem_storage.apply_snapshot(snapshot)
 
-        storage = Storage(lmdb)
+        storage = Storage(mem_storage)
         raw_node = RawNode(cfg, storage, slog)
 
         response_seq = AtomicInteger(0)
@@ -157,7 +164,8 @@ class RaftNode:
             peers=initial_peers,
             message_queue=message_queue,
             fsm=fsm,
-            lmdb=lmdb,
+            # lmdb=lmdb,
+            mem_storage=mem_storage,
             storage=storage,
             response_seq=response_seq,
             last_snapshot_created=last_snapshot_created,
@@ -188,17 +196,19 @@ class RaftNode:
         cfg.set_id(id)
         cfg.validate()
 
-        lmdb = LMDBStorage.create(
-            map_size=raftify_cfg.lmdb_map_size,
-            log_dir_path=raftify_cfg.log_dir,
-            compacted_log_dir_path=raftify_cfg.compacted_log_dir,
-            compacted_logs_size_threshold=raftify_cfg.compacted_logs_size_threshold,
-            cluster_id=raftify_cfg.cluster_id,
-            node_id=id,
-            logger=logger,
-        )
+        # lmdb = LMDBStorage.create(
+        #     map_size=raftify_cfg.lmdb_map_size,
+        #     log_dir_path=raftify_cfg.log_dir,
+        #     compacted_log_dir_path=raftify_cfg.compacted_log_dir,
+        #     compacted_logs_size_threshold=raftify_cfg.compacted_logs_size_threshold,
+        #     cluster_id=raftify_cfg.cluster_id,
+        #     node_id=id,
+        #     logger=logger,
+        # )
 
-        storage = Storage(lmdb)
+        mem_storage = MemStorage.create(logger=logger)
+
+        storage = Storage(mem_storage)
         raw_node = RawNode(cfg, storage, slog)
 
         response_seq = AtomicInteger(0)
@@ -210,7 +220,8 @@ class RaftNode:
             peers=peers,
             message_queue=message_queue,
             fsm=fsm,
-            lmdb=lmdb,
+            # lmdb=lmdb,
+            mem_storage=mem_storage,
             storage=storage,
             response_seq=response_seq,
             last_snapshot_created=last_snapshot_created,
@@ -262,9 +273,13 @@ class RaftNode:
         """
 
         progress_trackers = self.raw_node.get_raft().prs().collect()
-        hs = self.lmdb.hard_state()
-        cs = self.lmdb.conf_state()
-        snapshot = self.lmdb.snapshot(0, 0)
+        # hs = self.lmdb.hard_state()
+        # cs = self.lmdb.conf_state()
+        # snapshot = self.lmdb.snapshot(0, 0)
+
+        hs = self.mem_storage.hard_state()
+        # cs = self.mem_storage.conf_state()
+        snapshot = self.mem_storage.snapshot
         snapshot_dict = snapshot.to_dict()
         snapshot_dict["data"] = pickle_deserialize(snapshot.get_data())
 
@@ -273,9 +288,9 @@ class RaftNode:
             "current_leader_id": self.raw_node.get_raft().get_leader_id(),
             "storage": {
                 "hard_state": hs.to_dict(),
-                "conf_state": cs.to_dict(),
+                # "conf_state": cs.to_dict(),
                 "snapshot": snapshot_dict,
-                "last_index": self.lmdb.last_index(),
+                "last_index": self.mem_storage.last_index(),
             },
             "progress": [
                 pr_tracker.progress().to_dict() for pr_tracker in progress_trackers
@@ -372,19 +387,19 @@ class RaftNode:
             entry_dict["context"] = pickle_deserialize(entry.get_context())
             current_all_entry_dicts.append(entry_dict)
 
-        compacted_logs_path = os.path.join(
-            self.lmdb.compacted_log_dir_path, "compacted-logs.json"
-        )
+        # compacted_logs_path = os.path.join(
+        #     self.lmdb.compacted_log_dir_path, "compacted-logs.json"
+        # )
 
-        if os.path.exists(compacted_logs_path):
-            with open(compacted_logs_path, "r", encoding="utf-8") as file:
-                compacted_all_entries = json.load(file)
-        else:
-            compacted_all_entries = []
+        # if os.path.exists(compacted_logs_path):
+        #     with open(compacted_logs_path, "r", encoding="utf-8") as file:
+        #         compacted_all_entries = json.load(file)
+        # else:
+        #     compacted_all_entries = []
 
         return {
             "current_all_entries": current_all_entry_dicts,
-            "compacted_all_entries": compacted_all_entries,
+            # "compacted_all_entries": compacted_all_entries,
         }
 
     async def send_message(self, client: RaftClient, message: Message) -> None:
@@ -494,8 +509,8 @@ class RaftNode:
         snapshot_data = await self.fsm.snapshot()
 
         last_applied = self.raw_node.get_raft().get_raft_log().get_applied()
-        self.lmdb.compact(last_applied)
-        self.lmdb.create_snapshot(snapshot_data, index, term)
+        self.mem_storage.compact(last_applied)
+        self.mem_storage.create_snapshot(snapshot_data, index, term)
         self.logger.info("Snapshot created successfully.")
 
     async def handle_committed_normal_entry(
@@ -525,7 +540,8 @@ class RaftNode:
             zero = ConfChangeV2.default()
             assert zero.leave_joint()
             if cs := self.raw_node.apply_conf_change_v2(zero):
-                self.lmdb.set_conf_state(cs)
+                # self.lmdb.set_conf_state(cs)
+                self.mem_storage.set_conf_state(cs)
                 await self.create_snapshot(entry.get_index(), entry.get_term())
             return
 
@@ -561,7 +577,8 @@ class RaftNode:
                     raise NotImplementedError
 
         if conf_state := self.raw_node.apply_conf_change_v2(conf_change_v2):
-            self.lmdb.set_conf_state(conf_state)
+            # self.lmdb.set_conf_state(conf_state)
+            self.mem_storage.set_conf_state(conf_state)
             await self.create_snapshot(entry.get_index(), entry.get_term())
 
         if response_queue := response_queues.pop(response_seq, None):
@@ -796,17 +813,20 @@ class RaftNode:
             snapshot = ready.snapshot()
             self.logger.info("Restoring a state machine from the snapshot...")
             await self.fsm.restore(snapshot.get_data())
-            self.lmdb.apply_snapshot(snapshot.clone())
+            # self.lmdb.apply_snapshot(snapshot.clone())
+            self.mem_storage.apply_snapshot(snapshot.clone())
 
         await self.handle_committed_entries(
             ready.take_committed_entries(), response_queues
         )
 
         if entries := ready.entries():
-            self.lmdb.append(entries)
+            # self.lmdb.append(entries)
+            self.mem_storage.append(entries)
 
         if hs := ready.hs():
-            self.lmdb.set_hard_state(hs)
+            # self.lmdb.set_hard_state(hs)
+            self.mem_storage.set_hard_state(hs)
 
         if persisted_msgs := ready.take_persisted_messages():
             self.send_messages(persisted_msgs)
@@ -814,7 +834,8 @@ class RaftNode:
         light_rd = self.raw_node.advance(ready.make_ref())
 
         if commit := light_rd.commit_index():
-            self.lmdb.set_hard_state_comit(commit)
+            # self.lmdb.set_hard_state_comit(commit)
+            self.mem_storage.set_hard_state_comit(commit)
 
         self.send_messages(light_rd.take_messages())
 

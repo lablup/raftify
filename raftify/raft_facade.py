@@ -104,9 +104,10 @@ class RaftFacade:
     async def create_snapshot(self) -> None:
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
 
-        hs = self.raft_node.lmdb.hard_state()
+        # hs = self.raft_node.lmdb.hard_state()
+        hs = self.raft_node.mem_storage.hard_state()
         await self.raft_node.create_snapshot(
-            self.raft_node.lmdb.last_index(), hs.get_term()
+            self.raft_node.mem_storage.last_index(), hs.get_term()
         )
 
     async def send_member_bootstrap_ready_msg(
@@ -232,7 +233,8 @@ class RaftFacade:
         # Make the leader node has snapshot.
         await self.create_snapshot()
 
-        last_index = self.raft_node.lmdb.last_index()
+        # last_index = self.raft_node.lmdb.last_index()
+        last_index = self.raft_node.mem_storage.last_index()
 
         raft_log = self.raft_node.raw_node.get_raft().get_raft_log()
         entries = []
@@ -261,13 +263,16 @@ class RaftFacade:
 
         for cc in ccs:
             cs = self.raw_node.apply_conf_change_v2(cc)
-            self.raft_node.lmdb.set_conf_state(cs)
+            # self.raft_node.lmdb.set_conf_state(cs)
+            self.raft_node.mem_storage.set_conf_state(cs)
 
         unstable = raft_log.unstable()
         unstable.set_entries(entries)
         unstable.stable_entries(last_index + len(entries), 1)
 
-        self.raft_node.lmdb.append(entries)
+        # self.raft_node.lmdb.append(entries)
+        self.raft_node.mem_storage.append(entries)
+
         # Update the snapshot.
         await self.create_snapshot()
 
