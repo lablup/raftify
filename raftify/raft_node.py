@@ -279,7 +279,7 @@ class RaftNode:
 
         hs = self.mem_storage.hard_state()
         # cs = self.mem_storage.conf_state()
-        snapshot = self.mem_storage.snapshot
+        snapshot = self.mem_storage.snapshot(0, 0)
         snapshot_dict = snapshot.to_dict()
         snapshot_dict["data"] = pickle_deserialize(snapshot.get_data())
 
@@ -812,6 +812,7 @@ class RaftNode:
         if ready.snapshot() != snapshot_default.make_ref():
             snapshot = ready.snapshot()
             self.logger.info("Restoring a state machine from the snapshot...")
+            print('snapshot.get_data()', snapshot.get_data())
             await self.fsm.restore(snapshot.get_data())
             # self.lmdb.apply_snapshot(snapshot.clone())
             self.mem_storage.apply_snapshot(snapshot.clone())

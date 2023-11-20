@@ -25,4 +25,5 @@ class HashStore(AbstractStateMachine):
         return pickle.dumps(self._store)
 
     async def restore(self, snapshot: bytes) -> None:
-        self._store = pickle.loads(snapshot)
+        if snapshot:
+            self._store = pickle.loads(snapshot)

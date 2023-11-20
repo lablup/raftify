@@ -69,7 +69,6 @@ leader_id: {debug_info['current_leader_id']}
 ========= Persistence info =========
 {tabulate([
     ["Hard State", debug_info['storage']['hard_state']],
-    ["Conf State", debug_info['storage']['conf_state']],
     ["Last Index", debug_info['storage']['last_index']],
     ["Snapshot", debug_info['storage']['snapshot']]
 ], headers=['Key', 'Value'], tablefmt="grid")}

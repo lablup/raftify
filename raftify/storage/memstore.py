@@ -27,11 +27,11 @@ class MemStorage:
     def __init__(
         self,
         storage: rraft.MemStorage,
-        snapshot: rraft.Snapshot,
+        _snapshot: rraft.Snapshot,
         logger: AbstractRaftifyLogger,
     ):
         self.storage = storage
-        self.snapshot = snapshot
+        self._snapshot = _snapshot
         self.logger = logger
 
     @classmethod
@@ -55,9 +55,12 @@ class MemStorage:
     def set_conf_state(self, conf_state: ConfState | ConfStateRef) -> None:
         self.storage.wl().set_conf_state(conf_state)
 
+    def snapshot(self, request_index: int, to: int) -> Snapshot:
+        return self.storage.snapshot(request_index, to)
+
     def create_snapshot(self, data: bytes, request_index: int, to: int) -> None:
-        self.snapshot = self.storage.snapshot(request_index, to)
-        self.snapshot.set_data(data)
+        self._snapshot = self.storage.snapshot(request_index, to)
+        self._snapshot.set_data(data)
 
     def apply_snapshot(self, snapshot: Snapshot | SnapshotRef) -> None:
         self.storage.wl().apply_snapshot(snapshot)
