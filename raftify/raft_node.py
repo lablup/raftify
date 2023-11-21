@@ -414,7 +414,8 @@ class RaftNode:
 
                 if elapsed < self.raftify_cfg.node_auto_remove_threshold:
                     self.logger.warning(
-                        f"Failed to connect to node {node_id}, elapsed from first failure: {format(elapsed, '.4f')}s. Err message: {str(err)}"
+                        f"Failed to connect to node {node_id} "
+                        f"elapsed from first failure: {format(elapsed, '.4f')}s. Err message: {str(err)}"
                     )
 
                 if self.is_leader():
@@ -457,7 +458,9 @@ class RaftNode:
 
     async def send_wrongleader_response(self, channel: Queue) -> None:
         # TODO: Make this follower to new cluster's leader
-        assert self.get_leader_id() in self.peers, "Leader node not found in peers!"
+        assert (
+            self.get_leader_id() in self.peers
+        ), f"Leader node not found in peers!, leader: {self.get_leader_id()}, peers: {self.peers}"
 
         try:
             # TODO: handle error here

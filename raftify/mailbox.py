@@ -1,4 +1,3 @@
-import asyncio
 import pickle
 from asyncio import Queue
 from typing import Optional

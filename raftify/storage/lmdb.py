@@ -4,7 +4,6 @@ from typing import List, Optional
 import lmdb
 import rraft
 from rraft import (
-    CompactedError,
     ConfState,
     ConfStateRef,
     Entry,
