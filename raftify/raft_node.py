@@ -459,7 +459,7 @@ class RaftNode:
     async def send_wrongleader_response(self, channel: Queue) -> None:
         if self.get_leader_id() not in self.peers:
             self.logger.warning(
-                "Request failed due to leader node not found in peers!, "
+                "Request failed due to leader node not found in peers!"
                 f"leader: {self.get_leader_id()}, peers: {self.peers.keys()}"
             )
             return
