@@ -324,7 +324,7 @@ class RaftNode:
     def handle_node_auto_removal(self, elapsed: float, node_id: int) -> None:
         assert self.is_leader()
 
-        if node_id not in self.peers.keys():
+        if node_id not in self.peers:
             return
 
         if elapsed >= self.raftify_cfg.node_auto_remove_threshold:
@@ -342,7 +342,7 @@ class RaftNode:
 
     def should_retry(self, node_id: int, current_retry_count: int) -> bool:
         """ """
-        if node_id not in self.peers.keys():
+        if node_id not in self.peers:
             return False
 
         return current_retry_count < self.raftify_cfg.max_retry_cnt
@@ -414,7 +414,7 @@ class RaftNode:
 
                 if elapsed < self.raftify_cfg.node_auto_remove_threshold:
                     self.logger.warning(
-                        f"Failed to connect to node {node_id}, elapsed from first failure: {format(elapsed, '.4f')}s"
+                        f"Failed to connect to node {node_id}, elapsed from first failure: {format(elapsed, '.4f')}s. Err message: {str(err)}"
                     )
 
                 if self.is_leader():
@@ -527,6 +527,10 @@ class RaftNode:
             if cs := self.raw_node.apply_conf_change_v2(zero):
                 self.lmdb.set_conf_state(cs)
                 await self.create_snapshot(entry.get_index(), entry.get_term())
+            return
+
+        # Block already applied entries handling
+        if not entry.get_context():
             return
 
         response_seq = AtomicInteger(pickle.loads(entry.get_context()))

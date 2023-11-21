@@ -32,7 +32,7 @@ def setup_logger() -> logging.Logger:
 def setup_slog():
     # Set up rraft-py's slog log-level to Debug.
     # TODO: This method should be improved in rraft-py.
-    os.environ["RUST_LOG"] = "DEBUG" if debug_mode_enabled() else "INFO"
+    os.environ["RUST_LOG"] = "TRACE" if debug_mode_enabled() else "INFO"
     return default_logger()
 
 

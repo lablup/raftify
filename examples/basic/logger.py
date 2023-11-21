@@ -9,7 +9,7 @@ from rraft import default_logger
 def setup_slog() -> Slog:
     # TODO: This method should be implemented in rraft-py.
     # Set up rraft-py's slog log-level to Debug.
-    os.environ["RUST_LOG"] = "debug"
+    os.environ["RUST_LOG"] = "trace"
     return default_logger()
 
 
