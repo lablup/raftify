@@ -457,10 +457,17 @@ class RaftNode:
                     )
 
     async def send_wrongleader_response(self, channel: Queue) -> None:
-        # TODO: Make this follower to new cluster's leader
-        assert (
-            self.get_leader_id() in self.peers
-        ), f"Leader node not found in peers!, leader: {self.get_leader_id()}, peers: {self.peers}"
+        if self.get_leader_id() not in self.peers:
+            self.logger.warning(
+                "Request failed due to leader node not found in peers!, "
+                f"leader: {self.get_leader_id()}, peers: {self.peers.keys()}"
+            )
+            return
+
+        # # TODO: Make this follower to new cluster's leader
+        # assert (
+        #     self.get_leader_id() in self.peers
+        # ), f"Leader node not found in peers!, leader: {self.get_leader_id()}, peers: {self.peers}"
 
         try:
             # TODO: handle error here
