@@ -198,12 +198,18 @@ class LMDBStorage:
                 if decode_int(key) >= to:
                     break
 
-                if max_size is not None and size_count >= max_size:
-                    break
+                # TODO: Handle max_size correctly. This is related with `max_size_per_msg` and `max_committed_size_per_ready`.
+                # Watch out below line could block log replication process.
+                # if max_size is not None and max_size != 0 and size_count >= max_size:
+                #     break
 
                 entries.append(Entry.decode(entry))
 
                 size_count += len(entry)
+
+                # See "max_size_per_msg" comments in raft.rs
+                if max_size == 0:
+                    self.logger.debug("max_size is 0.")
 
             return entries
 
@@ -273,7 +279,7 @@ class LMDBStorage:
                 for entry in entries:
                     # assert entry.get_index() == last_index + 1
                     index = entry.get_index()
-                    entry_writer.put(encode_int(index), entry.encode(), overwrite=False)
+                    entry_writer.put(encode_int(index), entry.encode())
                     last_index = max(index, last_index)
 
             self.set_last_index(last_index)
@@ -315,11 +321,9 @@ class LMDBStorage:
         last_index = self.last_index()
         hard_state = self.hard_state()
 
-        if index == hard_state.get_commit():
-            return hard_state.get_term()
-
         if index < first_index:
-            raise StoreError(CompactedError())
+            # raise StoreError(CompactedError())
+            return 1
 
         if index > last_index:
             raise StoreError(UnavailableError())
@@ -328,5 +332,10 @@ class LMDBStorage:
             entry = self.entry(index)
         except Exception:
             raise StoreError(UnavailableError())
+
+        # Fallback.
+        # TODO: Replace this fallback with better logic.
+        if not entry and index == hard_state.get_commit():
+            return hard_state.get_term()
 
         return entry.get_term() if entry else 0
