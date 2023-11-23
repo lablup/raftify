@@ -191,25 +191,22 @@ class LMDBStorage:
             if not cursor.set_range(encode_int(from_)):
                 return []
 
-            size_count = 0
+            size = 0
             entries = []
 
             for key, entry in cursor:
                 if decode_int(key) >= to:
                     break
 
-                # TODO: Handle max_size correctly. This is related with `max_size_per_msg` and `max_committed_size_per_ready`.
-                # Watch out below line could block log replication process.
-                # if max_size is not None and max_size != 0 and size_count >= max_size:
-                #     break
+                if max_size is not None and size >= max_size:
+                    # Note that even in cases where entry's size exceeds the max_size,
+                    # `entries` must return at least one entry if possible.
+                    if not entries:
+                        return [Entry.decode(entry)]
+                    return entries
 
                 entries.append(Entry.decode(entry))
-
-                size_count += len(entry)
-
-                # See "max_size_per_msg" comments in raft.rs
-                if max_size == 0:
-                    self.logger.debug("max_size is 0.")
+                size += len(entry)
 
             return entries
 
