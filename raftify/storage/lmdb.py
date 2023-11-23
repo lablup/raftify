@@ -4,6 +4,7 @@ from typing import List, Optional
 import lmdb
 import rraft
 from rraft import (
+    CompactedError,
     ConfState,
     ConfStateRef,
     Entry,
@@ -316,25 +317,20 @@ class LMDBStorage:
         return raft_state
 
     def term(self, index: int) -> int:
-        first_index = self.first_index()
-        last_index = self.last_index()
-        hard_state = self.hard_state()
-
-        if index < first_index:
-            # raise StoreError(CompactedError())
-            return 1
-
-        if index > last_index:
-            raise StoreError(UnavailableError())
+        snapshot = self.snapshot(0, 0)
+        if snapshot.get_metadata().get_index() == index:
+            return snapshot.get_metadata().get_term()
 
         try:
             entry = self.entry(index)
-        except Exception:
+        except StoreError as e:
+            self.logger.error(f"Unknown error occurred while getting entry. Err: {e}")
             raise StoreError(UnavailableError())
 
-        # Fallback.
-        # TODO: Replace this fallback with better logic.
-        if not entry and index == hard_state.get_commit():
-            return hard_state.get_term()
+        if not entry:
+            if index < self.first_index():
+                raise StoreError(CompactedError())
+            else:
+                raise StoreError(UnavailableError())
 
-        return entry.get_term() if entry else 0
+        return entry.get_term()
