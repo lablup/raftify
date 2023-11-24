@@ -51,10 +51,10 @@ async def leave(request: web.Request) -> web.Response:
 
 @routes.get("/remove/{id}")
 async def remove(request: web.Request) -> web.Response:
-    cluster: RaftFacade = request.app["state"]["raft"]
+    raft_facade: RaftFacade = request.app["state"]["raft"]
     id = int(request.match_info["id"])
-    addr = cluster.peers[id].addr
-    await cluster.mailbox.leave(id, addr)
+    addr = raft_facade.peers[id].addr
+    await raft_facade.mailbox.leave(id, addr)
     return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
 
