@@ -138,7 +138,9 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
                         raft_response.leader_id,
                         raft_response.leader_addr,
                     )
-                    reply.data = pickle.dumps(tuple([leader_id, leader_addr, None]))
+                    reply.data = pickle.dumps(
+                        {"leader_id": leader_id, "leader_addr": leader_addr}
+                    )
 
         except asyncio.TimeoutError:
             reply.result = raft_service_pb2.ChangeConfig_TimeoutError
@@ -169,7 +171,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
                 )
             case raft_service_pb2.ChangeConfig_WrongLeader:
                 rerouted_resp = await self.__handle_reroute(
-                    res,
+                    WrongLeaderRespMessage(**pickle.loads(res.data)),
                     reroute_msg_type=raft_service_pb2.ConfChange,
                     conf_change=request,
                 )
