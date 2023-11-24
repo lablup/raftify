@@ -265,13 +265,17 @@ class RaftFacade:
 
         unstable = raft_log.unstable()
         unstable.set_entries(entries)
-        unstable.stable_entries(last_index + len(entries), 1)
+        commit_index = last_index + len(entries)
+        unstable.stable_entries(commit_index, 1)
 
         self.raft_node.lmdb.append(entries)
         # Update the snapshot.
         await self.create_snapshot()
 
-        raft_log.set_committed(last_index + len(entries))
+        raft_log.set_committed(commit_index)
+        raft_log.set_applied(commit_index)
+        raft_log.set_persisted(commit_index)
+
         self.raft_node.bootstrap_done = True
 
     async def join_cluster(
