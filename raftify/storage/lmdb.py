@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import Optional
 
 import lmdb
 import rraft
@@ -183,7 +183,7 @@ class LMDBStorage:
         # TODO: Handle GetEntriesContextRef
         _ctx: GetEntriesContext | GetEntriesContextRef,
         max_size: Optional[int] = None,
-    ) -> List[Entry]:
+    ) -> list[Entry]:
         with self.env.begin(write=False, db=self.entries_db) as entry_reader:
             self.logger.info(f"Entries [{from_}, {to}) requested")
 
@@ -267,7 +267,7 @@ class LMDBStorage:
             if to > from_:
                 self.logger.info(f"Entries [{from_}, {to}) deleted successfully.")
 
-    def append(self, entries: List[Entry] | List[EntryRef]) -> None:
+    def append(self, entries: list[Entry] | list[EntryRef]) -> None:
         last_index = self.last_index()
 
         try:
