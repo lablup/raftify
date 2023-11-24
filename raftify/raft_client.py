@@ -1,9 +1,11 @@
 import asyncio
 import math
-from typing import Optional
+from typing import Any, Optional
 
 import grpc
 from rraft import ConfChangeV2, Message
+
+from raftify.logger import AbstractRaftifyLogger
 
 from .pb_adapter import ConfChangeV2Adapter, MessageAdapter
 from .protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
@@ -12,23 +14,26 @@ from .utils import SocketAddr
 
 class RaftClient:
     """
-    Low level interface to communicate with the RaftFacade.
+    Low level interface to communicate with the Raft Cluster.
     """
 
     def __init__(
         self,
         addr: str | SocketAddr,
         *,
+        grpc_connection_options: Optional[list[tuple[str, Any]]] = None,
+        logger: Optional[AbstractRaftifyLogger] = None,
         credentials: Optional[grpc.ServerCredentials] = None,
     ):
-        print("('@@@@@@ RaftClient created!!")
         if isinstance(addr, str):
             addr = SocketAddr.from_str(addr)
 
         self.addr = addr
         self.credentials = credentials
-        self.first_failed_time: Optional[float] = None
+        self.logger = logger
+        self.grpc_connection_options = grpc_connection_options
         self.connection = None
+        self.first_failed_time: Optional[float] = None
 
     def __repr__(self) -> str:
         return f"RaftClient(addr={self.addr})"
@@ -40,7 +45,11 @@ class RaftClient:
             "first_failed_time": self.first_failed_time,
         }
 
-    def __create_channel(self) -> grpc.aio.Channel:
+    async def __close_channel(self) -> None:
+        await self.connection.close()
+        self.connection = None
+
+    async def __get_or_create_channel(self) -> grpc.aio.Channel:
         """
         Creates or reuses a gRPC channel.
         """
@@ -51,19 +60,20 @@ class RaftClient:
                     self.connection.get_state(try_to_connect=True)
                     != grpc.ChannelConnectivity.READY
                 ):
-                    self.connection.close()
-                    self.connection = None
-            except Exception:
-                print('@@@@@@ Connection reset by error!!!!')
-                self.connection = None
+                    await self.__close_channel()
+            except Exception as e:
+                if logger := self.logger:
+                    logger.error(f"Connection reset by unknown error. Err: {e}")
+                await self.__close_channel()
 
         if self.connection is None:
             if credentials := self.credentials:
-                self.connection = grpc.aio.secure_channel(str(self.addr), credentials)
+                self.connection = grpc.aio.secure_channel(
+                    str(self.addr), credentials, options=self.grpc_connection_options
+                )
             else:
-                print('@@@@@@ Channel generated!!!!')
                 self.connection = grpc.aio.insecure_channel(
-                    str(self.addr),
+                    str(self.addr), options=self.grpc_connection_options
                 )
 
         return self.connection
@@ -76,7 +86,9 @@ class RaftClient:
         """
 
         request_args = raft_service_pb2.ProposeArgs(msg=data)
-        stub = raft_service_pb2_grpc.RaftServiceStub(self.__create_channel())
+        stub = raft_service_pb2_grpc.RaftServiceStub(
+            await self.__get_or_create_channel()
+        )
         return await asyncio.wait_for(stub.Propose(request_args), timeout)
 
     async def change_config(
@@ -87,10 +99,9 @@ class RaftClient:
         """
 
         request_args = ConfChangeV2Adapter.to_pb(conf_change)
-        self.channel = self.__create_channel()
-        stub = raft_service_pb2_grpc.RaftServiceStub(self.channel)
-
-        stub = raft_service_pb2_grpc.RaftServiceStub(self.__create_channel())
+        stub = raft_service_pb2_grpc.RaftServiceStub(
+            await self.__get_or_create_channel()
+        )
         return await asyncio.wait_for(stub.ChangeConfig(request_args), timeout)
 
     async def apply_change_config_forcely(
@@ -103,7 +114,9 @@ class RaftClient:
 
         request_args = ConfChangeV2Adapter.to_pb(conf_change)
 
-        stub = raft_service_pb2_grpc.RaftServiceStub(self.__create_channel())
+        stub = raft_service_pb2_grpc.RaftServiceStub(
+            await self.__get_or_create_channel()
+        )
         return await asyncio.wait_for(
             stub.ApplyConfigChangeForcely(request_args), timeout
         )
@@ -118,7 +131,9 @@ class RaftClient:
 
         request_args = MessageAdapter.to_pb(msg)
 
-        stub = raft_service_pb2_grpc.RaftServiceStub(self.__create_channel())
+        stub = raft_service_pb2_grpc.RaftServiceStub(
+            await self.__get_or_create_channel()
+        )
         return await asyncio.wait_for(stub.SendMessage(request_args), timeout)
 
     async def request_id(
@@ -130,7 +145,9 @@ class RaftClient:
 
         request_args = raft_service_pb2.IdRequestArgs(addr=str(addr))
 
-        stub = raft_service_pb2_grpc.RaftServiceStub(self.__create_channel())
+        stub = raft_service_pb2_grpc.RaftServiceStub(
+            await self.__get_or_create_channel()
+        )
         return await asyncio.wait_for(stub.RequestId(request_args), timeout)
 
     async def member_bootstrap_ready(
@@ -146,10 +163,10 @@ class RaftClient:
             follower_id=follower_id
         )
 
-        stub = raft_service_pb2_grpc.RaftServiceStub(self.__create_channel())
-        return await asyncio.wait_for(
-            stub.MemberBootstrapReady(request_args), timeout
+        stub = raft_service_pb2_grpc.RaftServiceStub(
+            await self.__get_or_create_channel()
         )
+        return await asyncio.wait_for(stub.MemberBootstrapReady(request_args), timeout)
 
     async def cluster_bootstrap_ready(
         self, peers: bytes, timeout: float = 5.0
@@ -162,10 +179,10 @@ class RaftClient:
 
         request_args = raft_service_pb2.ClusterBootstrapReadyArgs(peers=peers)
 
-        stub = raft_service_pb2_grpc.RaftServiceStub(self.__create_channel())
-        return await asyncio.wait_for(
-            stub.ClusterBootstrapReady(request_args), timeout
+        stub = raft_service_pb2_grpc.RaftServiceStub(
+            await self.__get_or_create_channel()
         )
+        return await asyncio.wait_for(stub.ClusterBootstrapReady(request_args), timeout)
 
     async def reroute_message(
         self,
@@ -184,7 +201,9 @@ class RaftClient:
             type=reroute_msg_type,
         )
 
-        stub = raft_service_pb2_grpc.RaftServiceStub(self.__create_channel())
+        stub = raft_service_pb2_grpc.RaftServiceStub(
+            await self.__get_or_create_channel()
+        )
         return await asyncio.wait_for(stub.RerouteMessage(request_args), timeout)
 
     async def debug_node(
@@ -196,7 +215,9 @@ class RaftClient:
 
         request_args = raft_service_pb2.Empty()
 
-        stub = raft_service_pb2_grpc.RaftServiceStub(self.__create_channel())
+        stub = raft_service_pb2_grpc.RaftServiceStub(
+            await self.__get_or_create_channel()
+        )
         return await asyncio.wait_for(stub.DebugNode(request_args), timeout)
 
     async def debug_entries(
@@ -208,7 +229,9 @@ class RaftClient:
 
         request_args = raft_service_pb2.Empty()
 
-        stub = raft_service_pb2_grpc.RaftServiceStub(self.__create_channel())
+        stub = raft_service_pb2_grpc.RaftServiceStub(
+            await self.__get_or_create_channel()
+        )
         return await asyncio.wait_for(stub.DebugEntries(request_args), timeout)
 
     async def version(self, timeout: float = 5.0) -> raft_service_pb2.VersionResponse:
@@ -218,7 +241,9 @@ class RaftClient:
 
         request_args = raft_service_pb2.Empty()
 
-        stub = raft_service_pb2_grpc.RaftServiceStub(self.__create_channel())
+        stub = raft_service_pb2_grpc.RaftServiceStub(
+            await self.__get_or_create_channel()
+        )
         return await asyncio.wait_for(stub.Version(request_args), timeout)
 
     async def get_peers(
@@ -228,5 +253,7 @@ class RaftClient:
 
         request_args = raft_service_pb2.Empty()
 
-        stub = raft_service_pb2_grpc.RaftServiceStub(self.__create_channel())
+        stub = raft_service_pb2_grpc.RaftServiceStub(
+            await self.__get_or_create_channel()
+        )
         return await asyncio.wait_for(stub.GetPeers(request_args), timeout)
