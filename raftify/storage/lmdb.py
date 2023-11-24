@@ -1,4 +1,5 @@
 import os
+import shutil
 from typing import Optional
 
 import lmdb
@@ -75,9 +76,16 @@ class LMDBStorage:
         logger: AbstractRaftifyLogger,
     ) -> "LMDBStorage":
         log_dir_path = os.path.join(log_dir_path, cluster_id, f"node-{node_id}")
+
         compacted_log_dir_path = os.path.join(
             compacted_log_dir_path, cluster_id, f"node-{node_id}"
         )
+
+        if os.path.exists(log_dir_path):
+            shutil.rmtree(log_dir_path, ignore_errors=True)
+
+        if os.path.exists(compacted_log_dir_path):
+            shutil.rmtree(compacted_log_dir_path, ignore_errors=True)
 
         os.makedirs(log_dir_path, exist_ok=True)
         os.makedirs(compacted_log_dir_path, exist_ok=True)

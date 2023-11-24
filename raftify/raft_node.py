@@ -3,7 +3,6 @@ import json
 import math
 import os
 import pickle
-import shutil
 import time
 from asyncio import Queue
 from typing import Any
@@ -120,10 +119,6 @@ class RaftNode:
 
         cfg.set_id(1)
         cfg.validate()
-
-        prev_logs_dir = os.path.join(raftify_cfg.log_dir, raftify_cfg.cluster_id)
-        if os.path.exists(prev_logs_dir):
-            shutil.rmtree(prev_logs_dir, ignore_errors=True)
 
         lmdb = LMDBStorage.create(
             map_size=raftify_cfg.lmdb_map_size,
