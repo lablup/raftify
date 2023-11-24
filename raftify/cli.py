@@ -4,10 +4,14 @@ import functools
 import importlib
 import json
 import os
+import pickle
 import sys
 from contextlib import suppress
 
 import asyncclick as click
+from rraft import ConfChange, ConfChangeType
+
+from raftify.pb_adapter import ConfChangeV2Adapter
 
 from .raft_client import RaftClient
 from .raft_utils import format_all_entries, format_raft_node_debugging_info
@@ -200,10 +204,19 @@ async def add_member(module_path, module_name, args):
 
 
 @member.command(name="remove")
-@common_member_options
-async def remove_member():
-    # TODO: Implement this (default)
-    pass
+@click.argument("node-id", type=str)
+@click.argument("addr", type=str)
+async def remove_member(node_id, addr):
+    addr = SocketAddr.from_str(addr)
+
+    conf_change = ConfChange.default()
+    conf_change.set_node_id(int(node_id))
+    conf_change.set_context(pickle.dumps([addr]))
+    conf_change.set_change_type(ConfChangeType.RemoveNode)
+    conf_change_v2 = conf_change.as_v2()
+
+    client = RaftClient(addr)
+    await client.change_config(conf_change_v2)
 
 
 @debug.command(name="node")
