@@ -32,7 +32,7 @@ class RaftClient:
         self.credentials = credentials
         self.logger = logger
         self.grpc_connection_options = grpc_connection_options
-        self.connection = None
+        self.grpc_channel = None
         self.first_failed_time: Optional[float] = None
 
     def __repr__(self) -> str:
@@ -46,18 +46,18 @@ class RaftClient:
         }
 
     async def __close_channel(self) -> None:
-        await self.connection.close()
-        self.connection = None
+        await self.grpc_channel.close()
+        self.grpc_channel = None
 
     async def __get_or_create_channel(self) -> grpc.aio.Channel:
         """
         Creates or reuses a gRPC channel.
         """
 
-        if self.connection:
+        if self.grpc_channel:
             try:
                 if (
-                    self.connection.get_state(try_to_connect=True)
+                    self.grpc_channel.get_state(try_to_connect=True)
                     != grpc.ChannelConnectivity.READY
                 ):
                     await self.__close_channel()
@@ -66,17 +66,17 @@ class RaftClient:
                     logger.error(f"Connection reset by unknown error. Err: {e}")
                 await self.__close_channel()
 
-        if self.connection is None:
+        if self.grpc_channel is None:
             if credentials := self.credentials:
-                self.connection = grpc.aio.secure_channel(
+                self.grpc_channel = grpc.aio.secure_channel(
                     str(self.addr), credentials, options=self.grpc_connection_options
                 )
             else:
-                self.connection = grpc.aio.insecure_channel(
+                self.grpc_channel = grpc.aio.insecure_channel(
                     str(self.addr), options=self.grpc_connection_options
                 )
 
-        return self.connection
+        return self.grpc_channel
 
     async def propose(
         self, data: bytes, timeout: float = 5.0
