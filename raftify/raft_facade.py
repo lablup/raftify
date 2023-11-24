@@ -276,6 +276,11 @@ class RaftFacade:
         raft_log.set_applied(commit_index)
         raft_log.set_persisted(commit_index)
 
+        leader_id = self.raft.get_leader_id()
+        self.raft.prs().get(leader_id).set_matched(commit_index)
+        self.raft.prs().get(leader_id).set_committed_index(commit_index)
+        self.raft.prs().get(leader_id).set_next_idx(commit_index + 1)
+
         self.raft_node.bootstrap_done = True
 
     async def join_cluster(
