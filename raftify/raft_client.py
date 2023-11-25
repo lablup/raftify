@@ -3,7 +3,7 @@ import math
 from typing import Any, Optional
 
 import grpc
-from rraft import ConfChangeV2, Message
+from rraft import ConfChange, ConfChangeV2, Message
 
 from raftify.logger import AbstractRaftifyLogger
 
@@ -92,11 +92,13 @@ class RaftClient:
         return await asyncio.wait_for(stub.Propose(request_args), timeout)
 
     async def change_config(
-        self, conf_change: ConfChangeV2, timeout: float = math.inf
+        self, conf_change: ConfChange | ConfChangeV2, timeout: float = math.inf
     ) -> raft_service_pb2.ChangeConfigResponse:
         """
         Request for membership config change of the cluster.
         """
+        if isinstance(conf_change, ConfChange):
+            conf_change = conf_change.as_v2()
 
         request_args = ConfChangeV2Adapter.to_pb(conf_change)
         stub = raft_service_pb2_grpc.RaftServiceStub(
@@ -105,15 +107,16 @@ class RaftClient:
         return await asyncio.wait_for(stub.ChangeConfig(request_args), timeout)
 
     async def apply_change_config_forcely(
-        self, conf_change: ConfChangeV2, timeout: float = math.inf
+        self, conf_change: ConfChange | ConfChangeV2, timeout: float = math.inf
     ) -> raft_service_pb2.ChangeConfigResponse:
         """
         Request for membership config change of the cluster.
         Note that this method is not safe and even not verified.
         """
+        if isinstance(conf_change, ConfChange):
+            conf_change = conf_change.as_v2()
 
         request_args = ConfChangeV2Adapter.to_pb(conf_change)
-
         stub = raft_service_pb2_grpc.RaftServiceStub(
             await self.__get_or_create_channel()
         )
@@ -144,7 +147,6 @@ class RaftClient:
         """
 
         request_args = raft_service_pb2.IdRequestArgs(addr=str(addr))
-
         stub = raft_service_pb2_grpc.RaftServiceStub(
             await self.__get_or_create_channel()
         )
@@ -162,7 +164,6 @@ class RaftClient:
         request_args = raft_service_pb2.MemberBootstrapReadyArgs(
             follower_id=follower_id
         )
-
         stub = raft_service_pb2_grpc.RaftServiceStub(
             await self.__get_or_create_channel()
         )
@@ -178,7 +179,6 @@ class RaftClient:
         """
 
         request_args = raft_service_pb2.ClusterBootstrapReadyArgs(peers=peers)
-
         stub = raft_service_pb2_grpc.RaftServiceStub(
             await self.__get_or_create_channel()
         )
@@ -200,7 +200,6 @@ class RaftClient:
             conf_change=conf_change,
             type=reroute_msg_type,
         )
-
         stub = raft_service_pb2_grpc.RaftServiceStub(
             await self.__get_or_create_channel()
         )
@@ -214,7 +213,6 @@ class RaftClient:
         """
 
         request_args = raft_service_pb2.Empty()
-
         stub = raft_service_pb2_grpc.RaftServiceStub(
             await self.__get_or_create_channel()
         )
@@ -228,7 +226,6 @@ class RaftClient:
         """
 
         request_args = raft_service_pb2.Empty()
-
         stub = raft_service_pb2_grpc.RaftServiceStub(
             await self.__get_or_create_channel()
         )
@@ -252,7 +249,6 @@ class RaftClient:
         """ """
 
         request_args = raft_service_pb2.Empty()
-
         stub = raft_service_pb2_grpc.RaftServiceStub(
             await self.__get_or_create_channel()
         )

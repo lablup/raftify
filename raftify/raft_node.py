@@ -25,6 +25,8 @@ from rraft import (
     Storage,
 )
 
+from raftify.error import UnknownError
+
 from .config import RaftifyConfig
 from .deserializer import entry_data_deserializer, pickle_deserialize
 from .logger import AbstractRaftifyLogger
@@ -487,12 +489,12 @@ class RaftNode:
             match entry.get_entry_type():
                 case EntryType.EntryNormal:
                     await self.handle_committed_normal_entry(entry, response_queues)
-                case EntryType.EntryConfChangeV2:
+                case EntryType.EntryConfChange | EntryType.EntryConfChangeV2:
                     await self.handle_committed_config_change_entry(
                         entry, response_queues
                     )
                 case _:
-                    raise NotImplementedError
+                    raise UnknownError()
 
     async def create_snapshot(self, index: int, term: int) -> None:
         self.last_snapshot_created = time.time()
@@ -539,7 +541,11 @@ class RaftNode:
             return
 
         response_seq = AtomicInteger(pickle.loads(entry.get_context()))
-        conf_change_v2 = ConfChangeV2.decode(entry.get_data())
+
+        try:
+            conf_change_v2 = ConfChangeV2.decode(entry.get_data())
+        except Exception:
+            conf_change_v2 = ConfChange.decode(entry.get_data()).as_v2()
 
         conf_changes = conf_change_v2.get_changes()
         addrs = pickle.loads(conf_change_v2.get_context())
