@@ -44,8 +44,7 @@ async def put(request: web.Request) -> web.Response:
 async def leave(request: web.Request) -> web.Response:
     raft_facade: RaftFacade = request.app["state"]["raft"]
     id = raft_facade.raft_node.get_id()
-    addr = raft_facade.peers[id].addr
-    await raft_facade.mailbox.leave(id, addr)
+    await raft_facade.mailbox.leave(id)
     return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
 
@@ -53,8 +52,7 @@ async def leave(request: web.Request) -> web.Response:
 async def remove(request: web.Request) -> web.Response:
     raft_facade: RaftFacade = request.app["state"]["raft"]
     id = int(request.match_info["id"])
-    addr = raft_facade.peers[id].addr
-    await raft_facade.mailbox.leave(id, addr)
+    await raft_facade.mailbox.leave(id)
     return web.Response(text=f'Removed "node {id}" from the cluster successfully.')
 
 

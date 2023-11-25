@@ -42,10 +42,10 @@ def format_all_entries(all_entries: dict[str, Any]) -> str:
     """
 
     return f"""
-========= Compacted all entries =========
+========= All compacted entries =========
 {all_entries['compacted_all_entries']}
 
-========= Existing all entries =========
+========= All persisted entries =========
 {all_entries['current_all_entries']}
         """.strip()
 
@@ -74,13 +74,13 @@ leader_id: {debug_info['current_leader_id']}
     ["Snapshot", debug_info['storage']['snapshot']]
 ], headers=['Key', 'Value'], tablefmt="grid")}
 
-========= Progress tracker =========
+========= Progresses =========
 {tabulate(debug_info['progress'], headers="keys", tablefmt="grid") if is_leader else "(not leader node)"}
 
 ========= Peer states =========
 {tabulate(peers_tbl, headers=['ID', 'Addr', 'State'], tablefmt="grid")}
 
-========= Raft log =========
+========= RaftLog metadata =========
 last_applied: {debug_info['raft_log']['applied']}
 last_committed: {debug_info['raft_log']['committed']}
 last_persisted: {debug_info['raft_log']['persisted']}

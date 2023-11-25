@@ -33,6 +33,7 @@ def load_peers() -> Peers:
 def build_config():
     return RaftifyConfig(
         log_dir="./logs",
+        auto_remove_node=False,
         compacted_log_dir="./logs",
         raft_config=RaftifyConfig.new_raft_config(
             {

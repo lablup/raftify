@@ -76,7 +76,7 @@ class RaftifyConfig:
         compacted_logs_size_threshold: int = 1024 * 1024 * 1024,
         message_timeout: float = 5.0,
         max_retry_cnt: int = 2,
-        auto_remove_node: bool = True,
+        auto_remove_node: bool = False,
         node_auto_remove_threshold: float = 7.0,
         raft_config: Config = Config.default(),
         snapshot_interval: float = 0.0,

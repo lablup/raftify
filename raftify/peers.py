@@ -5,7 +5,7 @@ from typing import Optional
 
 from rraft import RawNode
 
-# from .logger import AbstractRaftifyLogger
+from .logger import AbstractRaftifyLogger
 from .raft_client import RaftClient
 from .utils import SocketAddr
 
@@ -32,12 +32,14 @@ class Peer:
         self,
         addr: str | SocketAddr,
         state: PeerState = PeerState.Preparing,
+        *,
+        logger: Optional[AbstractRaftifyLogger] = None,
     ):
         if isinstance(addr, str):
             addr = SocketAddr.from_str(addr)
 
         self.addr = addr
-        self.client = RaftClient(addr)
+        self.client = RaftClient(addr, logger=logger)
         self.state = state
 
     def to_dict(self) -> dict:
