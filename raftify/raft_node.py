@@ -769,7 +769,7 @@ class RaftNode:
             elif isinstance(message, RaftReqMessage):
                 msg = MessageAdapter.from_pb(message.msg)
                 self.logger.debug(
-                    f"Node {msg.get_to()} received Raft message from the node {msg.get_from()}"
+                    f"Node {msg.get_to()} received Raft message from the node {msg.get_from()}, Message: {msg}"
                 )
 
                 try:
