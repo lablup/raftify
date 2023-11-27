@@ -30,3 +30,11 @@ class ClusterBootstrapError(Exception):
     def __init__(self, cause=None):
         self.cause = cause
         super().__init__(str(cause))
+
+
+class ProposalRejectError(Exception):
+    """ """
+
+    def __init__(self, cause=None):
+        self.cause = cause
+        super().__init__(str(cause))

@@ -4,7 +4,7 @@ from typing import Optional
 
 from rraft import ConfChangeSingle, ConfChangeTransition, ConfChangeType, ConfChangeV2
 
-from .error import UnknownError
+from .error import ProposalRejectError, UnknownError
 from .pb_adapter import ConfChangeV2Adapter
 from .protos import eraftpb_pb2, raft_service_pb2
 from .raft_node import RaftNode
@@ -37,12 +37,15 @@ class Mailbox:
         proposed_data: Optional[bytes] = None,
         conf_change: Optional[eraftpb_pb2.ConfChangeV2] = None,
     ) -> Optional[bytes]:
-        if isinstance(response, ClusterBootstrapReadyRespMessage):
+        if isinstance(response, ClusterBootstrapReadyRespMessage) or isinstance(
+            response, ConfChangeSuccessRespMessage
+        ):
             return None
         if isinstance(response, RaftRespMessage):
+            if response.rejected:
+                return None
+
             return response.data
-        elif isinstance(response, ConfChangeSuccessRespMessage):
-            return None
         elif isinstance(response, WrongLeaderRespMessage):
             assert reroute_msg_type is not None
 
@@ -74,16 +77,17 @@ class Mailbox:
         await self.message_queue.put(ProposeReqMessage(message, receiver))
 
         try:
-            resp = await self.__handle_response(
+            res = await self.__handle_response(
                 await receiver.get(),
                 reroute_msg_type=raft_service_pb2.Propose,
                 proposed_data=message,
             )
-            assert resp is not None
-            return resp
         except Exception as e:
             self.logger.error("Error occurred while sending message through mailbox", e)
             raise
+
+        if res is None:
+            raise ProposalRejectError()
 
     async def leave(self, node_ids: int | list[int]) -> None:
         if isinstance(node_ids, int):

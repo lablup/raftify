@@ -93,10 +93,12 @@ class ProposeArgs(_message.Message):
     def __init__(self, msg: _Optional[bytes] = ...) -> None: ...
 
 class ProposeResponse(_message.Message):
-    __slots__ = ["msg"]
+    __slots__ = ["msg", "rejected"]
     MSG_FIELD_NUMBER: _ClassVar[int]
+    REJECTED_FIELD_NUMBER: _ClassVar[int]
     msg: bytes
-    def __init__(self, msg: _Optional[bytes] = ...) -> None: ...
+    rejected: bool
+    def __init__(self, msg: _Optional[bytes] = ..., rejected: bool = ...) -> None: ...
 
 class SendMessageResponse(_message.Message):
     __slots__ = ["data"]

@@ -37,6 +37,7 @@ class IdReservedRespMessage(ResponseMessage, PickleSerializer):
 @dataclass
 class RaftRespMessage(ResponseMessage, PickleSerializer):
     data: bytes
+    rejected: bool = False
 
 
 @dataclass

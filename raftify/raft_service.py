@@ -6,6 +6,8 @@ from typing import Optional
 
 import grpc
 
+from raftify.error import UnknownError
+
 from .logger import AbstractRaftifyLogger
 from .protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
 from .raft_client import RaftClient
@@ -85,7 +87,9 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
             await asyncio.sleep(1)
 
     async def RequestId(
-        self, request: raft_service_pb2.IdRequestArgs, _context: grpc.aio.ServicerContext
+        self,
+        request: raft_service_pb2.IdRequestArgs,
+        _context: grpc.aio.ServicerContext,
     ) -> raft_service_pb2.IdRequestResponse:
         receiver: Queue = Queue()
         await self.message_queue.put(RequestIdReqMessage(request.addr, receiver))
@@ -216,11 +220,13 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
                 reroute_msg_type=raft_service_pb2.Propose,
                 proposed_data=request.msg,
             )
-            return raft_service_pb2.ProposeResponse(msg=resp)
+            return raft_service_pb2.ProposeResponse(msg=resp, rejected=False)
         elif isinstance(result, RaftRespMessage):
-            return raft_service_pb2.ProposeResponse(msg=result.data)
+            return raft_service_pb2.ProposeResponse(
+                msg=result.data, rejected=result.rejected
+            )
 
-        assert False, f"Unknown type of response, resp: {resp}"
+        raise UnknownError(f"Unknown type of response, resp: {resp}")
 
     async def ClusterBootstrapReady(
         self,

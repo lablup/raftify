@@ -723,6 +723,18 @@ class RaftNode:
                             ].state = PeerState.Disconnected
 
             elif isinstance(message, ProposeReqMessage):
+                if not self.bootstrap_done:
+                    self.logger.warning(
+                        "Proposal rejected because the cluster bootstrap is not done yet."
+                    )
+                    message.chan.put_nowait(
+                        RaftRespMessage(
+                            data=b"Cluster bootstrap is not done yet.",
+                            rejected=True,
+                        )
+                    )
+                    continue
+
                 if not self.is_leader():
                     # TODO: retry strategy in case of failure
                     await self.send_wrongleader_response(message.chan)

@@ -63,6 +63,7 @@ message ProposeArgs {
 
 message ProposeResponse {
   bytes msg     = 1;
+  bool rejected   = 2;
 }
 
 // Used in SendMessage

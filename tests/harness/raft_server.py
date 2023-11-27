@@ -14,6 +14,7 @@ from aiohttp.web import Application, RouteTableDef
 from aiotools import process_index
 from harness.constant import CLUSTER_INFO_PATH, RAFT_ADDRS, WEB_SERVER_ADDRS
 from harness.logger import logger, slog
+from raftify.error import ProposalRejectError
 from utils import read_cluster_info, remove_node, write_json, write_node
 
 from raftify.config import RaftifyConfig
@@ -43,11 +44,15 @@ async def all(request: web.Request) -> web.Response:
 
 @routes.get("/put/{id}/{value}")
 async def put(request: web.Request) -> web.Response:
-    cluster: RaftFacade = request.app["state"]["cluster"]
+    raft_facade: RaftFacade = request.app["state"]["raft"]
     id, value = request.match_info["id"], request.match_info["value"]
     message = SetCommand(id, value)
-    result = await cluster.mailbox.send(message.encode())
-    return web.Response(text=f'"{str(pickle.loads(result))}"')
+
+    try:
+        result = await raft_facade.mailbox.send(message.encode())
+        return web.Response(text=f'"{str(pickle.loads(result))}"')
+    except ProposalRejectError:
+        return web.Response(text=str("Proposal dropped."))
 
 
 @routes.get("/leave")
