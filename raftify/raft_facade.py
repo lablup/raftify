@@ -331,7 +331,7 @@ class RaftFacade:
                     conf_change_v2, timeout=self.cluster_config.message_timeout
                 )
 
-            except grpc.aio.AioRpcError | Exception as e:
+            except (grpc.aio.AioRpcError, Exception) as e:
                 raise ClusterJoinError(cause=e)
 
             if response.result == raft_service_pb2.ChangeConfig_Success:
