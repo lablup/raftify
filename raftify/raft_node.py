@@ -52,10 +52,11 @@ from .request_message import (
 )
 from .response_message import (
     ClusterBootstrapReadyRespMessage,
-    ConfChangeSuccessRespMessage,
+    ConfChangeRejectMessage,
     IdReservedRespMessage,
     JoinSuccessRespMessage,
     MemberBootstrapReadyRespMessage,
+    PeerRemovalSuccessRespMessage,
     RaftRespMessage,
     ResponseMessage,
     WrongLeaderRespMessage,
@@ -66,6 +67,11 @@ from .utils import AtomicInteger, SocketAddr
 
 
 class RaftNode:
+    response_queues: dict[AtomicInteger, Queue]
+    """
+    Queues that are stored for each message to handle asynchronous requests
+    """
+
     def __init__(
         self,
         *,
@@ -95,6 +101,7 @@ class RaftNode:
         self.should_exit = False
         self.raftify_cfg = raftify_cfg
         self.bootstrap_done = bootstrap_done
+        self.response_queues = {}
 
     @classmethod
     def bootstrap_cluster(
@@ -480,7 +487,6 @@ class RaftNode:
     async def handle_committed_entries(
         self,
         committed_entries: list[Entry] | list[EntryRef],
-        response_queues: dict[AtomicInteger, Queue],
     ) -> None:
         # TODO: persist last_applied_index and implement log entries commit resuming logic
         # _last_apply_index = 0
@@ -488,11 +494,9 @@ class RaftNode:
         for entry in committed_entries:
             match entry.get_entry_type():
                 case EntryType.EntryNormal:
-                    await self.handle_committed_normal_entry(entry, response_queues)
+                    await self.handle_committed_normal_entry(entry)
                 case EntryType.EntryConfChange | EntryType.EntryConfChangeV2:
-                    await self.handle_committed_config_change_entry(
-                        entry, response_queues
-                    )
+                    await self.handle_committed_config_change_entry(entry)
                 case _:
                     raise UnknownError()
 
@@ -505,16 +509,14 @@ class RaftNode:
         self.lmdb.create_snapshot(snapshot_data, index, term)
         self.logger.info("Snapshot created successfully.")
 
-    async def handle_committed_normal_entry(
-        self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
-    ) -> None:
+    async def handle_committed_normal_entry(self, entry: Entry | EntryRef) -> None:
         if not entry.get_data():
             return
 
         response_seq = AtomicInteger(pickle.loads(entry.get_context()))
         data = await self.fsm.apply(entry.get_data())
 
-        if response_queue := response_queues.pop(response_seq, None):
+        if response_queue := self.response_queues.pop(response_seq, None):
             response_queue.put_nowait(RaftRespMessage(data))
 
         if (
@@ -525,7 +527,7 @@ class RaftNode:
             await self.create_snapshot(entry.get_index(), entry.get_term())
 
     async def handle_committed_config_change_entry(
-        self, entry: Entry | EntryRef, response_queues: dict[AtomicInteger, Queue]
+        self, entry: Entry | EntryRef
     ) -> None:
         # TODO: Write documents to clarify when to use entry with empty data.
         if not entry.get_data():
@@ -575,7 +577,7 @@ class RaftNode:
             self.lmdb.set_conf_state(conf_state)
             await self.create_snapshot(entry.get_index(), entry.get_term())
 
-        if response_queue := response_queues.pop(response_seq, None):
+        if response_queue := self.response_queues.pop(response_seq, None):
             response: ResponseMessage
 
             match change_type:
@@ -584,7 +586,7 @@ class RaftNode:
                         assigned_id=node_id, raw_peers=self.peers.encode()
                     )
                 case ConfChangeType.RemoveNode:
-                    response = ConfChangeSuccessRespMessage()
+                    response = PeerRemovalSuccessRespMessage()
                 case _:
                     raise NotImplementedError
 
@@ -596,7 +598,6 @@ class RaftNode:
     # TODO: Abstract and improve this event handling loop. especially, the part of handling response_queues.
     async def run(self) -> None:
         tick_timer = self.raftify_cfg.tick_interval
-        response_queues: dict[AtomicInteger, Queue] = {}
         before = time.time()
 
         while not self.should_exit:
@@ -620,13 +621,15 @@ class RaftNode:
                         assert message.conf_change is not None
 
                         message = ConfigChangeReqMessage(
-                            conf_change=message.conf_change, chan=message.chan
+                            conf_change=message.conf_change,
+                            response_chan=message.response_chan,
                         )
                     case RerouteMsgType.Propose:
                         assert message.proposed_data is not None
 
                         message = ProposeReqMessage(
-                            data=message.proposed_data, chan=message.chan
+                            data=message.proposed_data,
+                            response_chan=message.response_chan,
                         )
 
             if isinstance(message, ClusterBootstrapReadyReqMessage):
@@ -638,7 +641,7 @@ class RaftNode:
                 for node_id, peer in self.peers.items():
                     peers.connect(node_id, peer.addr)
 
-                message.chan.put_nowait(ClusterBootstrapReadyRespMessage())
+                message.response_chan.put_nowait(ClusterBootstrapReadyRespMessage())
                 self.bootstrap_done = True
 
             elif isinstance(message, MemberBootstrapReadyReqMessage):
@@ -646,12 +649,12 @@ class RaftNode:
                 follower_id = message.follower_id
                 self.logger.info(f"Node {follower_id} request to join the cluster.")
                 self.peers.connect(follower_id, self.peers[follower_id].addr)
-                message.chan.put_nowait(MemberBootstrapReadyRespMessage())
+                message.response_chan.put_nowait(MemberBootstrapReadyRespMessage())
 
             elif isinstance(message, ConfigChangeReqMessage):
                 if not self.is_leader():
                     # TODO: retry strategy in case of failure
-                    await self.send_wrongleader_response(message.chan)
+                    await self.send_wrongleader_response(message.response_chan)
                 else:
                     if self.raw_node.get_raft().has_pending_conf():
                         pending_conf_index = (
@@ -660,6 +663,8 @@ class RaftNode:
                         self.logger.error(
                             f"Reject the conf change because pending conf change exist! ({pending_conf_index=}), try later..."
                         )
+                        message.response_chan.put_nowait(ConfChangeRejectMessage())
+                        return
                     else:
                         conf_change_v2 = ConfChangeV2Adapter.from_pb(
                             message.conf_change
@@ -674,7 +679,7 @@ class RaftNode:
                             self.peers.ready_peer(addr)
 
                         await self.response_seq.increase()
-                        response_queues[self.response_seq] = message.chan
+                        self.response_queues[self.response_seq] = message.response_chan
                         context = pickle.dumps(self.response_seq.value)
 
                         try:
@@ -694,7 +699,7 @@ class RaftNode:
                 # This won't persist the conf changes, but apply them successfully.
 
                 await self.response_seq.increase()
-                response_queues[self.response_seq] = message.chan
+                self.response_queues[self.response_seq] = message.response_chan
                 context = pickle.dumps(self.response_seq.value)
 
                 conf_change_v2 = ConfChangeV2Adapter.from_pb(message.conf_change)
@@ -710,7 +715,7 @@ class RaftNode:
                     raise
 
                 self.raw_node.apply_conf_change_v2(conf_change_v2)
-                message.chan.put_nowait(ConfChangeSuccessRespMessage())
+                message.response_chan.put_nowait(PeerRemovalSuccessRespMessage())
 
                 changes = conf_change_v2.get_changes()
                 for change in changes:
@@ -727,7 +732,7 @@ class RaftNode:
                     self.logger.warning(
                         "Proposal rejected because the cluster bootstrap is not done yet."
                     )
-                    message.chan.put_nowait(
+                    message.response_chan.put_nowait(
                         RaftRespMessage(
                             data=b"Cluster bootstrap is not done yet.",
                             rejected=True,
@@ -737,23 +742,23 @@ class RaftNode:
 
                 if not self.is_leader():
                     # TODO: retry strategy in case of failure
-                    await self.send_wrongleader_response(message.chan)
+                    await self.send_wrongleader_response(message.response_chan)
                 else:
                     await self.response_seq.increase()
-                    response_queues[self.response_seq] = message.chan
+                    self.response_queues[self.response_seq] = message.response_chan
                     context = pickle.dumps(self.response_seq.value)
                     self.raw_node.propose(context, message.data)
 
             elif isinstance(message, RequestIdReqMessage):
                 if not self.is_leader():
                     # TODO: retry strategy in case of failure
-                    await self.send_wrongleader_response(message.chan)
+                    await self.send_wrongleader_response(message.response_chan)
                 else:
                     reserved_id = self.peers.reserve_peer(
                         self.raw_node, SocketAddr.from_str(message.addr)
                     )
 
-                    message.chan.put_nowait(
+                    message.response_chan.put_nowait(
                         IdReservedRespMessage(
                             leader_id=self.get_leader_id(),
                             reserved_id=reserved_id,
@@ -779,19 +784,19 @@ class RaftNode:
                     raise
 
             elif isinstance(message, GetPeersReqMessage):
-                message.chan.put_nowait(pickle.dumps(self.peers))
+                message.response_chan.put_nowait(pickle.dumps(self.peers))
 
             elif isinstance(message, ReportUnreachableReqMessage):
                 self.raw_node.report_unreachable(message.node_id)
 
             elif isinstance(message, DebugNodeReqMessage):
-                message.chan.put_nowait(self.inspect())
+                message.response_chan.put_nowait(self.inspect())
 
             elif isinstance(message, DebugEntriesReqMessage):
-                message.chan.put_nowait(self.get_all_entry_logs())
+                message.response_chan.put_nowait(self.get_all_entry_logs())
 
             elif isinstance(message, VersionReqMessage):
-                message.chan.put_nowait(self.get_version())
+                message.response_chan.put_nowait(self.get_version())
 
             now = time.time()
             elapsed = now - before
@@ -803,9 +808,9 @@ class RaftNode:
             else:
                 tick_timer -= elapsed
 
-            await self.on_ready(response_queues)
+            await self.on_ready()
 
-    async def on_ready(self, response_queues: dict[AtomicInteger, Queue]) -> None:
+    async def on_ready(self) -> None:
         if not self.raw_node.has_ready():
             return
 
@@ -821,9 +826,7 @@ class RaftNode:
             await self.fsm.restore(snapshot.get_data())
             self.lmdb.apply_snapshot(snapshot.clone())
 
-        await self.handle_committed_entries(
-            ready.take_committed_entries(), response_queues
-        )
+        await self.handle_committed_entries(ready.take_committed_entries())
 
         if entries := ready.entries():
             self.lmdb.append(entries)
@@ -841,8 +844,6 @@ class RaftNode:
 
         self.send_messages(light_rd.take_messages())
 
-        await self.handle_committed_entries(
-            light_rd.take_committed_entries(), response_queues
-        )
+        await self.handle_committed_entries(light_rd.take_committed_entries())
 
         self.raw_node.advance_apply()

@@ -16,6 +16,7 @@ class ChangeConfigResultType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ChangeConfig_WrongLeader: _ClassVar[ChangeConfigResultType]
     ChangeConfig_TimeoutError: _ClassVar[ChangeConfigResultType]
     ChangeConfig_UnknownError: _ClassVar[ChangeConfigResultType]
+    ChangeConfig_Rejected: _ClassVar[ChangeConfigResultType]
 
 class IdRequestResultType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []
@@ -32,6 +33,7 @@ ChangeConfig_Success: ChangeConfigResultType
 ChangeConfig_WrongLeader: ChangeConfigResultType
 ChangeConfig_TimeoutError: ChangeConfigResultType
 ChangeConfig_UnknownError: ChangeConfigResultType
+ChangeConfig_Rejected: ChangeConfigResultType
 IdRequest_Success: IdRequestResultType
 IdRequest_Error: IdRequestResultType
 IdRequest_WrongLeader: IdRequestResultType

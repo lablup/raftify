@@ -28,6 +28,16 @@ class JoinSuccessRespMessage(ResponseMessage, PickleSerializer):
 
 
 @dataclass
+class RemovedPeerSuccessMessage(ResponseMessage, PickleSerializer):
+    pass
+
+
+@dataclass
+class ConfChangeRejectMessage(ResponseMessage, PickleSerializer):
+    pass
+
+
+@dataclass
 class IdReservedRespMessage(ResponseMessage, PickleSerializer):
     leader_id: int
     reserved_id: int
@@ -42,7 +52,7 @@ class RaftRespMessage(ResponseMessage, PickleSerializer):
 
 @dataclass
 class RaftErrorRespMessage(ResponseMessage, PickleSerializer):
-    data: Optional[bytes] = None
+    data: Optional[bytes]
 
 
 @dataclass
@@ -56,12 +66,12 @@ class SendMessageRespMessage(ResponseMessage, PickleSerializer):
 
 
 @dataclass
-class MemberBootstrapReadyRespMessage(ResponseMessage, PickleSerializer):
+class PeerRemovalSuccessRespMessage(ResponseMessage, PickleSerializer):
     pass
 
 
 @dataclass
-class ConfChangeSuccessRespMessage(ResponseMessage, PickleSerializer):
+class MemberBootstrapReadyRespMessage(ResponseMessage, PickleSerializer):
     pass
 
 

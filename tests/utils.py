@@ -99,7 +99,7 @@ async def kill_node(node_id: int):
 
 def killall():
     """
-    Kill all the processes that spawned by the ProcessPoolExecutor and aiotools.start_server.
+    Kill all the processes that spawned by the ProcessPoolExecutor and `aiotools.start_server`.
     """
 
     cluster = read_cluster_info()
@@ -118,8 +118,10 @@ class RequestType:
 
 
 def make_request(typ: RequestType, node_id: int, request: str) -> str:
-    res = requests.__dict__.get(typ)(f"http://{WEB_SERVER_ADDRS[node_id - 1]}{request}")
-    return res.text
+    response = requests.__dict__.get(typ)(
+        f"http://{WEB_SERVER_ADDRS[node_id - 1]}{request}"
+    )
+    return response.text
 
 
 def reset_fixtures_directory():

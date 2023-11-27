@@ -11,7 +11,6 @@ from contextlib import suppress
 import asyncclick as click
 from rraft import ConfChange, ConfChangeType
 
-
 from .raft_client import RaftClient
 from .raft_utils import format_all_entries, format_raft_node_debugging_info
 from .utils import SocketAddr

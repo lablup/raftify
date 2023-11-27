@@ -4,18 +4,12 @@ from typing import Optional
 
 from rraft import ConfChangeSingle, ConfChangeTransition, ConfChangeType, ConfChangeV2
 
-from .error import ProposalRejectError, UnknownError
+from .error import ProposalRejectError
 from .pb_adapter import ConfChangeV2Adapter
 from .protos import eraftpb_pb2, raft_service_pb2
 from .raft_node import RaftNode
 from .request_message import ConfigChangeReqMessage, ProposeReqMessage
-from .response_message import (
-    ClusterBootstrapReadyRespMessage,
-    ConfChangeSuccessRespMessage,
-    RaftRespMessage,
-    ResponseMessage,
-    WrongLeaderRespMessage,
-)
+from .response_message import RaftRespMessage, ResponseMessage, WrongLeaderRespMessage
 
 
 class Mailbox:
@@ -37,15 +31,11 @@ class Mailbox:
         proposed_data: Optional[bytes] = None,
         conf_change: Optional[eraftpb_pb2.ConfChangeV2] = None,
     ) -> Optional[bytes]:
-        if isinstance(response, ClusterBootstrapReadyRespMessage) or isinstance(
-            response, ConfChangeSuccessRespMessage
-        ):
-            return None
         if isinstance(response, RaftRespMessage):
             if response.rejected:
                 return None
-
-            return response.data
+            else:
+                return response.data
         elif isinstance(response, WrongLeaderRespMessage):
             assert reroute_msg_type is not None
 
@@ -65,29 +55,30 @@ class Mailbox:
                 # TODO: handle this case. The leader might change in the meanwhile.
                 assert False
 
-        raise UnknownError(f"Unknown response type: {response}")
+        return None
 
-    async def send(self, message: bytes) -> bytes:
+    async def send_proposal(self, data: bytes) -> bytes:
         """
         Send a proposal message to commit to the node.
         """
 
         receiver: Queue = Queue()
-        # TODO: make timeout duration a variable
-        await self.message_queue.put(ProposeReqMessage(message, receiver))
+        await self.message_queue.put(ProposeReqMessage(data, receiver))
 
         try:
-            res = await self.__handle_response(
+            response = await self.__handle_response(
                 await receiver.get(),
                 reroute_msg_type=raft_service_pb2.Propose,
-                proposed_data=message,
+                proposed_data=data,
             )
         except Exception as e:
             self.logger.error("Error occurred while sending message through mailbox", e)
             raise
 
-        if res is None:
+        if response is None:
             raise ProposalRejectError()
+
+        return response
 
     async def leave(self, node_ids: int | list[int]) -> None:
         if isinstance(node_ids, int):
@@ -116,7 +107,7 @@ class Mailbox:
         )
 
         try:
-            await self.__handle_response(
+            _ = await self.__handle_response(
                 await receiver.get(),
                 reroute_msg_type=raft_service_pb2.ConfChange,
                 conf_change=pb_conf_change_v2,

@@ -4,8 +4,8 @@ from typing import cast
 
 from aiohttp import web
 from aiohttp.web import RouteTableDef
-from raftify.error import ProposalRejectError
 
+from raftify.error import ProposalRejectError
 from raftify.log_entry.set_command import SetCommand
 from raftify.raft_facade import RaftFacade
 from raftify.state_machine.hashstore import HashStore
@@ -38,7 +38,7 @@ async def put(request: web.Request) -> web.Response:
     message = SetCommand(id, value)
 
     try:
-        result = await raft_facade.mailbox.send(message.encode())
+        result = await raft_facade.mailbox.send_proposal(message.encode())
         return web.Response(text=f'"{str(pickle.loads(result))}"')
     except ProposalRejectError:
         return web.Response(text=str("Proposal dropped."))

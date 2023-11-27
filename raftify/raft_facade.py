@@ -177,7 +177,7 @@ class RaftFacade:
             while not leader_addr:
                 client = RaftClient(peer_addr)
                 try:
-                    resp = await client.request_id(
+                    response = await client.request_id(
                         raft_addr, timeout=self.cluster_config.message_timeout
                     )
 
@@ -185,18 +185,18 @@ class RaftFacade:
                     seek_next = True
                     break
 
-                match resp.result:
+                match response.result:
                     case raft_service_pb2.IdRequest_Success:
                         leader_addr = peer_addr
-                        leader_id = resp.leader_id
-                        node_id = resp.reserved_id
+                        leader_id = response.leader_id
+                        node_id = response.reserved_id
 
-                        peer_addrs = pickle.loads(resp.peers)
+                        peer_addrs = pickle.loads(response.peers)
 
                         break
                     case raft_service_pb2.IdRequest_WrongLeader:
                         self.logger.info(
-                            f"Sent message to the wrong leader, retrying with the peer at {resp.leader_addr} "
+                            f"Sent message to the wrong leader, retrying with the peer at {response.leader_addr} "
                             f"assuming that it is leader node."
                         )
                         continue
@@ -327,19 +327,16 @@ class RaftFacade:
         # But it might be already handled by the rerouting logic. So, it should be tested first.
         while True:
             try:
-                resp = await leader_client.change_config(
+                response = await leader_client.change_config(
                     conf_change_v2, timeout=self.cluster_config.message_timeout
                 )
 
-            except grpc.aio.AioRpcError as e:
+            except grpc.aio.AioRpcError | Exception as e:
                 raise ClusterJoinError(cause=e)
 
-            except Exception as e:
-                raise ClusterJoinError(cause=e)
-
-            if resp.result == raft_service_pb2.ChangeConfig_Success:
+            if response.result == raft_service_pb2.ChangeConfig_Success:
                 return
-            elif resp.result == raft_service_pb2.ChangeConfig_TimeoutError:
+            elif response.result == raft_service_pb2.ChangeConfig_TimeoutError:
                 self.logger.info("Join request timeout. Retrying...")
                 await asyncio.sleep(2)
                 continue

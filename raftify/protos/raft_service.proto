@@ -79,6 +79,7 @@ enum ChangeConfigResultType {
   ChangeConfig_WrongLeader                = 1;
   ChangeConfig_TimeoutError               = 2;
   ChangeConfig_UnknownError               = 3;
+  ChangeConfig_Rejected                   = 4;
 }
 
 message ChangeConfigResponse {
