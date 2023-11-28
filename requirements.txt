@@ -1,5 +1,5 @@
-grpcio>=1.59.3
-grpcio-tools>=1.59.3
+grpcio>=1.56.2
+grpcio-tools>=1.56.2
 lmdb==1.4.0
 protobuf>=4.23.4
 rraft-py>=0.2.27
