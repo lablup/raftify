@@ -60,7 +60,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         reroute_msg_type: raft_service_pb2.RerouteMsgType,
         proposed_data: Optional[bytes] = None,
         conf_change: Optional[eraftpb_pb2.ConfChangeV2] = None,
-    ):
+    ) -> bytes:
         leader_addr = response.leader_addr
         leader_client = RaftClient(SocketAddr.from_str(leader_addr))
 
@@ -112,7 +112,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
 
     async def ChangeConfigRequestHandler(
         self, request: eraftpb_pb2.ConfChangeV2, force: bool = False
-    ):
+    ) -> raft_service_pb2.ChangeConfigResponse:
         receiver: Queue = Queue()
 
         if force:
