@@ -126,7 +126,7 @@ class RaftClient:
 
     async def send_message(
         self, msg: Message, timeout: float = 5.0
-    ) -> raft_service_pb2.SendMessageResponse:
+    ) -> raft_service_pb2.Empty:
         """
         Low level API to send a Raft Message to the cluster.
         If you are not certain about what this function does, do not use it.
@@ -190,7 +190,7 @@ class RaftClient:
         timeout: float = 5.0,
         msg_bytes: Optional[bytes] = None,
         conf_change: Optional[eraftpb_pb2.ConfChangeV2] = None,
-    ) -> raft_service_pb2.SendMessageResponse:
+    ) -> raft_service_pb2.ProposeResponse:
         """
         Request to reroute a message to the leader.
         """

@@ -44,7 +44,7 @@ class RaftServiceStub(object):
         self.SendMessage = channel.unary_unary(
             "/raftservice.RaftService/SendMessage",
             request_serializer=eraftpb__pb2.Message.SerializeToString,
-            response_deserializer=raft__service__pb2.SendMessageResponse.FromString,
+            response_deserializer=raft__service__pb2.Empty.FromString,
         )
         self.Propose = channel.unary_unary(
             "/raftservice.RaftService/Propose",
@@ -54,7 +54,7 @@ class RaftServiceStub(object):
         self.RerouteMessage = channel.unary_unary(
             "/raftservice.RaftService/RerouteMessage",
             request_serializer=raft__service__pb2.RerouteMessageArgs.SerializeToString,
-            response_deserializer=raft__service__pb2.SendMessageResponse.FromString,
+            response_deserializer=raft__service__pb2.ProposeResponse.FromString,
         )
         self.GetPeers = channel.unary_unary(
             "/raftservice.RaftService/GetPeers",
@@ -184,7 +184,7 @@ def add_RaftServiceServicer_to_server(servicer, server):
         "SendMessage": grpc.unary_unary_rpc_method_handler(
             servicer.SendMessage,
             request_deserializer=eraftpb__pb2.Message.FromString,
-            response_serializer=raft__service__pb2.SendMessageResponse.SerializeToString,
+            response_serializer=raft__service__pb2.Empty.SerializeToString,
         ),
         "Propose": grpc.unary_unary_rpc_method_handler(
             servicer.Propose,
@@ -194,7 +194,7 @@ def add_RaftServiceServicer_to_server(servicer, server):
         "RerouteMessage": grpc.unary_unary_rpc_method_handler(
             servicer.RerouteMessage,
             request_deserializer=raft__service__pb2.RerouteMessageArgs.FromString,
-            response_serializer=raft__service__pb2.SendMessageResponse.SerializeToString,
+            response_serializer=raft__service__pb2.ProposeResponse.SerializeToString,
         ),
         "GetPeers": grpc.unary_unary_rpc_method_handler(
             servicer.GetPeers,
@@ -390,7 +390,7 @@ class RaftService(object):
             target,
             "/raftservice.RaftService/SendMessage",
             eraftpb__pb2.Message.SerializeToString,
-            raft__service__pb2.SendMessageResponse.FromString,
+            raft__service__pb2.Empty.FromString,
             options,
             channel_credentials,
             insecure,
@@ -448,7 +448,7 @@ class RaftService(object):
             target,
             "/raftservice.RaftService/RerouteMessage",
             raft__service__pb2.RerouteMessageArgs.SerializeToString,
-            raft__service__pb2.SendMessageResponse.FromString,
+            raft__service__pb2.ProposeResponse.FromString,
             options,
             channel_credentials,
             insecure,

@@ -9,9 +9,9 @@ service RaftService {
   rpc RequestId(IdRequestArgs) returns (IdRequestResponse) {}
   rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
   rpc ApplyConfigChangeForcely(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
-  rpc SendMessage(eraftpb.Message) returns (SendMessageResponse) {}
+  rpc SendMessage(eraftpb.Message) returns (Empty) {}
   rpc Propose(ProposeArgs) returns (ProposeResponse) {}
-  rpc RerouteMessage(RerouteMessageArgs) returns (SendMessageResponse) {}
+  rpc RerouteMessage(RerouteMessageArgs) returns (ProposeResponse) {}
   rpc GetPeers(Empty) returns (GetPeersResponse) {}
   rpc DebugNode(Empty) returns (DebugNodeResponse) {}
   rpc DebugEntries(Empty) returns (DebugEntriesResponse) {}
@@ -44,7 +44,6 @@ message MemberBootstrapReadyArgs {
 }
 
 message MemberBootstrapReadyResponse {
-
 }
 
 message ClusterBootstrapReadyArgs {
@@ -52,7 +51,6 @@ message ClusterBootstrapReadyArgs {
 }
 
 message ClusterBootstrapReadyResponse {
-
 }
 
 // Used in Propose
@@ -62,14 +60,8 @@ message ProposeArgs {
 }
 
 message ProposeResponse {
-  bytes msg     = 1;
+  bytes msg       = 1;
   bool rejected   = 2;
-}
-
-// Used in SendMessage
-
-message SendMessageResponse {
-  bytes data = 1;
 }
 
 // Config Change

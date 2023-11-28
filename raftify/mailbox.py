@@ -49,8 +49,8 @@ class Mailbox:
                 timeout=self.raftify_config.message_timeout,
             )
 
-            if isinstance(resp_from_leader, raft_service_pb2.SendMessageResponse):
-                return resp_from_leader.data
+            if isinstance(resp_from_leader, raft_service_pb2.ProposeResponse):
+                return resp_from_leader.msg
             else:
                 # TODO: handle this case. The leader might change in the meanwhile.
                 assert False

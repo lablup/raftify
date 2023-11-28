@@ -12,13 +12,13 @@ from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class EntryType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     EntryNormal: _ClassVar[EntryType]
     EntryConfChange: _ClassVar[EntryType]
     EntryConfChangeV2: _ClassVar[EntryType]
 
 class MessageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     MsgHup: _ClassVar[MessageType]
     MsgBeat: _ClassVar[MessageType]
     MsgPropose: _ClassVar[MessageType]
@@ -40,13 +40,13 @@ class MessageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MsgRequestPreVoteResponse: _ClassVar[MessageType]
 
 class ConfChangeTransition(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     Auto: _ClassVar[ConfChangeTransition]
     Implicit: _ClassVar[ConfChangeTransition]
     Explicit: _ClassVar[ConfChangeTransition]
 
 class ConfChangeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = []
+    __slots__ = ()
     AddNode: _ClassVar[ConfChangeType]
     AddLearnerNode: _ClassVar[ConfChangeType]
     RemoveNode: _ClassVar[ConfChangeType]
@@ -81,7 +81,7 @@ AddLearnerNode: ConfChangeType
 RemoveNode: ConfChangeType
 
 class Entry(_message.Message):
-    __slots__ = ["entry_type", "term", "index", "data", "context", "sync_log"]
+    __slots__ = ("entry_type", "term", "index", "data", "context", "sync_log")
     ENTRY_TYPE_FIELD_NUMBER: _ClassVar[int]
     TERM_FIELD_NUMBER: _ClassVar[int]
     INDEX_FIELD_NUMBER: _ClassVar[int]
@@ -105,7 +105,7 @@ class Entry(_message.Message):
     ) -> None: ...
 
 class SnapshotMetadata(_message.Message):
-    __slots__ = ["conf_state", "index", "term"]
+    __slots__ = ("conf_state", "index", "term")
     CONF_STATE_FIELD_NUMBER: _ClassVar[int]
     INDEX_FIELD_NUMBER: _ClassVar[int]
     TERM_FIELD_NUMBER: _ClassVar[int]
@@ -120,7 +120,7 @@ class SnapshotMetadata(_message.Message):
     ) -> None: ...
 
 class Snapshot(_message.Message):
-    __slots__ = ["data", "metadata"]
+    __slots__ = ("data", "metadata")
     DATA_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
     data: bytes
@@ -132,7 +132,7 @@ class Snapshot(_message.Message):
     ) -> None: ...
 
 class Message(_message.Message):
-    __slots__ = [
+    __slots__ = (
         "msg_type",
         "to",
         "from_",
@@ -149,7 +149,7 @@ class Message(_message.Message):
         "context",
         "deprecated_priority",
         "priority",
-    ]
+    )
     MSG_TYPE_FIELD_NUMBER: _ClassVar[int]
     TO_FIELD_NUMBER: _ClassVar[int]
     FROM__FIELD_NUMBER: _ClassVar[int]
@@ -203,7 +203,7 @@ class Message(_message.Message):
     ) -> None: ...
 
 class HardState(_message.Message):
-    __slots__ = ["term", "vote", "commit"]
+    __slots__ = ("term", "vote", "commit")
     TERM_FIELD_NUMBER: _ClassVar[int]
     VOTE_FIELD_NUMBER: _ClassVar[int]
     COMMIT_FIELD_NUMBER: _ClassVar[int]
@@ -218,7 +218,7 @@ class HardState(_message.Message):
     ) -> None: ...
 
 class ConfState(_message.Message):
-    __slots__ = ["voters", "learners", "voters_outgoing", "learners_next", "auto_leave"]
+    __slots__ = ("voters", "learners", "voters_outgoing", "learners_next", "auto_leave")
     VOTERS_FIELD_NUMBER: _ClassVar[int]
     LEARNERS_FIELD_NUMBER: _ClassVar[int]
     VOTERS_OUTGOING_FIELD_NUMBER: _ClassVar[int]
@@ -239,7 +239,7 @@ class ConfState(_message.Message):
     ) -> None: ...
 
 class ConfChange(_message.Message):
-    __slots__ = ["change_type", "node_id", "context", "id"]
+    __slots__ = ("change_type", "node_id", "context", "id")
     CHANGE_TYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_FIELD_NUMBER: _ClassVar[int]
@@ -257,7 +257,7 @@ class ConfChange(_message.Message):
     ) -> None: ...
 
 class ConfChangeSingle(_message.Message):
-    __slots__ = ["change_type", "node_id"]
+    __slots__ = ("change_type", "node_id")
     CHANGE_TYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     change_type: ConfChangeType
@@ -269,7 +269,7 @@ class ConfChangeSingle(_message.Message):
     ) -> None: ...
 
 class ConfChangeV2(_message.Message):
-    __slots__ = ["transition", "changes", "context"]
+    __slots__ = ("transition", "changes", "context")
     TRANSITION_FIELD_NUMBER: _ClassVar[int]
     CHANGES_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_FIELD_NUMBER: _ClassVar[int]

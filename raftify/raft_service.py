@@ -29,7 +29,6 @@ from .response_message import (
     PeerRemovalSuccessRespMessage,
     RaftErrorRespMessage,
     RaftRespMessage,
-    SendMessageRespMessage,
     WrongLeaderRespMessage,
 )
 from .utils import SocketAddr
@@ -72,8 +71,8 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
             timeout=5.0,
         )
 
-        if isinstance(rerouted_response, raft_service_pb2.SendMessageResponse):
-            return rerouted_response.data
+        if isinstance(rerouted_response, raft_service_pb2.ProposeResponse):
+            return rerouted_response.msg
         else:
             # TODO: handle this case. The leader might change in the meanwhile.
             assert False
@@ -184,11 +183,9 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
 
     async def SendMessage(
         self, request: eraftpb_pb2.Message, _context: grpc.aio.ServicerContext
-    ) -> raft_service_pb2.SendMessageResponse:
+    ) -> raft_service_pb2.Empty:
         await self.message_queue.put(RaftReqMessage(msg=request))
-        return raft_service_pb2.SendMessageResponse(
-            data=SendMessageRespMessage().encode()
-        )
+        return raft_service_pb2.Empty()
 
     async def Propose(
         self, request: raft_service_pb2.ProposeArgs, _context: grpc.aio.ServicerContext
@@ -244,7 +241,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         self,
         request: raft_service_pb2.RerouteMessageArgs,
         _context: grpc.aio.ServicerContext,
-    ) -> raft_service_pb2.SendMessageResponse:
+    ) -> raft_service_pb2.ProposeResponse:
         receiver: Queue = Queue()
 
         await self.message_queue.put(
@@ -255,15 +252,15 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
                 response_chan=receiver,
             )
         )
-        reply = raft_service_pb2.SendMessageResponse()
+        reply = raft_service_pb2.ProposeResponse()
 
         try:
             response = await receiver.get()
             if isinstance(response, RaftRespMessage):
-                reply.data = response.data
+                reply.msg = response.data
 
         except asyncio.TimeoutError:
-            reply.data = RaftErrorRespMessage(None).encode()
+            reply.msg = RaftErrorRespMessage(None).encode()
             self.logger.error('TimeoutError occurs while handling "RerouteMessage!"')
 
         finally:
