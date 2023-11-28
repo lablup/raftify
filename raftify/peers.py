@@ -122,8 +122,11 @@ class Peers:
                 peer.state = PeerState.Connected
                 return
 
-    def get_node_id_by_addr(self, addr: SocketAddr) -> Optional[int]:
+    def get_node_id_by_addr(self, addr: str | SocketAddr) -> Optional[int]:
         """ """
+        if isinstance(addr, str):
+            addr = SocketAddr.from_str(addr)
+
         for node_id, peer in self.data.items():
             if peer.addr == addr:
                 return node_id

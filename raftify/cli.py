@@ -11,6 +11,8 @@ from contextlib import suppress
 import asyncclick as click
 from rraft import ConfChange, ConfChangeType
 
+from raftify.peers import Peers
+
 from .raft_client import RaftClient
 from .raft_utils import format_raft_node_debugging_info, print_all_entries
 from .utils import SocketAddr
@@ -202,9 +204,12 @@ async def add_member(module_path, module_name, args):
 
 
 @member.command(name="remove")
-@click.argument("node-id", type=str)
 @click.argument("addr", type=str)
-async def remove_member(node_id, addr):
+async def remove_member(addr):
+    client = RaftClient(addr)
+    peers: Peers = pickle.loads((await client.get_peers()).peers)
+    node_id = peers.get_node_id_by_addr(addr)
+
     addr = SocketAddr.from_str(addr)
 
     conf_change = ConfChange.default()
@@ -213,7 +218,6 @@ async def remove_member(node_id, addr):
     conf_change.set_change_type(ConfChangeType.RemoveNode)
     conf_change_v2 = conf_change.as_v2()
 
-    client = RaftClient(addr)
     await client.change_config(conf_change_v2)
 
 
