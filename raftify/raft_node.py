@@ -784,7 +784,7 @@ class RaftNode:
                     raise
 
             elif isinstance(message, GetPeersReqMessage):
-                message.response_chan.put_nowait(pickle.dumps(self.peers))
+                message.response_chan.put_nowait(self.peers.encode())
 
             elif isinstance(message, ReportUnreachableReqMessage):
                 self.raw_node.report_unreachable(message.node_id)
