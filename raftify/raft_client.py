@@ -79,7 +79,7 @@ class RaftClient:
         return self.grpc_channel
 
     async def propose(
-        self, data: bytes, timeout: float = 5.0
+        self, data: bytes, *, timeout: float = 5.0
     ) -> raft_service_pb2.ProposeResponse:
         """
         Request to send a propose to the cluster.
@@ -92,7 +92,7 @@ class RaftClient:
         return await asyncio.wait_for(stub.Propose(request_args), timeout)
 
     async def change_config(
-        self, conf_change: ConfChange | ConfChangeV2, timeout: float = math.inf
+        self, conf_change: ConfChange | ConfChangeV2, *, timeout: float = math.inf
     ) -> raft_service_pb2.ChangeConfigResponse:
         """
         Request for membership config change of the cluster.
@@ -107,7 +107,7 @@ class RaftClient:
         return await asyncio.wait_for(stub.ChangeConfig(request_args), timeout)
 
     async def apply_change_config_forcely(
-        self, conf_change: ConfChange | ConfChangeV2, timeout: float = math.inf
+        self, conf_change: ConfChange | ConfChangeV2, *, timeout: float = math.inf
     ) -> raft_service_pb2.ChangeConfigResponse:
         """
         Request for membership config change of the cluster.
@@ -125,7 +125,7 @@ class RaftClient:
         )
 
     async def send_message(
-        self, msg: Message, timeout: float = 5.0
+        self, msg: Message, *, timeout: float = 5.0
     ) -> raft_service_pb2.Empty:
         """
         Low level API to send a Raft Message to the cluster.
@@ -140,7 +140,7 @@ class RaftClient:
         return await asyncio.wait_for(stub.SendMessage(request_args), timeout)
 
     async def request_id(
-        self, addr: SocketAddr, timeout: float = 5.0
+        self, addr: SocketAddr, *, timeout: float = 5.0
     ) -> raft_service_pb2.IdRequestResponse:
         """
         Request to reserve an ID for a new node to join the cluster.
@@ -153,7 +153,7 @@ class RaftClient:
         return await asyncio.wait_for(stub.RequestId(request_args), timeout)
 
     async def member_bootstrap_ready(
-        self, follower_id: int, timeout: float = 5.0
+        self, follower_id: int, *, timeout: float = 5.0
     ) -> raft_service_pb2.MemberBootstrapReadyResponse:
         """
         Request to notify that a follower is ready to bootstrap.
@@ -170,7 +170,7 @@ class RaftClient:
         return await asyncio.wait_for(stub.MemberBootstrapReady(request_args), timeout)
 
     async def cluster_bootstrap_ready(
-        self, peers: bytes, timeout: float = 5.0
+        self, peers: bytes, *, timeout: float = 5.0
     ) -> raft_service_pb2.ClusterBootstrapReadyResponse:
         """
         Request to notify that a leader is ready to bootstrap the cluster.
@@ -187,9 +187,10 @@ class RaftClient:
     async def reroute_message(
         self,
         reroute_msg_type: raft_service_pb2.RerouteMsgType,
-        timeout: float = 5.0,
         msg_bytes: Optional[bytes] = None,
         conf_change: Optional[eraftpb_pb2.ConfChangeV2] = None,
+        *,
+        timeout: float = 5.0,
     ) -> raft_service_pb2.ProposeResponse:
         """
         Request to reroute a message to the leader.
@@ -206,7 +207,7 @@ class RaftClient:
         return await asyncio.wait_for(stub.RerouteMessage(request_args), timeout)
 
     async def debug_node(
-        self, timeout: float = 5.0
+        self, *, timeout: float = 5.0
     ) -> raft_service_pb2.DebugNodeResponse:
         """
         Request to debug the node.
@@ -219,7 +220,7 @@ class RaftClient:
         return await asyncio.wait_for(stub.DebugNode(request_args), timeout)
 
     async def debug_entries(
-        self, timeout: float = 5.0
+        self, *, timeout: float = 5.0
     ) -> raft_service_pb2.DebugEntriesResponse:
         """
         Request to debug the node.
@@ -244,7 +245,7 @@ class RaftClient:
         return await asyncio.wait_for(stub.Version(request_args), timeout)
 
     async def get_peers(
-        self, timeout: float = 5.0
+        self, *, timeout: float = 5.0
     ) -> raft_service_pb2.GetPeersResponse:
         """ """
 

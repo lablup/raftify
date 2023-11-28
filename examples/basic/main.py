@@ -74,7 +74,7 @@ async def main() -> None:
 
         raft.run_raft(node_id)
         leader_client = RaftClient(peers[1].addr)
-        await leader_client.member_bootstrap_ready(node_id, 5.0)
+        await leader_client.member_bootstrap_ready(node_id)
         tasks.append(raft.wait_for_termination())
     else:
         # Extra follower could only join after cluster bootstrapping is done

@@ -113,6 +113,7 @@ class RaftFacade:
         self,
         follower_id: int,
         leader_id: int = 1,
+        *,
         timeout: float = 5.0,
     ) -> None:
         """
@@ -124,7 +125,7 @@ class RaftFacade:
 
         while True:
             try:
-                await leader_client.member_bootstrap_ready(follower_id, timeout)
+                await leader_client.member_bootstrap_ready(follower_id, timeout=timeout)
                 return
             except (grpc.aio.AioRpcError, asyncio.TimeoutError):
                 self.logger.debug(
@@ -158,7 +159,7 @@ class RaftFacade:
 
             raw_peers = self.initial_peers.encode()
             assert peer.client is not None
-            await peer.client.cluster_bootstrap_ready(raw_peers, 5.0)
+            await peer.client.cluster_bootstrap_ready(raw_peers)
 
     async def request_id(
         self, raft_addr: SocketAddr, peer_candidates: list[SocketAddr]

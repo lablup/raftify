@@ -131,7 +131,7 @@ async def server_main(
         cluster.run_raft(node_id)
 
         leader_client = RaftClient(peers[1].addr)
-        await leader_client.member_bootstrap_ready(node_id, timeout=5.0)
+        await leader_client.member_bootstrap_ready(node_id)
         asyncio.create_task(cluster.wait_for_termination())
 
     assert cluster.raft_node is not None, "RaftNode not initialized properly!"
