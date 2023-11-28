@@ -33,7 +33,6 @@ from .response_message import (
     RaftRespMessage,
     WrongLeaderRespMessage,
 )
-from .utils import SocketAddr
 
 
 class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
@@ -69,8 +68,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         proposed_data: Optional[bytes] = None,
         conf_change: Optional[eraftpb_pb2.ConfChangeV2] = None,
     ) -> bytes:
-        leader_addr = response.leader_addr
-        leader_client = RaftClient(SocketAddr.from_str(leader_addr))
+        leader_client = RaftClient(response.leader_addr)
 
         rerouted_response = await leader_client.reroute_message(
             reroute_msg_type=reroute_msg_type,
