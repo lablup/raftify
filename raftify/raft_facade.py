@@ -348,7 +348,9 @@ class RaftFacade:
         self.logger.info(
             "Start to run RaftNode. Configuration: " + str(self.cluster_config)
         )
-        self.raft_server = RaftServer(self.addr, self.message_queue, self.logger)
+        self.raft_server = RaftServer(
+            self.addr, self.message_queue, self.logger, self.cluster_config
+        )
 
         bootstrap_done = len(self.initial_peers) == 0
 

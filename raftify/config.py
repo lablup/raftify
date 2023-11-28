@@ -25,6 +25,7 @@ class RaftifyConfig:
     - lmdb_map_size: Maximum file size mdb could occupy.
     - tick_interval: Interval between Raft scheduler's each ticks.
     - cluster_id: Cluster ID.
+    - confchange_process_interval: Delay between each conf change request when queuing them for processing.
     """
 
     raft_config_keys = [
@@ -68,6 +69,8 @@ class RaftifyConfig:
 
     cluster_id: str
 
+    confchange_process_interval: float
+
     def __init__(
         self,
         *,
@@ -83,6 +86,7 @@ class RaftifyConfig:
         tick_interval: float = 0.1,
         lmdb_map_size: int = 1024 * 1024 * 1024,
         cluster_id: str = DEFAULT_CLUSTER_ID,
+        confchange_process_interval: float = 1.0,
     ) -> None:
         self.log_dir = log_dir
         self.compacted_log_dir = compacted_log_dir
@@ -96,6 +100,7 @@ class RaftifyConfig:
         self.lmdb_map_size = lmdb_map_size
         self.raft_config = raft_config
         self.cluster_id = cluster_id
+        self.confchange_process_interval = confchange_process_interval
 
     @staticmethod
     def new_raft_config(cfg_dict: dict) -> "Config":

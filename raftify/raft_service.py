@@ -6,6 +6,8 @@ from typing import Optional
 
 import grpc
 
+from raftify.config import RaftifyConfig
+
 from .logger import AbstractRaftifyLogger
 from .protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
 from .raft_client import RaftClient
@@ -40,9 +42,15 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
     Public method names in this class use Pascal-case exceptionally.
     """
 
-    def __init__(self, message_queue: Queue, logger: AbstractRaftifyLogger) -> None:
+    def __init__(
+        self,
+        message_queue: Queue,
+        logger: AbstractRaftifyLogger,
+        cluster_config: RaftifyConfig,
+    ) -> None:
         self.message_queue = message_queue
         self.logger = logger
+        self.cluster_config = cluster_config
         self.confchange_req_queue: Queue[
             tuple[eraftpb_pb2.ConfChangeV2, bool]
         ] = Queue()
@@ -83,7 +91,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
             request, force = await self.confchange_req_queue.get()
             response = await self.ChangeConfigRequestHandler(request, force)
             await self.confchange_res_queue.put(response)
-            await asyncio.sleep(1)
+            await asyncio.sleep(self.cluster_config.confchange_process_interval)
 
     async def RequestId(
         self,

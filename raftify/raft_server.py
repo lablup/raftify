@@ -4,6 +4,7 @@ from typing import Optional
 
 import grpc
 
+from .config import RaftifyConfig
 from .logger import AbstractRaftifyLogger
 from .protos import raft_service_pb2_grpc
 from .raft_service import RaftService
@@ -16,6 +17,7 @@ class RaftServer:
         addr: SocketAddr,
         message_queue: Queue,
         logger: AbstractRaftifyLogger,
+        cluster_config: RaftifyConfig,
         *,
         credentials: Optional[grpc.ServerCredentials] = None,
     ):
@@ -23,6 +25,7 @@ class RaftServer:
         self.message_queue = message_queue
         self.credentials = credentials
         self.logger = logger
+        self.cluster_config = cluster_config
         self.grpc_server = None
         self.server_task = None
 
@@ -40,7 +43,8 @@ class RaftServer:
         )
 
         raft_service_pb2_grpc.add_RaftServiceServicer_to_server(
-            RaftService(self.message_queue, self.logger), self.grpc_server
+            RaftService(self.message_queue, self.logger, self.cluster_config),
+            self.grpc_server,
         )
 
         await self.grpc_server.start()
