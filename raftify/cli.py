@@ -9,7 +9,7 @@ import sys
 from contextlib import suppress
 
 import asyncclick as click
-from rraft import ConfChange, ConfChangeType
+from rraft import ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2
 
 from raftify.peers import Peers
 
@@ -204,19 +204,24 @@ async def add_member(module_path, module_name, args):
 
 
 @member.command(name="remove")
-@click.argument("addr", type=str)
-async def remove_member(addr):
-    client = RaftClient(addr)
+@click.argument("addrs", nargs=-1, type=str)
+async def remove_member(addrs):
+    # TODO: Remove this assumption that first peer connection is ready
+    client = RaftClient(addrs[0])
     peers: Peers = pickle.loads((await client.get_peers()).peers)
-    node_id = peers.get_node_id_by_addr(addr)
+    node_ids = [peers.get_node_id_by_addr(addr) for addr in addrs]
 
-    addr = SocketAddr.from_str(addr)
+    conf_change_v2 = ConfChangeV2.default()
+    changes = []
 
-    conf_change = ConfChange.default()
-    conf_change.set_node_id(int(node_id))
-    conf_change.set_context(pickle.dumps([addr]))
-    conf_change.set_change_type(ConfChangeType.RemoveNode)
-    conf_change_v2 = conf_change.as_v2()
+    for node_id in node_ids:
+        cc = ConfChangeSingle.default()
+        cc.set_node_id(node_id)
+        cc.set_change_type(ConfChangeType.RemoveNode)
+        changes.append(cc)
+
+    conf_change_v2.set_changes(changes)
+    conf_change_v2.set_context(pickle.dumps(addrs))
 
     await client.change_config(conf_change_v2)
 
