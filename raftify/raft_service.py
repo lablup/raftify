@@ -8,6 +8,7 @@ import grpc
 
 from raftify.config import RaftifyConfig
 
+from .error import UnknownError
 from .logger import AbstractRaftifyLogger
 from .protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
 from .raft_client import RaftClient
@@ -81,7 +82,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
             return rerouted_response.msg
         else:
             # TODO: handle this case. The leader might change in the meanwhile.
-            assert False
+            raise UnknownError("Not implemented login in rerouting")
 
     async def __handle_confchange_request(self):
         # TODO: Describe why this queueing is required.
@@ -113,8 +114,8 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
                 reserved_id=response.reserved_id,
                 peers=response.raw_peers,
             )
-        else:
-            assert False, "Unreachable"
+
+        raise UnknownError(f"Unknown type of response, resp: {response}")
 
     async def ChangeConfigRequestHandler(
         self, request: eraftpb_pb2.ConfChangeV2, force: bool = False
@@ -132,12 +133,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
 
         try:
             if response := await receiver.get():
-                if isinstance(response, JoinSuccessRespMessage) or isinstance(
-                    response, PeerRemovalSuccessRespMessage
-                ):
-                    reply.result = raft_service_pb2.ChangeConfig_Success
-                    reply.data = response.encode()
-                elif isinstance(response, WrongLeaderRespMessage):
+                if isinstance(response, WrongLeaderRespMessage):
                     reply.result = raft_service_pb2.ChangeConfig_WrongLeader
                     leader_id, leader_addr = (
                         response.leader_id,
@@ -146,6 +142,11 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
                     reply.data = pickle.dumps(
                         {"leader_id": leader_id, "leader_addr": leader_addr}
                     )
+                elif isinstance(response, JoinSuccessRespMessage) or isinstance(
+                    response, PeerRemovalSuccessRespMessage
+                ):
+                    reply.result = raft_service_pb2.ChangeConfig_Success
+                    reply.data = response.encode()
 
         except asyncio.TimeoutError:
             reply.result = raft_service_pb2.ChangeConfig_TimeoutError
@@ -211,8 +212,12 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
             return raft_service_pb2.ProposeResponse(
                 msg=rerouted_response, rejected=False
             )
+        elif isinstance(response, RaftRespMessage):
+            return raft_service_pb2.ProposeResponse(
+                msg=response.data, rejected=response.rejected
+            )
 
-        return response
+        raise UnknownError(f"Unknown type of response, resp: {response}")
 
     async def ClusterBootstrapReady(
         self,
