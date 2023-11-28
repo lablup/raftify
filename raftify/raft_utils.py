@@ -36,18 +36,18 @@ def append_to_json_file(dest_path: str, new_data: Any):
         json.dump(data, file, indent=4)
 
 
-def format_all_entries(all_entries: dict[str, Any]) -> str:
+def print_all_entries(all_entries: dict[str, Any]) -> None:
     """
     all_entries: result of raftify.raft_client.RaftClient.debug_entries
     """
 
-    return f"""
-========= All compacted entries =========
-{all_entries['compacted_all_entries']}
+    print("========= All compacted entries =========")
+    for entry in all_entries["compacted_all_entries"]:
+        print(f"Key: {entry['index']}, Value: {entry}")
 
-========= All persisted entries =========
-{all_entries['current_all_entries']}
-        """.strip()
+    print("========= All persisted entries =========")
+    for entry in all_entries["persisted_entries"]:
+        print(f"Key: {entry['index']}, Value: {entry}")
 
 
 def format_raft_node_debugging_info(debug_info: dict[str, Any]) -> str:
@@ -66,7 +66,7 @@ def format_raft_node_debugging_info(debug_info: dict[str, Any]) -> str:
 node_id: {debug_info['node_id']}
 leader_id: {debug_info['current_leader_id']}
 
-========= Persistence info =========
+========= Persistence Info =========
 {tabulate([
     ["Hard State", debug_info['storage']['hard_state']],
     ["Conf State", debug_info['storage']['conf_state']],
@@ -80,7 +80,7 @@ leader_id: {debug_info['current_leader_id']}
 ========= Peer states =========
 {tabulate(peers_tbl, headers=['ID', 'Addr', 'State'], tablefmt="grid")}
 
-========= RaftLog metadata =========
+========= RaftLog Metadata =========
 last_applied: {debug_info['raft_log']['applied']}
 last_committed: {debug_info['raft_log']['committed']}
 last_persisted: {debug_info['raft_log']['persisted']}

@@ -218,6 +218,24 @@ class LMDBStorage:
 
             return entries
 
+    def all_entries(
+        self,
+        max_size: Optional[int] = None,
+    ) -> list[Entry]:
+        with self.env.begin(write=False, db=self.entries_db) as entry_reader:
+            cursor = entry_reader.cursor()
+
+            size = 0
+            entries = []
+
+            for key, entry in cursor:
+                if max_size is not None and size >= max_size:
+                    break
+                entries.append(Entry.decode(entry))
+                size += len(entry)
+
+            return entries
+
     def create_snapshot(self, data: bytes, index: int, term: int) -> None:
         snapshot = Snapshot.default()
         snapshot.set_data(data)

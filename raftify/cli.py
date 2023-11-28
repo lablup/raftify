@@ -12,7 +12,7 @@ import asyncclick as click
 from rraft import ConfChange, ConfChangeType
 
 from .raft_client import RaftClient
-from .raft_utils import format_all_entries, format_raft_node_debugging_info
+from .raft_utils import format_raft_node_debugging_info, print_all_entries
 from .utils import SocketAddr
 
 
@@ -232,7 +232,7 @@ async def debug_entries(addr):
     addr = SocketAddr.from_str(addr)
     client = RaftClient(addr)
     res = await client.debug_entries(timeout=5.0)
-    print(format_all_entries(json.loads(res.result)))
+    print_all_entries(json.loads(res.result))
 
 
 @cli.command()
@@ -242,6 +242,18 @@ async def version(addr):
     client = RaftClient(addr)
     res = await client.version(timeout=5.0)
     print(res.result)
+
+
+@cli.command()
+@click.argument("addr", type=str)
+async def health(addr):
+    """
+    Check the health of the Raft cluster
+    """
+    addr = SocketAddr.from_str(addr)
+    # client = RaftClient(addr)
+    # TODO: Implement this
+    pass
 
 
 def main():

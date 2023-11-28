@@ -366,15 +366,15 @@ class RaftNode:
         """
         Collect and return all entries in the raft log
         """
-        current_all_entries = self.raw_node.get_raft().get_raft_log().all_entries()
-        current_all_entry_dicts = []
+        persisted_entries = self.lmdb.all_entries()
+        persisted_entries_dicts = []
 
         # TODO: Improve below logic to avoid code duplication
-        for entry in current_all_entries:
+        for entry in persisted_entries:
             entry_dict = entry.to_dict()
             entry_dict["data"] = entry_data_deserializer(entry.get_data())
             entry_dict["context"] = pickle_deserialize(entry.get_context())
-            current_all_entry_dicts.append(entry_dict)
+            persisted_entries_dicts.append(entry_dict)
 
         compacted_logs_path = os.path.join(
             self.lmdb.compacted_log_dir_path, "compacted-logs.json"
@@ -387,7 +387,7 @@ class RaftNode:
             compacted_all_entries = []
 
         return {
-            "current_all_entries": current_all_entry_dicts,
+            "persisted_entries": persisted_entries_dicts,
             "compacted_all_entries": compacted_all_entries,
         }
 
