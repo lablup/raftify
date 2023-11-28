@@ -2,7 +2,7 @@ import os
 import lmdb
 import rraft
 from raftify.config import DEFAULT_CLUSTER_ID
-from raftify.deserializer import init_rraft_py_deserializer
+from raftify.rraft_deserializer import init_rraft_py_deserializer
 
 # TODO: Also inspect each node's metadata's inconsistency
 from raftify.storage.lmdb import SNAPSHOT_KEY

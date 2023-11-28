@@ -28,7 +28,7 @@ from rraft import (
 from raftify.error import UnknownError
 
 from .config import RaftifyConfig
-from .deserializer import entry_data_deserializer, pickle_deserialize
+from .rraft_deserializer import entry_data_deserializer, pickle_deserialize
 from .logger import AbstractRaftifyLogger
 from .pb_adapter import ConfChangeV2Adapter, MessageAdapter
 from .peers import Peer, Peers, PeerState

@@ -5,7 +5,7 @@ import argparse
 import asyncio
 from contextlib import suppress
 
-from raftify.deserializer import init_rraft_py_deserializer
+from raftify.rraft_deserializer import init_rraft_py_deserializer
 from raftify.raft_facade import RaftFacade
 from raftify.state_machine.hashstore import HashStore
 from raftify.utils import SocketAddr

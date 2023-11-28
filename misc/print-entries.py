@@ -3,7 +3,7 @@ import sys
 import lmdb
 import rraft
 from raftify.config import DEFAULT_CLUSTER_ID
-from raftify.deserializer import init_rraft_py_deserializer
+from raftify.rraft_deserializer import init_rraft_py_deserializer
 from raftify.storage.lmdb import SNAPSHOT_KEY, LAST_INDEX_KEY, HARD_STATE_KEY, CONF_STATE_KEY
 
 

@@ -2,7 +2,7 @@ import argparse
 import asyncio
 from contextlib import suppress
 
-from raftify.deserializer import init_rraft_py_deserializer
+from raftify.rraft_deserializer import init_rraft_py_deserializer
 from raftify.peers import Peers
 from raftify.raft_client import RaftClient
 from raftify.raft_facade import RaftFacade
