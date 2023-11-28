@@ -9,7 +9,7 @@ import sys
 from contextlib import suppress
 
 import asyncclick as click
-from rraft import ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2
+from rraft import ConfChangeSingle, ConfChangeType, ConfChangeV2
 
 from raftify.peers import Peers
 

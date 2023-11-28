@@ -8,6 +8,11 @@ from raftify.storage.lmdb import SNAPSHOT_KEY, LAST_INDEX_KEY, HARD_STATE_KEY, C
 
 
 def main(argv):
+    """
+    Print all persisted entries.
+    If the RaftNode server is running, instead of using this script, use `raftify-cli debug node 127.0.0.1:60061` for better debugging experience.
+    """
+
     init_rraft_py_deserializer()
     idx = argv[1]
     assert idx.isdigit(), "idx must be a number"
