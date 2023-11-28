@@ -17,12 +17,12 @@ from harness.logger import logger, slog
 from utils import read_cluster_info, remove_node, write_json, write_node
 
 from raftify.config import RaftifyConfig
-from raftify.rraft_deserializer import init_rraft_py_deserializer
 from raftify.error import ProposalRejectError
 from raftify.log_entry.set_command import SetCommand
 from raftify.peers import Peers, PeerState
 from raftify.raft_client import RaftClient
 from raftify.raft_facade import RaftFacade
+from raftify.rraft_deserializer import init_rraft_py_deserializer
 from raftify.state_machine.hashstore import HashStore
 from raftify.utils import SocketAddr
 

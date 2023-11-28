@@ -1,4 +1,3 @@
-import pickle
 from asyncio import Queue
 from typing import Optional
 
@@ -96,7 +95,7 @@ class Mailbox:
         conf_change_v2.set_changes(changes)
 
         addrs = [self.raft_node.peers[node_id].addr for node_id in node_ids]
-        conf_change_v2.set_context(pickle.dumps(addrs))
+        conf_change_v2.set_context(self.raft_node.codec.encode(addrs))
         conf_change_v2.set_transition(ConfChangeTransition.Auto)
 
         receiver: Queue = Queue()

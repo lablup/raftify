@@ -35,7 +35,7 @@ async def main() -> None:
     target_addr = peers[1].addr if bootstrap and not raft_addr else raft_addr
 
     cfg = build_config()
-    raft = RaftFacade(cfg, target_addr, store, slog, logger, peers)
+    raft = RaftFacade(cfg, target_addr, store, slog, logger, initial_peers=peers)
     tasks = []
 
     if bootstrap:

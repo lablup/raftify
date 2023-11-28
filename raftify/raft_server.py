@@ -4,6 +4,7 @@ from typing import Optional
 
 import grpc
 
+from .codec.abc import AbstractCodec
 from .config import RaftifyConfig
 from .logger import AbstractRaftifyLogger
 from .protos import raft_service_pb2_grpc
@@ -17,6 +18,7 @@ class RaftServer:
         addr: SocketAddr,
         message_queue: Queue,
         logger: AbstractRaftifyLogger,
+        codec: AbstractCodec,
         cluster_config: RaftifyConfig,
         *,
         credentials: Optional[grpc.ServerCredentials] = None,
@@ -26,6 +28,7 @@ class RaftServer:
         self.credentials = credentials
         self.logger = logger
         self.cluster_config = cluster_config
+        self.codec = codec
         self.grpc_server = None
         self.server_task = None
 
@@ -43,7 +46,9 @@ class RaftServer:
         )
 
         raft_service_pb2_grpc.add_RaftServiceServicer_to_server(
-            RaftService(self.message_queue, self.logger, self.cluster_config),
+            RaftService(
+                self.message_queue, self.logger, self.codec, self.cluster_config
+            ),
             self.grpc_server,
         )
 

@@ -2,10 +2,10 @@ import argparse
 import asyncio
 from contextlib import suppress
 
-from raftify.rraft_deserializer import init_rraft_py_deserializer
 from raftify.peers import Peers
 from raftify.raft_client import RaftClient
 from raftify.raft_facade import RaftFacade
+from raftify.rraft_deserializer import init_rraft_py_deserializer
 from raftify.state_machine.hashstore import HashStore
 from raftify.utils import SocketAddr
 
@@ -56,7 +56,7 @@ async def main() -> None:
 
     cfg = build_config()
 
-    raft = RaftFacade(cfg, target_addr, store, slog, logger, peers)
+    raft = RaftFacade(cfg, target_addr, store, slog, logger, initial_peers=peers)
     tasks = []
 
     if bootstrap:

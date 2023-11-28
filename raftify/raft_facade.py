@@ -1,5 +1,4 @@
 import asyncio
-import pickle
 from asyncio import Queue
 
 import grpc
@@ -15,6 +14,8 @@ from rraft import (
     RawNode,
 )
 
+from .codec.abc import AbstractCodec
+from .codec.pickle import PickleCodec
 from .config import RaftifyConfig
 from .error import ClusterJoinError, LeaderNotFoundError, UnknownError
 from .follower_role import FollowerRole
@@ -43,6 +44,8 @@ class RaftFacade:
         fsm: AbstractStateMachine,
         slog: Logger | LoggerRef,
         logger: AbstractRaftifyLogger,
+        *,
+        codec: AbstractCodec = PickleCodec(),
         initial_peers: Peers = Peers({}),
     ):
         """
@@ -58,6 +61,7 @@ class RaftFacade:
         self.message_queue: Queue = Queue(maxsize=100)
         self.cluster_config = cluster_config
         self.initial_peers = initial_peers
+        self.codec = codec
         self.raft_node = None
         self.raft_server = None
         self.raft_node_task = None
@@ -157,7 +161,7 @@ class RaftFacade:
             if node_id == 1:
                 continue
 
-            raw_peers = self.initial_peers.encode()
+            raw_peers = self.codec.encode(self.initial_peers.to_encodeable())
             assert peer.client is not None
             await peer.client.cluster_bootstrap_ready(raw_peers)
 
@@ -192,7 +196,7 @@ class RaftFacade:
                         leader_id = response.leader_id
                         node_id = response.reserved_id
 
-                        peer_addrs = pickle.loads(response.peers)
+                        peers: Peers = self.codec.decode(response.peers)
 
                         break
                     case raft_service_pb2.IdRequest_WrongLeader:
@@ -215,7 +219,7 @@ class RaftFacade:
             f"Obtained node id {node_id} successfully from the leader node {leader_id}."
         )
 
-        return RequestIdResponse(node_id, (leader_id, client), peer_addrs)
+        return RequestIdResponse(node_id, (leader_id, client), peers)
 
     async def __join_followers(
         self,
@@ -245,7 +249,7 @@ class RaftFacade:
                 continue
 
             cc = ConfChange.default()
-            cc.set_context(pickle.dumps(self.initial_peers[node_id].addr))
+            cc.set_context(self.codec.encode(self.initial_peers[node_id].addr))
             cc.set_node_id(node_id)
             cc.set_change_type(ConfChangeType.AddNode)
             cc_v2 = cc.as_v2()
@@ -320,7 +324,7 @@ class RaftFacade:
         conf_change = ConfChange.default()
         conf_change.set_node_id(node_id)
         conf_change.set_change_type(role.to_confchange_type())
-        conf_change.set_context(pickle.dumps([self.addr]))
+        conf_change.set_context(self.codec.encode([self.addr]))
 
         conf_change_v2 = conf_change.as_v2()
 
@@ -350,7 +354,7 @@ class RaftFacade:
             "Start to run RaftNode. Configuration: " + str(self.cluster_config)
         )
         self.raft_server = RaftServer(
-            self.addr, self.message_queue, self.logger, self.cluster_config
+            self.addr, self.message_queue, self.logger, self.codec, self.cluster_config
         )
 
         bootstrap_done = len(self.initial_peers) == 0
@@ -366,6 +370,7 @@ class RaftFacade:
                 slog=self.slog,
                 logger=self.logger,
                 raftify_cfg=self.cluster_config,
+                codec=self.codec,
                 bootstrap_done=bootstrap_done,
             )
         else:
@@ -378,6 +383,7 @@ class RaftFacade:
                 slog=self.slog,
                 logger=self.logger,
                 raftify_cfg=self.cluster_config,
+                codec=self.codec,
                 bootstrap_done=bootstrap_done,
             )
 

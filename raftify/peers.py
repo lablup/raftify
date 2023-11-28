@@ -1,5 +1,4 @@
 import json
-import pickle
 from enum import StrEnum
 from typing import Optional
 
@@ -81,18 +80,14 @@ class Peers:
     def items(self):
         return self.data.items()
 
-    def encode(self) -> bytes:
+    def to_encodeable(self) -> "Peers":
         peers = Peers({})
         for node_id, peer in self.data.items():
             peers[node_id] = Peer(peer.addr, peer.state)
-        return pickle.dumps(peers)
+        return peers
 
     def get(self, node_id: int) -> Optional[Peer]:
         return self.data.get(node_id)
-
-    @staticmethod
-    def decode(bytes: bytes) -> "Peers":
-        return pickle.loads(bytes)
 
     def reserve_peer(self, raw_node: RawNode, addr: SocketAddr) -> int:
         """ """

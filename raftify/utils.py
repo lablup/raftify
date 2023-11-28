@@ -1,6 +1,5 @@
 import asyncio
 import os
-import pickle
 from dataclasses import dataclass
 
 
@@ -9,15 +8,6 @@ def get_filesize(path: str) -> int:
         return os.path.getsize(path)
     except FileNotFoundError:
         return 0
-
-
-class PickleSerializer:
-    def encode(self):
-        return pickle.dumps(self)
-
-    @classmethod
-    def decode(cls, data: bytes):
-        return cls(*pickle.loads(data))
 
 
 @dataclass

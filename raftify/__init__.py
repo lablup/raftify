@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from .codec.abc import AbstractCodec  # noqa: F401
+from .codec.pickle import PickleCodec  # noqa: F401
 from .config import RaftifyConfig  # noqa: F401
 from .error import ClusterJoinError, LeaderNotFoundError, UnknownError  # noqa: F401
 from .follower_role import FollowerRole  # noqa: F401
@@ -16,7 +18,7 @@ from .raft_utils import RaftNodeRole  # noqa: F401
 from .state_machine.abc import AbstractStateMachine  # noqa: F401
 from .state_machine.hashstore import HashStore  # noqa: F401
 from .storage.lmdb import LMDBStorage  # noqa: F401
-from .utils import PickleSerializer, SocketAddr  # noqa: F401
+from .utils import SocketAddr  # noqa: F401
 
 __all__ = [
     "lmdb",
@@ -27,14 +29,14 @@ __all__ = [
     "raft_node",
     "raft_server",
     "raft_facade",
-    "abc",
+    "codec",
     "hashstore",
     "set_command",
     "utils",
     "raft_utils",
     "logger",
     "peers",
-    "deserializer",
+    "rraft_deserializer",
     "follower_role",
 ]
 

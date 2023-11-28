@@ -7,6 +7,11 @@ from .abc import AbstractStateMachine
 
 
 class HashStore(AbstractStateMachine):
+    """
+    A simple key-value store that stores data in memory.
+    Use pickle to serialize the data.
+    """
+
     def __init__(self):
         self._store = dict()
 

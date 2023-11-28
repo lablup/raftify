@@ -2,7 +2,6 @@ import asyncio
 import json
 import math
 import os
-import pickle
 import time
 from asyncio import Queue
 from typing import Any
@@ -25,10 +24,9 @@ from rraft import (
     Storage,
 )
 
-from raftify.error import UnknownError
-
+from .codec.abc import AbstractCodec
 from .config import RaftifyConfig
-from .rraft_deserializer import entry_data_deserializer, pickle_deserialize
+from .error import UnknownError
 from .logger import AbstractRaftifyLogger
 from .pb_adapter import ConfChangeV2Adapter, MessageAdapter
 from .peers import Peer, Peers, PeerState
@@ -61,6 +59,7 @@ from .response_message import (
     ResponseMessage,
     WrongLeaderRespMessage,
 )
+from .rraft_deserializer import entry_data_deserializer, pickle_deserialize
 from .state_machine.abc import AbstractStateMachine
 from .storage.lmdb import LMDBStorage
 from .utils import AtomicInteger, SocketAddr
@@ -87,6 +86,7 @@ class RaftNode:
         logger: AbstractRaftifyLogger,
         raftify_cfg: RaftifyConfig,
         bootstrap_done: bool,
+        codec: AbstractCodec,
     ):
         self.raw_node = raw_node
         self.raft_server = raft_server
@@ -101,6 +101,7 @@ class RaftNode:
         self.should_exit = False
         self.raftify_cfg = raftify_cfg
         self.bootstrap_done = bootstrap_done
+        self.codec = codec
         self.response_queues = {}
 
     @classmethod
@@ -115,6 +116,7 @@ class RaftNode:
         logger: AbstractRaftifyLogger,
         raftify_cfg: RaftifyConfig,
         bootstrap_done: bool,
+        codec: AbstractCodec,
     ) -> "RaftNode":
         """
         Create new RaftCluster and make this RaftNode as a leader.
@@ -168,6 +170,7 @@ class RaftNode:
             logger=logger,
             raftify_cfg=raftify_cfg,
             bootstrap_done=bootstrap_done,
+            codec=codec,
         )
 
     @classmethod
@@ -183,6 +186,7 @@ class RaftNode:
         logger: AbstractRaftifyLogger,
         raftify_cfg: RaftifyConfig,
         bootstrap_done: bool,
+        codec: AbstractCodec,
     ) -> "RaftNode":
         """
         Add new RaftNode to the existing RaftCluster and bootstrap this RaftNode as a follower.
@@ -221,6 +225,7 @@ class RaftNode:
             logger=logger,
             raftify_cfg=raftify_cfg,
             bootstrap_done=bootstrap_done,
+            codec=codec,
         )
 
     def get_id(self) -> int:
@@ -249,7 +254,7 @@ class RaftNode:
     def remove_node(self, node_id: int) -> None:
         conf_change = ConfChange.default()
         conf_change.set_node_id(node_id)
-        conf_change.set_context(pickle.dumps([self.peers[node_id].addr]))
+        conf_change.set_context(self.codec.encode([self.peers[node_id].addr]))
         conf_change.set_change_type(ConfChangeType.RemoveNode)
 
         conf_change_v2 = conf_change.as_v2()
@@ -513,7 +518,7 @@ class RaftNode:
         if not entry.get_data():
             return
 
-        response_seq = AtomicInteger(pickle.loads(entry.get_context()))
+        response_seq = AtomicInteger(self.codec.decode(entry.get_context()))
         data = await self.fsm.apply(entry.get_data())
 
         if response_queue := self.response_queues.pop(response_seq, None):
@@ -542,7 +547,7 @@ class RaftNode:
         if not entry.get_context():
             return
 
-        response_seq = AtomicInteger(pickle.loads(entry.get_context()))
+        response_seq = AtomicInteger(self.codec.decode(entry.get_context()))
 
         try:
             conf_change_v2 = ConfChangeV2.decode(entry.get_data())
@@ -550,7 +555,7 @@ class RaftNode:
             conf_change_v2 = ConfChange.decode(entry.get_data()).as_v2()
 
         conf_changes = conf_change_v2.get_changes()
-        addrs = pickle.loads(conf_change_v2.get_context())
+        addrs: list[SocketAddr] = self.codec.decode(conf_change_v2.get_context())
 
         for cc_idx, conf_change in enumerate(conf_changes):
             node_id = conf_change.get_node_id()
@@ -583,7 +588,8 @@ class RaftNode:
             match change_type:
                 case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
                     response = JoinSuccessRespMessage(
-                        assigned_id=node_id, raw_peers=self.peers.encode()
+                        assigned_id=node_id,
+                        raw_peers=self.codec.encode(self.peers.to_encodeable()),
                     )
                 case ConfChangeType.RemoveNode:
                     response = PeerRemovalSuccessRespMessage()
@@ -636,7 +642,7 @@ class RaftNode:
                 self.logger.info(
                     "All nodes are ready to join the cluster. Start to bootstrap process..."
                 )
-                peers = Peers.decode(message.peers)
+                peers: Peers = self.codec.decode(message.peers)
                 self.peers = peers
                 for node_id, peer in self.peers.items():
                     peers.connect(node_id, peer.addr)
@@ -669,7 +675,9 @@ class RaftNode:
                         conf_change_v2 = ConfChangeV2Adapter.from_pb(
                             message.conf_change
                         )
-                        socket_addrs = pickle.loads(conf_change_v2.get_context())
+                        socket_addrs: list[SocketAddr] = self.codec.decode(
+                            conf_change_v2.get_context()
+                        )
 
                         # TODO: Handle RemoveNode case here.
                         # Actually, RemoveNode case is handled in handle_committed_config_change_entry method.
@@ -680,7 +688,7 @@ class RaftNode:
 
                         await self.response_seq.increase()
                         self.response_queues[self.response_seq] = message.response_chan
-                        context = pickle.dumps(self.response_seq.value)
+                        context = self.codec.encode(self.response_seq.value)
 
                         try:
                             self.raw_node.propose_conf_change_v2(
@@ -700,7 +708,7 @@ class RaftNode:
 
                 await self.response_seq.increase()
                 self.response_queues[self.response_seq] = message.response_chan
-                context = pickle.dumps(self.response_seq.value)
+                context = self.codec.encode(self.response_seq.value)
 
                 conf_change_v2 = ConfChangeV2Adapter.from_pb(message.conf_change)
 
@@ -746,7 +754,7 @@ class RaftNode:
                 else:
                     await self.response_seq.increase()
                     self.response_queues[self.response_seq] = message.response_chan
-                    context = pickle.dumps(self.response_seq.value)
+                    context = self.codec.encode(self.response_seq.value)
                     self.raw_node.propose(context, message.data)
 
             elif isinstance(message, RequestIdReqMessage):
@@ -762,7 +770,7 @@ class RaftNode:
                         IdReservedRespMessage(
                             leader_id=self.get_leader_id(),
                             reserved_id=reserved_id,
-                            raw_peers=self.peers.encode(),
+                            raw_peers=self.codec.encode(self.peers.to_encodeable()),
                         )
                     )
 
@@ -784,7 +792,9 @@ class RaftNode:
                     raise
 
             elif isinstance(message, GetPeersReqMessage):
-                message.response_chan.put_nowait(self.peers.encode())
+                message.response_chan.put_nowait(
+                    self.codec.encode(self.peers.to_encodeable())
+                )
 
             elif isinstance(message, ReportUnreachableReqMessage):
                 self.raw_node.report_unreachable(message.node_id)

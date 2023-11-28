@@ -2,8 +2,6 @@ import abc
 from dataclasses import dataclass
 from typing import Optional
 
-from .utils import PickleSerializer
-
 
 class ResponseMessage(metaclass=abc.ABCMeta):
     """
@@ -16,80 +14,80 @@ class ResponseMessage(metaclass=abc.ABCMeta):
 
 
 @dataclass
-class WrongLeaderRespMessage(ResponseMessage, PickleSerializer):
+class WrongLeaderRespMessage(ResponseMessage):
     leader_id: int
     leader_addr: str
 
 
 @dataclass
-class JoinSuccessRespMessage(ResponseMessage, PickleSerializer):
+class JoinSuccessRespMessage(ResponseMessage):
     assigned_id: int
     raw_peers: bytes
 
 
 @dataclass
-class RemovedPeerSuccessMessage(ResponseMessage, PickleSerializer):
+class RemovedPeerSuccessMessage(ResponseMessage):
     pass
 
 
 @dataclass
-class ConfChangeRejectMessage(ResponseMessage, PickleSerializer):
+class ConfChangeRejectMessage(ResponseMessage):
     pass
 
 
 @dataclass
-class IdReservedRespMessage(ResponseMessage, PickleSerializer):
+class IdReservedRespMessage(ResponseMessage):
     leader_id: int
     reserved_id: int
     raw_peers: bytes
 
 
 @dataclass
-class RaftRespMessage(ResponseMessage, PickleSerializer):
+class RaftRespMessage(ResponseMessage):
     data: bytes
     rejected: bool = False
 
 
 @dataclass
-class RaftErrorRespMessage(ResponseMessage, PickleSerializer):
+class RaftErrorRespMessage(ResponseMessage):
     data: Optional[bytes]
 
 
 @dataclass
-class ClusterBootstrapReadyRespMessage(ResponseMessage, PickleSerializer):
+class ClusterBootstrapReadyRespMessage(ResponseMessage):
     pass
 
 
 @dataclass
-class SendMessageRespMessage(ResponseMessage, PickleSerializer):
+class SendMessageRespMessage(ResponseMessage):
     pass
 
 
 @dataclass
-class PeerRemovalSuccessRespMessage(ResponseMessage, PickleSerializer):
+class PeerRemovalSuccessRespMessage(ResponseMessage):
     pass
 
 
 @dataclass
-class MemberBootstrapReadyRespMessage(ResponseMessage, PickleSerializer):
+class MemberBootstrapReadyRespMessage(ResponseMessage):
     pass
 
 
 @dataclass
-class DebugNodeResponse(ResponseMessage, PickleSerializer):
+class DebugNodeResponse(ResponseMessage):
     result: dict
 
 
 @dataclass
-class DebugEntriesResponse(ResponseMessage, PickleSerializer):
+class DebugEntriesResponse(ResponseMessage):
     result: dict
 
 
 @dataclass
-class VersionResponse(ResponseMessage, PickleSerializer):
+class VersionResponse(ResponseMessage):
     result: str
 
 
 @dataclass
-class GetPeersResponse(ResponseMessage, PickleSerializer):
+class GetPeersResponse(ResponseMessage):
     raw_peers: bytes

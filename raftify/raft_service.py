@@ -1,13 +1,12 @@
 import asyncio
 import json
-import pickle
 from asyncio import Queue
 from typing import Optional
 
 import grpc
 
-from raftify.config import RaftifyConfig
-
+from .codec.abc import AbstractCodec
+from .config import RaftifyConfig
 from .error import UnknownError
 from .logger import AbstractRaftifyLogger
 from .protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
@@ -46,11 +45,13 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         self,
         message_queue: Queue,
         logger: AbstractRaftifyLogger,
+        codec: AbstractCodec,
         cluster_config: RaftifyConfig,
     ) -> None:
         self.message_queue = message_queue
         self.logger = logger
         self.cluster_config = cluster_config
+        self.codec = codec
         self.confchange_req_queue: Queue[
             tuple[eraftpb_pb2.ConfChangeV2, bool]
         ] = Queue()
@@ -139,18 +140,18 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
                         response.leader_id,
                         response.leader_addr,
                     )
-                    reply.data = pickle.dumps(
+                    reply.data = self.codec.encode(
                         {"leader_id": leader_id, "leader_addr": leader_addr}
                     )
                 elif isinstance(response, JoinSuccessRespMessage) or isinstance(
                     response, PeerRemovalSuccessRespMessage
                 ):
                     reply.result = raft_service_pb2.ChangeConfig_Success
-                    reply.data = response.encode()
+                    reply.data = self.codec.encode(response)
 
         except asyncio.TimeoutError:
             reply.result = raft_service_pb2.ChangeConfig_TimeoutError
-            reply.data = RaftErrorRespMessage(None).encode()
+            reply.data = self.codec.encode(RaftErrorRespMessage(None))
 
             self.logger.error(
                 'TimeoutError occurs while handling "ConfigChangeReqMessage!"'
@@ -158,7 +159,9 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
 
         except Exception as e:
             reply.result = raft_service_pb2.ChangeConfig_UnknownError
-            reply.data = RaftErrorRespMessage(data=str(e).encode("utf-8")).encode()
+            reply.data = self.codec.encode(
+                RaftErrorRespMessage(data=str(e).encode("utf-8"))
+            )
 
         finally:
             return reply
@@ -172,7 +175,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
 
         if response.result == raft_service_pb2.ChangeConfig_WrongLeader:
             rerouted_response = await self.__handle_reroute(
-                WrongLeaderRespMessage(**pickle.loads(response.data)),
+                WrongLeaderRespMessage(**self.codec.decode(response.data)),
                 reroute_msg_type=raft_service_pb2.ConfChange,
                 conf_change=request,
             )
@@ -271,7 +274,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
                 reply.msg = response.data
 
         except asyncio.TimeoutError:
-            reply.msg = RaftErrorRespMessage(None).encode()
+            reply.msg = self.codec.encode(RaftErrorRespMessage(None))
             self.logger.error('TimeoutError occurs while handling "RerouteMessage!"')
 
         finally:

@@ -24,8 +24,8 @@ from rraft import (
 from raftify.raft_utils import append_to_json_file
 from raftify.utils import get_filesize
 
-from ..rraft_deserializer import entry_data_deserializer, pickle_deserialize
 from ..logger import AbstractRaftifyLogger
+from ..rraft_deserializer import entry_data_deserializer, pickle_deserialize
 
 SNAPSHOT_KEY = b"snapshot"
 LAST_INDEX_KEY = b"last_index"

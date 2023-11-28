@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Optional
 
 from .protos import eraftpb_pb2, raft_service_pb2
-from .utils import PickleSerializer
 
 
 class RequestMessage(metaclass=abc.ABCMeta):
@@ -16,7 +15,7 @@ class RequestMessage(metaclass=abc.ABCMeta):
 
 
 @dataclass
-class ProposeReqMessage(RequestMessage, PickleSerializer):
+class ProposeReqMessage(RequestMessage):
     """
     Requests used for proposing to the Raft cluster.
     """
@@ -26,7 +25,7 @@ class ProposeReqMessage(RequestMessage, PickleSerializer):
 
 
 @dataclass
-class MemberBootstrapReadyReqMessage(RequestMessage, PickleSerializer):
+class MemberBootstrapReadyReqMessage(RequestMessage):
     """
     Requests used by a member node to notify the leader node that it is ready to boot.
     """
@@ -36,7 +35,7 @@ class MemberBootstrapReadyReqMessage(RequestMessage, PickleSerializer):
 
 
 @dataclass
-class ClusterBootstrapReadyReqMessage(RequestMessage, PickleSerializer):
+class ClusterBootstrapReadyReqMessage(RequestMessage):
     """
     Requests used by the leader node to notify the member nodes that the cluster is ready to boot.
     """
@@ -46,7 +45,7 @@ class ClusterBootstrapReadyReqMessage(RequestMessage, PickleSerializer):
 
 
 @dataclass
-class RequestIdReqMessage(RequestMessage, PickleSerializer):
+class RequestIdReqMessage(RequestMessage):
     """
     Requests used by dynamically added nodes to receive the new node_id assignments.
     """
@@ -56,7 +55,7 @@ class RequestIdReqMessage(RequestMessage, PickleSerializer):
 
 
 @dataclass
-class ConfigChangeReqMessage(RequestMessage, PickleSerializer):
+class ConfigChangeReqMessage(RequestMessage):
     """
     Requests used for proposing new conf change.
     """
@@ -66,7 +65,7 @@ class ConfigChangeReqMessage(RequestMessage, PickleSerializer):
 
 
 @dataclass
-class RerouteToLeaderReqMessage(RequestMessage, PickleSerializer):
+class RerouteToLeaderReqMessage(RequestMessage):
     """
     Requests used when a follower node reroutes a received request to the leader node
     """
@@ -78,7 +77,7 @@ class RerouteToLeaderReqMessage(RequestMessage, PickleSerializer):
 
 
 @dataclass
-class ApplyConfigChangeForcelyReqMessage(RequestMessage, PickleSerializer):
+class ApplyConfigChangeForcelyReqMessage(RequestMessage):
     """ """
 
     conf_change: eraftpb_pb2.ConfChangeV2
@@ -86,42 +85,42 @@ class ApplyConfigChangeForcelyReqMessage(RequestMessage, PickleSerializer):
 
 
 @dataclass
-class ReportUnreachableReqMessage(RequestMessage, PickleSerializer):
+class ReportUnreachableReqMessage(RequestMessage):
     """ """
 
     node_id: int
 
 
 @dataclass
-class RaftReqMessage(RequestMessage, PickleSerializer):
+class RaftReqMessage(RequestMessage):
     """ """
 
     msg: eraftpb_pb2.Message
 
 
 @dataclass
-class DebugNodeReqMessage(RequestMessage, PickleSerializer):
+class DebugNodeReqMessage(RequestMessage):
     """ """
 
     response_chan: Queue
 
 
 @dataclass
-class DebugEntriesReqMessage(RequestMessage, PickleSerializer):
+class DebugEntriesReqMessage(RequestMessage):
     """ """
 
     response_chan: Queue
 
 
 @dataclass
-class VersionReqMessage(RequestMessage, PickleSerializer):
+class VersionReqMessage(RequestMessage):
     """ """
 
     response_chan: Queue
 
 
 @dataclass
-class GetPeersReqMessage(RequestMessage, PickleSerializer):
+class GetPeersReqMessage(RequestMessage):
     """ """
 
     response_chan: Queue

@@ -4,6 +4,11 @@ from raftify.log_entry.abc import AbstractLogEntry
 
 
 class SetCommand(AbstractLogEntry):
+    """
+    Represent simple key-value command.
+    Use pickle to serialize the data.
+    """
+
     def __init__(self, key: str, value: str) -> None:
         self.key = key
         self.value = value

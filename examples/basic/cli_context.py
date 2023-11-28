@@ -4,8 +4,8 @@ from examples.basic.logger import logger, slog
 from examples.basic.utils import WebServer, build_config, load_peers
 from examples.basic.web_server import routes
 from raftify.cli import AbstractCLIContext
-from raftify.rraft_deserializer import init_rraft_py_deserializer
 from raftify.raft_facade import RaftFacade
+from raftify.rraft_deserializer import init_rraft_py_deserializer
 from raftify.state_machine.hashstore import HashStore
 from raftify.utils import SocketAddr
 
