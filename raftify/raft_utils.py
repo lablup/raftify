@@ -41,11 +41,11 @@ def print_all_entries(all_entries: dict[str, Any]) -> None:
     all_entries: result of raftify.raft_client.RaftClient.debug_entries
     """
 
-    print("========= All compacted entries =========")
+    print("========= Compacted entries =========")
     for entry in all_entries["compacted_all_entries"]:
         print(f"Key: {entry['index']}, Value: {entry}")
 
-    print("========= All persisted entries =========")
+    print("========= Persisted entries =========")
     for entry in all_entries["persisted_entries"]:
         print(f"Key: {entry['index']}, Value: {entry}")
 
