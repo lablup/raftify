@@ -852,8 +852,8 @@ class RaftNode:
         if entries := ready.entries():
             self.lmdb.append(entries)
 
-        if hs := ready.hs():
-            self.lmdb.set_hard_state(hs)
+        if hard_state := ready.hs():
+            self.lmdb.set_hard_state(hard_state)
 
         if persisted_msgs := ready.take_persisted_messages():
             self.send_messages(persisted_msgs)
