@@ -203,7 +203,7 @@ async def add_member(module_path, module_name, args):
 
 
 @member.command(name="remove")
-@click.argument("addrs", nargs=-1, type=str)
+@click.argument("addrs", nargs=-1, type=str, required=True)
 async def remove_member(addrs):
     # TODO: Remove this assumption that first peer connection is ready
     client = RaftClient(addrs[0])
