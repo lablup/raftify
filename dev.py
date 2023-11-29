@@ -5,6 +5,8 @@ import argparse
 import asyncio
 from contextlib import suppress
 
+import rraft
+
 from raftify.rraft_deserializer import init_rraft_py_deserializer
 from raftify.raft_facade import RaftFacade
 from raftify.state_machine.hashstore import HashStore
@@ -13,6 +15,10 @@ from raftify.utils import SocketAddr
 from examples.basic.logger import logger, slog
 from examples.basic.utils import WebServer, build_config, load_peers
 from examples.basic.web_server import routes
+
+
+def on_softstate_change(leader_id: int, role: rraft.StateRole) -> None:
+    logger.info(f"SoftStateChange: leader_id={leader_id}, role={role}")
 
 
 async def main() -> None:
@@ -56,6 +62,8 @@ async def main() -> None:
         raft.run_raft(node_id)
         await raft.send_member_bootstrap_ready_msg(node_id)
         tasks.append(raft.wait_for_termination())
+
+    raft.raft_node.on_soft_state_change = on_softstate_change
 
     async with WebServer(web_server_addr, routes, {"raft": raft}):
         await asyncio.gather(*tasks)

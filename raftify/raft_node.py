@@ -4,7 +4,7 @@ import math
 import os
 import time
 from asyncio import Queue
-from typing import Any
+from typing import Any, Callable, Optional
 
 import grpc
 import rraft
@@ -69,6 +69,11 @@ class RaftNode:
     response_queues: dict[AtomicInteger, Queue]
     """
     Queues that are stored for each message to handle asynchronous requests
+    """
+
+    on_soft_state_change: Optional[Callable[[int, rraft.StateRole], None]] = None
+    """
+    Callback function that is called when the soft state of the node changes.
     """
 
     def __init__(
@@ -825,6 +830,12 @@ class RaftNode:
             return
 
         ready = self.raw_node.ready()
+
+        if soft_state := ready.ss():
+            if self.on_soft_state_change:
+                self.on_soft_state_change(
+                    soft_state.get_leader_id(), soft_state.get_raft_state()
+                )
 
         if msgs := ready.take_messages():
             self.send_messages(msgs)

@@ -230,7 +230,9 @@ class RaftClient:
         )
         return await asyncio.wait_for(stub.DebugEntries(request_args), timeout)
 
-    async def version(self, *, timeout: float = 5.0) -> raft_service_pb2.VersionResponse:
+    async def version(
+        self, *, timeout: float = 5.0
+    ) -> raft_service_pb2.VersionResponse:
         """
         Request to get RaftServer's raftify version.
         """

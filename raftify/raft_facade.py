@@ -34,8 +34,8 @@ from .utils import SocketAddr
 class RaftFacade:
     raft_node: RaftNode | None
     raft_server: RaftServer | None
-    raft_node_task: asyncio.Task | None
-    raft_server_task: asyncio.Task | None
+    raft_node_loop_task: asyncio.Task | None
+    raft_server_loop_task: asyncio.Task | None
 
     def __init__(
         self,
@@ -64,8 +64,8 @@ class RaftFacade:
         self.codec = codec
         self.raft_node = None
         self.raft_server = None
-        self.raft_node_task = None
-        self.raft_server_task = None
+        self.raft_node_loop_task = None
+        self.raft_server_loop_task = None
 
         if self_peer_id := self.initial_peers.get_node_id_by_addr(self.addr):
             self.initial_peers.connect(self_peer_id, self.addr)
@@ -387,18 +387,18 @@ class RaftFacade:
                 bootstrap_done=bootstrap_done,
             )
 
-        self.raft_server_task = asyncio.create_task(self.raft_server.run())
-        self.raft_node_task = asyncio.create_task(self.raft_node.run())
+        self.raft_server_loop_task = asyncio.create_task(self.raft_server.run())
+        self.raft_node_loop_task = asyncio.create_task(self.raft_node.run())
 
     async def wait_for_termination(self) -> None:
         """
         Wait for the termination of RaftServer and RaftNode coroutines.
         """
         assert self.raft_node and self.raft_server, "The raft node is not initialized!"
-        assert self.raft_server_task and self.raft_node_task
+        assert self.raft_server_loop_task and self.raft_node_loop_task
 
         try:
-            await asyncio.gather(self.raft_server_task, self.raft_node_task)
+            await asyncio.gather(self.raft_server_loop_task, self.raft_node_loop_task)
         except asyncio.CancelledError:
             self.logger.info("Raft server is cancelled. preparing to terminate...")
             await self.raft_server.terminate()
