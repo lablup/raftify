@@ -11,8 +11,7 @@ from contextlib import suppress
 import asyncclick as click
 from rraft import ConfChangeSingle, ConfChangeType, ConfChangeV2
 
-from raftify.peers import Peers
-
+from .peers import Peers
 from .raft_client import RaftClient
 from .raft_utils import format_raft_node_debugging_info, print_all_entries
 from .utils import SocketAddr

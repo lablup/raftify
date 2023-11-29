@@ -5,8 +5,7 @@ from typing import Any, Optional
 import grpc
 from rraft import ConfChange, ConfChangeV2, Message
 
-from raftify.logger import AbstractRaftifyLogger
-
+from .logger import AbstractRaftifyLogger
 from .pb_adapter import ConfChangeV2Adapter, MessageAdapter
 from .protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
 from .utils import SocketAddr
