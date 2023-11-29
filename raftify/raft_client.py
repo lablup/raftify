@@ -132,7 +132,6 @@ class RaftClient:
         """
 
         request_args = MessageAdapter.to_pb(msg)
-
         stub = raft_service_pb2_grpc.RaftServiceStub(
             await self.__get_or_create_channel()
         )
@@ -231,13 +230,12 @@ class RaftClient:
         )
         return await asyncio.wait_for(stub.DebugEntries(request_args), timeout)
 
-    async def version(self, timeout: float = 5.0) -> raft_service_pb2.VersionResponse:
+    async def version(self, *, timeout: float = 5.0) -> raft_service_pb2.VersionResponse:
         """
         Request to get RaftServer's raftify version.
         """
 
         request_args = raft_service_pb2.Empty()
-
         stub = raft_service_pb2_grpc.RaftServiceStub(
             await self.__get_or_create_channel()
         )
