@@ -1,5 +1,4 @@
 import json
-import pickle
 from typing import cast
 
 from aiohttp import web
@@ -39,7 +38,7 @@ async def put(request: web.Request) -> web.Response:
 
     try:
         result = await raft_facade.mailbox.send_proposal(message.encode())
-        return web.Response(text=f'"{str(pickle.loads(result))}"')
+        return web.Response(text=f'"{str(result)}"')
     except ProposalRejectError:
         return web.Response(text=str("Proposal dropped."))
 

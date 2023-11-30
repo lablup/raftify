@@ -2,7 +2,6 @@ import asyncio
 import json
 import multiprocessing
 import os
-import pickle
 import signal
 import sys
 from contextlib import asynccontextmanager as actxmgr
@@ -50,7 +49,7 @@ async def put(request: web.Request) -> web.Response:
 
     try:
         result = await raft_facade.mailbox.send_proposal(message.encode())
-        return web.Response(text=f'"{str(pickle.loads(result))}"')
+        return web.Response(text=f'"{str(result)}"')
     except ProposalRejectError:
         return web.Response(text=str("Proposal dropped."))
 

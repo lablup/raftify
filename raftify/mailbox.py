@@ -4,8 +4,10 @@ from typing import Optional
 from rraft import ConfChangeSingle, ConfChangeTransition, ConfChangeType, ConfChangeV2
 
 from .error import ProposalRejectError
+from .log_entry.abc import AbstractLogEntry
 from .pb_adapter import ConfChangeV2Adapter
 from .protos import eraftpb_pb2, raft_service_pb2
+from .raft_client_response import ProposeResponse
 from .raft_node import RaftNode
 from .request_message import ConfigChangeReqMessage, ProposeReqMessage
 from .response_message import RaftRespMessage, ResponseMessage, WrongLeaderRespMessage
@@ -29,12 +31,12 @@ class Mailbox:
         reroute_msg_type: Optional[raft_service_pb2.RerouteMsgType] = None,
         proposed_data: Optional[bytes] = None,
         conf_change: Optional[eraftpb_pb2.ConfChangeV2] = None,
-    ) -> Optional[bytes]:
+    ) -> Optional[AbstractLogEntry]:
         if isinstance(response, RaftRespMessage):
             if response.rejected:
                 return None
             else:
-                return response.data
+                return self.raft_node.codec.decode(response.data)
         elif isinstance(response, WrongLeaderRespMessage):
             assert reroute_msg_type is not None
 
@@ -48,7 +50,7 @@ class Mailbox:
                 timeout=self.raftify_config.message_timeout,
             )
 
-            if isinstance(resp_from_leader, raft_service_pb2.ProposeResponse):
+            if isinstance(resp_from_leader, ProposeResponse):
                 return resp_from_leader.msg
             else:
                 # TODO: handle this case. The leader might change in the meanwhile.
@@ -56,7 +58,7 @@ class Mailbox:
 
         return None
 
-    async def send_proposal(self, data: bytes) -> bytes:
+    async def send_proposal(self, data: bytes) -> AbstractLogEntry:
         """
         Send a proposal message to commit to the node.
         """

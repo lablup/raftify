@@ -53,9 +53,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         self.logger = logger
         self.cluster_config = cluster_config
         self.codec = codec
-        self.confchange_req_queue: Queue[
-            tuple[eraftpb_pb2.ConfChangeV2, bool]
-        ] = Queue()
+        self.confchange_req_queue: Queue[eraftpb_pb2.ConfChangeV2] = Queue()
         self.confchange_res_queue: Queue[
             raft_service_pb2.ChangeConfigResponse
         ] = Queue()
@@ -89,8 +87,9 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
     async def __handle_confchange_request(self):
         # TODO: Describe why this queueing is required.
         while True:
-            request = await self.confchange_req_queue.get()
-            response = await self.ChangeConfigRequestHandler(request)
+            response = await self.ChangeConfigRequestHandler(
+                await self.confchange_req_queue.get()
+            )
             await self.confchange_res_queue.put(response)
             await asyncio.sleep(self.cluster_config.confchange_process_interval)
 
@@ -163,8 +162,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
     async def ChangeConfig(
         self, request: eraftpb_pb2.ConfChangeV2, _context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.ChangeConfigResponse:
-        await self.confchange_req_queue.put((request, False))
-
+        await self.confchange_req_queue.put(request)
         response = await self.confchange_res_queue.get()
 
         if response.result == raft_service_pb2.ChangeConfig_WrongLeader:

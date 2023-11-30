@@ -1,6 +1,5 @@
 import asyncio
 import json
-import math
 from typing import Any, Optional
 
 import grpc
@@ -110,7 +109,7 @@ class RaftClient:
         )
 
     async def change_config(
-        self, conf_change: ConfChange | ConfChangeV2, *, timeout: float = math.inf
+        self, conf_change: ConfChange | ConfChangeV2, *, timeout: float = 5.0
     ) -> ChangeConfigResponse:
         """
         Request for membership config change of the cluster.
@@ -127,7 +126,7 @@ class RaftClient:
         )
 
         return ChangeConfigResponse(
-            result=str(response.result), data=self.codec.decode(response.data)
+            result=response.result, data=self.codec.decode(response.data)
         )
 
     async def send_message(self, msg: Message, *, timeout: float = 5.0) -> None:
@@ -161,7 +160,7 @@ class RaftClient:
             stub.RequestId(request_args), timeout
         )
         return IdRequestResponse(
-            result=str(response.result),
+            result=response.result,
             leader_id=response.leader_id,
             leader_addr=response.leader_addr,
             reserved_id=response.reserved_id,

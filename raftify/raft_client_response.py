@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from .peers import Peers
 
 from .log_entry.abc import AbstractLogEntry
+from .protos import raft_service_pb2
 from .response_message import JoinSuccessRespMessage, PeerRemovalSuccessRespMessage
 
 
@@ -18,13 +19,13 @@ class ProposeResponse:
 
 @dataclass
 class ChangeConfigResponse:
-    result: str
+    result: raft_service_pb2.ChangeConfigResultType
     data: JoinSuccessRespMessage | PeerRemovalSuccessRespMessage
 
 
 @dataclass
 class IdRequestResponse:
-    result: str
+    result: raft_service_pb2.IdRequestResultType
     leader_id: int
     leader_addr: str
     reserved_id: int
