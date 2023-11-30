@@ -28,7 +28,9 @@ class RaftifyCLIContext(AbstractCLIContext):
 
         store = HashStore()
         cfg = build_config()
-        raft = RaftFacade(cfg, leader_addr, store, slog, logger, initial_peers)
+        raft = RaftFacade(
+            cfg, leader_addr, store, slog, logger, initial_peers=initial_peers
+        )
 
         logger.info("Bootstrapping Raft Cluster...")
         raft.run_raft(node_id=1)
@@ -46,7 +48,9 @@ class RaftifyCLIContext(AbstractCLIContext):
         initial_peers = load_peers()
         store = HashStore()
         cfg = build_config()
-        raft = RaftFacade(cfg, raft_addr, store, slog, logger, initial_peers)
+        raft = RaftFacade(
+            cfg, raft_addr, store, slog, logger, initial_peers=initial_peers
+        )
 
         logger.info("Participating in Raft Cluster...")
         node_id = initial_peers.get_node_id_by_addr(raft_addr)

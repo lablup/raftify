@@ -195,8 +195,7 @@ class RaftFacade:
                         leader_addr = peer_addr
                         leader_id = response.leader_id
                         node_id = response.reserved_id
-
-                        peers: Peers = self.codec.decode(response.peers)
+                        peers = response.peers
 
                         break
                     case raft_service_pb2.IdRequest_WrongLeader:

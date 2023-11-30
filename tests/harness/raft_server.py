@@ -117,7 +117,7 @@ async def server_main(
         compacted_log_dir="./logs",
     )
 
-    cluster = RaftFacade(cfg, raft_addr, store, slog, logger, peers)
+    cluster = RaftFacade(cfg, raft_addr, store, slog, logger, initial_peers=peers)
 
     if raft_node_idx == 0:
         logger.info("Bootstrap a Raft Cluster")
@@ -169,7 +169,7 @@ async def excute_extra_node(node_id: int, raft_addr: SocketAddr, peers: Peers):
     )
 
     store = HashStore()
-    cluster = RaftFacade(cfg, raft_addr, store, slog, logger, peers)
+    cluster = RaftFacade(cfg, raft_addr, store, slog, logger, initial_peers=peers)
     peer_addrs = [peer.addr for peer in peers.values()]
 
     request_id_resp = await cluster.request_id(raft_addr, peer_addrs)

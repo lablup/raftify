@@ -77,7 +77,7 @@ class RaftNode:
     on_leader_id_change: Optional[Callable[[int], None]] = None
     on_state_role_change: Optional[Callable[[rraft.StateRole], None]] = None
     """
-    Callback function that is called when the soft state of the node changes.
+    Callback functions that is called when the soft state of the node changes.
     """
 
     def __init__(

@@ -8,9 +8,11 @@ import grpc
 from .codec.abc import AbstractCodec
 from .config import RaftifyConfig
 from .error import UnknownError
+from .log_entry.abc import AbstractLogEntry
 from .logger import AbstractRaftifyLogger
 from .protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
 from .raft_client import RaftClient
+from .raft_client_response import ProposeResponse
 from .request_message import (
     ApplyConfigChangeForcelyReqMessage,
     ClusterBootstrapReadyReqMessage,
@@ -69,7 +71,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         reroute_msg_type: raft_service_pb2.RerouteMsgType,
         proposed_data: Optional[bytes] = None,
         conf_change: Optional[eraftpb_pb2.ConfChangeV2] = None,
-    ) -> bytes:
+    ) -> AbstractLogEntry:
         leader_client = RaftClient(response.leader_addr)
 
         rerouted_response = await leader_client.reroute_message(
@@ -79,7 +81,7 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
             timeout=5.0,
         )
 
-        if isinstance(rerouted_response, raft_service_pb2.ProposeResponse):
+        if isinstance(rerouted_response, ProposeResponse):
             return rerouted_response.msg
         else:
             # TODO: handle this case. The leader might change in the meanwhile.

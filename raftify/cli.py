@@ -2,7 +2,6 @@ import abc
 import asyncio
 import functools
 import importlib
-import json
 import os
 import pickle
 import sys
@@ -11,7 +10,6 @@ from contextlib import suppress
 import asyncclick as click
 from rraft import ConfChangeSingle, ConfChangeType, ConfChangeV2
 
-from .peers import Peers
 from .raft_client import RaftClient
 from .raft_utils import format_raft_node_debugging_info, print_all_entries
 from .utils import SocketAddr
@@ -207,7 +205,7 @@ async def add_member(module_path, module_name, args):
 async def remove_member(addrs):
     # TODO: Remove this assumption that first peer connection is ready
     client = RaftClient(addrs[0])
-    peers: Peers = pickle.loads((await client.get_peers()).peers)
+    peers = (await client.get_peers()).peers
     node_ids = [peers.get_node_id_by_addr(addr) for addr in addrs]
 
     conf_change_v2 = ConfChangeV2.default()
@@ -231,7 +229,7 @@ async def debug_node(addr):
     addr = SocketAddr.from_str(addr)
     client = RaftClient(addr)
     res = await client.debug_node(timeout=5.0)
-    print(format_raft_node_debugging_info(json.loads(res.result)))
+    print(format_raft_node_debugging_info(res.result))
 
 
 @debug.command(name="entries")
@@ -240,7 +238,7 @@ async def debug_entries(addr):
     addr = SocketAddr.from_str(addr)
     client = RaftClient(addr)
     res = await client.debug_entries(timeout=5.0)
-    print_all_entries(json.loads(res.result))
+    print_all_entries(res.result)
 
 
 @cli.command()
