@@ -16,8 +16,6 @@ class RaftifyConfig:
     - compacted_log_dir: Directory path where compacted log files are stored.
     - compacted_logs_size_threshold: Threshold for the compacted log size.
     - max_retry_cnt: Maximum number of retries for a request.
-    - auto_remove_node: Whether to automatically remove a node from the cluster if it keeps not responding.
-    - node_auto_remove_threshold: Threshold for the node auto removal.
     - message_timeout: Timeout duration for a message request.
     - snapshot_interval: Interval between snapshots.
         Set to 0 to disable.
@@ -58,10 +56,6 @@ class RaftifyConfig:
 
     message_timeout: float
 
-    auto_remove_node: bool
-
-    node_auto_remove_threshold: float
-
     snapshot_interval: float
 
     tick_interval: float
@@ -82,8 +76,6 @@ class RaftifyConfig:
         compacted_logs_size_threshold: int = 1024 * 1024 * 1024,
         message_timeout: float = 5.0,
         max_retry_cnt: int = 2,
-        auto_remove_node: bool = False,
-        node_auto_remove_threshold: float = 7.0,
         raft_config: Config = Config.default(),
         snapshot_interval: float = 0.0,
         tick_interval: float = 0.1,
@@ -97,8 +89,6 @@ class RaftifyConfig:
         self.compacted_logs_size_threshold = compacted_logs_size_threshold
         self.max_retry_cnt = max_retry_cnt
         self.message_timeout = message_timeout
-        self.auto_remove_node = auto_remove_node
-        self.node_auto_remove_threshold = node_auto_remove_threshold
         self.snapshot_interval = snapshot_interval
         self.tick_interval = tick_interval
         self.lmdb_map_size = lmdb_map_size

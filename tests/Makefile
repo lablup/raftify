@@ -15,9 +15,6 @@ test-data-replication:
 		python3 -m pytest -s -v data_replication.py::$$test; \
 	done
 
-MEMBERSHIP_MANAGE_TESTS = \
-	test_disconnected_node_get_same_node_id
-
 test-membership-manage:
 	@for test in $(MEMBERSHIP_MANAGE_TESTS); do \
 		python3 -m pytest -s -v membership_manage.py::$$test; \
@@ -34,5 +31,4 @@ test-network:
 test:
 	make test-leader-election
 	make test-data-replication
-	make test-membership-manage
 	make test-network

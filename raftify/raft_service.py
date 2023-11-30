@@ -187,12 +187,6 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
 
         return response
 
-    async def ApplyConfigChangeForcely(
-        self, request: eraftpb_pb2.ConfChangeV2, _context: grpc.aio.ServicerContext
-    ) -> raft_service_pb2.ChangeConfigResponse:
-        await self.confchange_req_queue.put((request, True))
-        return await self.confchange_res_queue.get()
-
     async def SendMessage(
         self, request: eraftpb_pb2.Message, _context: grpc.aio.ServicerContext
     ) -> raft_service_pb2.Empty:

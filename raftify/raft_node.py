@@ -1,6 +1,5 @@
 import asyncio
 import json
-import math
 import os
 import sys
 import time
@@ -35,7 +34,6 @@ from .protos.raft_service_pb2 import RerouteMsgType
 from .raft_client import RaftClient
 from .raft_server import RaftServer
 from .request_message import (
-    ApplyConfigChangeForcelyReqMessage,
     ClusterBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
     DebugEntriesReqMessage,
@@ -323,42 +321,6 @@ class RaftNode:
             self.logger.error(str(e))
             pass
 
-    def get_elapsed_time_from_first_connection_lost(self, node_id: int) -> float:
-        peer = self.peers.get(node_id)
-
-        if not peer:
-            return math.nan
-
-        failed_client = peer.client
-        assert failed_client is not None
-
-        if failed_client.first_failed_time is None:
-            failed_client.first_failed_time = time.time()
-
-        assert failed_client.first_failed_time is not None
-        elapsed = time.time() - failed_client.first_failed_time
-
-        return round(elapsed, 4)
-
-    def handle_node_auto_removal(self, elapsed: float, node_id: int) -> None:
-        assert self.is_leader()
-
-        if node_id not in self.peers:
-            return
-
-        if elapsed >= self.raftify_cfg.node_auto_remove_threshold:
-            if self.raftify_cfg.auto_remove_node:
-                peer = self.peers[node_id]
-
-                if peer.state == PeerState.Connected:
-                    self.remove_node(node_id)
-
-                    self.logger.error(
-                        f"Removing node {node_id} from the cluster "
-                        f"automatically "
-                        f"because the requests to the connection kept failed."
-                    )
-
     def should_retry(self, node_id: int, current_retry_count: int) -> bool:
         """ """
         if node_id not in self.peers:
@@ -429,16 +391,6 @@ class RaftNode:
                         raise
 
                 await self.report_node_unreachable(node_id)
-                elapsed = self.get_elapsed_time_from_first_connection_lost(node_id)
-
-                if elapsed < self.raftify_cfg.node_auto_remove_threshold:
-                    self.logger.warning(
-                        f"Failed to connect to node {node_id} "
-                        f"elapsed from first failure: {format(elapsed, '.4f')}s. Err message: {str(err)}"
-                    )
-
-                if self.is_leader():
-                    self.handle_node_auto_removal(elapsed, node_id)
 
                 if not isinstance(err, asyncio.TimeoutError):
                     await asyncio.sleep(self.raftify_cfg.message_timeout)
@@ -713,37 +665,6 @@ class RaftNode:
                         except rraft.ProposalDroppedError:
                             # TODO: Study when it happens and handle it.
                             raise
-
-            elif isinstance(message, ApplyConfigChangeForcelyReqMessage):
-                # Ignore all pending conf changes and apply the given conf change forcely.
-                # This won't persist the conf changes, but apply them successfully.
-
-                await self.response_seq.increase()
-                self.response_queues[self.response_seq] = message.response_chan
-                context = self.codec.encode(self.response_seq.value)
-
-                conf_change_v2 = ConfChangeV2Adapter.from_pb(message.conf_change)
-
-                try:
-                    self.raw_node.propose_conf_change_v2(
-                        context,
-                        conf_change_v2,
-                    )
-
-                except rraft.ProposalDroppedError:
-                    # TODO: Study when it happens and handle it.
-                    raise
-
-                self.raw_node.apply_conf_change_v2(conf_change_v2)
-                message.response_chan.put_nowait(PeerRemovalSuccessRespMessage())
-
-                changes = conf_change_v2.get_changes()
-                for change in changes:
-                    match change.get_change_type():
-                        case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
-                            self.peers[change.get_node_id()].state = PeerState.Connected
-                        case ConfChangeType.RemoveNode:
-                            self.peers.data.pop(change.get_node_id(), None)
 
             elif isinstance(message, ProposeReqMessage):
                 if not self.bootstrap_done:
