@@ -130,28 +130,6 @@ class RaftClient:
             result=str(response.result), data=self.codec.decode(response.data)
         )
 
-    async def apply_change_config_forcely(
-        self, conf_change: ConfChange | ConfChangeV2, *, timeout: float = math.inf
-    ) -> ChangeConfigResponse:
-        """
-        Request for membership config change of the cluster.
-        Note that this method is not safe and even not verified.
-        """
-        if isinstance(conf_change, ConfChange):
-            conf_change = conf_change.as_v2()
-
-        request_args = ConfChangeV2Adapter.to_pb(conf_change)
-        stub = raft_service_pb2_grpc.RaftServiceStub(
-            await self.__get_or_create_channel()
-        )
-        response: raft_service_pb2.ChangeConfigResponse = await asyncio.wait_for(
-            stub.ApplyConfigChangeForcely(request_args), timeout
-        )
-
-        return ChangeConfigResponse(
-            result=str(response.result), data=self.codec.decode(response.data)
-        )
-
     async def send_message(self, msg: Message, *, timeout: float = 5.0) -> None:
         """
         Low level API to send a Raft Message to the cluster.

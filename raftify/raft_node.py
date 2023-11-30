@@ -10,7 +10,6 @@ import grpc
 import rraft
 from rraft import (
     ConfChange,
-    ConfChangeTransition,
     ConfChangeType,
     ConfChangeV2,
     Entry,
@@ -258,20 +257,6 @@ class RaftNode:
 
         self.raw_node.transfer_leader(node_id)
         return True
-
-    def remove_node(self, node_id: int) -> None:
-        conf_change = ConfChange.default()
-        conf_change.set_node_id(node_id)
-        conf_change.set_context(self.codec.encode([self.peers[node_id].addr]))
-        conf_change.set_change_type(ConfChangeType.RemoveNode)
-
-        conf_change_v2 = conf_change.as_v2()
-        conf_change_v2.set_transition(ConfChangeTransition.Auto)
-
-        leader_id = self.raw_node.get_raft().get_id()
-        asyncio.create_task(
-            self.peers[leader_id].client.apply_change_config_forcely(conf_change_v2)
-        )
 
     def inspect(self) -> dict[str, Any]:
         """
