@@ -77,14 +77,6 @@ class RerouteToLeaderReqMessage(RequestMessage):
 
 
 @dataclass
-class ApplyConfigChangeForcelyReqMessage(RequestMessage):
-    """ """
-
-    conf_change: eraftpb_pb2.ConfChangeV2
-    response_chan: Queue
-
-
-@dataclass
 class ReportUnreachableReqMessage(RequestMessage):
     """ """
 

@@ -14,7 +14,6 @@ from .protos import eraftpb_pb2, raft_service_pb2, raft_service_pb2_grpc
 from .raft_client import RaftClient
 from .raft_client_response import ProposeResponse
 from .request_message import (
-    ApplyConfigChangeForcelyReqMessage,
     ClusterBootstrapReadyReqMessage,
     ConfigChangeReqMessage,
     DebugEntriesReqMessage,
@@ -90,8 +89,8 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
     async def __handle_confchange_request(self):
         # TODO: Describe why this queueing is required.
         while True:
-            request, force = await self.confchange_req_queue.get()
-            response = await self.ChangeConfigRequestHandler(request, force)
+            request = await self.confchange_req_queue.get()
+            response = await self.ChangeConfigRequestHandler(request)
             await self.confchange_res_queue.put(response)
             await asyncio.sleep(self.cluster_config.confchange_process_interval)
 
@@ -121,52 +120,45 @@ class RaftService(raft_service_pb2_grpc.RaftServiceServicer):
         raise UnknownError(f"Unknown type of response, resp: {response}")
 
     async def ChangeConfigRequestHandler(
-        self, request: eraftpb_pb2.ConfChangeV2, force: bool = False
+        self, request: eraftpb_pb2.ConfChangeV2
     ) -> raft_service_pb2.ChangeConfigResponse:
         receiver: Queue = Queue()
-
-        if force:
-            await self.message_queue.put(
-                ApplyConfigChangeForcelyReqMessage(request, receiver)
-            )
-        else:
-            await self.message_queue.put(ConfigChangeReqMessage(request, receiver))
-
-        reply = raft_service_pb2.ChangeConfigResponse()
+        await self.message_queue.put(ConfigChangeReqMessage(request, receiver))
+        response_to_send = raft_service_pb2.ChangeConfigResponse()
 
         try:
             if response := await receiver.get():
                 if isinstance(response, WrongLeaderRespMessage):
-                    reply.result = raft_service_pb2.ChangeConfig_WrongLeader
+                    response_to_send.result = raft_service_pb2.ChangeConfig_WrongLeader
                     leader_id, leader_addr = (
                         response.leader_id,
                         response.leader_addr,
                     )
-                    reply.data = self.codec.encode(
+                    response_to_send.data = self.codec.encode(
                         {"leader_id": leader_id, "leader_addr": leader_addr}
                     )
                 elif isinstance(response, JoinSuccessRespMessage) or isinstance(
                     response, PeerRemovalSuccessRespMessage
                 ):
-                    reply.result = raft_service_pb2.ChangeConfig_Success
-                    reply.data = self.codec.encode(response)
+                    response_to_send.result = raft_service_pb2.ChangeConfig_Success
+                    response_to_send.data = self.codec.encode(response)
 
         except asyncio.TimeoutError:
-            reply.result = raft_service_pb2.ChangeConfig_TimeoutError
-            reply.data = self.codec.encode(RaftErrorRespMessage(None))
+            response_to_send.result = raft_service_pb2.ChangeConfig_TimeoutError
+            response_to_send.data = self.codec.encode(RaftErrorRespMessage(None))
 
             self.logger.error(
                 'TimeoutError occurs while handling "ConfigChangeReqMessage!"'
             )
 
         except Exception as e:
-            reply.result = raft_service_pb2.ChangeConfig_UnknownError
-            reply.data = self.codec.encode(
+            response_to_send.result = raft_service_pb2.ChangeConfig_UnknownError
+            response_to_send.data = self.codec.encode(
                 RaftErrorRespMessage(data=str(e).encode("utf-8"))
             )
 
         finally:
-            return reply
+            return response_to_send
 
     async def ChangeConfig(
         self, request: eraftpb_pb2.ConfChangeV2, _context: grpc.aio.ServicerContext
