@@ -71,7 +71,11 @@ class RaftNode:
     Queues that are stored for each message to handle asynchronous requests
     """
 
-    on_soft_state_change: Optional[Callable[[int, rraft.StateRole], None]] = None
+    prev_leader_id: Optional[int] = None
+    prev_state_role: Optional[rraft.StateRole] = None
+
+    on_leader_id_change: Optional[Callable[[int], None]] = None
+    on_state_role_change: Optional[Callable[[rraft.StateRole], None]] = None
     """
     Callback function that is called when the soft state of the node changes.
     """
@@ -832,10 +836,13 @@ class RaftNode:
         ready = self.raw_node.ready()
 
         if soft_state := ready.ss():
-            if self.on_soft_state_change:
-                self.on_soft_state_change(
-                    soft_state.get_leader_id(), soft_state.get_raft_state()
-                )
+            if self.on_leader_id_change:
+                if soft_state.get_leader_id() != self.prev_leader_id:
+                    self.on_leader_id_change(soft_state.get_leader_id())
+
+            if self.on_state_role_change:
+                if soft_state.get_raft_state() != self.prev_state_role:
+                    self.on_state_role_change(soft_state.get_raft_state())
 
         if msgs := ready.take_messages():
             self.send_messages(msgs)

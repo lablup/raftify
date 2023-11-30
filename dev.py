@@ -17,8 +17,8 @@ from examples.basic.utils import WebServer, build_config, load_peers
 from examples.basic.web_server import routes
 
 
-def on_softstate_change(leader_id: int, role: rraft.StateRole) -> None:
-    logger.info(f"SoftStateChange: leader_id={leader_id}, role={role}")
+def on_state_role_change(role: rraft.StateRole) -> None:
+    logger.info(f"SoftStateChange: Role={role}")
 
 
 async def main() -> None:
@@ -63,7 +63,7 @@ async def main() -> None:
         await raft.send_member_bootstrap_ready_msg(node_id)
         tasks.append(raft.wait_for_termination())
 
-    raft.raft_node.on_soft_state_change = on_softstate_change
+    raft.raft_node.on_state_role_change = on_state_role_change
 
     async with WebServer(web_server_addr, routes, {"raft": raft}):
         await asyncio.gather(*tasks)
