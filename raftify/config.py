@@ -26,6 +26,7 @@ class RaftifyConfig:
     - tick_interval: Interval between Raft scheduler's each ticks.
     - cluster_id: Cluster ID.
     - confchange_process_interval: Delay between each conf change request when queuing them for processing.
+    - terminiate_on_remove: Whether to terminate the node process when it is removed from the cluster.
     """
 
     raft_config_keys = [
@@ -71,6 +72,8 @@ class RaftifyConfig:
 
     confchange_process_interval: float
 
+    terminiate_on_remove: bool
+
     def __init__(
         self,
         *,
@@ -87,6 +90,7 @@ class RaftifyConfig:
         lmdb_map_size: int = 1024 * 1024 * 1024,
         cluster_id: str = DEFAULT_CLUSTER_ID,
         confchange_process_interval: float = 1.0,
+        terminiate_on_remove: bool = False,
     ) -> None:
         self.log_dir = log_dir
         self.compacted_log_dir = compacted_log_dir
@@ -101,6 +105,7 @@ class RaftifyConfig:
         self.raft_config = raft_config
         self.cluster_id = cluster_id
         self.confchange_process_interval = confchange_process_interval
+        self.terminiate_on_remove = terminiate_on_remove
 
     @staticmethod
     def new_raft_config(cfg_dict: dict) -> "Config":

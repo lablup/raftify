@@ -2,6 +2,7 @@ import asyncio
 import json
 import math
 import os
+import sys
 import time
 from asyncio import Queue
 from typing import Any, Callable, Optional
@@ -581,9 +582,11 @@ class RaftNode:
                         self.should_exit = True
                         await self.raft_server.terminate()
                         self.logger.info(f"Node {node_id} quit the cluster.")
+
+                        if self.raftify_cfg.terminiate_on_remove:
+                            sys.exit(0)
                     else:
                         self.logger.info(f"Node {node_id} removed from the cluster.")
-                        self.peers[node_id].state = PeerState.Disconnected
                 case _:
                     raise NotImplementedError
 
@@ -740,9 +743,7 @@ class RaftNode:
                         case ConfChangeType.AddNode | ConfChangeType.AddLearnerNode:
                             self.peers[change.get_node_id()].state = PeerState.Connected
                         case ConfChangeType.RemoveNode:
-                            self.peers[
-                                change.get_node_id()
-                            ].state = PeerState.Disconnected
+                            self.peers.data.pop(change.get_node_id(), None)
 
             elif isinstance(message, ProposeReqMessage):
                 if not self.bootstrap_done:

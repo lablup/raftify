@@ -49,21 +49,12 @@ class Peers:
 
     def reserve_peer(self, raw_node: RawNode, addr: SocketAddr) -> int:
         """ """
-        prev_conns = [
-            node_id
-            for node_id, peer in self.data.items()
-            if peer.addr == addr and peer.state == PeerState.Disconnected
-        ]
+        next_id = max(self.data.keys()) if any(self.data) else 1
+        next_id = max(next_id + 1, raw_node.get_raft().get_id())
 
-        if len(prev_conns) > 0:
-            next_id = prev_conns[0]
-        else:
-            next_id = max(self.data.keys()) if any(self.data) else 1
-            next_id = max(next_id + 1, raw_node.get_raft().get_id())
-
-            # if assigned id is ourself, return next one
-            if next_id == raw_node.get_raft().get_id():
-                next_id += 1
+        # if assigned id is ourself, return next one
+        if next_id == raw_node.get_raft().get_id():
+            next_id += 1
 
         self.data[next_id] = Peer(addr)
         return next_id
