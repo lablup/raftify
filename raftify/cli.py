@@ -201,10 +201,10 @@ async def add_member(module_path, module_name, args):
 
 
 @member.command(name="remove")
+@click.option("--peer-addr", type=str, required=False)
 @click.argument("addrs", nargs=-1, type=str, required=True)
-async def remove_member(addrs):
-    # TODO: Remove this assumption that first peer connection is ready
-    client = RaftClient(addrs[0])
+async def remove_member(peer_addr, addrs):
+    client = RaftClient(peer_addr if peer_addr else addrs[0])
     peers = (await client.get_peers()).peers
     node_ids = [peers.get_node_id_by_addr(addr) for addr in addrs]
 
