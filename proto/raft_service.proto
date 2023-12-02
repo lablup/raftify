@@ -4,8 +4,10 @@ package raftservice;
 import "eraftpb.proto";
 
 service RaftService {
-  rpc RequestId(Empty) returns (IdRequestReponse) {}
-  rpc ChangeConfig(eraftpb.ConfChange) returns (RaftResponse) {}
+  rpc MemberBootstrapReady(MemberBootstrapReadyArgs) returns (MemberBootstrapReadyResponse) {}
+  rpc ClusterBootstrapReady(ClusterBootstrapReadyArgs) returns (ClusterBootstrapReadyResponse) {}
+  rpc RequestId(RequestIdArgs) returns (RequestIdResponse) {}
+  rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
   rpc SendMessage(eraftpb.Message) returns (RaftResponse) {}
 }
 
@@ -19,9 +21,16 @@ message Proposal {
   bytes inner = 1;
 }
 
-message IdRequestReponse{
-  ResultCode code = 1;
-  bytes data = 2;
+message RequestIdArgs {
+  string addr                    = 1;
+}
+
+message RequestIdResponse{
+  ResultCode code                = 1;
+  uint64 leader_id               = 2;
+  string leader_addr             = 3;
+  uint64 reserved_id             = 4;
+  bytes peers                    = 5;
 }
 
 message Empty {}
@@ -33,4 +42,35 @@ message Entry {
 
 message RaftResponse {
   bytes inner = 2;
+}
+
+// Used in Static Member's Bootstrap
+
+message MemberBootstrapReadyArgs {
+  uint64 node_id                  = 1;
+}
+
+message MemberBootstrapReadyResponse {
+}
+
+message ClusterBootstrapReadyArgs {
+  bytes peers                     = 1;
+}
+
+message ClusterBootstrapReadyResponse {
+}
+
+// Config Change
+
+enum ChangeConfigResultType {
+  ChangeConfig_Success                    = 0;
+  ChangeConfig_WrongLeader                = 1;
+  ChangeConfig_TimeoutError               = 2;
+  ChangeConfig_UnknownError               = 3;
+  ChangeConfig_Rejected                   = 4;
+}
+
+message ChangeConfigResponse {
+  ChangeConfigResultType result_type = 1;
+  bytes data                         = 2;
 }

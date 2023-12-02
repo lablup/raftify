@@ -3,13 +3,13 @@ extern crate slog;
 extern crate slog_async;
 extern crate slog_term;
 
+use memstore::utils::build_config;
 use slog::Drain;
 
 use actix_web::{get, web, App, HttpServer, Responder};
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
-use log::info;
-use riteraft::{Mailbox, Raft, Result, Store};
+use riteraft::{AbstractStateMachine, Mailbox, Raft, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -43,14 +43,14 @@ impl HashStore {
 }
 
 #[async_trait]
-impl Store for HashStore {
+impl AbstractStateMachine for HashStore {
     async fn apply(&mut self, message: &[u8]) -> Result<Vec<u8>> {
         let message: Message = deserialize(message).unwrap();
         let message: Vec<u8> = match message {
             Message::Insert { key, value } => {
                 let mut db = self.0.write().unwrap();
                 db.insert(key, value.clone());
-                info!("inserted: ({}, {})", key, value);
+                log::info!("inserted: ({}, {})", key, value);
                 serialize(&value).unwrap()
             }
         };
@@ -98,7 +98,7 @@ async fn leave(data: web::Data<(Arc<Mailbox>, HashStore)>) -> impl Responder {
     "OK".to_string()
 }
 
-#[tokio::main]
+#[actix_rt::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::FullFormat::new(decorator).build().fuse();
@@ -111,21 +111,25 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let options = Options::from_args();
     let store = HashStore::new();
 
-    // setup runtime for actix
-    let local = tokio::task::LocalSet::new();
-    let _sys = actix_rt::System::run_in_tokio("server", &local);
+    let cfg = build_config();
 
-    let raft = Raft::new(options.raft_addr, store.clone(), logger.clone());
+    let mut raft = Raft::new(options.raft_addr, store.clone(), cfg, logger.clone());
+
     let mailbox = Arc::new(raft.mailbox());
     let (raft_handle, mailbox) = match options.peer_addr {
-        Some(addr) => {
-            info!("running in follower mode");
-            let handle = tokio::spawn(raft.join(addr));
+        Some(peer_addr) => {
+            log::info!("running in follower mode");
+            let request_id_resp = raft.request_id(peer_addr.clone()).await?;
+            raft.build(request_id_resp.reserved_id)?;
+            let handle = tokio::spawn(raft.run());
+
             (handle, mailbox)
         }
         None => {
-            info!("running in leader mode");
-            let handle = tokio::spawn(raft.lead());
+            log::info!("running in leader mode");
+            let node_id = 1;
+            raft.build(node_id)?;
+            let handle = tokio::spawn(raft.run());
             (handle, mailbox)
         }
     };

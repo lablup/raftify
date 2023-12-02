@@ -4,10 +4,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, ThisError)]
 pub enum Error {
-    #[error("raft error: `{0}`")]
+    #[error("Raft error: cause:`{0}`")]
     RaftError(#[from] raft::Error),
     #[error("Error joining the cluster")]
     JoinError,
+    #[error("Request rejected, cause: `{0}`")]
+    Rejected(String),
+    #[error("Request timeout")]
+    Timeout,
     #[error("gprc error: `{0}`")]
     Grpc(#[from] tonic::transport::Error),
     #[error("error calling remote procedure: `{0}`")]
