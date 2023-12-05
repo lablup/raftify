@@ -15,6 +15,7 @@ use raft::eraftpb::{ConfChangeSingle, ConfChangeType, ConfChangeV2};
 use tokio::sync::{mpsc, Mutex};
 use tonic::Request;
 
+#[derive(Clone)]
 pub struct Raft<S: AbstractStateMachine + 'static> {
     pub raft_node: Option<Arc<Mutex<RaftNode<S>>>>,
     pub raft_server: Option<Arc<Mutex<RaftServer>>>,

@@ -115,24 +115,25 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let mut raft = Raft::new(options.raft_addr, store.clone(), cfg, logger.clone());
 
-    let mailbox = Arc::new(raft.mailbox());
-    let (raft_handle, mailbox) = match options.peer_addr {
+    let raft_handle = match options.peer_addr {
         Some(peer_addr) => {
             log::info!("running in follower mode");
             let request_id_resp = raft.request_id(peer_addr.clone()).await?;
             raft.build(request_id_resp.reserved_id)?;
-            let handle = tokio::spawn(raft.run());
+            let handle = tokio::spawn(raft.clone().run());
 
-            (handle, mailbox)
+            handle
         }
         None => {
             log::info!("running in leader mode");
             let node_id = 1;
             raft.build(node_id)?;
-            let handle = tokio::spawn(raft.run());
-            (handle, mailbox)
+            let handle = tokio::spawn(raft.clone().run());
+            handle
         }
     };
+
+    let mailbox = Arc::new(raft.mailbox());
 
     if let Some(addr) = options.web_server {
         let _server = tokio::spawn(

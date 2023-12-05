@@ -8,7 +8,7 @@ use crate::error::Result;
 use crate::raft_service::raft_service_client::RaftServiceClient;
 use crate::request_message::RequestMessage;
 use crate::response_message::ResponseMessage;
-use crate::storage::lmdb::{HeedStorage, LogStore};
+use crate::storage::heed::{HeedStorage, LogStore};
 use crate::Peers;
 use crate::{AbstractStateMachine, Config};
 

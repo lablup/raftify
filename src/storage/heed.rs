@@ -64,7 +64,7 @@ pub struct HeedStorageCore {
 impl HeedStorageCore {
     pub fn create(path: impl AsRef<Path>, id: u64) -> Result<Self> {
         let path = path.as_ref();
-        let name = format!("raft-{}.mdb", id);
+        let name = format!("node-{}", id);
 
         fs::create_dir_all(Path::new(&path).join(&name))?;
 
@@ -129,11 +129,16 @@ impl HeedStorageCore {
         Ok(())
     }
 
-    pub fn snapshot(&self) -> Result<Option<Snapshot>> {
-        let reader = self.env.read_txn()?;
+    pub fn snapshot(
+        &self,
+        reader: &heed::RoTxn,
+        _request_index: u64,
+        _to: u64,
+    ) -> Result<Snapshot> {
         let snapshot = self
             .metadata_db
-            .get::<_, Str, HeedSnapshot>(&reader, SNAPSHOT_KEY)?;
+            .get::<_, Str, HeedSnapshot>(reader, SNAPSHOT_KEY)?;
+        let snapshot = snapshot.unwrap_or_default();
         Ok(snapshot)
     }
 
@@ -167,6 +172,7 @@ impl HeedStorageCore {
 
     fn entries(
         &self,
+        reader: &heed::RoTxn,
         low: u64,
         high: u64,
         max_size: impl Into<Option<u64>>,
@@ -174,7 +180,6 @@ impl HeedStorageCore {
     ) -> Result<Vec<Entry>> {
         info!("Entries [{}, {}) requested", low, high);
 
-        let reader = self.env.read_txn()?;
         let iter = self.entries_db.range(&reader, &(low..high))?;
         let max_size: Option<u64> = max_size.into();
         let mut size_count = 0;
@@ -345,8 +350,10 @@ impl Storage for HeedStorage {
         ctx: GetEntriesContext,
     ) -> raft::Result<Vec<Entry>> {
         let store = self.rl();
+        let reader = store.env.read_txn().unwrap();
+
         let entries = store
-            .entries(low, high, max_size, ctx)
+            .entries(&reader, low, high, max_size, ctx)
             .map_err(|e| raft::Error::Store(raft::StorageError::Other(e.into())))?;
         Ok(entries)
     }
@@ -361,7 +368,7 @@ impl Storage for HeedStorage {
             .first_index(&reader)
             .map_err(|_| raft::Error::Store(raft::StorageError::Unavailable))?;
 
-        let snapshot = self.snapshot(0, 0)?;
+        let snapshot = store.snapshot(&reader, 0, 0).unwrap();
         if snapshot.get_metadata().get_index() == idx {
             return Ok(snapshot.get_metadata().get_term());
         }
@@ -399,13 +406,13 @@ impl Storage for HeedStorage {
         Ok(last_index)
     }
 
-    fn snapshot(&self, _request_index: u64, _to: u64) -> raft::Result<Snapshot> {
+    fn snapshot(&self, request_index: u64, to: u64) -> raft::Result<Snapshot> {
         let store = self.rl();
-        match store.snapshot() {
-            Ok(Some(snapshot)) => Ok(snapshot),
-            _ => Err(raft::Error::Store(
-                raft::StorageError::SnapshotTemporarilyUnavailable,
-            )),
-        }
+        let reader = store.env.read_txn().unwrap();
+
+        store.snapshot(&reader, request_index, to).map_err(|e| {
+            log::error!("Snapshot error occurred: {:?}", e);
+            raft::Error::Store(raft::StorageError::SnapshotTemporarilyUnavailable)
+        })
     }
 }
