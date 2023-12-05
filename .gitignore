@@ -1,4 +1,4 @@
 /target
-raft-*.mdb
+node-*
 
 logs

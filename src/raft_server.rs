@@ -16,6 +16,7 @@ use tokio::time::timeout;
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
 
+#[derive(Clone)]
 pub struct RaftServer {
     snd: mpsc::Sender<RequestMessage>,
     addr: SocketAddr,

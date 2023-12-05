@@ -66,6 +66,8 @@ impl<S: AbstractStateMachine + Send + Sync + 'static> Raft<S> {
         let bootstrap_done = self.initial_peers.clone().unwrap().is_empty();
 
         let (tx, rx) = mpsc::channel(100);
+        self.tx = Some(tx.clone());
+
         let raft_node = match node_id {
             1 => RaftNode::bootstrap_cluster(
                 rx,
@@ -101,8 +103,10 @@ impl<S: AbstractStateMachine + Send + Sync + 'static> Raft<S> {
         assert!(self.is_initialized());
 
         let raft_node = self.raft_node.to_owned().unwrap();
-        let node_handle = tokio::spawn(async move { (raft_node.lock().await).run().await });
-        let _ = tokio::try_join!(node_handle);
+        let raft_node_handle = tokio::spawn(async move { (raft_node.lock().await).run().await });
+        let raft_server = self.raft_server.to_owned().unwrap();
+        let _raft_server_handle = tokio::spawn(async move { (raft_server.lock().await).clone().run().await });
+        let _ = tokio::try_join!(raft_node_handle);
         Ok(())
     }
 

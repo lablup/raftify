@@ -15,8 +15,10 @@ use crate::{AbstractStateMachine, Config};
 use bincode::{deserialize, serialize};
 use log::*;
 use prost::Message as PMessage;
-use raft::eraftpb::{ConfChangeType, ConfChangeV2, Entry, EntryType, Message as RaftMessage};
-use raft::{eraftpb::Snapshot, raw_node::RawNode};
+use raft::eraftpb::{
+    ConfChangeType, ConfChangeV2, Entry, EntryType, Message as RaftMessage, Snapshot,
+};
+use raft::raw_node::RawNode;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::time::timeout;

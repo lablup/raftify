@@ -2,6 +2,7 @@
 extern crate slog;
 extern crate slog_async;
 extern crate slog_term;
+extern crate slog_scope;
 
 use memstore::utils::build_config;
 use slog::Drain;
@@ -103,10 +104,11 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::FullFormat::new(decorator).build().fuse();
     let drain = slog_async::Async::new(drain).build().fuse();
-    let logger = slog::Logger::root(drain, slog_o!("version" => env!("CARGO_PKG_VERSION")));
+    let logger = slog::Logger::root(drain, o!());
 
     // converts log to slog
-    let _log_guard = slog_stdlog::init().unwrap();
+    let _scope_guard = slog_scope::set_global_logger(logger.clone());
+    let _log_guard = slog_stdlog::init_with_level(log::Level::Debug).unwrap();
 
     let options = Options::from_args();
     let store = HashStore::new();
@@ -117,15 +119,15 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let raft_handle = match options.peer_addr {
         Some(peer_addr) => {
-            log::info!("running in follower mode");
+            info!(logger, "Running in Follower mode");
             let request_id_resp = raft.request_id(peer_addr.clone()).await?;
             raft.build(request_id_resp.reserved_id)?;
             let handle = tokio::spawn(raft.clone().run());
-
+            
             handle
         }
         None => {
-            log::info!("running in leader mode");
+            info!(logger, "Bootstrap a Raft Cluster");
             let node_id = 1;
             raft.build(node_id)?;
             let handle = tokio::spawn(raft.clone().run());

@@ -3,7 +3,6 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use crate::error::Result;
 use crate::raft_service::raft_service_client::RaftServiceClient;
 
-use log::*;
 use serde::{Deserialize, Serialize};
 use tonic::transport::Channel;
 
@@ -24,7 +23,7 @@ pub struct Peer {
 impl Peer {
     pub async fn new<A: ToSocketAddrs>(addr: A) -> Result<Peer> {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
-        let client = Some(RaftServiceClient::connect(addr.to_string()).await?);
+        let client = Some(RaftServiceClient::connect(format!("http://{}", addr.to_string())).await?);
 
         return Ok(Peer {
             addr,
