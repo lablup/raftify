@@ -17,8 +17,8 @@ use tonic::Request;
 
 #[derive(Clone)]
 pub struct Raft<FSM: AbstractStateMachine + 'static> {
-    pub raft_node: Option<Arc<Mutex<RaftNode<FSM>>>>,
-    pub raft_server: Option<Arc<Mutex<RaftServer>>>,
+    pub raft_node: Option<RaftNode<FSM>>,
+    pub raft_server: Option<RaftServer>,
     pub fsm: Option<FSM>,
     pub initial_peers: Option<Peers>,
     pub tx: Option<mpsc::Sender<RequestMessage>>,
@@ -91,12 +91,9 @@ impl<S: AbstractStateMachine + Send + Sync + 'static> Raft<S> {
             ),
         }?;
 
-        let raft_node = Arc::new(Mutex::new(raft_node));
-        self.raft_node = Some(Arc::clone(&raft_node));
-
+        self.raft_node = Some(raft_node);
         let raft_server = RaftServer::new(tx.clone(), self.addr.clone());
-        let raft_server = Arc::new(Mutex::new(raft_server));
-        self.raft_server = Some(Arc::clone(&raft_server));
+        self.raft_server = Some(raft_server);
         Ok(())
     }
 
@@ -104,10 +101,9 @@ impl<S: AbstractStateMachine + Send + Sync + 'static> Raft<S> {
         assert!(self.is_initialized());
 
         let raft_node = self.raft_node.to_owned().unwrap();
-        let raft_node_handle = tokio::spawn(async move { (raft_node.lock().await).run().await });
+        let raft_node_handle = tokio::spawn(async move { raft_node.run() });
         let raft_server = self.raft_server.to_owned().unwrap();
-        let _raft_server_handle =
-            tokio::spawn(async move { (raft_server.lock().await).clone().run().await });
+        let _raft_server_handle = tokio::spawn(async move { raft_server.run() });
         let _ = tokio::try_join!(raft_node_handle);
         Ok(())
     }

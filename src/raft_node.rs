@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::error::Result;
@@ -19,8 +20,8 @@ use raft::eraftpb::{
     ConfChangeType, ConfChangeV2, Entry, EntryType, Message as RaftMessage, Snapshot,
 };
 use raft::raw_node::RawNode;
-use tokio::sync::mpsc;
 use tokio::sync::oneshot;
+use tokio::sync::{mpsc, Mutex};
 use tokio::time::timeout;
 use tonic::Request;
 
@@ -67,25 +68,26 @@ impl MessageSender {
     }
 }
 
+#[derive(Clone)]
 pub struct RaftNode<FSM: AbstractStateMachine + 'static> {
-    pub raw_node: RawNode<HeedStorage>,
+    pub raw_node: Arc<Mutex<RawNode<HeedStorage>>>,
+    pub rcv: Arc<Mutex<mpsc::Receiver<RequestMessage>>>,
     pub peers: Peers,
-    pub rcv: mpsc::Receiver<RequestMessage>,
     pub snd: mpsc::Sender<RequestMessage>,
     pub fsm: FSM,
     pub config: Config,
     pub storage: HeedStorage,
+    response_seq: Arc<AtomicU64>,
     should_exit: bool,
     bootstrap_done: bool,
-    response_seq: AtomicU64,
     last_snapshot_created: Instant,
 }
 
-impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
+impl<FSM: AbstractStateMachine + Send + 'static> RaftNode<FSM> {
     pub fn bootstrap_cluster(
         rcv: mpsc::Receiver<RequestMessage>,
         snd: mpsc::Sender<RequestMessage>,
-        fsm: S,
+        fsm: FSM,
         config: Config,
         initial_peers: Peers,
         logger: &slog::Logger,
@@ -113,6 +115,10 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
         raw_node.raft.become_candidate();
         raw_node.raft.become_leader();
 
+        let raw_node = Arc::new(Mutex::new(raw_node));
+        let rcv = Arc::new(Mutex::new(rcv));
+        let response_seq = Arc::new(response_seq);
+
         Ok(RaftNode {
             raw_node,
             rcv,
@@ -132,7 +138,7 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
         rcv: mpsc::Receiver<RequestMessage>,
         snd: mpsc::Sender<RequestMessage>,
         id: u64,
-        fsm: S,
+        fsm: FSM,
         config: Config,
         peers: Peers,
         logger: &slog::Logger,
@@ -150,6 +156,10 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
             .checked_sub(Duration::from_secs(1000))
             .unwrap();
 
+        let raw_node = Arc::new(Mutex::new(raw_node));
+        let rcv = Arc::new(Mutex::new(rcv));
+        let response_seq = Arc::new(response_seq);
+
         Ok(RaftNode {
             raw_node,
             rcv,
@@ -165,20 +175,24 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
         })
     }
 
-    pub fn is_leader(&self) -> bool {
-        self.raw_node.raft.leader_id == self.raw_node.raft.id
+    pub fn is_leader(&self, raw_node: &RawNode<HeedStorage>) -> bool {
+        raw_node.raft.leader_id == raw_node.raft.id
     }
 
-    pub fn get_id(&self) -> u64 {
-        self.raft.id
+    pub fn get_id(&self, raw_node: &RawNode<HeedStorage>) -> u64 {
+        raw_node.raft.id
     }
 
-    fn get_leader_id(&self) -> u64 {
-        self.raft.leader_id
+    pub fn get_leader_id(&self, raw_node: &RawNode<HeedStorage>) -> u64 {
+        raw_node.raft.leader_id
     }
 
-    fn send_wrongleader_response(&mut self, channel: oneshot::Sender<ResponseMessage>) {
-        let leader_id = self.get_leader_id();
+    fn send_wrongleader_response(
+        &self,
+        raw_node: &RawNode<HeedStorage>,
+        channel: oneshot::Sender<ResponseMessage>,
+    ) {
+        let leader_id = self.get_leader_id(raw_node);
         let leader_addr = self.peers.get(&leader_id).unwrap().addr.to_string();
 
         let raft_response = ResponseMessage::WrongLeader {
@@ -190,19 +204,17 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
     }
 
     async fn send_messages(&mut self, messages: Vec<RaftMessage>) {
-        // if !self.bootstrap_done {
-        //     return;
-        // }
+        if !self.bootstrap_done {
+            return;
+        }
 
         for message in messages {
             let client = match self.peers.get_mut(&message.get_to()) {
                 Some(peer) => {
-                    println!("Actual connection to {}", peer.addr);
                     if peer.client.is_none() {
-                        let s = peer.connect().await;
-                        println!("sss!! {:?}", s);
+                        // TODO: Handle error here
+                        let _ = peer.connect().await;
                     }
-                    println!("Actual connectted to {}", peer.addr);
                     peer.client.clone()
                 }
                 None => continue,
@@ -224,21 +236,22 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
 
     async fn handle_committed_entries(
         &mut self,
+        raw_node: &mut RawNode<HeedStorage>,
         committed_entries: Vec<Entry>,
         client_send: &mut HashMap<u64, oneshot::Sender<ResponseMessage>>,
     ) -> Result<()> {
-        for entry in committed_entries {
+        for mut entry in committed_entries {
             if entry.get_data().is_empty() {
                 // Empty entry, when the peer becomes Leader it will send an empty entry.
                 continue;
             }
             match entry.get_entry_type() {
                 EntryType::EntryConfChangeV2 => {
-                    self.handle_committed_config_change_entry(&entry, client_send)
+                    self.handle_committed_config_change_entry(raw_node, &mut entry, client_send)
                         .await?;
                 }
                 _ => {
-                    self.handle_committed_normal_entry(&entry, client_send)
+                    self.handle_committed_normal_entry(raw_node, &entry, client_send)
                         .await?;
                 }
             }
@@ -248,6 +261,7 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
 
     async fn handle_committed_normal_entry(
         &mut self,
+        raw_node: &mut RawNode<HeedStorage>,
         entry: &Entry,
         senders: &mut HashMap<u64, oneshot::Sender<ResponseMessage>>,
     ) -> Result<()> {
@@ -260,7 +274,7 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
         if Instant::now()
             > self.last_snapshot_created + Duration::from_secs_f32(self.config.snapshot_interval)
         {
-            self.create_snapshot(entry.get_index(), entry.get_term())
+            self.create_snapshot(raw_node, entry.get_index(), entry.get_term())
                 .await?;
         }
         Ok(())
@@ -268,7 +282,8 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
 
     async fn handle_committed_config_change_entry(
         &mut self,
-        entry: &Entry,
+        raw_node: &mut RawNode<HeedStorage>,
+        entry: &mut Entry,
         senders: &mut HashMap<u64, oneshot::Sender<ResponseMessage>>,
     ) -> Result<()> {
         let conf_change_v2: ConfChangeV2 = PMessage::decode(entry.get_data())?;
@@ -287,7 +302,7 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
                     self.peers.add_peer(node_id, &addr.to_string());
                 }
                 ConfChangeType::RemoveNode => {
-                    if node_id == self.get_id() {
+                    if node_id == self.get_id(raw_node) {
                         self.should_exit = true;
                         log::info!("Node {} quit the cluster.", node_id);
                     } else {
@@ -299,11 +314,11 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
             }
         }
 
-        match self.apply_conf_change(&conf_change_v2) {
+        match raw_node.apply_conf_change(&conf_change_v2) {
             Ok(conf_state) => {
-                let store = self.mut_store();
+                let store = raw_node.mut_store();
                 store.set_conf_state(&conf_state)?;
-                self.create_snapshot(entry.get_index(), entry.get_term())
+                self.create_snapshot(raw_node, entry.get_index(), entry.get_term())
                     .await?;
             }
             Err(e) => {
@@ -342,30 +357,36 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
         Ok(())
     }
 
-    async fn create_snapshot(&mut self, index: u64, term: u64) -> Result<()> {
+    async fn create_snapshot(
+        &mut self,
+        raw_node: &mut RawNode<HeedStorage>,
+        index: u64,
+        term: u64,
+    ) -> Result<()> {
         self.last_snapshot_created = Instant::now();
         let snapshot_data = self.fsm.snapshot().await?;
-        let last_applied = self.raft.raft_log.applied;
-        let store = self.mut_store();
+
+        let last_applied = raw_node.raft.raft_log.applied;
+        let store = raw_node.mut_store();
         store.compact(last_applied)?;
         let _ = store.create_snapshot(snapshot_data, index, term);
         log::info!("Snapshot created successfully.");
         Ok(())
     }
 
-    pub fn inspect(&self) -> Result<String> {
+    pub fn inspect(&self, raw_node: &RawNode<HeedStorage>) -> Result<String> {
         // let prs = self.raft.prs().iter().map(|(k, v)| (k, v)).collect();
 
-        let id = self.raft.id;
-        let leader_id = self.raft.leader_id;
+        let id = raw_node.raft.id;
+        let leader_id = raw_node.raft.leader_id;
         let hard_state = self.storage.hard_state()?;
         let conf_state = self.storage.conf_state()?;
         let snapshot = self.storage.snapshot(0, 0)?;
-        let last_index = self.raft.raft_log.last_index();
+        let last_index = raw_node.raft.raft_log.last_index();
 
-        let last_applied = self.raft.raft_log.applied;
-        let last_committed = self.raft.raft_log.committed;
-        let last_persisted = self.raft.raft_log.persisted;
+        let last_applied = raw_node.raft.raft_log.applied;
+        let last_committed = raw_node.raft.raft_log.committed;
+        let last_persisted = raw_node.raft.raft_log.persisted;
 
         let result = format!(
             "========= Outline =========\
@@ -400,7 +421,11 @@ last_persisted: {last_persisted}\
                 warn!("Quitting raft");
                 return Ok(());
             }
-            match timeout(heartbeat, self.rcv.recv()).await {
+
+            let mut raw_node_lock = self.raw_node.lock().await;
+            let raw_node = raw_node_lock.deref_mut();
+
+            match timeout(heartbeat, self.rcv.lock().await.recv()).await {
                 Ok(Some(RequestMessage::ClusterBootstrapReady { peers, chan })) => {
                     log::info!(
                         "All nodes are ready to join the cluster. Start to bootstrap process..."
@@ -408,15 +433,15 @@ last_persisted: {last_persisted}\
                     // self.peers = peers;
                 }
                 Ok(Some(RequestMessage::ConfigChange { chan, conf_change })) => {
-                    if self.raft.has_pending_conf() {
-                        log::warn!("Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raft.pending_conf_index);
+                    if raw_node.raft.has_pending_conf() {
+                        log::warn!("Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", raw_node.raft.pending_conf_index);
                         continue;
                     }
 
-                    if !self.is_leader() {
+                    if !self.is_leader(raw_node) {
                         // wrong leader send client cluster data
                         // TODO: retry strategy in case of failure
-                        self.send_wrongleader_response(chan);
+                        self.send_wrongleader_response(raw_node, chan);
                     } else {
                         let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
                         client_send.insert(response_seq, chan);
@@ -425,20 +450,21 @@ last_persisted: {last_persisted}\
                             response_seq,
                             conf_change
                         );
-                        self.propose_conf_change(serialize(&response_seq).unwrap(), conf_change)?;
+                        raw_node
+                            .propose_conf_change(serialize(&response_seq).unwrap(), conf_change)?;
                     }
                 }
                 Ok(Some(RequestMessage::Raft(m))) => {
                     debug!(
                         "Node {} received Raft message from the node {}, Message: {:?}",
-                        self.raft.id, m.from, m
+                        raw_node.raft.id, m.from, m
                     );
-                    if let Ok(_a) = self.step(*m) {};
+                    if let Ok(_a) = raw_node.step(*m) {};
                 }
                 Ok(Some(RequestMessage::Propose { proposal, chan })) => {
-                    if !self.is_leader() {
+                    if !self.is_leader(raw_node) {
                         // wrong leader send client cluster data
-                        let leader_id = self.get_leader_id();
+                        let leader_id = self.get_leader_id(raw_node);
                         // leader can't be an empty node
                         // let leader_addr = self.peers[&leader_id].as_ref().unwrap().addr.clone();
                         let leader_addr = self.peers.get(&leader_id).unwrap().addr.to_string();
@@ -451,28 +477,28 @@ last_persisted: {last_persisted}\
                         let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
                         client_send.insert(response_seq, chan);
                         let response_seq = serialize(&response_seq).unwrap();
-                        self.propose(response_seq, proposal).unwrap();
+                        raw_node.propose(response_seq, proposal).unwrap();
                     }
                 }
                 Ok(Some(RequestMessage::RequestId { addr, chan })) => {
-                    if !self.is_leader() {
+                    if !self.is_leader(raw_node) {
                         // TODO: retry strategy in case of failure
-                        self.send_wrongleader_response(chan);
+                        self.send_wrongleader_response(raw_node, chan);
                     } else {
                         chan.send(ResponseMessage::IdReserved {
-                            reserved_id: self.peers.reserve_peer(self.get_id(), addr).await,
-                            leader_id: self.get_id(),
+                            reserved_id: self.peers.reserve_peer(self.get_id(raw_node), addr).await,
+                            leader_id: self.get_id(raw_node),
                             peers: self.peers.clone(),
                         })
                         .unwrap();
                     }
                 }
                 Ok(Some(RequestMessage::ReportUnreachable { node_id })) => {
-                    self.report_unreachable(node_id);
+                    raw_node.report_unreachable(node_id);
                 }
                 Ok(Some(RequestMessage::DebugNode { chan })) => {
                     chan.send(ResponseMessage::DebugNode {
-                        result: self.inspect()?,
+                        result: self.inspect(raw_node)?,
                     })
                     .unwrap();
                 }
@@ -484,24 +510,28 @@ last_persisted: {last_persisted}\
             now = Instant::now();
             if elapsed > heartbeat {
                 heartbeat = Duration::from_millis(100);
-                self.tick();
+                raw_node.tick();
             } else {
                 heartbeat -= elapsed;
             }
 
-            self.on_ready(&mut client_send).await?;
+            self.on_ready(raw_node, &mut client_send).await?;
         }
     }
 
     async fn on_ready(
         &mut self,
+        raw_node: &mut RawNode<HeedStorage>,
         client_send: &mut HashMap<u64, oneshot::Sender<ResponseMessage>>,
     ) -> Result<()> {
-        if !self.has_ready() {
+        // let mut raw_node = self.raw_node.lock().await;
+        // let raw_node = raw_node.deref_mut();
+
+        if !raw_node.has_ready() {
             return Ok(());
         }
 
-        let mut ready = self.ready();
+        let mut ready = raw_node.ready();
 
         if !ready.messages().is_empty() {
             self.send_messages(ready.take_messages()).await;
@@ -509,21 +539,21 @@ last_persisted: {last_persisted}\
         if *ready.snapshot() != Snapshot::default() {
             let snapshot = ready.snapshot();
             self.fsm.restore(snapshot.get_data()).await?;
-            let store = self.mut_store();
+            let store = raw_node.mut_store();
             store.apply_snapshot(snapshot.clone())?;
         }
 
-        self.handle_committed_entries(ready.take_committed_entries(), client_send)
+        self.handle_committed_entries(raw_node, ready.take_committed_entries(), client_send)
             .await?;
 
         if !ready.entries().is_empty() {
             let entries = &ready.entries()[..];
-            let store = self.mut_store();
+            let store = raw_node.mut_store();
             store.append(entries)?;
         }
 
         if let Some(hs) = ready.hs() {
-            let store = self.mut_store();
+            let store = raw_node.mut_store();
             store.set_hard_state(hs)?;
         }
 
@@ -531,34 +561,20 @@ last_persisted: {last_persisted}\
             self.send_messages(ready.take_persisted_messages()).await;
         }
 
-        let mut light_rd = self.advance(ready);
+        let mut light_rd: raft::LightReady = raw_node.advance(ready);
 
         if let Some(commit) = light_rd.commit_index() {
-            let store = self.mut_store();
+            let store = raw_node.mut_store();
             store.set_hard_state_comit(commit)?;
         }
 
         self.send_messages(light_rd.take_messages()).await;
 
-        self.handle_committed_entries(light_rd.take_committed_entries(), client_send)
+        self.handle_committed_entries(raw_node, light_rd.take_committed_entries(), client_send)
             .await?;
 
-        self.advance_apply();
+        raw_node.advance_apply();
 
         Ok(())
-    }
-}
-
-impl<S: AbstractStateMachine> Deref for RaftNode<S> {
-    type Target = RawNode<HeedStorage>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.raw_node
-    }
-}
-
-impl<S: AbstractStateMachine> DerefMut for RaftNode<S> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.raw_node
     }
 }
