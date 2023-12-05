@@ -24,4 +24,7 @@ pub enum ResponseMessage {
         data: Vec<u8>,
     },
     Ok,
+    DebugNode {
+        result: String,
+    },
 }

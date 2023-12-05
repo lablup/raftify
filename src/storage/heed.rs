@@ -1,5 +1,6 @@
 use crate::error::Result;
 
+use bincode::de;
 use heed::types::*;
 use heed::{Database, Env, PolyDatabase};
 use heed_traits::{BytesDecode, BytesEncode};
@@ -15,11 +16,15 @@ use std::sync::Arc;
 
 pub trait LogStore: Storage {
     fn append(&mut self, entries: &[Entry]) -> Result<()>;
+    fn hard_state(&self) -> Result<HardState>;
     fn set_hard_state(&mut self, hard_state: &HardState) -> Result<()>;
     fn set_hard_state_comit(&mut self, comit: u64) -> Result<()>;
+    fn conf_state(&self) -> Result<ConfState>;
     fn set_conf_state(&mut self, conf_state: &ConfState) -> Result<()>;
+    fn snapshot(&self, request_index: u64, to: u64) -> Result<Snapshot>;
     fn create_snapshot(&mut self, data: Vec<u8>, index: u64, term: u64) -> Result<()>;
     fn apply_snapshot(&mut self, snapshot: Snapshot) -> Result<()>;
+    fn last_index(&self) -> Result<u64>;
     fn compact(&mut self, index: u64) -> Result<()>;
 }
 
@@ -224,6 +229,7 @@ impl HeedStorageCore {
     }
 }
 
+#[derive(Clone)]
 pub struct HeedStorage(Arc<RwLock<HeedStorageCore>>);
 
 impl HeedStorage {
@@ -262,6 +268,13 @@ impl LogStore for HeedStorage {
         Ok(())
     }
 
+    fn hard_state(&self) -> Result<HardState> {
+        let store = self.rl();
+        let reader = store.env.read_txn()?;
+        let hard_state = store.hard_state(&reader)?;
+        Ok(hard_state)
+    }
+
     fn set_hard_state(&mut self, hard_state: &HardState) -> Result<()> {
         let store = self.wl();
         let mut writer = store.env.write_txn()?;
@@ -281,12 +294,26 @@ impl LogStore for HeedStorage {
         Ok(())
     }
 
+    fn conf_state(&self) -> Result<ConfState> {
+        let store = self.rl();
+        let reader = store.env.read_txn()?;
+        let conf_state = store.conf_state(&reader)?;
+        Ok(conf_state)
+    }
+
     fn set_conf_state(&mut self, conf_state: &ConfState) -> Result<()> {
         let store = self.wl();
         let mut writer = store.env.write_txn()?;
         store.set_conf_state(&mut writer, conf_state)?;
         writer.commit()?;
         Ok(())
+    }
+
+    fn snapshot(&self, request_index: u64, to: u64) -> Result<Snapshot> {
+        let store = self.rl();
+        let reader = store.env.read_txn()?;
+        let snapshot = store.snapshot(&reader, request_index, to)?;
+        Ok(snapshot)
     }
 
     fn create_snapshot(&mut self, data: Vec<u8>, index: u64, term: u64) -> Result<()> {
@@ -320,6 +347,13 @@ impl LogStore for HeedStorage {
         store.set_last_index(&mut writer, metadata.index)?;
         writer.commit()?;
         Ok(())
+    }
+
+    fn last_index(&self) -> Result<u64> {
+        let store = self.rl();
+        let reader = store.env.read_txn()?;
+        let last_index = store.last_index(&reader)?;
+        Ok(last_index)
     }
 }
 

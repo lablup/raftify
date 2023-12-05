@@ -46,7 +46,7 @@ pub async fn load_peers() -> Result<Peers, Box<dyn std::error::Error>> {
 
     for peer_info in raft_config.cfg.peers {
         let addr = SocketAddr::new(peer_info.ip.parse().unwrap(), peer_info.port);
-        peers.add_peer(peer_info.node_id, addr).await;
+        peers.add_peer(peer_info.node_id, addr);
     }
 
     Ok(peers)

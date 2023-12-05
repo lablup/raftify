@@ -67,13 +67,14 @@ impl MessageSender {
     }
 }
 
-pub struct RaftNode<S: AbstractStateMachine + 'static> {
+pub struct RaftNode<FSM: AbstractStateMachine + 'static> {
     pub raw_node: RawNode<HeedStorage>,
     pub peers: Peers,
     pub rcv: mpsc::Receiver<RequestMessage>,
     pub snd: mpsc::Sender<RequestMessage>,
-    pub fsm: S,
+    pub fsm: FSM,
     pub config: Config,
+    pub storage: HeedStorage,
     should_exit: bool,
     bootstrap_done: bool,
     response_seq: AtomicU64,
@@ -105,7 +106,7 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
 
         let mut storage = HeedStorage::create(".", 1)?;
         storage.apply_snapshot(snapshot).unwrap();
-        let mut raw_node = RawNode::new(&raft_config, storage, logger)?;
+        let mut raw_node = RawNode::new(&raft_config, storage.clone(), logger)?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now();
 
@@ -119,6 +120,7 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
             response_seq,
             snd,
             config,
+            storage,
             bootstrap_done,
             last_snapshot_created,
             peers: initial_peers,
@@ -142,7 +144,7 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
         raft_config.validate()?;
 
         let storage = HeedStorage::create(".", id)?;
-        let raw_node = RawNode::new(&raft_config, storage, logger)?;
+        let raw_node = RawNode::new(&raft_config, storage.clone(), logger)?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now()
             .checked_sub(Duration::from_secs(1000))
@@ -156,6 +158,7 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
             response_seq,
             snd,
             config,
+            storage,
             last_snapshot_created,
             bootstrap_done,
             should_exit: false,
@@ -186,14 +189,22 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
         let _ = channel.send(raft_response);
     }
 
-    fn send_messages(&mut self, messages: Vec<RaftMessage>) {
-        if !self.bootstrap_done {
-            return;
-        }
+    async fn send_messages(&mut self, messages: Vec<RaftMessage>) {
+        // if !self.bootstrap_done {
+        //     return;
+        // }
 
         for message in messages {
             let client = match self.peers.get_mut(&message.get_to()) {
-                Some(peer) => peer.client.clone(),
+                Some(peer) => {
+                    println!("Actual connection to {}", peer.addr);
+                    if peer.client.is_none() {
+                        let s = peer.connect().await;
+                        println!("sss!! {:?}", s);
+                    }
+                    println!("Actual connectted to {}", peer.addr);
+                    peer.client.clone()
+                }
                 None => continue,
             }
             .unwrap();
@@ -273,7 +284,7 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
                 ConfChangeType::AddNode => {
                     let addr = addrs[cc_idx];
                     log::info!("Node {} ({}) joined the cluster.", node_id, addr);
-                    self.peers.add_peer(node_id, &addr.to_string()).await;
+                    self.peers.add_peer(node_id, &addr.to_string());
                 }
                 ConfChangeType::RemoveNode => {
                     if node_id == self.get_id() {
@@ -340,6 +351,41 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
         let _ = store.create_snapshot(snapshot_data, index, term);
         log::info!("Snapshot created successfully.");
         Ok(())
+    }
+
+    pub fn inspect(&self) -> Result<String> {
+        // let prs = self.raft.prs().iter().map(|(k, v)| (k, v)).collect();
+
+        let id = self.raft.id;
+        let leader_id = self.raft.leader_id;
+        let hard_state = self.storage.hard_state()?;
+        let conf_state = self.storage.conf_state()?;
+        let snapshot = self.storage.snapshot(0, 0)?;
+        let last_index = self.raft.raft_log.last_index();
+
+        let last_applied = self.raft.raft_log.applied;
+        let last_committed = self.raft.raft_log.committed;
+        let last_persisted = self.raft.raft_log.persisted;
+
+        let result = format!(
+            "========= Outline =========\
+node_id: {id}\
+leader_id: {leader_id}\
+\
+========= Persistence Info =========\
+hard_state: {hard_state:?}\
+conf_state: {conf_state:?}\
+last_index: {last_index}\
+snapshot: {snapshot:?}\
+\
+========= RaftLog Metadata =========\
+last_applied: {last_applied}\
+last_committed: {last_committed}\
+last_persisted: {last_persisted}\
+",
+        );
+
+        Ok(result)
     }
 
     pub async fn run(&mut self) -> Result<()> {
@@ -424,6 +470,12 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
                 Ok(Some(RequestMessage::ReportUnreachable { node_id })) => {
                     self.report_unreachable(node_id);
                 }
+                Ok(Some(RequestMessage::DebugNode { chan })) => {
+                    chan.send(ResponseMessage::DebugNode {
+                        result: self.inspect()?,
+                    })
+                    .unwrap();
+                }
                 Ok(_) => unreachable!(),
                 Err(_) => (),
             }
@@ -452,7 +504,7 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
         let mut ready = self.ready();
 
         if !ready.messages().is_empty() {
-            self.send_messages(ready.take_messages());
+            self.send_messages(ready.take_messages()).await;
         }
         if *ready.snapshot() != Snapshot::default() {
             let snapshot = ready.snapshot();
@@ -476,7 +528,7 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
         }
 
         if !ready.persisted_messages().is_empty() {
-            self.send_messages(ready.take_persisted_messages());
+            self.send_messages(ready.take_persisted_messages()).await;
         }
 
         let mut light_rd = self.advance(ready);
@@ -486,7 +538,7 @@ impl<S: AbstractStateMachine + Send + 'static> RaftNode<S> {
             store.set_hard_state_comit(commit)?;
         }
 
-        self.send_messages(light_rd.take_messages());
+        self.send_messages(light_rd.take_messages()).await;
 
         self.handle_committed_entries(light_rd.take_committed_entries(), client_send)
             .await?;

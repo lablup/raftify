@@ -32,9 +32,9 @@ impl Peers {
         self.peers.remove(&id)
     }
 
-    pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
+    pub fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
-        let peer = Peer::new(addr).await.unwrap();
+        let peer = Peer::new(addr);
         self.peers.insert(id, peer);
     }
 
@@ -42,7 +42,7 @@ impl Peers {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
         let next_id = self.peers.keys().max().cloned().unwrap_or(1);
         let next_id = std::cmp::max(next_id + 1, self_id);
-        self.add_peer(next_id, addr).await;
+        self.add_peer(next_id, addr);
         log::info!("Reserving id {}", next_id);
         next_id
     }

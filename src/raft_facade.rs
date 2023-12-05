@@ -16,10 +16,10 @@ use tokio::sync::{mpsc, Mutex};
 use tonic::Request;
 
 #[derive(Clone)]
-pub struct Raft<S: AbstractStateMachine + 'static> {
-    pub raft_node: Option<Arc<Mutex<RaftNode<S>>>>,
+pub struct Raft<FSM: AbstractStateMachine + 'static> {
+    pub raft_node: Option<Arc<Mutex<RaftNode<FSM>>>>,
     pub raft_server: Option<Arc<Mutex<RaftServer>>>,
-    pub fsm: Option<S>,
+    pub fsm: Option<FSM>,
     pub initial_peers: Option<Peers>,
     pub tx: Option<mpsc::Sender<RequestMessage>>,
     pub addr: String,
@@ -27,6 +27,7 @@ pub struct Raft<S: AbstractStateMachine + 'static> {
     pub config: Config,
 }
 
+#[derive(Debug, Clone)]
 pub struct RequestIdResponse {
     pub reserved_id: u64,
     pub leader_id: u64,
@@ -63,10 +64,10 @@ impl<S: AbstractStateMachine + Send + Sync + 'static> Raft<S> {
     }
 
     pub fn build(&mut self, node_id: u64) -> Result<()> {
-        let bootstrap_done = self.initial_peers.clone().unwrap().is_empty();
-
         let (tx, rx) = mpsc::channel(100);
         self.tx = Some(tx.clone());
+
+        let bootstrap_done = self.initial_peers.clone().unwrap().is_empty();
 
         let raft_node = match node_id {
             1 => RaftNode::bootstrap_cluster(
@@ -105,7 +106,8 @@ impl<S: AbstractStateMachine + Send + Sync + 'static> Raft<S> {
         let raft_node = self.raft_node.to_owned().unwrap();
         let raft_node_handle = tokio::spawn(async move { (raft_node.lock().await).run().await });
         let raft_server = self.raft_server.to_owned().unwrap();
-        let _raft_server_handle = tokio::spawn(async move { (raft_server.lock().await).clone().run().await });
+        let _raft_server_handle =
+            tokio::spawn(async move { (raft_server.lock().await).clone().run().await });
         let _ = tokio::try_join!(raft_node_handle);
         Ok(())
     }
@@ -140,7 +142,7 @@ impl<S: AbstractStateMachine + Send + Sync + 'static> Raft<S> {
                             leader_addr: response.leader_addr,
                             peers: deserialize(&response.peers)?,
                         })
-                    }
+                    };
                 }
                 ResultCode::Error => return Err(Error::JoinError),
             }
@@ -157,9 +159,9 @@ impl<S: AbstractStateMachine + Send + Sync + 'static> Raft<S> {
         let reserved_id = request_id_response.reserved_id;
 
         for (id, peer) in request_id_response.peers.iter() {
-            node.peers.add_peer(id.to_owned(), peer.addr).await;
+            node.peers.add_peer(id.to_owned(), peer.addr);
         }
-        node.peers.add_peer(leader_id, leader_addr).await;
+        node.peers.add_peer(leader_id, leader_addr);
 
         let mut change = ConfChangeV2::default();
         let mut cs = ConfChangeSingle::default();

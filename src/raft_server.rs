@@ -2,7 +2,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
 
 use crate::raft_service::raft_service_server::{RaftService, RaftServiceServer};
-use crate::raft_service::{self, RequestIdArgs};
+use crate::raft_service::{self, Empty, RequestIdArgs};
 use crate::request_message::RequestMessage;
 use crate::response_message::ResponseMessage;
 use crate::Peers;
@@ -194,5 +194,27 @@ impl RaftService for RaftServer {
         Ok(Response::new(
             raft_service::ClusterBootstrapReadyResponse {},
         ))
+    }
+
+    async fn debug_node(
+        &self,
+        request: Request<Empty>,
+    ) -> Result<Response<raft_service::DebugNodeResponse>, Status> {
+        let _request_args = request.into_inner();
+        let sender = self.snd.clone();
+        let (tx, rx) = oneshot::channel();
+
+        match sender.send(RequestMessage::DebugNode { chan: tx }).await {
+            Ok(_) => (),
+            Err(_) => error!("send error"),
+        }
+
+        let response = rx.await.unwrap();
+        match response {
+            ResponseMessage::DebugNode { result } => {
+                Ok(Response::new(raft_service::DebugNodeResponse { result }))
+            }
+            _ => unreachable!(),
+        }
     }
 }

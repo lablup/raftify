@@ -9,6 +9,7 @@ service RaftService {
   rpc RequestId(RequestIdArgs) returns (RequestIdResponse) {}
   rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
   rpc SendMessage(eraftpb.Message) returns (RaftResponse) {}
+  rpc DebugNode(Empty) returns (DebugNodeResponse) {}
 }
 
 enum ResultCode {
@@ -73,4 +74,8 @@ enum ChangeConfigResultType {
 message ChangeConfigResponse {
   ChangeConfigResultType result_type = 1;
   bytes data                         = 2;
+}
+
+message DebugNodeResponse {
+  string result = 1;
 }

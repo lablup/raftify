@@ -29,5 +29,8 @@ pub enum RequestMessage {
         peers: Peers,
         chan: Sender<ResponseMessage>,
     },
+    DebugNode {
+        chan: Sender<ResponseMessage>,
+    },
     Raft(Box<RaftMessage>),
 }

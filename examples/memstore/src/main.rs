@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate slog;
 extern crate slog_async;
-extern crate slog_term;
 extern crate slog_scope;
+extern crate slog_term;
 
 use memstore::utils::build_config;
 use slog::Drain;
@@ -72,7 +72,7 @@ impl AbstractStateMachine for HashStore {
 
 #[get("/put/{id}/{name}")]
 async fn put(
-    data: web::Data<(Arc<Mailbox>, HashStore)>,
+    data: web::Data<(Arc<Mailbox>, HashStore, Raft<HashStore>)>,
     path: web::Path<(u64, String)>,
 ) -> impl Responder {
     let message = Message::Insert {
@@ -86,7 +86,10 @@ async fn put(
 }
 
 #[get("/get/{id}")]
-async fn get(data: web::Data<(Arc<Mailbox>, HashStore)>, path: web::Path<u64>) -> impl Responder {
+async fn get(
+    data: web::Data<(Arc<Mailbox>, HashStore, Raft<HashStore>)>,
+    path: web::Path<u64>,
+) -> impl Responder {
     let id = path.into_inner();
 
     let response = data.1.get(id);
@@ -94,9 +97,16 @@ async fn get(data: web::Data<(Arc<Mailbox>, HashStore)>, path: web::Path<u64>) -
 }
 
 #[get("/leave")]
-async fn leave(data: web::Data<(Arc<Mailbox>, HashStore)>) -> impl Responder {
+async fn leave(data: web::Data<(Arc<Mailbox>, HashStore, Raft<HashStore>)>) -> impl Responder {
     data.0.leave().await.unwrap();
     "OK".to_string()
+}
+
+#[get("/debug")]
+async fn debug(data: web::Data<(Arc<Mailbox>, HashStore, Raft<HashStore>)>) -> impl Responder {
+    let raft_node = data.2.raft_node.clone().unwrap();
+    let raft_node = raft_node.lock().await;
+    raft_node.inspect().unwrap()
 }
 
 #[actix_rt::main]
@@ -123,7 +133,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             let request_id_resp = raft.request_id(peer_addr.clone()).await?;
             raft.build(request_id_resp.reserved_id)?;
             let handle = tokio::spawn(raft.clone().run());
-            
             handle
         }
         None => {
@@ -138,13 +147,18 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let mailbox = Arc::new(raft.mailbox());
 
     if let Some(addr) = options.web_server {
-        let _server = tokio::spawn(
+        let _web_server = tokio::spawn(
             HttpServer::new(move || {
                 App::new()
-                    .app_data(web::Data::new((mailbox.clone(), store.clone())))
+                    .app_data(web::Data::new((
+                        mailbox.clone(),
+                        store.clone(),
+                        raft.clone(),
+                    )))
                     .service(put)
                     .service(get)
                     .service(leave)
+                    .service(debug)
             })
             .bind(addr)
             .unwrap()

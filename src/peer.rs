@@ -21,14 +21,22 @@ pub struct Peer {
 }
 
 impl Peer {
-    pub async fn new<A: ToSocketAddrs>(addr: A) -> Result<Peer> {
+    pub fn new<A: ToSocketAddrs>(addr: A) -> Self {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
-        let client = Some(RaftServiceClient::connect(format!("http://{}", addr.to_string())).await?);
 
-        return Ok(Peer {
+        return Peer {
             addr,
-            client,
+            client: None,
             state: PeerState::Preparing,
-        });
+        };
+    }
+
+    pub async fn connect(&mut self) -> Result<()> {
+        println!("Connect!!!!!!!!");
+
+        let client = RaftServiceClient::connect(format!("http://{}", self.addr)).await?;
+        self.client = Some(client);
+        self.state = PeerState::Connected;
+        Ok(())
     }
 }
