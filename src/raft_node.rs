@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -20,8 +21,8 @@ use raft::eraftpb::{
 };
 use raft::raw_node::RawNode;
 use raft::{LightReady, Ready};
-use tokio::sync::oneshot;
 use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{oneshot, RwLock};
 use tokio::time::timeout;
 use tonic::Request;
 
@@ -70,7 +71,7 @@ impl MessageSender {
 
 #[derive(Clone)]
 pub struct RaftNode<FSM: AbstractStateMachine + Clone + 'static> {
-    pub raw_node: Arc<Mutex<RawNode<HeedStorage>>>,
+    pub raw_node: Arc<RwLock<RawNode<HeedStorage>>>,
     pub rcv: Arc<Mutex<mpsc::Receiver<RequestMessage>>>,
     pub fsm: Arc<Mutex<FSM>>,
     pub peers: Peers,
@@ -115,7 +116,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         raw_node.raft.become_candidate();
         raw_node.raft.become_leader();
 
-        let raw_node = Arc::new(Mutex::new(raw_node));
+        let raw_node = Arc::new(RwLock::new(raw_node));
         let rcv = Arc::new(Mutex::new(rcv));
         let fsm = Arc::new(Mutex::new(fsm));
         let response_seq = Arc::new(response_seq);
@@ -157,7 +158,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
             .checked_sub(Duration::from_secs(1000))
             .unwrap();
 
-        let raw_node = Arc::new(Mutex::new(raw_node));
+        let raw_node = Arc::new(RwLock::new(raw_node));
         let rcv = Arc::new(Mutex::new(rcv));
         let fsm = Arc::new(Mutex::new(fsm));
         let response_seq = Arc::new(response_seq);
@@ -177,23 +178,24 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         })
     }
 
-    pub async fn is_leader(&self) -> bool {
-        let raw_node = self.raw_node.lock().await;
+    pub fn is_leader(&self, raw_node: &RawNode<HeedStorage>) -> bool {
         raw_node.raft.leader_id == raw_node.raft.id
     }
 
-    pub async fn get_id(&self) -> u64 {
-        let raw_node = self.raw_node.lock().await;
+    pub fn get_id(&self, raw_node: &RawNode<HeedStorage>) -> u64 {
         raw_node.raft.id
     }
 
-    pub async fn get_leader_id(&self) -> u64 {
-        let raw_node = self.raw_node.lock().await;
+    pub fn get_leader_id(&self, raw_node: &RawNode<HeedStorage>) -> u64 {
         raw_node.raft.leader_id
     }
 
-    async fn send_wrongleader_response(&self, channel: oneshot::Sender<ResponseMessage>) {
-        let leader_id = self.get_leader_id().await;
+    fn send_wrongleader_response(
+        &self,
+        raw_node: &RawNode<HeedStorage>,
+        channel: oneshot::Sender<ResponseMessage>,
+    ) {
+        let leader_id = self.get_leader_id(raw_node);
         let leader_addr = self.peers.get(&leader_id).unwrap().addr.to_string();
 
         let raft_response = ResponseMessage::WrongLeader {
@@ -285,6 +287,9 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         entry: &mut Entry,
         senders: &mut HashMap<u64, oneshot::Sender<ResponseMessage>>,
     ) -> Result<()> {
+        let mut raw_node = self.raw_node.write().await;
+        let raw_node = raw_node.deref_mut();
+
         let conf_change_v2: ConfChangeV2 = PMessage::decode(entry.get_data())?;
 
         let conf_changes = conf_change_v2.get_changes();
@@ -301,7 +306,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
                     self.peers.add_peer(node_id, &addr.to_string());
                 }
                 ConfChangeType::RemoveNode => {
-                    if node_id == self.get_id().await {
+                    if node_id == self.get_id(raw_node) {
                         self.should_exit = true;
                         log::info!("Node {} quit the cluster.", node_id);
                     } else {
@@ -313,7 +318,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
             }
         }
 
-        let mut raw_node = self.raw_node.lock().await;
         match raw_node.apply_conf_change(&conf_change_v2) {
             Ok(conf_state) => {
                 let store = raw_node.mut_store();
@@ -377,7 +381,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
     pub async fn inspect(&self) -> Result<String> {
         // let prs = self.raft.prs().iter().map(|(k, v)| (k, v)).collect();
 
-        let raw_node = self.raw_node.lock().await;
+        let raw_node = self.raw_node.read().await;
         let id = raw_node.raft.id;
         let leader_id = raw_node.raft.leader_id;
         let hard_state = self.storage.hard_state()?;
@@ -423,8 +427,6 @@ last_persisted: {last_persisted}\
                 return Ok(());
             }
 
-            // let mut raw_node = self.raw_node.lock().await;
-
             match timeout(heartbeat, self.rcv.lock().await.recv()).await {
                 Ok(Some(RequestMessage::ClusterBootstrapReady { peers, chan })) => {
                     log::info!(
@@ -433,16 +435,18 @@ last_persisted: {last_persisted}\
                     // self.peers = peers;
                 }
                 Ok(Some(RequestMessage::ConfigChange { chan, conf_change })) => {
-                    // let mut raw_node = self.raw_node.lock().await;
-                    // if raw_node.raft.has_pending_conf() {
-                    //     log::warn!("Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", raw_node.raft.pending_conf_index);
-                    //     continue;
-                    // }
+                    let mut raw_node = self.raw_node.write().await;
+                    let raw_node = raw_node.deref_mut();
 
-                    if !self.is_leader().await {
+                    if raw_node.raft.has_pending_conf() {
+                        log::warn!("Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", raw_node.raft.pending_conf_index);
+                        continue;
+                    }
+
+                    if !self.is_leader(raw_node) {
                         // wrong leader send client cluster data
                         // TODO: retry strategy in case of failure
-                        self.send_wrongleader_response(chan).await;
+                        self.send_wrongleader_response(raw_node, chan);
                     } else {
                         let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
                         client_send.insert(response_seq, chan);
@@ -452,13 +456,12 @@ last_persisted: {last_persisted}\
                             conf_change
                         );
 
-                        let mut raw_node = self.raw_node.lock().await;
                         raw_node
                             .propose_conf_change(serialize(&response_seq).unwrap(), conf_change)?;
                     }
                 }
                 Ok(Some(RequestMessage::Raft(m))) => {
-                    let mut raw_node = self.raw_node.lock().await;
+                    let mut raw_node = self.raw_node.write().await;
                     debug!(
                         "Node {} received Raft message from the node {}, Message: {:?}",
                         raw_node.raft.id, m.from, m
@@ -466,9 +469,12 @@ last_persisted: {last_persisted}\
                     if let Ok(_a) = raw_node.step(*m) {};
                 }
                 Ok(Some(RequestMessage::Propose { proposal, chan })) => {
-                    if !self.is_leader().await {
+                    let mut raw_node = self.raw_node.write().await;
+                    let raw_node = raw_node.deref_mut();
+
+                    if !self.is_leader(raw_node) {
                         // wrong leader send client cluster data
-                        let leader_id = self.get_leader_id().await;
+                        let leader_id = self.get_leader_id(raw_node);
                         // leader can't be an empty node
                         // let leader_addr = self.peers[&leader_id].as_ref().unwrap().addr.clone();
                         let leader_addr = self.peers.get(&leader_id).unwrap().addr.to_string();
@@ -478,7 +484,6 @@ last_persisted: {last_persisted}\
                         };
                         chan.send(raft_response).unwrap();
                     } else {
-                        let mut raw_node = self.raw_node.lock().await;
                         let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
                         client_send.insert(response_seq, chan);
                         let response_seq = serialize(&response_seq).unwrap();
@@ -486,20 +491,23 @@ last_persisted: {last_persisted}\
                     }
                 }
                 Ok(Some(RequestMessage::RequestId { addr, chan })) => {
-                    if !self.is_leader().await {
+                    let raw_node = self.raw_node.read().await;
+                    let raw_node = raw_node.deref();
+
+                    if !self.is_leader(raw_node) {
                         // TODO: retry strategy in case of failure
-                        self.send_wrongleader_response(chan).await;
+                        self.send_wrongleader_response(raw_node, chan);
                     } else {
                         chan.send(ResponseMessage::IdReserved {
-                            reserved_id: self.peers.reserve_peer(self.get_id().await, addr).await,
-                            leader_id: self.get_id().await,
+                            reserved_id: self.peers.reserve_peer(self.get_id(raw_node), addr).await,
+                            leader_id: self.get_id(raw_node),
                             peers: self.peers.clone(),
                         })
                         .unwrap();
                     }
                 }
                 Ok(Some(RequestMessage::ReportUnreachable { node_id })) => {
-                    let mut raw_node = self.raw_node.lock().await;
+                    let mut raw_node = self.raw_node.write().await;
                     raw_node.report_unreachable(node_id);
                 }
                 Ok(Some(RequestMessage::DebugNode { chan })) => {
@@ -515,7 +523,7 @@ last_persisted: {last_persisted}\
             let elapsed = now.elapsed();
             now = Instant::now();
             if elapsed > heartbeat {
-                let mut raw_node = self.raw_node.lock().await;
+                let mut raw_node = self.raw_node.write().await;
                 heartbeat = Duration::from_millis(100);
                 raw_node.tick();
             } else {
@@ -532,7 +540,7 @@ last_persisted: {last_persisted}\
     ) -> Result<()> {
         let mut ready: Ready = Ready::default();
         {
-            let mut raw_node = self.raw_node.lock().await;
+            let mut raw_node = self.raw_node.write().await;
             if !raw_node.has_ready() {
                 return Ok(());
             }
@@ -543,31 +551,26 @@ last_persisted: {last_persisted}\
             self.send_messages(ready.take_messages()).await;
         }
 
-        {
-            if *ready.snapshot() != Snapshot::default() {
-                let snapshot = ready.snapshot();
-                let mut fsm = self.fsm.lock().await;
-                fsm.restore(snapshot.get_data()).await?;
-                let mut raw_node = self.raw_node.lock().await;
-                let store = raw_node.mut_store();
-                store.apply_snapshot(snapshot.clone())?;
-            }
+        if *ready.snapshot() != Snapshot::default() {
+            let snapshot = ready.snapshot();
+            let mut fsm = self.fsm.lock().await;
+            fsm.restore(snapshot.get_data()).await?;
+            let mut raw_node = self.raw_node.write().await;
+            let store = raw_node.mut_store();
+            store.apply_snapshot(snapshot.clone())?;
         }
 
         self.handle_committed_entries(ready.take_committed_entries(), client_send)
             .await?;
 
         {
-            let mut raw_node = self.raw_node.lock().await;
+            let mut raw_node = self.raw_node.write().await;
             if !ready.entries().is_empty() {
                 let entries = &ready.entries()[..];
                 let store = raw_node.mut_store();
                 store.append(entries)?;
             }
-        }
 
-        {
-            let mut raw_node = self.raw_node.lock().await;
             if let Some(hs) = ready.hs() {
                 let store = raw_node.mut_store();
                 store.set_hard_state(hs)?;
@@ -581,7 +584,7 @@ last_persisted: {last_persisted}\
         let mut light_rd: raft::LightReady = LightReady::default();
 
         {
-            let mut raw_node = self.raw_node.lock().await;
+            let mut raw_node = self.raw_node.write().await;
             light_rd = raw_node.advance(ready);
 
             if let Some(commit) = light_rd.commit_index() {
@@ -590,68 +593,15 @@ last_persisted: {last_persisted}\
             }
         }
 
-        {
-            self.send_messages(light_rd.take_messages()).await;
-            self.handle_committed_entries(light_rd.take_committed_entries(), client_send)
-                .await?;
-        }
+        self.send_messages(light_rd.take_messages()).await;
+        self.handle_committed_entries(light_rd.take_committed_entries(), client_send)
+            .await?;
 
         {
-            let mut raw_node = self.raw_node.lock().await;
+            let mut raw_node = self.raw_node.write().await;
             raw_node.advance_apply();
         }
 
         Ok(())
-
-        // let mut raw_node = self.raw_node.lock().await;
-
-        // if !raw_node.has_ready() {
-        //     return Ok(());
-        // }
-        // let mut ready = raw_node.ready();
-
-        // if !ready.messages().is_empty() {
-        //     self.send_messages(ready.take_messages()).await;
-        // }
-        // if *ready.snapshot() != Snapshot::default() {
-        //     let snapshot = ready.snapshot();
-        //     self.fsm.restore(snapshot.get_data()).await?;
-        //     let store = raw_node.mut_store();
-        //     store.apply_snapshot(snapshot.clone())?;
-        // }
-
-        // self.handle_committed_entries(ready.take_committed_entries(), client_send)
-        //     .await?;
-
-        // if !ready.entries().is_empty() {
-        //     let entries = &ready.entries()[..];
-        //     let store = raw_node.mut_store();
-        //     store.append(entries)?;
-        // }
-
-        // if let Some(hs) = ready.hs() {
-        //     let store = raw_node.mut_store();
-        //     store.set_hard_state(hs)?;
-        // }
-
-        // if !ready.persisted_messages().is_empty() {
-        //     self.send_messages(ready.take_persisted_messages()).await;
-        // }
-
-        // let mut light_rd: raft::LightReady = raw_node.advance(ready);
-
-        // if let Some(commit) = light_rd.commit_index() {
-        //     let store = raw_node.mut_store();
-        //     store.set_hard_state_comit(commit)?;
-        // }
-
-        // self.send_messages(light_rd.take_messages()).await;
-
-        // self.handle_committed_entries(light_rd.take_committed_entries(), client_send)
-        //     .await?;
-
-        // raw_node.advance_apply();
-
-        // Ok(())
     }
 }
