@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::net::{SocketAddr, ToSocketAddrs};
 
 use crate::error::{Error, Result};
 use crate::raft_node::RaftNode;
@@ -12,17 +12,17 @@ use crate::{AbstractStateMachine, Config, Mailbox, Peer, Peers};
 use bincode::{deserialize, serialize};
 use log::info;
 use raft::eraftpb::{ConfChangeSingle, ConfChangeType, ConfChangeV2};
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::mpsc;
 use tonic::Request;
 
 #[derive(Clone)]
-pub struct Raft<FSM: AbstractStateMachine + 'static> {
+pub struct Raft<FSM: AbstractStateMachine + Clone + 'static> {
     pub raft_node: Option<RaftNode<FSM>>,
     pub raft_server: Option<RaftServer>,
     pub fsm: Option<FSM>,
     pub initial_peers: Option<Peers>,
     pub tx: Option<mpsc::Sender<RequestMessage>>,
-    pub addr: String,
+    pub addr: SocketAddr,
     pub logger: slog::Logger,
     pub config: Config,
 }
@@ -35,9 +35,11 @@ pub struct RequestIdResponse {
     pub peers: HashMap<u64, Peer>,
 }
 
-impl<S: AbstractStateMachine + Send + Sync + 'static> Raft<S> {
+impl<S: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<S> {
     /// creates a new node with the given address and store.
-    pub fn new(addr: String, fsm: S, config: Config, logger: slog::Logger) -> Self {
+    pub fn new<A: ToSocketAddrs>(addr: A, fsm: S, config: Config, logger: slog::Logger) -> Self {
+        let addr = addr.to_socket_addrs().unwrap().next().unwrap();
+
         Self {
             addr,
             logger,
@@ -101,9 +103,9 @@ impl<S: AbstractStateMachine + Send + Sync + 'static> Raft<S> {
         assert!(self.is_initialized());
 
         let raft_node = self.raft_node.to_owned().unwrap();
-        let raft_node_handle = tokio::spawn(async move { raft_node.run() });
+        let raft_node_handle = tokio::spawn(async move { raft_node.run().await });
         let raft_server = self.raft_server.to_owned().unwrap();
-        let _raft_server_handle = tokio::spawn(async move { raft_server.run() });
+        let _raft_server_handle = tokio::spawn(async move { raft_server.run().await });
         let _ = tokio::try_join!(raft_node_handle);
         Ok(())
     }
@@ -116,7 +118,7 @@ impl<S: AbstractStateMachine + Send + Sync + 'static> Raft<S> {
             let mut client = RaftServiceClient::connect(format!("http://{}", leader_addr)).await?;
             let response = client
                 .request_id(Request::new(RequestIdArgs {
-                    addr: self.addr.clone(),
+                    addr: self.addr.to_string(),
                 }))
                 .await?
                 .into_inner();
@@ -147,24 +149,24 @@ impl<S: AbstractStateMachine + Send + Sync + 'static> Raft<S> {
 
     pub async fn join(&self, request_id_response: RequestIdResponse) -> Result<()> {
         assert!(self.is_initialized());
-        let node = self.raft_node.to_owned().unwrap();
-        let mut node = node.lock().await;
+        let mut raft_node = self.raft_node.to_owned().unwrap();
 
         let leader_id = request_id_response.leader_id;
         let leader_addr = request_id_response.leader_addr.clone();
         let reserved_id = request_id_response.reserved_id;
 
         for (id, peer) in request_id_response.peers.iter() {
-            node.peers.add_peer(id.to_owned(), peer.addr);
+            raft_node.peers.add_peer(id.to_owned(), peer.addr);
         }
-        node.peers.add_peer(leader_id, leader_addr);
+
+        raft_node.peers.add_peer(leader_id, leader_addr);
 
         let mut change = ConfChangeV2::default();
         let mut cs = ConfChangeSingle::default();
         cs.set_node_id(reserved_id);
         cs.set_change_type(ConfChangeType::AddNode);
         change.set_changes(vec![cs].into());
-        change.set_context(serialize(&self.addr)?);
+        change.set_context(serialize(&vec![self.addr.clone()])?);
 
         let peer_addr = request_id_response.leader_addr;
 
@@ -187,7 +189,9 @@ impl<S: AbstractStateMachine + Send + Sync + 'static> Raft<S> {
                 ChangeConfigResultType::ChangeConfigRejected => {
                     return Err(Error::Rejected("Join request rejected".to_string()))
                 }
-                ChangeConfigResultType::ChangeConfigTimeoutError => return Err(Error::Timeout),
+                ChangeConfigResultType::ChangeConfigTimeoutError => {
+                    return Err(Error::Timeout);
+                }
             }
         }
     }

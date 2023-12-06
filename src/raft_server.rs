@@ -82,7 +82,7 @@ impl RaftService for RaftServer {
             } => Ok(Response::new(raft_service::RequestIdResponse {
                 code: raft_service::ResultCode::Ok as i32,
                 leader_id,
-                leader_addr: "".to_string(),
+                leader_addr: self.addr.to_string(),
                 reserved_id,
                 peers: serialize(&peers).unwrap(),
             })),
@@ -96,7 +96,6 @@ impl RaftService for RaftServer {
     ) -> Result<Response<raft_service::ChangeConfigResponse>, Status> {
         let request_args = request.into_inner();
         let sender = self.snd.clone();
-
         let (tx, rx) = oneshot::channel();
 
         let message = RequestMessage::ConfigChange {
@@ -111,7 +110,6 @@ impl RaftService for RaftServer {
         }
 
         let mut reply = raft_service::ChangeConfigResponse::default();
-
         match timeout(Duration::from_secs(2), rx).await {
             Ok(Ok(_raft_response)) => {
                 reply.result_type =

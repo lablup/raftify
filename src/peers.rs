@@ -20,7 +20,7 @@ impl Peers {
         self.peers.is_empty()
     }
 
-    pub fn get(&mut self, id: &u64) -> Option<&Peer> {
+    pub fn get(&self, id: &u64) -> Option<&Peer> {
         self.peers.get(&id)
     }
 

@@ -105,8 +105,7 @@ async fn leave(data: web::Data<(Arc<Mailbox>, HashStore, Raft<HashStore>)>) -> i
 #[get("/debug")]
 async fn debug(data: web::Data<(Arc<Mailbox>, HashStore, Raft<HashStore>)>) -> impl Responder {
     let raft_node = data.2.raft_node.clone().unwrap();
-    let raft_node = raft_node.lock().await;
-    raft_node.inspect().unwrap()
+    raft_node.inspect().await.unwrap()
 }
 
 #[actix_rt::main]
@@ -133,6 +132,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             let request_id_resp = raft.request_id(peer_addr.clone()).await?;
             raft.build(request_id_resp.reserved_id)?;
             let handle = tokio::spawn(raft.clone().run());
+            raft.join(request_id_resp).await?;
             handle
         }
         None => {

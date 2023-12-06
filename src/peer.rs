@@ -32,8 +32,6 @@ impl Peer {
     }
 
     pub async fn connect(&mut self) -> Result<()> {
-        println!("Connect!!!!!!!!");
-
         let client = RaftServiceClient::connect(format!("http://{}", self.addr)).await?;
         self.client = Some(client);
         self.state = PeerState::Connected;
