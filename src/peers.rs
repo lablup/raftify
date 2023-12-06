@@ -9,6 +9,12 @@ pub struct Peers {
     pub peers: HashMap<u64, Peer>,
 }
 
+impl Default for Peers {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Peers {
     pub fn new() -> Self {
         Self {
@@ -38,12 +44,10 @@ impl Peers {
         self.peers.insert(id, peer);
     }
 
-    pub async fn reserve_peer<A: ToSocketAddrs>(&mut self, self_id: u64, addr: A) -> u64 {
-        let addr = addr.to_socket_addrs().unwrap().next().unwrap();
+    pub async fn reserve_peer(&mut self, self_id: u64) -> u64 {
         let next_id = self.peers.keys().max().cloned().unwrap_or(1);
         let next_id = std::cmp::max(next_id + 1, self_id);
-        self.add_peer(next_id, addr);
-        log::info!("Reserving id {}", next_id);
+        log::info!("Reserved id {}", next_id);
         next_id
     }
 

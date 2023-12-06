@@ -23,7 +23,6 @@ message Proposal {
 }
 
 message RequestIdArgs {
-  string addr                    = 1;
 }
 
 message RequestIdResponse{

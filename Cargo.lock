@@ -1449,7 +1449,6 @@ dependencies = [
 [[package]]
 name = "raft"
 version = "0.7.0"
-source = "git+https://github.com/jopemachine/raft-rs.git#49e01860a3d8b5d818d0891a7ce143a2c7f6c741"
 dependencies = [
  "bytes",
  "fxhash",
@@ -1468,7 +1467,6 @@ dependencies = [
 [[package]]
 name = "raft-proto"
 version = "0.7.0"
-source = "git+https://github.com/jopemachine/raft-rs.git#49e01860a3d8b5d818d0891a7ce143a2c7f6c741"
 dependencies = [
  "lazy_static",
  "prost",

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::sync::Arc;
 
 use crate::error::{Error, Result};
 use crate::raft_node::RaftNode;
@@ -17,11 +18,9 @@ use tonic::Request;
 
 #[derive(Clone)]
 pub struct Raft<FSM: AbstractStateMachine + Clone + 'static> {
-    pub raft_node: Option<RaftNode<FSM>>,
-    pub raft_server: Option<RaftServer>,
-    pub fsm: Option<FSM>,
-    pub initial_peers: Option<Peers>,
-    pub tx: Option<mpsc::Sender<RequestMessage>>,
+    pub raft_node: Arc<RaftNode<FSM>>,
+    pub raft_server: RaftServer,
+    pub tx: mpsc::Sender<RequestMessage>,
     pub addr: SocketAddr,
     pub logger: slog::Logger,
     pub config: Config,
@@ -35,91 +34,78 @@ pub struct RequestIdResponse {
     pub peers: HashMap<u64, Peer>,
 }
 
-impl<S: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<S> {
-    /// creates a new node with the given address and store.
-    pub fn new<A: ToSocketAddrs>(addr: A, fsm: S, config: Config, logger: slog::Logger) -> Self {
-        let addr = addr.to_socket_addrs().unwrap().next().unwrap();
+impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
+    pub fn build<A: ToSocketAddrs>(
+        node_id: u64,
+        addr: A,
+        fsm: FSM,
+        config: Config,
+        logger: slog::Logger,
+        initial_peers: Option<Peers>,
+    ) -> Result<Self> {
+        let addr = addr.to_socket_addrs()?.next().unwrap();
+        let initial_peers = initial_peers.unwrap_or_default();
 
-        Self {
-            addr,
-            logger,
-            config,
-            tx: None,
-            fsm: Some(fsm),
-            raft_node: None,
-            raft_server: None,
-            initial_peers: Some(Peers::new()),
-        }
-    }
-
-    pub fn mailbox(&self) -> Mailbox {
-        assert!(self.is_initialized());
-
-        Mailbox {
-            snd: self.tx.to_owned().unwrap(),
-            peers: HashMap::new(),
-        }
-    }
-
-    pub fn is_initialized(&self) -> bool {
-        self.raft_node.is_some() && self.raft_server.is_some()
-    }
-
-    pub fn build(&mut self, node_id: u64) -> Result<()> {
         let (tx, rx) = mpsc::channel(100);
-        self.tx = Some(tx.clone());
 
-        let bootstrap_done = self.initial_peers.clone().unwrap().is_empty();
+        let bootstrap_done = initial_peers.is_empty();
 
         let raft_node = match node_id {
             1 => RaftNode::bootstrap_cluster(
                 rx,
                 tx.clone(),
-                self.fsm.take().unwrap(),
-                self.config.clone(),
-                self.initial_peers.take().unwrap(),
-                &self.logger,
+                fsm,
+                config.clone(),
+                initial_peers,
+                &logger,
                 bootstrap_done,
             ),
             _ => RaftNode::new_follower(
                 rx,
                 tx.clone(),
                 node_id,
-                self.fsm.take().unwrap(),
-                self.config.clone(),
-                self.initial_peers.take().unwrap(),
-                &self.logger,
+                fsm,
+                config.clone(),
+                initial_peers,
+                &logger,
                 bootstrap_done,
             ),
         }?;
 
-        self.raft_node = Some(raft_node);
-        let raft_server = RaftServer::new(tx.clone(), self.addr.clone());
-        self.raft_server = Some(raft_server);
-        Ok(())
+        Ok(Self {
+            addr,
+            logger,
+            config,
+            tx: tx.clone(),
+            raft_node: Arc::new(raft_node),
+            raft_server: RaftServer::new(tx.clone(), addr.clone()),
+        })
+    }
+
+    pub fn mailbox(&self) -> Mailbox {
+        Mailbox {
+            snd: self.tx.to_owned(),
+            peers: HashMap::new(),
+        }
     }
 
     pub async fn run(self) -> Result<()> {
-        assert!(self.is_initialized());
-
-        let raft_node = self.raft_node.to_owned().unwrap();
-        let raft_node_handle = tokio::spawn(async move { raft_node.run().await });
-        let raft_server = self.raft_server.to_owned().unwrap();
+        let raft_node = self.raft_node.as_ref().clone();
+        let raft_node_handle = tokio::spawn(async move { raft_node.to_owned().run().await });
+        let raft_server = self.raft_server.to_owned();
         let _raft_server_handle = tokio::spawn(async move { raft_server.run().await });
         let _ = tokio::try_join!(raft_node_handle);
         Ok(())
     }
 
-    pub async fn request_id(&self, peer_addr: String) -> Result<RequestIdResponse> {
+    pub async fn request_id(peer_addr: String) -> Result<RequestIdResponse> {
         info!("Attempting to get a node_id through \"{}\"...", peer_addr);
         let mut leader_addr = peer_addr;
 
         loop {
             let mut client = RaftServiceClient::connect(format!("http://{}", leader_addr)).await?;
             let response = client
-                .request_id(Request::new(RequestIdArgs {
-                    addr: self.addr.to_string(),
-                }))
+                .request_id(Request::new(RequestIdArgs {}))
                 .await?
                 .into_inner();
 
@@ -148,18 +134,17 @@ impl<S: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<S> {
     }
 
     pub async fn join(&self, request_id_response: RequestIdResponse) -> Result<()> {
-        assert!(self.is_initialized());
-        let mut raft_node = self.raft_node.to_owned().unwrap();
+        let mut raft_node = self.raft_node.clone().as_ref().clone();
 
         let leader_id = request_id_response.leader_id;
         let leader_addr = request_id_response.leader_addr.clone();
         let reserved_id = request_id_response.reserved_id;
 
         for (id, peer) in request_id_response.peers.iter() {
-            raft_node.peers.add_peer(id.to_owned(), peer.addr);
+            raft_node.add_peer(id.to_owned(), peer.addr).await;
         }
 
-        raft_node.peers.add_peer(leader_id, leader_addr);
+        raft_node.add_peer(leader_id, leader_addr).await;
 
         let mut change = ConfChangeV2::default();
         let mut cs = ConfChangeSingle::default();

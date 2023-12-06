@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::ops::{Deref, DerefMut};
+use std::os::macos::raw;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -74,11 +75,11 @@ pub struct RaftNode<FSM: AbstractStateMachine + Clone + 'static> {
     pub raw_node: Arc<RwLock<RawNode<HeedStorage>>>,
     pub rcv: Arc<Mutex<mpsc::Receiver<RequestMessage>>>,
     pub fsm: Arc<Mutex<FSM>>,
-    pub peers: Peers,
+    pub peers: Arc<Mutex<Peers>>,
     pub snd: mpsc::Sender<RequestMessage>,
-    pub config: Config,
     pub storage: HeedStorage,
     response_seq: Arc<AtomicU64>,
+    config: Config,
     should_exit: bool,
     bootstrap_done: bool,
     last_snapshot_created: Instant,
@@ -119,6 +120,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         let raw_node = Arc::new(RwLock::new(raw_node));
         let rcv = Arc::new(Mutex::new(rcv));
         let fsm = Arc::new(Mutex::new(fsm));
+        let initial_peers = Arc::new(Mutex::new(initial_peers));
         let response_seq = Arc::new(response_seq);
 
         Ok(RaftNode {
@@ -162,6 +164,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         let rcv = Arc::new(Mutex::new(rcv));
         let fsm = Arc::new(Mutex::new(fsm));
         let response_seq = Arc::new(response_seq);
+        let peers = Arc::new(Mutex::new(peers));
 
         Ok(RaftNode {
             raw_node,
@@ -190,13 +193,19 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         raw_node.raft.leader_id
     }
 
-    fn send_wrongleader_response(
+    pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
+        let mut peers = self.peers.lock().await;
+        peers.add_peer(id, addr)
+    }
+
+    async fn send_wrongleader_response(
         &self,
         raw_node: &RawNode<HeedStorage>,
         channel: oneshot::Sender<ResponseMessage>,
     ) {
         let leader_id = self.get_leader_id(raw_node);
-        let leader_addr = self.peers.get(&leader_id).unwrap().addr.to_string();
+        let peers = self.peers.lock().await.clone();
+        let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
 
         let raft_response = ResponseMessage::WrongLeader {
             leader_id,
@@ -211,8 +220,10 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
             return;
         }
 
+        let mut peers = self.peers.lock().await;
+
         for message in messages {
-            let client = match self.peers.get_mut(&message.get_to()) {
+            let client = match peers.get_mut(&message.get_to()) {
                 Some(peer) => {
                     if peer.client.is_none() {
                         // TODO: Handle error here
@@ -273,18 +284,27 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
             sender.send(ResponseMessage::Response { data }).unwrap();
         }
 
-        // if Instant::now()
-        //     > self.last_snapshot_created + Duration::from_secs_f32(self.config.snapshot_interval)
-        // {
-        //     self.create_snapshot(entry.get_index(), entry.get_term())
-        //         .await?;
-        // }
+        if Instant::now()
+            > self.last_snapshot_created + Duration::from_secs_f32(self.config.snapshot_interval)
+        {
+            let mut raw_node = self.raw_node.write().await;
+            let raw_node = raw_node.deref_mut();
+
+            self.last_snapshot_created = Instant::now();
+            let fsm = self.fsm.lock().await;
+            let snapshot_data = fsm.snapshot().await?;
+
+            let last_applied = raw_node.raft.raft_log.applied;
+            let store = raw_node.mut_store();
+            store.compact(last_applied)?;
+            let _ = store.create_snapshot(snapshot_data, entry.get_index(), entry.get_term());
+        }
         Ok(())
     }
 
     async fn handle_committed_config_change_entry(
         &mut self,
-        entry: &mut Entry,
+        entry: &Entry,
         senders: &mut HashMap<u64, oneshot::Sender<ResponseMessage>>,
     ) -> Result<()> {
         let mut raw_node = self.raw_node.write().await;
@@ -294,6 +314,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
 
         let conf_changes = conf_change_v2.get_changes();
         let addrs: Vec<SocketAddr> = deserialize(conf_change_v2.get_context())?;
+        let mut peers = self.peers.lock().await;
 
         for (cc_idx, conf_change) in conf_changes.iter().enumerate() {
             let node_id = conf_change.get_node_id();
@@ -303,7 +324,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
                 ConfChangeType::AddNode => {
                     let addr = addrs[cc_idx];
                     log::info!("Node {} ({}) joined the cluster.", node_id, addr);
-                    self.peers.add_peer(node_id, &addr.to_string());
+                    peers.add_peer(node_id, &addr.to_string());
                 }
                 ConfChangeType::RemoveNode => {
                     if node_id == self.get_id(raw_node) {
@@ -311,7 +332,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
                         log::info!("Node {} quit the cluster.", node_id);
                     } else {
                         log::info!("Node {} removed from the cluster.", node_id);
-                        self.peers.remove(&node_id);
+                        peers.remove(&node_id);
                     }
                 }
                 _ => unimplemented!(),
@@ -322,8 +343,15 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
             Ok(conf_state) => {
                 let store = raw_node.mut_store();
                 store.set_conf_state(&conf_state)?;
-                // self.create_snapshot(entry.get_index(), entry.get_term())
-                //     .await?;
+
+                self.last_snapshot_created = Instant::now();
+                let fsm = self.fsm.lock().await;
+                let snapshot_data = fsm.snapshot().await?;
+
+                let last_applied = raw_node.raft.raft_log.applied;
+                let store = raw_node.mut_store();
+                store.compact(last_applied)?;
+                let _ = store.create_snapshot(snapshot_data, entry.get_index(), entry.get_term());
             }
             Err(e) => {
                 log::error!("Failed to apply configuration change: {}", e);
@@ -342,7 +370,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
             }) {
                 response = ResponseMessage::JoinSuccess {
                     assigned_id: conf_changes[0].get_node_id(),
-                    peers: self.peers.clone(),
+                    peers: peers.clone(),
                 };
             }
 
@@ -360,23 +388,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
 
         Ok(())
     }
-
-    // async fn create_snapshot(
-    //     &mut self,
-    //     index: u64,
-    //     term: u64,
-    // ) -> Result<()> {
-    //     self.last_snapshot_created = Instant::now();
-    //     let snapshot_data = self.fsm.snapshot().await?;
-
-    //     let mut raw_node = self.raw_node.lock().await;
-    //     let last_applied = raw_node.raft.raft_log.applied;
-    //     let store = raw_node.mut_store();
-    //     store.compact(last_applied)?;
-    //     let _ = store.create_snapshot(snapshot_data, index, term);
-    //     log::info!("Snapshot created successfully.");
-    //     Ok(())
-    // }
 
     pub async fn inspect(&self) -> Result<String> {
         // let prs = self.raft.prs().iter().map(|(k, v)| (k, v)).collect();
@@ -446,7 +457,7 @@ last_persisted: {last_persisted}\
                     if !self.is_leader(raw_node) {
                         // wrong leader send client cluster data
                         // TODO: retry strategy in case of failure
-                        self.send_wrongleader_response(raw_node, chan);
+                        self.send_wrongleader_response(raw_node, chan).await;
                     } else {
                         let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
                         client_send.insert(response_seq, chan);
@@ -471,13 +482,13 @@ last_persisted: {last_persisted}\
                 Ok(Some(RequestMessage::Propose { proposal, chan })) => {
                     let mut raw_node = self.raw_node.write().await;
                     let raw_node = raw_node.deref_mut();
+                    let peers = self.peers.lock().await;
 
                     if !self.is_leader(raw_node) {
                         // wrong leader send client cluster data
                         let leader_id = self.get_leader_id(raw_node);
                         // leader can't be an empty node
-                        // let leader_addr = self.peers[&leader_id].as_ref().unwrap().addr.clone();
-                        let leader_addr = self.peers.get(&leader_id).unwrap().addr.to_string();
+                        let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
                         let raft_response = ResponseMessage::WrongLeader {
                             leader_id,
                             leader_addr,
@@ -490,18 +501,19 @@ last_persisted: {last_persisted}\
                         raw_node.propose(response_seq, proposal).unwrap();
                     }
                 }
-                Ok(Some(RequestMessage::RequestId { addr, chan })) => {
+                Ok(Some(RequestMessage::RequestId { chan })) => {
                     let raw_node = self.raw_node.read().await;
                     let raw_node = raw_node.deref();
+                    let mut peers = self.peers.lock().await;
 
                     if !self.is_leader(raw_node) {
                         // TODO: retry strategy in case of failure
-                        self.send_wrongleader_response(raw_node, chan);
+                        self.send_wrongleader_response(raw_node, chan).await;
                     } else {
                         chan.send(ResponseMessage::IdReserved {
-                            reserved_id: self.peers.reserve_peer(self.get_id(raw_node), addr).await,
+                            reserved_id: peers.reserve_peer(self.get_id(raw_node)).await,
                             leader_id: self.get_id(raw_node),
-                            peers: self.peers.clone(),
+                            peers: peers.clone(),
                         })
                         .unwrap();
                     }

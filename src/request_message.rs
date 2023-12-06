@@ -15,7 +15,6 @@ pub enum RequestMessage {
         chan: Sender<ResponseMessage>,
     },
     RequestId {
-        addr: String,
         chan: Sender<ResponseMessage>,
     },
     ReportUnreachable {

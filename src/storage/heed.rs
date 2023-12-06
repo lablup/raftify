@@ -10,6 +10,7 @@ use prost::Message;
 use raft::{prelude::*, GetEntriesContext};
 
 use std::borrow::Cow;
+use std::cmp::max;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
@@ -339,12 +340,15 @@ impl LogStore for HeedStorage {
         let mut writer = store.env.write_txn()?;
         let metadata = snapshot.get_metadata();
         let conf_state = metadata.get_conf_state();
+
         let mut hard_state = store.hard_state(&writer)?;
-        hard_state.set_term(metadata.term);
+        hard_state.set_term(max(hard_state.term, metadata.term));
         hard_state.set_commit(metadata.index);
+
         store.set_hard_state(&mut writer, &hard_state)?;
         store.set_conf_state(&mut writer, conf_state)?;
         store.set_last_index(&mut writer, metadata.index)?;
+        store.set_snapshot(&mut writer, &snapshot)?;
         writer.commit()?;
         Ok(())
     }
@@ -401,11 +405,16 @@ impl Storage for HeedStorage {
         let first_index = store
             .first_index(&reader)
             .map_err(|_| raft::Error::Store(raft::StorageError::Unavailable))?;
+        let last_index = store
+            .last_index(&reader)
+            .map_err(|_| raft::Error::Store(raft::StorageError::Unavailable))?;
 
         let snapshot = store.snapshot(&reader, 0, 0).unwrap();
         if snapshot.get_metadata().get_index() == idx {
             return Ok(snapshot.get_metadata().get_term());
         }
+
+        println!("last_index!: {}", last_index);
 
         let entry = store
             .entry(&reader, idx)
@@ -417,6 +426,7 @@ impl Storage for HeedStorage {
                 if idx < first_index {
                     return Err(raft::Error::Store(raft::StorageError::Compacted));
                 }
+                println!("5!!!");
                 return Err(raft::Error::Store(raft::StorageError::Unavailable));
             }
         }

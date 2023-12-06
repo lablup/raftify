@@ -104,7 +104,7 @@ async fn leave(data: web::Data<(Arc<Mailbox>, HashStore, Raft<HashStore>)>) -> i
 
 #[get("/debug")]
 async fn debug(data: web::Data<(Arc<Mailbox>, HashStore, Raft<HashStore>)>) -> impl Responder {
-    let raft_node = data.2.raft_node.clone().unwrap();
+    let raft_node = data.2.raft_node.clone();
     raft_node.inspect().await.unwrap()
 }
 
@@ -116,7 +116,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let logger = slog::Logger::root(drain, o!());
 
     // converts log to slog
-    let _scope_guard = slog_scope::set_global_logger(logger.clone());
+    // let _scope_guard = slog_scope::set_global_logger(logger.clone());
     let _log_guard = slog_stdlog::init_with_level(log::Level::Debug).unwrap();
 
     let options = Options::from_args();
@@ -124,23 +124,35 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let cfg = build_config();
 
-    let mut raft = Raft::new(options.raft_addr, store.clone(), cfg, logger.clone());
-
-    let raft_handle = match options.peer_addr {
+    let (raft, raft_handle) = match options.peer_addr {
         Some(peer_addr) => {
             info!(logger, "Running in Follower mode");
-            let request_id_resp = raft.request_id(peer_addr.clone()).await?;
-            raft.build(request_id_resp.reserved_id)?;
+            let request_id_resp = Raft::<HashStore>::request_id(peer_addr.clone()).await?;
+            let raft = Raft::build(
+                request_id_resp.reserved_id,
+                options.raft_addr,
+                store.clone(),
+                cfg,
+                logger.clone(),
+                None,
+            )?;
             let handle = tokio::spawn(raft.clone().run());
             raft.join(request_id_resp).await?;
-            handle
+            (raft, handle)
         }
         None => {
             info!(logger, "Bootstrap a Raft Cluster");
             let node_id = 1;
-            raft.build(node_id)?;
+            let raft = Raft::build(
+                node_id,
+                options.raft_addr,
+                store.clone(),
+                cfg,
+                logger.clone(),
+                None,
+            )?;
             let handle = tokio::spawn(raft.clone().run());
-            handle
+            (raft, handle)
         }
     };
 
