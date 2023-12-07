@@ -91,7 +91,9 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
     async fn rl(&self) -> RwLockReadGuard<RaftNodeCore<FSM>> {
         self.0.read().await
     }
+}
 
+impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
     pub fn bootstrap_cluster(
         rcv: mpsc::Receiver<RequestMessage>,
         snd: mpsc::Sender<RequestMessage>,
