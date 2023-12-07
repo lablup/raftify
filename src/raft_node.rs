@@ -19,7 +19,6 @@ use raft::eraftpb::{
     ConfChangeType, ConfChangeV2, Entry, EntryType, Message as RaftMessage, Snapshot,
 };
 use raft::raw_node::RawNode;
-use raft::LightReady;
 use tokio::sync::{mpsc, RwLockReadGuard, RwLockWriteGuard};
 use tokio::sync::{oneshot, RwLock};
 use tokio::time::timeout;
@@ -83,17 +82,15 @@ pub struct RaftNodeCore<FSM: AbstractStateMachine + Clone + 'static> {
 }
 
 #[derive(Clone)]
-pub struct RaftNode<FSM: AbstractStateMachine + Clone + 'static> {
-    pub raft_node: Arc<RwLock<RaftNodeCore<FSM>>>,
-}
+pub struct RaftNode<FSM: AbstractStateMachine + Clone + 'static>(Arc<RwLock<RaftNodeCore<FSM>>>);
 
 impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
     async fn wl(&mut self) -> RwLockWriteGuard<RaftNodeCore<FSM>> {
-        self.raft_node.write().await
+        self.0.write().await
     }
 
     async fn rl(&self) -> RwLockReadGuard<RaftNodeCore<FSM>> {
-        self.raft_node.read().await
+        self.0.read().await
     }
 
     pub fn bootstrap_cluster(
@@ -114,9 +111,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
             logger,
             bootstrap_done,
         )
-        .map(|core| Self {
-            raft_node: Arc::new(RwLock::new(core)),
-        })
+        .map(|core| Self(Arc::new(RwLock::new(core))))
     }
 
     pub fn new_follower(
@@ -129,11 +124,8 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         logger: &slog::Logger,
         bootstrap_done: bool,
     ) -> Result<Self> {
-        RaftNodeCore::new_follower(rcv, snd, id, fsm, config, peers, logger, bootstrap_done).map(
-            |core| Self {
-                raft_node: Arc::new(RwLock::new(core)),
-            },
-        )
+        RaftNodeCore::new_follower(rcv, snd, id, fsm, config, peers, logger, bootstrap_done)
+            .map(|core| Self(Arc::new(RwLock::new(core))))
     }
 
     pub async fn is_leader(&self) -> bool {
@@ -343,14 +335,19 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         if Instant::now()
             > self.last_snapshot_created + Duration::from_secs_f32(self.config.snapshot_interval)
         {
-            self.last_snapshot_created = Instant::now();
-            let snapshot_data = self.fsm.snapshot().await?;
-
-            let last_applied = self.raw_node.raft.raft_log.applied;
-            let store = self.raw_node.mut_store();
-            store.compact(last_applied)?;
-            let _ = store.create_snapshot(snapshot_data, entry.get_index(), entry.get_term());
+            self.make_snapshot(entry.index, entry.term).await?;
         }
+        Ok(())
+    }
+
+    pub async fn make_snapshot(&mut self, index: u64, term: u64) -> Result<()> {
+        self.last_snapshot_created = Instant::now();
+        let snapshot_data = self.fsm.snapshot().await?;
+
+        let last_applied = self.raw_node.raft.raft_log.applied;
+        let store = self.raw_node.mut_store();
+        store.compact(last_applied)?;
+        let _ = store.create_snapshot(snapshot_data, index, term);
         Ok(())
     }
 
@@ -391,14 +388,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             Ok(conf_state) => {
                 let store = self.raw_node.mut_store();
                 store.set_conf_state(&conf_state)?;
-
-                self.last_snapshot_created = Instant::now();
-                let snapshot_data = self.fsm.snapshot().await?;
-
-                let last_applied = self.raw_node.raft.raft_log.applied;
-                let store = self.raw_node.mut_store();
-                store.compact(last_applied)?;
-                let _ = store.create_snapshot(snapshot_data, entry.get_index(), entry.get_term());
+                self.make_snapshot(entry.index, entry.term).await?;
             }
             Err(e) => {
                 log::error!("Failed to apply configuration change: {}", e);
@@ -411,6 +401,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         if let Some(sender) = senders.remove(&response_seq_value) {
             let mut response: ResponseMessage = ResponseMessage::Error;
 
+            // TODO: Handle other cases
             if conf_changes.iter().all(|cc| {
                 cc.get_change_type() == ConfChangeType::AddNode
                     || cc.get_change_type() == ConfChangeType::AddLearnerNode
@@ -617,9 +608,7 @@ last_persisted: {last_persisted}\
             self.send_messages(ready.take_persisted_messages()).await;
         }
 
-        let mut light_rd: raft::LightReady = LightReady::default();
-
-        light_rd = self.raw_node.advance(ready);
+        let mut light_rd = self.raw_node.advance(ready);
 
         if let Some(commit) = light_rd.commit_index() {
             let store = self.raw_node.mut_store();
