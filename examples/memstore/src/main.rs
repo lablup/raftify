@@ -4,6 +4,8 @@ extern crate slog_async;
 extern crate slog_scope;
 extern crate slog_term;
 
+use env_logger::Builder;
+use log::LevelFilter;
 use memstore::utils::build_config;
 use slog::Drain;
 
@@ -12,6 +14,8 @@ use async_trait::async_trait;
 use bincode::{deserialize, serialize};
 use raftify::{AbstractStateMachine, Mailbox, Raft, Result};
 use serde::{Deserialize, Serialize};
+use slog_envlogger::LogBuilder;
+// use slog_envlogger::LogBuilder;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use structopt::StructOpt;
@@ -113,10 +117,19 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::FullFormat::new(decorator).build().fuse();
     let drain = slog_async::Async::new(drain).build().fuse();
+
+    let mut builder = LogBuilder::new(drain);
+    builder = builder.filter(None, slog::FilterLevel::Debug);
+
+    if let Ok(s) = std::env::var("RUST_LOG") {
+        builder = builder.parse(&s);
+    }
+    let drain = builder.build();
+
     let logger = slog::Logger::root(drain, o!());
 
     // converts log to slog
-    // let _scope_guard = slog_scope::set_global_logger(logger.clone());
+    let _scope_guard = slog_scope::set_global_logger(logger.clone());
     let _log_guard = slog_stdlog::init_with_level(log::Level::Debug).unwrap();
 
     let options = Options::from_args();
@@ -126,9 +139,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let (raft, raft_handle) = match options.peer_addr {
         Some(peer_addr) => {
-            info!(logger, "Running in Follower mode");
+            log::info!("Running in Follower mode");
             let request_id_resp = Raft::<HashStore>::request_id(peer_addr.clone()).await?;
-            let raft = Raft::build(
+            let mut raft = Raft::build(
                 request_id_resp.reserved_id,
                 options.raft_addr,
                 store.clone(),
@@ -141,7 +154,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             (raft, handle)
         }
         None => {
-            info!(logger, "Bootstrap a Raft Cluster");
+            log::info!("Bootstrap a Raft Cluster");
             let node_id = 1;
             let raft = Raft::build(
                 node_id,

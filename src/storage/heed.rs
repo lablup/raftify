@@ -374,7 +374,7 @@ impl Storage for HeedStorage {
                 .conf_state(&reader)
                 .map_err(|e| raft::Error::Store(raft::StorageError::Other(e.into())))?,
         };
-        warn!("Initial RaftState: {:#?}", raft_state);
+        warn!("Initial State: {:#?}", raft_state);
         Ok(raft_state)
     }
 
