@@ -67,19 +67,6 @@ impl MessageSender {
     }
 }
 
-pub struct RaftNodeCore<FSM: AbstractStateMachine + Clone + 'static> {
-    pub raw_node: RawNode<HeedStorage>,
-    pub rcv: mpsc::Receiver<RequestMessage>,
-    pub fsm: FSM,
-    pub peers: Peers,
-    pub snd: mpsc::Sender<RequestMessage>,
-    response_seq: AtomicU64,
-    config: Config,
-    should_exit: bool,
-    bootstrap_done: bool,
-    last_snapshot_created: Instant,
-}
-
 #[derive(Clone)]
 pub struct RaftNode<FSM: AbstractStateMachine + Clone + 'static>(Arc<RwLock<RaftNodeCore<FSM>>>);
 
@@ -152,6 +139,19 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
     pub async fn run(mut self) -> Result<()> {
         self.wl().await.run().await
     }
+}
+
+pub struct RaftNodeCore<FSM: AbstractStateMachine + Clone + 'static> {
+    pub raw_node: RawNode<HeedStorage>,
+    pub rcv: mpsc::Receiver<RequestMessage>,
+    pub fsm: FSM,
+    pub peers: Peers,
+    pub snd: mpsc::Sender<RequestMessage>,
+    response_seq: AtomicU64,
+    config: Config,
+    should_exit: bool,
+    bootstrap_done: bool,
+    last_snapshot_created: Instant,
 }
 
 impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
