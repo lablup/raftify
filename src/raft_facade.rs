@@ -91,6 +91,8 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
     }
 
     pub async fn run(self) -> Result<()> {
+        println!("Start to run RaftNode. Configuration: {:?}", self.config);
+
         let raft_node = self.raft_node.as_ref().clone();
         let raft_node_handle = tokio::spawn(async move { raft_node.to_owned().run().await });
         let raft_server = self.raft_server.to_owned();
@@ -109,7 +111,10 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
                         println!("Both tasks completed successfully.");
                         Ok(())
                     },
-                    Err(e) => Err(Error::Other(Box::new(e)))
+                    Err(e) => {
+                        println!("Error: {:?}", e);
+                        Err(Error::Other(Box::new(e)))
+                    }
                 }
             }
         }
