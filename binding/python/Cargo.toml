@@ -14,6 +14,8 @@ edition = "2021"
 
 [dependencies]
 pyo3 = { version = "0.20.0", features = ["extension-module", "multiple-pymethods"] }
+pyo3-asyncio = { version = "0.20", features = ["tokio-runtime"] }
+tokio = { version = "1.4", features = ["full"] }
 async-trait = "0.1.48"
 raftify = { path = "../../", default-features = false }
 slog = { version = "2.2", features = ["max_level_trace", "release_max_level_trace"] }

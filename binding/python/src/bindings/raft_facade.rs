@@ -48,4 +48,15 @@ impl RaftFacade {
         .unwrap();
         Ok(Self { raft })
     }
+
+    pub fn run(&mut self) -> PyResult<()> {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let raft = self.raft.clone();
+            tokio::spawn(async move {
+                raft.run().await.unwrap();
+            });
+        });
+        Ok(())
+    }
 }

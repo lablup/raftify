@@ -18,5 +18,5 @@ slog = "2"
 slog-stdlog = "4"
 slog-scope = "4.4"
 structopt = "0.3"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1.4", features = ["full"] }
 toml = "0.8.8"
