@@ -10,7 +10,7 @@ actix-web = "4.0.0"
 async-trait = "0.1.48"
 bincode = "1.3"
 log = { version = "0.4", features = ["std"] }
-riteraft = { path = "../../" }
+raftify = { path = "../../" }
 serde = { version = "1.0", features = ["derive"] }
 slog-async = "2"
 slog-term = "2"

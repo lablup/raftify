@@ -18,6 +18,7 @@ mod utils;
 extern crate async_trait;
 
 pub use raft::Config as RaftConfig;
+pub use raft::ReadOnlyOption;
 
 pub use crate::config::Config;
 pub use crate::error::{Error, Result};

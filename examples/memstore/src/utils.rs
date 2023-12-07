@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use std::path::Path;
 use toml;
 
-use riteraft::{Config, Peers, RaftConfig};
+use raftify::{Config, Peers, RaftConfig};
 
 pub fn build_config() -> Config {
     let mut cfg = Config::default();

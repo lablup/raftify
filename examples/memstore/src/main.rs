@@ -10,7 +10,7 @@ use slog::Drain;
 use actix_web::{get, web, App, HttpServer, Responder};
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
-use riteraft::{AbstractStateMachine, Mailbox, Raft, Result};
+use raftify::{AbstractStateMachine, Mailbox, Raft, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
