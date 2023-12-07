@@ -73,7 +73,6 @@ pub struct RaftNodeCore<FSM: AbstractStateMachine + Clone + 'static> {
     pub fsm: FSM,
     pub peers: Peers,
     pub snd: mpsc::Sender<RequestMessage>,
-    pub storage: HeedStorage,
     response_seq: AtomicU64,
     config: Config,
     should_exit: bool,
@@ -178,7 +177,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
 
         let mut storage = HeedStorage::create(".", 1)?;
         storage.apply_snapshot(snapshot).unwrap();
-        let mut raw_node = RawNode::new(&raft_config, storage.clone(), logger)?;
+        let mut raw_node = RawNode::new(&raft_config, storage, logger)?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now();
 
@@ -192,7 +191,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             response_seq,
             snd,
             config,
-            storage,
             bootstrap_done,
             last_snapshot_created,
             peers: initial_peers,
@@ -216,7 +214,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         raft_config.validate()?;
 
         let storage = HeedStorage::create(".", id)?;
-        let raw_node = RawNode::new(&raft_config, storage.clone(), logger)?;
+        let raw_node = RawNode::new(&raft_config, storage, logger)?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now()
             .checked_sub(Duration::from_secs(1000))
@@ -230,7 +228,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             response_seq,
             snd,
             config,
-            storage,
             last_snapshot_created,
             bootstrap_done,
             should_exit: false,
@@ -431,11 +428,13 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         // let prs = self.raft.prs().iter().map(|(k, v)| (k, v)).collect();
 
         let raw_node = &self.raw_node;
+        let store = raw_node.store();
+
         let id = raw_node.raft.id;
         let leader_id = raw_node.raft.leader_id;
-        let hard_state = self.storage.hard_state()?;
-        let conf_state = self.storage.conf_state()?;
-        let snapshot = self.storage.snapshot(0, 0)?;
+        let hard_state = store.hard_state()?;
+        let conf_state = store.conf_state()?;
+        let snapshot = store.snapshot(0, 0)?;
         let last_index = raw_node.raft.raft_log.last_index();
 
         let last_applied = raw_node.raft.raft_log.applied;
@@ -612,7 +611,7 @@ last_persisted: {last_persisted}\
 
         if let Some(commit) = light_rd.commit_index() {
             let store = self.raw_node.mut_store();
-            store.set_hard_state_comit(commit)?;
+            store.set_hard_state_commit(commit)?;
         }
 
         self.send_messages(light_rd.take_messages()).await;

@@ -19,7 +19,7 @@ use tonic::Request;
 
 #[derive(Clone)]
 pub struct Raft<FSM: AbstractStateMachine + Clone + 'static> {
-    pub raft_node: Arc<RaftNode<FSM>>,
+    pub raft_node: RaftNode<FSM>,
     pub raft_server: RaftServer,
     pub tx: mpsc::Sender<RequestMessage>,
     pub addr: SocketAddr,
@@ -78,7 +78,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
             logger,
             config,
             tx: tx.clone(),
-            raft_node: Arc::new(raft_node),
+            raft_node,
             raft_server: RaftServer::new(tx.clone(), addr.clone()),
         })
     }
@@ -93,7 +93,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
     pub async fn run(self) -> Result<()> {
         println!("Start to run RaftNode. Configuration: {:?}", self.config);
 
-        let raft_node = self.raft_node.as_ref().clone();
+        let raft_node = self.raft_node.clone();
         let raft_node_handle = tokio::spawn(async move { raft_node.to_owned().run().await });
         let raft_server = self.raft_server.to_owned();
         let raft_server_handle = tokio::spawn(async move { raft_server.run().await });
@@ -155,18 +155,16 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
         }
     }
 
-    pub async fn join(&self, request_id_response: RequestIdResponse) -> Result<()> {
-        let mut raft_node = self.raft_node.clone().as_ref().clone();
-
+    pub async fn join(&mut self, request_id_response: RequestIdResponse) -> Result<()> {
         let leader_id = request_id_response.leader_id;
         let leader_addr = request_id_response.leader_addr.clone();
         let reserved_id = request_id_response.reserved_id;
 
         for (id, peer) in request_id_response.peers.iter() {
-            raft_node.add_peer(id.to_owned(), peer.addr).await;
+            self.raft_node.add_peer(id.to_owned(), peer.addr).await;
         }
 
-        raft_node.add_peer(leader_id, leader_addr).await;
+        self.raft_node.add_peer(leader_id, leader_addr).await;
 
         let mut change = ConfChangeV2::default();
         let mut cs = ConfChangeSingle::default();

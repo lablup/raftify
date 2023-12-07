@@ -1,6 +1,5 @@
 use crate::error::Result;
 
-use bincode::de;
 use heed::types::*;
 use heed::{Database, Env, PolyDatabase};
 use heed_traits::{BytesDecode, BytesEncode};
@@ -19,7 +18,7 @@ pub trait LogStore: Storage {
     fn append(&mut self, entries: &[Entry]) -> Result<()>;
     fn hard_state(&self) -> Result<HardState>;
     fn set_hard_state(&mut self, hard_state: &HardState) -> Result<()>;
-    fn set_hard_state_comit(&mut self, comit: u64) -> Result<()>;
+    fn set_hard_state_commit(&mut self, commit: u64) -> Result<()>;
     fn conf_state(&self) -> Result<ConfState>;
     fn set_conf_state(&mut self, conf_state: &ConfState) -> Result<()>;
     fn snapshot(&self, request_index: u64, to: u64) -> Result<Snapshot>;
@@ -284,12 +283,11 @@ impl LogStore for HeedStorage {
         Ok(())
     }
 
-    #[inline]
-    fn set_hard_state_comit(&mut self, comit: u64) -> Result<()> {
+    fn set_hard_state_commit(&mut self, commit: u64) -> Result<()> {
         let store = self.wl();
         let reader = store.env.read_txn()?;
         let mut hard_state = store.hard_state(&reader)?;
-        hard_state.set_commit(comit);
+        hard_state.set_commit(commit);
         let mut writer = store.env.write_txn()?;
         store.set_hard_state(&mut writer, &hard_state)?;
         Ok(())
