@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::ops::{Deref, DerefMut};
-use std::os::macos::raw;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -18,11 +16,11 @@ use bincode::{deserialize, serialize};
 use log::*;
 use prost::Message as PMessage;
 use raft::eraftpb::{
-    ConfChangeType, ConfChangeV2, Entry, EntryType, HardState, Message as RaftMessage, Snapshot,
+    ConfChangeType, ConfChangeV2, Entry, EntryType, Message as RaftMessage, Snapshot,
 };
 use raft::raw_node::RawNode;
-use raft::{LightReady, Ready};
-use tokio::sync::{mpsc, Mutex, RwLockReadGuard, RwLockWriteGuard};
+use raft::LightReady;
+use tokio::sync::{mpsc, RwLockReadGuard, RwLockWriteGuard};
 use tokio::sync::{oneshot, RwLock};
 use tokio::time::timeout;
 use tonic::Request;
@@ -168,12 +166,12 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         rcv: mpsc::Receiver<RequestMessage>,
         snd: mpsc::Sender<RequestMessage>,
         fsm: FSM,
-        config: Config,
+        mut config: Config,
         initial_peers: Peers,
         logger: &slog::Logger,
         bootstrap_done: bool,
     ) -> Result<Self> {
-        let mut raft_config = config.raft_config.clone();
+        let raft_config = &mut config.raft_config;
 
         raft_config.id = 1;
         raft_config.validate()?;
@@ -215,12 +213,12 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         snd: mpsc::Sender<RequestMessage>,
         id: u64,
         fsm: FSM,
-        config: Config,
+        mut config: Config,
         peers: Peers,
         logger: &slog::Logger,
         bootstrap_done: bool,
     ) -> Result<Self> {
-        let mut raft_config = config.raft_config.clone();
+        let raft_config = &mut config.raft_config;
 
         raft_config.id = id;
         raft_config.validate()?;
@@ -517,12 +515,12 @@ last_persisted: {last_persisted}\
                             .propose_conf_change(serialize(&response_seq).unwrap(), conf_change)?;
                     }
                 }
-                Ok(Some(RequestMessage::Raft(m))) => {
+                Ok(Some(RequestMessage::RaftMessage { message })) => {
                     debug!(
                         "Node {} received Raft message from the node {}, Message: {:?}",
-                        self.raw_node.raft.id, m.from, m
+                        self.raw_node.raft.id, message.from, message
                     );
-                    if let Ok(_a) = self.raw_node.step(*m) {};
+                    if let Ok(_a) = self.raw_node.step(*message) {};
                 }
                 Ok(Some(RequestMessage::Propose { proposal, chan })) => {
                     if !self.is_leader() {

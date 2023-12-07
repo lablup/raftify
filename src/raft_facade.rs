@@ -13,8 +13,8 @@ use crate::{AbstractStateMachine, Config, Mailbox, Peer, Peers};
 use bincode::{deserialize, serialize};
 use log::info;
 use raft::eraftpb::{ConfChangeSingle, ConfChangeType, ConfChangeV2};
+use tokio::signal;
 use tokio::sync::mpsc;
-use tokio::{signal, try_join};
 use tonic::Request;
 
 #[derive(Clone)]

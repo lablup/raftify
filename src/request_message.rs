@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 use tokio::sync::oneshot::Sender;
 
@@ -31,5 +29,7 @@ pub enum RequestMessage {
     DebugNode {
         chan: Sender<ResponseMessage>,
     },
-    Raft(Box<RaftMessage>),
+    RaftMessage {
+        message: Box<RaftMessage>,
+    },
 }
