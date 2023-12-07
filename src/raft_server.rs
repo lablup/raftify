@@ -51,7 +51,7 @@ impl RaftService for RaftServer {
         &self,
         request: Request<RequestIdArgs>,
     ) -> Result<Response<raft_service::RequestIdResponse>, Status> {
-        let request_args = request.into_inner();
+        let _request_args = request.into_inner();
         let sender = self.snd.clone();
         let (tx, rx) = oneshot::channel();
         let _ = sender.send(RequestMessage::RequestId { chan: tx }).await;

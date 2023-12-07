@@ -51,7 +51,7 @@ impl AbstractStateMachine for HashStore {
             Message::Insert { key, value } => {
                 let mut db = self.0.write().unwrap();
                 db.insert(key, value.clone());
-                log::info!("inserted: ({}, {})", key, value);
+                log::info!("Inserted: ({}, {})", key, value);
                 serialize(&value).unwrap()
             }
         };

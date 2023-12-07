@@ -14,6 +14,7 @@ use bincode::{deserialize, serialize};
 use log::info;
 use raft::eraftpb::{ConfChangeSingle, ConfChangeType, ConfChangeV2};
 use tokio::sync::mpsc;
+use tokio::{signal, try_join};
 use tonic::Request;
 
 #[derive(Clone)]
@@ -93,9 +94,25 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
         let raft_node = self.raft_node.as_ref().clone();
         let raft_node_handle = tokio::spawn(async move { raft_node.to_owned().run().await });
         let raft_server = self.raft_server.to_owned();
-        let _raft_server_handle = tokio::spawn(async move { raft_server.run().await });
-        let _ = tokio::try_join!(raft_node_handle);
-        Ok(())
+        let raft_server_handle = tokio::spawn(async move { raft_server.run().await });
+
+        tokio::select! {
+            _ = signal::ctrl_c() => {
+                println!("Ctrl+C detected. Shutting down...");
+                Ok(())
+            }
+            result = async {
+                tokio::try_join!(raft_node_handle, raft_server_handle)
+            } => {
+                match result {
+                    Ok(_) => {
+                        println!("Both tasks completed successfully.");
+                        Ok(())
+                    },
+                    Err(e) => Err(Error::Other(Box::new(e)))
+                }
+            }
+        }
     }
 
     pub async fn request_id(peer_addr: String) -> Result<RequestIdResponse> {

@@ -113,7 +113,7 @@ impl HeedStorageCore {
         let hard_state = self
             .metadata_db
             .get::<_, Str, HeedHardState>(reader, HARD_STATE_KEY)?;
-        Ok(hard_state.expect("missing hard_state"))
+        Ok(hard_state.expect("Missing hard_state in metadata"))
     }
 
     pub fn set_conf_state(&self, writer: &mut heed::RwTxn, conf_state: &ConfState) -> Result<()> {
@@ -126,7 +126,7 @@ impl HeedStorageCore {
         let conf_state = self
             .metadata_db
             .get::<_, Str, HeedConfState>(reader, CONF_STATE_KEY)?;
-        Ok(conf_state.expect("there should be a conf state"))
+        Ok(conf_state.expect("Missing conf_state in metadata"))
     }
 
     fn set_snapshot(&self, writer: &mut heed::RwTxn, snapshot: &Snapshot) -> Result<()> {
@@ -405,16 +405,11 @@ impl Storage for HeedStorage {
         let first_index = store
             .first_index(&reader)
             .map_err(|_| raft::Error::Store(raft::StorageError::Unavailable))?;
-        let last_index = store
-            .last_index(&reader)
-            .map_err(|_| raft::Error::Store(raft::StorageError::Unavailable))?;
 
         let snapshot = store.snapshot(&reader, 0, 0).unwrap();
         if snapshot.get_metadata().get_index() == idx {
             return Ok(snapshot.get_metadata().get_term());
         }
-
-        println!("last_index!: {}", last_index);
 
         let entry = store
             .entry(&reader, idx)
@@ -426,7 +421,6 @@ impl Storage for HeedStorage {
                 if idx < first_index {
                     return Err(raft::Error::Store(raft::StorageError::Compacted));
                 }
-                println!("5!!!");
                 return Err(raft::Error::Store(raft::StorageError::Unavailable));
             }
         }
