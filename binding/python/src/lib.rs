@@ -1,3 +1,4 @@
+#![cfg(feature = "include-python-workspace")]
 use pyo3::prelude::*;
 
 mod bindings;

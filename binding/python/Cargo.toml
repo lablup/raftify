@@ -12,6 +12,10 @@ keywords = ["raft", "distributed-systems", "consensus-algorithm", "replication",
 categories = ["distributed-systems", "database-implementations"]
 edition = "2021"
 
+[features]
+default = []
+include-python-workspace = []
+
 [dependencies]
 pyo3 = { version = "0.20.0", features = ["extension-module", "multiple-pymethods"] }
 pyo3-asyncio = { version = "0.20", features = ["tokio-runtime"] }
