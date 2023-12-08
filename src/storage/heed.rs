@@ -3,11 +3,11 @@ use crate::error::Result;
 use heed::types::*;
 use heed::{Database, Env, PolyDatabase};
 use heed_traits::{BytesDecode, BytesEncode};
-use log::info;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use prost::Message;
 use raft::{prelude::*, GetEntriesContext};
 
+use crate::config::Config;
+use prost::Message;
 use std::borrow::Cow;
 use std::cmp::max;
 use std::fs;
@@ -55,6 +55,45 @@ macro_rules! heed_type {
     };
 }
 
+#[derive(Eq, PartialEq)]
+pub struct KeyString(String);
+
+impl Ord for KeyString {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let self_num: u64 = self.0.parse().unwrap();
+        let other_num: u64 = other.0.parse().unwrap();
+        self_num.cmp(&other_num)
+    }
+}
+
+impl PartialOrd for KeyString {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'a> BytesEncode<'a> for KeyString {
+    type EItem = String;
+
+    fn bytes_encode(item: &'a Self::EItem) -> Option<Cow<'a, [u8]>> {
+        Some(Cow::Borrowed(item.as_bytes()))
+    }
+}
+
+impl<'a> BytesDecode<'a> for KeyString {
+    type DItem = String;
+
+    fn bytes_decode(bytes: &'a [u8]) -> Option<Self::DItem> {
+        Some(String::from_utf8_lossy(bytes).into_owned())
+    }
+}
+
+impl From<u64> for KeyString {
+    fn from(num: u64) -> Self {
+        KeyString(num.to_string())
+    }
+}
+
 heed_type!(HeedSnapshot, Snapshot);
 heed_type!(HeedEntry, Entry);
 heed_type!(HeedHardState, HardState);
@@ -62,25 +101,29 @@ heed_type!(HeedConfState, ConfState);
 
 pub struct HeedStorageCore {
     env: Env,
-    entries_db: Database<OwnedType<u64>, HeedEntry>,
+    entries_db: Database<KeyString, HeedEntry>,
     metadata_db: PolyDatabase,
+    config: Config,
+    logger: slog::Logger,
 }
 
 impl HeedStorageCore {
-    pub fn create(path: impl AsRef<Path>, id: u64) -> Result<Self> {
-        let path = path.as_ref();
-        let name = format!("node-{}", id);
+    pub fn create(node_id: u64, config: &Config, logger: slog::Logger) -> Result<Self> {
+        let log_dir_path = format!("{}/node-{}", config.log_dir.clone(), node_id);
+        let log_dir_path = Path::new(&log_dir_path);
 
-        fs::create_dir_all(Path::new(&path).join(&name))?;
+        if fs::metadata(Path::new(&log_dir_path)).is_ok() {
+            fs::remove_dir_all(log_dir_path).expect("Failed to remove log directory");
+        }
 
-        let path = path.join(&name);
+        fs::create_dir_all(Path::new(&log_dir_path))?;
 
         let env = heed::EnvOpenOptions::new()
-            .map_size(100 * 4096)
+            .map_size(config.lmdb_map_size as usize)
             .max_dbs(3000)
-            .open(path)?;
-        let entries_db: Database<OwnedType<u64>, HeedEntry> =
-            env.create_database(Some("entries"))?;
+            .open(log_dir_path)?;
+
+        let entries_db: Database<KeyString, HeedEntry> = env.create_database(Some("entries"))?;
 
         let metadata_db = env.create_poly_database(Some("meta"))?;
 
@@ -91,6 +134,8 @@ impl HeedStorageCore {
             metadata_db,
             entries_db,
             env,
+            logger,
+            config: config.clone(),
         };
 
         let mut writer = storage.env.write_txn()?;
@@ -167,11 +212,12 @@ impl HeedStorageCore {
             .entries_db
             .first(reader)?
             .expect("There should always be at least one entry in the db");
-        Ok(first_entry.0 + 1)
+
+        Ok(first_entry.0.parse::<u64>().unwrap() + 1)
     }
 
     fn entry(&self, reader: &heed::RoTxn, index: u64) -> Result<Option<Entry>> {
-        let entry = self.entries_db.get(reader, &index)?;
+        let entry = self.entries_db.get(reader, &index.to_string())?;
         Ok(entry)
     }
 
@@ -183,9 +229,11 @@ impl HeedStorageCore {
         max_size: impl Into<Option<u64>>,
         _ctx: GetEntriesContext,
     ) -> Result<Vec<Entry>> {
-        info!("Entries [{}, {}) requested", low, high);
+        slog::info!(self.logger, "Entries [{}, {}) requested", low, high);
 
-        let iter = self.entries_db.range(&reader, &(low..high))?;
+        let iter = self
+            .entries_db
+            .range(&reader, &(low.to_string()..high.to_string()))?;
         let max_size: Option<u64> = max_size.into();
         let mut size_count = 0;
         let mut buf = vec![];
@@ -222,7 +270,7 @@ impl HeedStorageCore {
             //assert_eq!(entry.get_index(), last_index + 1);
             let index = entry.index;
             last_index = std::cmp::max(index, last_index);
-            self.entries_db.put(writer, &index, entry)?;
+            self.entries_db.put(writer, &index.to_string(), entry)?;
         }
         self.set_last_index(writer, last_index)?;
         Ok(())
@@ -233,8 +281,8 @@ impl HeedStorageCore {
 pub struct HeedStorage(Arc<RwLock<HeedStorageCore>>);
 
 impl HeedStorage {
-    pub fn create(path: impl AsRef<Path>, id: u64) -> Result<Self> {
-        let core = HeedStorageCore::create(path, id)?;
+    pub fn create(node_id: u64, config: &Config, logger: slog::Logger) -> Result<Self> {
+        let core = HeedStorageCore::create(node_id, config, logger)?;
         Ok(Self(Arc::new(RwLock::new(core))))
     }
 
@@ -255,7 +303,9 @@ impl LogStore for HeedStorage {
         //let last_index = self.last_index(&writer)?;
         // there should always be at least one entry in the log
         //assert!(last_index > index + 1);
-        store.entries_db.delete_range(&mut writer, &(..index))?;
+        store
+            .entries_db
+            .delete_range(&mut writer, &(..index.to_string()))?;
         writer.commit()?;
         Ok(())
     }

@@ -163,11 +163,11 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         rcv: mpsc::Receiver<RequestMessage>,
         snd: mpsc::Sender<RequestMessage>,
         fsm: FSM,
-        mut config: Config,
+        config: Config,
         initial_peers: Peers,
         logger: slog::Logger,
     ) -> Result<Self> {
-        let raft_config = &mut config.raft_config;
+        let mut raft_config = config.raft_config.clone();
 
         raft_config.id = 1;
         raft_config.validate()?;
@@ -176,11 +176,11 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         // Because we don't use the same configuration to initialize every node, so we use
         // a non-zero index to force new followers catch up logs by snapshot first, which will
         // bring all nodes to the same initial state.
-        snapshot.mut_metadata().index = 0;
-        snapshot.mut_metadata().term = 0;
+        snapshot.mut_metadata().index = 1;
+        snapshot.mut_metadata().term = 1;
         snapshot.mut_metadata().mut_conf_state().voters = vec![1];
 
-        let mut storage = HeedStorage::create(".", 1)?;
+        let mut storage = HeedStorage::create(1, &config, logger.clone())?;
         storage.apply_snapshot(snapshot).unwrap();
 
         let mut raw_node = RawNode::new(&raft_config, storage, &logger)?;
@@ -190,38 +190,40 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         raw_node.raft.become_candidate();
         raw_node.raft.become_leader();
 
-        let mut conf_changes = vec![];
-        let mut entries = vec![];
+        // let mut conf_changes = vec![];
+        // let mut entries = vec![];
+        // let last_persisted = raw_node.store().last_index().unwrap();
 
-        for (i, peer) in initial_peers.inner.iter().enumerate() {
-            let node_id = peer.0;
-            let node_addr = initial_peers.get(node_id).unwrap().addr;
+        // for (i, peer) in initial_peers.inner.iter().enumerate() {
+        //     let node_id = peer.0;
+        //     let node_addr = initial_peers.get(node_id).unwrap().addr;
 
-            // Skip leader
-            if *node_id == 1 {
-                continue;
-            }
+        //     // Skip leader
+        //     if *node_id == 1 {
+        //         continue;
+        //     }
 
-            let mut conf_change = ConfChange::default();
-            conf_change.set_node_id(*node_id);
-            conf_change.set_change_type(ConfChangeType::AddNode);
-            conf_change.set_context(serialize(&vec![node_addr]).unwrap());
-            conf_changes.push(conf_change.clone());
+        //     let mut conf_change = ConfChange::default();
+        //     conf_change.set_node_id(*node_id);
+        //     conf_change.set_change_type(ConfChangeType::AddNode);
+        //     conf_change.set_context(serialize(&vec![node_addr]).unwrap());
+        //     conf_changes.push(conf_change.clone());
 
-            let conf_state = raw_node.apply_conf_change(&conf_change)?;
-            raw_node.mut_store().set_conf_state(&conf_state)?;
+        //     let conf_state = raw_node.apply_conf_change(&conf_change)?;
+        //     raw_node.mut_store().set_conf_state(&conf_state)?;
 
-            let mut entry = Entry::default();
-            entry.set_entry_type(EntryType::EntryConfChangeV2);
-            entry.set_term(1);
-            entry.set_index(raw_node.store().last_index().unwrap() + i as u64);
-            entry.set_data(conf_change.encode_to_vec());
-            entry.set_context(vec![]);
+        //     let mut entry = Entry::default();
+        //     entry.set_entry_type(EntryType::EntryConfChangeV2);
+        //     entry.set_term(1);
+        //     entry.set_index(last_persisted + i as u64);
+        //     entry.set_data(conf_change.encode_to_vec());
+        //     entry.set_context(vec![]);
 
-            entries.push(entry);
-        }
+        //     entries.push(entry);
+        // }
 
-        raw_node.raft.raft_log.append(&entries);
+        // raw_node.raft.raft_log.committed = last_persisted + initial_peers.inner.len() as u64;
+        // raw_node.raft.raft_log.append(&entries);
 
         Ok(RaftNodeCore {
             raw_node,
@@ -242,16 +244,16 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         snd: mpsc::Sender<RequestMessage>,
         id: u64,
         fsm: FSM,
-        mut config: Config,
+        config: Config,
         peers: Peers,
         logger: slog::Logger,
     ) -> Result<Self> {
-        let raft_config = &mut config.raft_config;
+        let mut raft_config = config.raft_config.clone();
 
         raft_config.id = id;
         raft_config.validate()?;
 
-        let storage = HeedStorage::create(".", id)?;
+        let storage = HeedStorage::create(id, &config, logger.clone())?;
         let raw_node = RawNode::new(&raft_config, storage, &logger)?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now()
@@ -613,7 +615,7 @@ last_persisted: {last_persisted}\
         let mut ready = self.raw_node.ready();
 
         if !ready.messages().is_empty() {
-            self.send_messages(ready.take_messages()).await;
+            self.send_messages(ready.take_messages()).await?;
         }
 
         if *ready.snapshot() != Snapshot::default() {
@@ -638,7 +640,7 @@ last_persisted: {last_persisted}\
         }
 
         if !ready.persisted_messages().is_empty() {
-            self.send_messages(ready.take_persisted_messages()).await;
+            self.send_messages(ready.take_persisted_messages()).await?;
         }
 
         let mut light_rd = self.raw_node.advance(ready);
@@ -648,7 +650,7 @@ last_persisted: {last_persisted}\
             store.set_hard_state_commit(commit)?;
         }
 
-        self.send_messages(light_rd.take_messages()).await;
+        self.send_messages(light_rd.take_messages()).await?;
         self.handle_committed_entries(light_rd.take_committed_entries(), client_send)
             .await?;
 
