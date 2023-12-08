@@ -37,7 +37,12 @@ pub struct TomlInnerRaftConfig {
 }
 
 pub async fn load_peers() -> Result<Peers, Box<dyn std::error::Error>> {
-    let path = Path::new(file!()).parent().unwrap().parent().unwrap().join("config.toml");
+    let path = Path::new(file!())
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("config.toml");
     let config_str = fs::read_to_string(path)?;
 
     let raft_config: TomlRaftConfig = toml::from_str(&config_str)?;

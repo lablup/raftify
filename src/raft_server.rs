@@ -23,7 +23,11 @@ pub struct RaftServer {
 }
 
 impl RaftServer {
-    pub fn new<A: ToSocketAddrs>(snd: mpsc::Sender<RequestMessage>, addr: A, logger: slog::Logger) -> Self {
+    pub fn new<A: ToSocketAddrs>(
+        snd: mpsc::Sender<RequestMessage>,
+        addr: A,
+        logger: slog::Logger,
+    ) -> Self {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
         RaftServer { snd, addr, logger }
     }
@@ -145,52 +149,6 @@ impl RaftService for RaftServer {
         Ok(Response::new(raft_service::RaftResponse {
             inner: serialize(&response).unwrap(),
         }))
-    }
-
-    async fn member_bootstrap_ready(
-        &self,
-        request: Request<raft_service::MemberBootstrapReadyArgs>,
-    ) -> Result<Response<raft_service::MemberBootstrapReadyResponse>, Status> {
-        let request_args = request.into_inner();
-        let (tx, rx) = oneshot::channel();
-        let sender = self.snd.clone();
-
-        match sender
-            .send(RequestMessage::MemberBootstrapReady {
-                node_id: request_args.node_id,
-                chan: tx,
-            })
-            .await
-        {
-            Ok(_) => (),
-            Err(_) => slog::error!(self.logger, "send error"),
-        }
-
-        let _response = rx.await.unwrap();
-        Ok(Response::new(raft_service::MemberBootstrapReadyResponse {}))
-    }
-
-    async fn cluster_bootstrap_ready(
-        &self,
-        request: Request<raft_service::ClusterBootstrapReadyArgs>,
-    ) -> Result<Response<raft_service::ClusterBootstrapReadyResponse>, Status> {
-        let request_args = request.into_inner();
-        let (tx, rx) = oneshot::channel();
-        let sender = self.snd.clone();
-        let peers: Peers = deserialize(&request_args.peers[..]).unwrap();
-
-        match sender
-            .send(RequestMessage::ClusterBootstrapReady { peers, chan: tx })
-            .await
-        {
-            Ok(_) => (),
-            Err(_) => slog::error!(self.logger, "send error"),
-        }
-
-        let _response = rx.await.unwrap();
-        Ok(Response::new(
-            raft_service::ClusterBootstrapReadyResponse {},
-        ))
     }
 
     async fn debug_node(

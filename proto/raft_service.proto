@@ -4,8 +4,6 @@ package raftservice;
 import "eraftpb.proto";
 
 service RaftService {
-  rpc MemberBootstrapReady(MemberBootstrapReadyArgs) returns (MemberBootstrapReadyResponse) {}
-  rpc ClusterBootstrapReady(ClusterBootstrapReadyArgs) returns (ClusterBootstrapReadyResponse) {}
   rpc RequestId(RequestIdArgs) returns (RequestIdResponse) {}
   rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
   rpc SendMessage(eraftpb.Message) returns (RaftResponse) {}
@@ -42,22 +40,6 @@ message Entry {
 
 message RaftResponse {
   bytes inner = 2;
-}
-
-// Used in Static Member's Bootstrap
-
-message MemberBootstrapReadyArgs {
-  uint64 node_id                  = 1;
-}
-
-message MemberBootstrapReadyResponse {
-}
-
-message ClusterBootstrapReadyArgs {
-  bytes peers                     = 1;
-}
-
-message ClusterBootstrapReadyResponse {
 }
 
 // Config Change

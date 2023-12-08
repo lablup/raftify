@@ -1753,10 +1753,8 @@ dependencies = [
 name = "raft"
 version = "0.7.0"
 dependencies = [
- "bytes",
  "fxhash",
  "getset",
- "lazy_static",
  "protobuf",
  "raft-proto",
  "rand",

@@ -91,7 +91,11 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
     }
 
     pub async fn run(self) -> Result<()> {
-        slog::info!(self.logger, "Start to run RaftNode. Configuration: {:?}", self.config);
+        slog::info!(
+            self.logger,
+            "Start to run RaftNode. Configuration: {:?}",
+            self.config
+        );
 
         let raft_node = self.raft_node.clone();
         let raft_node_handle = tokio::spawn(async move { raft_node.to_owned().run().await });

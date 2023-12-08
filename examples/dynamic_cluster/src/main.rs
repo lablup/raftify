@@ -4,9 +4,9 @@ extern crate slog_async;
 extern crate slog_scope;
 extern crate slog_term;
 
+use dynamic_cluster::utils::build_config;
 use env_logger::Builder;
 use log::LevelFilter;
-use dynamic_cluster::utils::build_config;
 use slog::Drain;
 
 use actix_web::{get, web, App, HttpServer, Responder};

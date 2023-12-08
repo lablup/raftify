@@ -3,13 +3,15 @@ extern crate slog;
 
 use env_logger::Builder;
 use log::LevelFilter;
-use static_cluster::utils::{build_config, load_peers};
 use slog::Drain;
+use static_cluster::utils::{build_config, load_peers};
 
 use actix_web::{get, web, App, HttpServer, Responder};
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
-use raftify::{AbstractStateMachine, Mailbox, Raft, Result, RaftServiceClient, create_client, raft_service};
+use raftify::{
+    create_client, raft_service, AbstractStateMachine, Mailbox, Raft, RaftServiceClient, Result,
+};
 use serde::{Deserialize, Serialize};
 use slog_envlogger::LogBuilder;
 // use slog_envlogger::LogBuilder;
@@ -141,7 +143,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let (raft, raft_handle) = match options.bootstrap_follower {
         Some(bootstrap_follower) => {
             log::info!("Running in Follower mode");
-            let node_id = peers.get_node_id_by_addr(options.raft_addr.clone()).expect("Node_id not found in peers config");
+            let node_id = peers
+                .get_node_id_by_addr(options.raft_addr.clone())
+                .expect("Node_id not found in peers config");
             let mut raft = Raft::build(
                 node_id,
                 options.raft_addr,
@@ -153,7 +157,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             let handle = tokio::spawn(raft.clone().run());
             let leader_addr = peers.get(&1).unwrap().addr;
             let mut leader_client = create_client(leader_addr).await?;
-            leader_client.member_bootstrap_ready(raft_service::MemberBootstrapReadyArgs {node_id}).await?;
+            leader_client
+                .member_bootstrap_ready(raft_service::MemberBootstrapReadyArgs { node_id })
+                .await?;
 
             (raft, handle)
         }

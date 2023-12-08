@@ -18,14 +18,6 @@ pub enum RequestMessage {
     ReportUnreachable {
         node_id: u64,
     },
-    MemberBootstrapReady {
-        node_id: u64,
-        chan: Sender<ResponseMessage>,
-    },
-    ClusterBootstrapReady {
-        peers: Peers,
-        chan: Sender<ResponseMessage>,
-    },
     DebugNode {
         chan: Sender<ResponseMessage>,
     },

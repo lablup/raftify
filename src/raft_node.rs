@@ -481,12 +481,6 @@ last_persisted: {last_persisted}\
             }
 
             match timeout(heartbeat, self.rcv.recv()).await {
-                Ok(Some(RequestMessage::ClusterBootstrapReady { peers, chan })) => {
-                    log::info!(
-                        "All nodes are ready to join the cluster. Start to bootstrap process..."
-                    )
-                    // self.peers = peers;
-                }
                 Ok(Some(RequestMessage::ConfigChange { chan, conf_change })) => {
                     if self.raw_node.raft.has_pending_conf() {
                         log::warn!("Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index);

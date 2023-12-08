@@ -1,7 +1,4 @@
-use pyo3::{
-    prelude::*,
-    types::{PyString},
-};
+use pyo3::{prelude::*, types::PyString};
 use raftify::{Peers, Raft};
 use slog::{o, Drain};
 
