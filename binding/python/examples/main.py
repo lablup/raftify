@@ -1,3 +1,4 @@
+import asyncio
 import pickle
 from typing import Optional
 from raftify import Raft, Config
@@ -50,6 +51,7 @@ class HashStore:
         self._store = pickle.loads(snapshot)
 
 
+# * Thread version
 def run_raft():
     cfg = Config()
     addr = "127.0.0.1:60161"
@@ -58,5 +60,19 @@ def run_raft():
     raft.run()
 
 
-thread = threading.Thread(target=run_raft)
-thread.start()
+# Threading
+# thread = threading.Thread(target=run_raft)
+# thread.start()
+
+# Coroutine
+async def main():
+    cfg = Config()
+    addr = "127.0.0.1:60161"
+    store = HashStore()
+    raft = Raft.build(1, addr, store, cfg)
+    task = asyncio.create_task(raft.run())
+
+    await asyncio.gather(task)
+
+if __name__ == "__main__":
+    asyncio.run(main())

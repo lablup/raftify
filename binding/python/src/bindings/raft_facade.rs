@@ -1,6 +1,6 @@
 use pyo3::{
     prelude::*,
-    types::{PyDict, PyString},
+    types::{PyString},
 };
 use raftify::{Peers, Raft};
 use slog::{o, Drain};
@@ -49,19 +49,36 @@ impl RaftFacade {
         Ok(Self { raft })
     }
 
-    pub fn run(&mut self) -> PyResult<()> {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            let raft = self.raft.clone();
-            let handle = tokio::spawn(async move {
-                match raft.run().await {
-                    Ok(_) => println!("RaftNode exited successfully"),
-                    Err(e) => println!("RaftNode exited with error: {}", e),
-                }
-            });
+    // * Thread version
+    // pub fn run(&mut self) -> PyResult<()> {
+    //     let rt = tokio::runtime::Runtime::new().unwrap();
+    //     rt.block_on(async {
+    //         let raft = self.raft.clone();
+    //         let handle = tokio::spawn(async move {
+    //             match raft.run().await {
+    //                 Ok(_) => println!("RaftNode exited successfully"),
+    //                 Err(e) => println!("RaftNode exited with error: {}", e),
+    //             }
+    //         });
 
-            handle.await.unwrap();
-        });
+    //         handle.await.unwrap();
+    //     });
+    //     Ok(())
+    // }
+
+    pub async fn run(&mut self) -> PyResult<()> {
+        self._run()
+    }
+}
+
+impl RaftFacade {
+    #[tokio::main]
+    pub async fn _run(&mut self) -> PyResult<()> {
+        let raft = self.raft.clone();
+        match raft.run().await {
+            Ok(_) => println!("RaftNode exited successfully"),
+            Err(e) => println!("RaftNode exited with error: {}", e),
+        };
         Ok(())
     }
 }
