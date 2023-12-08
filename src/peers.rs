@@ -44,10 +44,9 @@ impl Peers {
         self.peers.insert(id, peer);
     }
 
-    pub async fn reserve_peer(&mut self, self_id: u64) -> u64 {
+    pub fn reserve_peer(&mut self, self_id: u64) -> u64 {
         let next_id = self.peers.keys().max().cloned().unwrap_or(1);
         let next_id = std::cmp::max(next_id + 1, self_id);
-        log::info!("Reserved id {}", next_id);
         next_id
     }
 

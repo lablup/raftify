@@ -87,7 +87,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         fsm: FSM,
         config: Config,
         initial_peers: Peers,
-        logger: &slog::Logger,
+        logger: slog::Logger,
         bootstrap_done: bool,
     ) -> Result<Self> {
         RaftNodeCore::bootstrap_cluster(
@@ -109,7 +109,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         fsm: FSM,
         config: Config,
         peers: Peers,
-        logger: &slog::Logger,
+        logger: slog::Logger,
         bootstrap_done: bool,
     ) -> Result<Self> {
         RaftNodeCore::new_follower(rcv, snd, id, fsm, config, peers, logger, bootstrap_done)
@@ -152,6 +152,7 @@ pub struct RaftNodeCore<FSM: AbstractStateMachine + Clone + 'static> {
     should_exit: bool,
     bootstrap_done: bool,
     last_snapshot_created: Instant,
+    logger: slog::Logger,
 }
 
 impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
@@ -161,7 +162,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         fsm: FSM,
         mut config: Config,
         initial_peers: Peers,
-        logger: &slog::Logger,
+        logger: slog::Logger,
         bootstrap_done: bool,
     ) -> Result<Self> {
         let raft_config = &mut config.raft_config;
@@ -179,7 +180,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
 
         let mut storage = HeedStorage::create(".", 1)?;
         storage.apply_snapshot(snapshot).unwrap();
-        let mut raw_node = RawNode::new(&raft_config, storage, logger)?;
+        let mut raw_node = RawNode::new(&raft_config, storage, &logger)?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now();
 
@@ -194,6 +195,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             snd,
             config,
             bootstrap_done,
+            logger: logger,
             last_snapshot_created,
             peers: initial_peers,
             should_exit: false,
@@ -207,7 +209,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         fsm: FSM,
         mut config: Config,
         peers: Peers,
-        logger: &slog::Logger,
+        logger: slog::Logger,
         bootstrap_done: bool,
     ) -> Result<Self> {
         let raft_config = &mut config.raft_config;
@@ -216,7 +218,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         raft_config.validate()?;
 
         let storage = HeedStorage::create(".", id)?;
-        let raw_node = RawNode::new(&raft_config, storage, logger)?;
+        let raw_node = RawNode::new(&raft_config, storage, &logger)?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now()
             .checked_sub(Duration::from_secs(1000))
@@ -230,6 +232,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             response_seq,
             snd,
             config,
+            logger,
             last_snapshot_created,
             bootstrap_done,
             should_exit: false,
@@ -537,8 +540,11 @@ last_persisted: {last_persisted}\
                         // TODO: retry strategy in case of failure
                         self.send_wrongleader_response(chan).await;
                     } else {
+                        let reserved_id = self.peers.reserve_peer(self.get_id());
+                        slog::info!(self.logger, "Reserved peer id, {}", reserved_id);
+
                         chan.send(ResponseMessage::IdReserved {
-                            reserved_id: self.peers.reserve_peer(self.get_id()).await,
+                            reserved_id,
                             leader_id: self.get_id(),
                             peers: self.peers.clone(),
                         })

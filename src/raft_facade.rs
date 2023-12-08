@@ -58,7 +58,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
                 fsm,
                 config.clone(),
                 initial_peers,
-                &logger,
+                logger.clone(),
                 bootstrap_done,
             ),
             _ => RaftNode::new_follower(
@@ -68,18 +68,18 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
                 fsm,
                 config.clone(),
                 initial_peers,
-                &logger,
+                logger.clone(),
                 bootstrap_done,
             ),
         }?;
 
         Ok(Self {
             addr,
-            logger,
             config,
             tx: tx.clone(),
             raft_node,
-            raft_server: RaftServer::new(tx.clone(), addr.clone()),
+            raft_server: RaftServer::new(tx.clone(), addr.clone(), logger.clone()),
+            logger,
         })
     }
 
@@ -121,7 +121,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
     }
 
     pub async fn request_id(peer_addr: String) -> Result<RequestIdResponse> {
-        info!("Attempting to get a node_id through \"{}\"...", peer_addr);
+        println!("Attempting to get a node_id through \"{}\"...", peer_addr);
         let mut leader_addr = peer_addr;
 
         loop {
@@ -134,7 +134,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
             match response.code() {
                 ResultCode::WrongLeader => {
                     leader_addr = response.leader_addr;
-                    info!(
+                    println!(
                         "Sent message to the wrong leader, retrying with leader at {}",
                         leader_addr
                     );

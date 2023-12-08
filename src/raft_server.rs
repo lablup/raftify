@@ -8,7 +8,6 @@ use crate::response_message::ResponseMessage;
 use crate::Peers;
 
 use bincode::{deserialize, serialize};
-use log::{error, info, warn};
 use raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -20,17 +19,20 @@ use tonic::{Request, Response, Status};
 pub struct RaftServer {
     snd: mpsc::Sender<RequestMessage>,
     addr: SocketAddr,
+    logger: slog::Logger,
 }
 
 impl RaftServer {
-    pub fn new<A: ToSocketAddrs>(snd: mpsc::Sender<RequestMessage>, addr: A) -> Self {
+    pub fn new<A: ToSocketAddrs>(snd: mpsc::Sender<RequestMessage>, addr: A, logger: slog::Logger) -> Self {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
-        RaftServer { snd, addr }
+        RaftServer { snd, addr, logger }
     }
 
     pub async fn run(self) {
         let addr = self.addr;
-        info!(
+        let logger = self.logger.clone();
+        slog::info!(
+            logger,
             "RaftServer starts to listen gRPC requests on \"{}\"...",
             addr
         );
@@ -41,7 +43,7 @@ impl RaftServer {
             .await
             .expect("error running server");
 
-        log::debug!("RaftServer quits to listen gRPC requests.");
+        slog::debug!(logger, "RaftServer quits to listen gRPC requests.");
     }
 }
 
@@ -61,7 +63,7 @@ impl RaftService for RaftServer {
                 leader_id,
                 leader_addr,
             } => {
-                warn!("sending wrong leader");
+                slog::warn!(self.logger, "sending wrong leader");
                 Ok(Response::new(raft_service::RequestIdResponse {
                     code: raft_service::ResultCode::WrongLeader as i32,
                     leader_id,
@@ -101,7 +103,7 @@ impl RaftService for RaftServer {
         // TODO: Handle this kind of errors
         match sender.send(message).await {
             Ok(_) => (),
-            Err(_) => error!("send error"),
+            Err(_) => slog::error!(self.logger, "send error"),
         }
 
         let mut reply = raft_service::ChangeConfigResponse::default();
@@ -136,7 +138,7 @@ impl RaftService for RaftServer {
             .await
         {
             Ok(_) => (),
-            Err(_) => error!("send error"),
+            Err(_) => slog::error!(self.logger, "send error"),
         }
 
         let response = ResponseMessage::Ok;
@@ -161,7 +163,7 @@ impl RaftService for RaftServer {
             .await
         {
             Ok(_) => (),
-            Err(_) => error!("send error"),
+            Err(_) => slog::error!(self.logger, "send error"),
         }
 
         let _response = rx.await.unwrap();
@@ -182,7 +184,7 @@ impl RaftService for RaftServer {
             .await
         {
             Ok(_) => (),
-            Err(_) => error!("send error"),
+            Err(_) => slog::error!(self.logger, "send error"),
         }
 
         let _response = rx.await.unwrap();
@@ -201,7 +203,7 @@ impl RaftService for RaftServer {
 
         match sender.send(RequestMessage::DebugNode { chan: tx }).await {
             Ok(_) => (),
-            Err(_) => error!("send error"),
+            Err(_) => slog::error!(self.logger, "send error"),
         }
 
         let response = rx.await.unwrap();
