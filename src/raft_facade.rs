@@ -91,7 +91,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
     }
 
     pub async fn run(self) -> Result<()> {
-        log::info!("Start to run RaftNode. Configuration: {:?}", self.config);
+        slog::info!(self.logger, "Start to run RaftNode. Configuration: {:?}", self.config);
 
         let raft_node = self.raft_node.clone();
         let raft_node_handle = tokio::spawn(async move { raft_node.to_owned().run().await });
@@ -100,7 +100,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
 
         tokio::select! {
             _ = signal::ctrl_c() => {
-                log::info!("Ctrl+C detected. Shutting down...");
+                slog::info!(self.logger, "Ctrl+C detected. Shutting down...");
                 Ok(())
             }
             result = async {
@@ -108,11 +108,11 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
             } => {
                 match result {
                     Ok(_) => {
-                        log::debug!("Both tasks completed successfully.");
+                        slog::debug!(self.logger, "Both tasks completed successfully.");
                         Ok(())
                     },
                     Err(e) => {
-                        log::error!("Error: {:?}", e);
+                        slog::error!(self.logger, "Error: {:?}", e);
                         Err(Error::Other(Box::new(e)))
                     }
                 }

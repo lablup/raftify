@@ -8,7 +8,7 @@ bindings = "pyo3"
 features = ["include-python-workspace"]
 
 [project]
-name = "rraft-py"
+name = "raftify"
 requires-python = ">=3.10"
 description = ""
 readme = "README.md"

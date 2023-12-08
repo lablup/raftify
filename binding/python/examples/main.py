@@ -1,9 +1,7 @@
 import pickle
-from time import sleep
 from typing import Optional
 from raftify import Raft, Config
 import threading
-import os
 
 
 class SetCommand:
@@ -52,19 +50,13 @@ class HashStore:
         self._store = pickle.loads(snapshot)
 
 
-cfg = Config()
-addr = "127.0.0.1:60061"
-store = HashStore()
-raft = Raft.build(1, addr, store, cfg)
-pid = os.fork()
-
-# thread = threading.Thread(target=raft.run)
-# thread.start()
-
-if pid > 0:
-    while True:
-        sleep(1)
-        print("waiting...")
-else:
+def run_raft():
+    cfg = Config()
+    addr = "127.0.0.1:60161"
+    store = HashStore()
+    raft = Raft.build(1, addr, store, cfg)
     raft.run()
-    print('Close raft!')
+
+
+thread = threading.Thread(target=run_raft)
+thread.start()

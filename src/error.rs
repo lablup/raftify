@@ -12,17 +12,17 @@ pub enum Error {
     Rejected(String),
     #[error("Request timeout")]
     Timeout,
-    #[error("gprc error: `{0}`")]
+    #[error("gRPC error: `{0}`")]
     Grpc(#[from] tonic::transport::Error),
-    #[error("error calling remote procedure: `{0}`")]
+    #[error("Error calling remote procedure: `{0}`")]
     RemoteCall(#[from] tonic::Status),
-    #[error("io error: {0}")]
+    #[error("IO error: {0}")]
     Io(String),
-    #[error("database error: `{0}`")]
+    #[error("Storage error: `{0}`")]
     Database(#[from] heed::Error),
-    #[error("unexpected error")]
+    #[error("Unexpected error")]
     Other(#[source] Box<dyn std::error::Error + Sync + Send + 'static>),
-    #[error("unexpected error")]
+    #[error("Unknown error")]
     Unknown,
 }
 

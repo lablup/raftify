@@ -53,9 +53,14 @@ impl RaftFacade {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             let raft = self.raft.clone();
-            tokio::spawn(async move {
-                raft.run().await.unwrap();
+            let handle = tokio::spawn(async move {
+                match raft.run().await {
+                    Ok(_) => println!("RaftNode exited successfully"),
+                    Err(e) => println!("RaftNode exited with error: {}", e),
+                }
             });
+
+            handle.await.unwrap();
         });
         Ok(())
     }
