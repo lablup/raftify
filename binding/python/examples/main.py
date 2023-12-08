@@ -2,7 +2,6 @@ import asyncio
 import pickle
 from typing import Optional
 from raftify import Raft, Config
-import threading
 
 
 class SetCommand:

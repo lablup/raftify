@@ -6,7 +6,7 @@ extern crate slog_term;
 
 use env_logger::Builder;
 use log::LevelFilter;
-use memstore::utils::build_config;
+use dynamic_cluster::utils::build_config;
 use slog::Drain;
 
 use actix_web::{get, web, App, HttpServer, Responder};

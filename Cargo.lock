@@ -506,6 +506,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "client"
+version = "0.1.0"
+dependencies = [
+ "actix-rt",
+ "actix-web",
+ "async-trait",
+ "bincode",
+ "env_logger",
+ "log",
+ "raftify",
+ "serde",
+ "slog",
+ "slog-async",
+ "slog-envlogger",
+ "slog-scope",
+ "slog-stdlog",
+ "slog-term",
+ "structopt",
+ "tokio",
+ "toml",
+]
+
+[[package]]
 name = "codespan-reporting"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -699,6 +722,29 @@ dependencies = [
  "libc",
  "redox_users",
  "winapi",
+]
+
+[[package]]
+name = "dynamic_cluster"
+version = "0.1.0"
+dependencies = [
+ "actix-rt",
+ "actix-web",
+ "async-trait",
+ "bincode",
+ "env_logger",
+ "log",
+ "raftify",
+ "serde",
+ "slog",
+ "slog-async",
+ "slog-envlogger",
+ "slog-scope",
+ "slog-stdlog",
+ "slog-term",
+ "structopt",
+ "tokio",
+ "toml",
 ]
 
 [[package]]
@@ -1300,29 +1346,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a634b1c61a95585bd15607c6ab0c4e5b226e695ff2800ba0cdccddf208c406c"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "memstore"
-version = "0.1.0"
-dependencies = [
- "actix-rt",
- "actix-web",
- "async-trait",
- "bincode",
- "env_logger",
- "log",
- "raftify",
- "serde",
- "slog",
- "slog-async",
- "slog-envlogger",
- "slog-scope",
- "slog-stdlog",
- "slog-term",
- "structopt",
- "tokio",
- "toml",
 ]
 
 [[package]]
