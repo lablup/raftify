@@ -16,9 +16,11 @@ use bincode::{deserialize, serialize};
 use log::*;
 use prost::Message as PMessage;
 use raft::eraftpb::{
-    ConfChangeType, ConfChangeV2, Entry, EntryType, Message as RaftMessage, Snapshot,
+    ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2, Entry, EntryType,
+    Message as RaftMessage, Snapshot,
 };
 use raft::raw_node::RawNode;
+use raft::RaftLog;
 use tokio::sync::{mpsc, RwLockReadGuard, RwLockWriteGuard};
 use tokio::sync::{oneshot, RwLock};
 use tokio::time::timeout;
@@ -88,18 +90,9 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         config: Config,
         initial_peers: Peers,
         logger: slog::Logger,
-        bootstrap_done: bool,
     ) -> Result<Self> {
-        RaftNodeCore::bootstrap_cluster(
-            rcv,
-            snd,
-            fsm,
-            config,
-            initial_peers,
-            logger,
-            bootstrap_done,
-        )
-        .map(|core| Self(Arc::new(RwLock::new(core))))
+        RaftNodeCore::bootstrap_cluster(rcv, snd, fsm, config, initial_peers, logger)
+            .map(|core| Self(Arc::new(RwLock::new(core))))
     }
 
     pub fn new_follower(
@@ -110,9 +103,8 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         config: Config,
         peers: Peers,
         logger: slog::Logger,
-        bootstrap_done: bool,
     ) -> Result<Self> {
-        RaftNodeCore::new_follower(rcv, snd, id, fsm, config, peers, logger, bootstrap_done)
+        RaftNodeCore::new_follower(rcv, snd, id, fsm, config, peers, logger)
             .map(|core| Self(Arc::new(RwLock::new(core))))
     }
 
@@ -128,12 +120,24 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         self.rl().await.get_leader_id()
     }
 
+    pub async fn get_peers(&self) -> Peers {
+        self.rl().await.get_peers()
+    }
+
     pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
         self.wl().await.add_peer(id, addr)
     }
 
     pub async fn inspect(&self) -> Result<String> {
         self.rl().await.inspect().await
+    }
+
+    pub async fn store(&self) -> HeedStorage {
+        self.rl().await.raw_node.store().clone()
+    }
+
+    pub async fn make_snapshot(&mut self, index: u64, term: u64) -> Result<()> {
+        self.wl().await.make_snapshot(index, term).await
     }
 
     pub async fn run(mut self) -> Result<()> {
@@ -150,7 +154,6 @@ pub struct RaftNodeCore<FSM: AbstractStateMachine + Clone + 'static> {
     response_seq: AtomicU64,
     config: Config,
     should_exit: bool,
-    bootstrap_done: bool,
     last_snapshot_created: Instant,
     logger: slog::Logger,
 }
@@ -163,7 +166,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         mut config: Config,
         initial_peers: Peers,
         logger: slog::Logger,
-        bootstrap_done: bool,
     ) -> Result<Self> {
         let raft_config = &mut config.raft_config;
 
@@ -180,12 +182,46 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
 
         let mut storage = HeedStorage::create(".", 1)?;
         storage.apply_snapshot(snapshot).unwrap();
+
         let mut raw_node = RawNode::new(&raft_config, storage, &logger)?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now();
 
         raw_node.raft.become_candidate();
         raw_node.raft.become_leader();
+
+        let mut conf_changes = vec![];
+        let mut entries = vec![];
+
+        for (i, peer) in initial_peers.inner.iter().enumerate() {
+            let node_id = peer.0;
+            let node_addr = initial_peers.get(node_id).unwrap().addr;
+
+            // Skip leader
+            if *node_id == 1 {
+                continue;
+            }
+
+            let mut conf_change = ConfChange::default();
+            conf_change.set_node_id(*node_id);
+            conf_change.set_change_type(ConfChangeType::AddNode);
+            conf_change.set_context(serialize(&vec![node_addr]).unwrap());
+            conf_changes.push(conf_change.clone());
+
+            let conf_state = raw_node.apply_conf_change(&conf_change)?;
+            raw_node.mut_store().set_conf_state(&conf_state)?;
+
+            let mut entry = Entry::default();
+            entry.set_entry_type(EntryType::EntryConfChangeV2);
+            entry.set_term(1);
+            entry.set_index(raw_node.store().last_index().unwrap() + i as u64);
+            entry.set_data(conf_change.encode_to_vec());
+            entry.set_context(vec![]);
+
+            entries.push(entry);
+        }
+
+        raw_node.raft.raft_log.append(&entries);
 
         Ok(RaftNodeCore {
             raw_node,
@@ -194,8 +230,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             response_seq,
             snd,
             config,
-            bootstrap_done,
-            logger: logger,
+            logger,
             last_snapshot_created,
             peers: initial_peers,
             should_exit: false,
@@ -210,7 +245,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         mut config: Config,
         peers: Peers,
         logger: slog::Logger,
-        bootstrap_done: bool,
     ) -> Result<Self> {
         let raft_config = &mut config.raft_config;
 
@@ -234,7 +268,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             config,
             logger,
             last_snapshot_created,
-            bootstrap_done,
             should_exit: false,
         })
     }
@@ -249,6 +282,10 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
 
     pub fn get_leader_id(&self) -> u64 {
         self.raw_node.raft.leader_id
+    }
+
+    pub fn get_peers(&self) -> Peers {
+        self.peers.to_owned()
     }
 
     pub fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
@@ -268,35 +305,30 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         let _ = channel.send(raft_response);
     }
 
-    async fn send_messages(&mut self, messages: Vec<RaftMessage>) {
-        if !self.bootstrap_done {
-            return;
-        }
-
+    async fn send_messages(&mut self, messages: Vec<RaftMessage>) -> Result<()> {
         for message in messages {
             let client = match self.peers.get_mut(&message.get_to()) {
                 Some(peer) => {
                     if peer.client.is_none() {
-                        // TODO: Handle error here
-                        let _ = peer.connect().await;
+                        peer.connect().await?;
                     }
-                    peer.client.clone()
+                    peer.client.clone().unwrap()
                 }
                 None => continue,
-            }
-            .unwrap();
+            };
 
             let message_sender = MessageSender {
                 client_id: message.get_to(),
                 client: client.clone(),
                 message,
                 chan: self.snd.clone(),
-                timeout: Duration::from_millis(100),
-                max_retries: 5,
+                timeout: Duration::from_secs_f32(self.config.message_timeout),
+                max_retries: self.config.max_retry_cnt as usize,
             };
 
             tokio::spawn(message_sender.send());
         }
+        Ok(())
     }
 
     async fn handle_committed_entries(

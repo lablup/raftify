@@ -3,7 +3,7 @@ use crate::error::Result;
 use heed::types::*;
 use heed::{Database, Env, PolyDatabase};
 use heed_traits::{BytesDecode, BytesEncode};
-use log::{info, warn};
+use log::info;
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use prost::Message;
 use raft::{prelude::*, GetEntriesContext};
@@ -374,7 +374,6 @@ impl Storage for HeedStorage {
                 .conf_state(&reader)
                 .map_err(|e| raft::Error::Store(raft::StorageError::Other(e.into())))?,
         };
-        warn!("Initial State: {:#?}", raft_state);
         Ok(raft_state)
     }
 

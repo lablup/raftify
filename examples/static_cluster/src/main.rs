@@ -24,11 +24,9 @@ struct Options {
     #[structopt(long)]
     raft_addr: String,
     #[structopt(long)]
+    peer_addr: Option<String>,
+    #[structopt(long)]
     web_server: Option<String>,
-    #[structopt(long)]
-    bootstrap: Option<bool>,
-    #[structopt(long)]
-    bootstrap_follower: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -138,29 +136,21 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let cfg = build_config();
     let peers = load_peers().await.unwrap();
-    println!("{:#?}", peers);
 
-    let (raft, raft_handle) = match options.bootstrap_follower {
-        Some(bootstrap_follower) => {
+    let (raft, raft_handle) = match options.peer_addr {
+        Some(peer_addr) => {
             log::info!("Running in Follower mode");
-            let node_id = peers
-                .get_node_id_by_addr(options.raft_addr.clone())
-                .expect("Node_id not found in peers config");
+            let request_id_resp = Raft::<HashStore>::request_id(peer_addr.clone()).await?;
             let mut raft = Raft::build(
-                node_id,
+                request_id_resp.reserved_id,
                 options.raft_addr,
                 store.clone(),
                 cfg,
                 logger.clone(),
-                Some(peers.clone()),
+                Some(peers),
             )?;
             let handle = tokio::spawn(raft.clone().run());
-            let leader_addr = peers.get(&1).unwrap().addr;
-            let mut leader_client = create_client(leader_addr).await?;
-            leader_client
-                .member_bootstrap_ready(raft_service::MemberBootstrapReadyArgs { node_id })
-                .await?;
-
+            raft.join(request_id_resp).await?;
             (raft, handle)
         }
         None => {
@@ -172,7 +162,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 store.clone(),
                 cfg,
                 logger.clone(),
-                Some(peers.clone()),
+                Some(peers),
             )?;
             let handle = tokio::spawn(raft.clone().run());
             (raft, handle)

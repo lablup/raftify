@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::sync::Arc;
 
 use crate::error::{Error, Result};
 use crate::raft_node::RaftNode;
@@ -8,10 +7,10 @@ use crate::raft_server::RaftServer;
 use crate::raft_service::raft_service_client::RaftServiceClient;
 use crate::raft_service::{ChangeConfigResultType, RequestIdArgs, ResultCode};
 use crate::request_message::RequestMessage;
+use crate::storage::heed::LogStore;
 use crate::{AbstractStateMachine, Config, Mailbox, Peer, Peers};
 
 use bincode::{deserialize, serialize};
-use log::info;
 use raft::eraftpb::{ConfChangeSingle, ConfChangeType, ConfChangeV2};
 use tokio::signal;
 use tokio::sync::mpsc;
@@ -49,8 +48,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
 
         let (tx, rx) = mpsc::channel(100);
 
-        let bootstrap_done = initial_peers.is_empty();
-
         let raft_node = match node_id {
             1 => RaftNode::bootstrap_cluster(
                 rx,
@@ -59,7 +56,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
                 config.clone(),
                 initial_peers,
                 logger.clone(),
-                bootstrap_done,
             ),
             _ => RaftNode::new_follower(
                 rx,
@@ -69,7 +65,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
                 config.clone(),
                 initial_peers,
                 logger.clone(),
-                bootstrap_done,
             ),
         }?;
 
@@ -157,6 +152,15 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
                 ResultCode::Error => return Err(Error::JoinError),
             }
         }
+    }
+
+    pub async fn snapshot(&mut self) -> Result<()> {
+        let store = self.raft_node.store().await;
+        let hard_state = store.hard_state()?;
+        self.raft_node
+            .make_snapshot(store.last_index()?, hard_state.term)
+            .await?;
+        Ok(())
     }
 
     pub async fn join(&mut self, request_id_response: RequestIdResponse) -> Result<()> {
