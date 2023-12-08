@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate async_trait;
+
 mod config;
 mod error;
 mod follower_role;
@@ -7,19 +10,20 @@ mod peers;
 mod raft_facade;
 mod raft_node;
 mod raft_server;
-mod raft_service;
+mod raft_client;
 mod request_message;
 mod response_message;
 mod state_machine;
 mod storage;
 mod utils;
 
-#[macro_use]
-extern crate async_trait;
+pub mod raft_service;
 
 pub use raft;
 pub use raft::Config as RaftConfig;
 
+pub use crate::raft_service::raft_service_client::RaftServiceClient;
+pub use crate::raft_client::create_client;
 pub use crate::config::Config;
 pub use crate::error::{Error, Result};
 pub use crate::follower_role::FollowerRole;
