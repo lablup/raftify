@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use raft::derializer::format_entry;
 use raftify::Config;
 use raftify::HeedStorage;
 use raftify::LogStore;
@@ -16,7 +17,7 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
 
     println!("---- Persisted entries ----");
     for (i, entry) in entries.iter().enumerate() {
-        println!("Key {}: {:?}", i + 1, entry);
+        println!("Key {}: {:?}", i + 1, format_entry(entry));
     }
 
     println!();

@@ -2,13 +2,16 @@ include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
 use crate::commands::debug::debug_persisted;
 use clap::{App, Arg, SubCommand};
+use raft::derializer::set_custom_deserializer;
 use raftify::raft::default_logger;
-use raftify::Result;
+use raftify::{MyDeserializer, Result};
 
 mod commands;
 
 fn main() -> Result<()> {
     let logger = default_logger();
+
+    set_custom_deserializer(MyDeserializer);
 
     let matches = App::new("raftify")
         .version(PKG_VERSION)
