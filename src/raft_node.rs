@@ -14,7 +14,6 @@ use crate::Peers;
 use crate::{AbstractStateMachine, Config};
 
 use bincode::{deserialize, serialize};
-use log::*;
 use prost::Message as PMessage;
 use raft::eraftpb::{
     ConfChange, ConfChangeType, ConfChangeV2, Entry, EntryType, Message as RaftMessage, Snapshot,
@@ -32,6 +31,7 @@ struct MessageSender {
     chan: mpsc::Sender<RequestMessage>,
     max_retries: usize,
     timeout: Duration,
+    logger: slog::Logger,
 }
 
 impl MessageSender {
@@ -50,9 +50,11 @@ impl MessageSender {
                         current_retry += 1;
                         tokio::time::sleep(self.timeout).await;
                     } else {
-                        debug!(
+                        slog::debug!(
+                            self.logger,
                             "error sending message after {} retries: {}",
-                            self.max_retries, e
+                            self.max_retries,
+                            e
                         );
                         let _ = self
                             .chan
@@ -340,6 +342,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                 chan: self.snd.clone(),
                 timeout: Duration::from_secs_f32(self.config.message_timeout),
                 max_retries: self.config.max_retry_cnt as usize,
+                logger: self.logger.clone(),
             };
 
             tokio::spawn(message_sender.send());
@@ -418,15 +421,20 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             match change_type {
                 ConfChangeType::AddNode => {
                     let addr = addrs[cc_idx];
-                    log::info!("Node {} ({}) joined the cluster.", node_id, addr);
+                    slog::info!(
+                        self.logger,
+                        "Node {} ({}) joined the cluster.",
+                        node_id,
+                        addr
+                    );
                     self.peers.add_peer(node_id, &addr.to_string());
                 }
                 ConfChangeType::RemoveNode => {
                     if node_id == self.get_id() {
                         self.should_exit = true;
-                        log::info!("Node {} quit the cluster.", node_id);
+                        slog::info!(self.logger, "Node {} quit the cluster.", node_id);
                     } else {
-                        log::info!("Node {} removed from the cluster.", node_id);
+                        slog::info!(self.logger, "Node {} removed from the cluster.", node_id);
                         self.peers.remove(&node_id);
                     }
                 }
@@ -441,7 +449,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                 self.make_snapshot(entry.index, entry.term).await?;
             }
             Err(e) => {
-                log::error!("Failed to apply configuration change: {}", e);
+                slog::error!(self.logger, "Failed to apply configuration change: {}", e);
             }
         }
 
@@ -470,7 +478,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             }
 
             if sender.send(response).is_err() {
-                error!("error sending response")
+                slog::error!(self.logger, "error sending response")
             }
         }
 
@@ -494,23 +502,31 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         let last_committed = raw_node.raft.raft_log.committed;
         let last_persisted = raw_node.raft.raft_log.persisted;
 
-        let result = format!(
-            "========= Outline =========\
-node_id: {id}\
-leader_id: {leader_id}\
-\
-========= Persistence Info =========\
-hard_state: {hard_state:?}\
-conf_state: {conf_state:?}\
-last_index: {last_index}\
-snapshot: {snapshot:?}\
-\
-========= RaftLog Metadata =========\
-last_applied: {last_applied}\
-last_committed: {last_committed}\
-last_persisted: {last_persisted}\
-",
+        let outline = format!(
+            "========= Outline =========\n\
+            node_id: {}\n\
+            leader_id: {}\n",
+            id, leader_id
         );
+
+        let persistence_info = format!(
+            "========= Persistence Info =========\n\
+            hard_state: {:?}\n\
+            conf_state: {:?}\n\
+            last_index: {}\n\
+            snapshot: {:?}\n",
+            hard_state, conf_state, last_index, snapshot
+        );
+
+        let raftlog_metadata = format!(
+            "========= RaftLog Metadata =========\n\
+            last_applied: {}\n\
+            last_committed: {}\n\
+            last_persisted: {}\n",
+            last_applied, last_committed, last_persisted
+        );
+
+        let result = format!("{}\n{}\n{}", outline, persistence_info, raftlog_metadata);
 
         Ok(result)
     }
@@ -524,14 +540,14 @@ last_persisted: {last_persisted}\
 
         loop {
             if self.should_exit {
-                warn!("Quitting raft");
+                slog::info!(self.logger, "Quitting raft");
                 return Ok(());
             }
 
             match timeout(heartbeat, self.rcv.recv()).await {
                 Ok(Some(RequestMessage::ConfigChange { chan, conf_change })) => {
                     if self.raw_node.raft.has_pending_conf() {
-                        log::warn!("Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index);
+                        slog::warn!(self.logger, "Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index);
                         continue;
                     }
 
@@ -542,7 +558,8 @@ last_persisted: {last_persisted}\
                     } else {
                         let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
                         client_send.insert(response_seq, chan);
-                        log::debug!(
+                        slog::debug!(
+                            self.logger,
                             "Proposed new config change..., seq={}, conf_change_v2={:?}",
                             response_seq,
                             conf_change
@@ -553,11 +570,14 @@ last_persisted: {last_persisted}\
                     }
                 }
                 Ok(Some(RequestMessage::RaftMessage { message })) => {
-                    debug!(
+                    slog::debug!(
+                        self.logger,
                         "Node {} received Raft message from the node {}, Message: {:?}",
-                        self.raw_node.raft.id, message.from, message
+                        self.raw_node.raft.id,
+                        message.from,
+                        message
                     );
-                    if let Ok(_a) = self.raw_node.step(*message) {};
+                    self.raw_node.step(*message)?
                 }
                 Ok(Some(RequestMessage::Propose { proposal, chan })) => {
                     if !self.is_leader() {

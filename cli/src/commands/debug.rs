@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
 use raft::derializer::format_entry;
+use raftify::create_client;
+use raftify::raft_service;
 use raftify::Config;
 use raftify::HeedStorage;
 use raftify::LogStore;
@@ -27,5 +29,12 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
     println!("{:?}", storage.conf_state()?);
     println!("{:?}", storage.snapshot(0, 0)?);
     println!("Last index: {}", storage.last_index()?);
+    Ok(())
+}
+
+pub async fn debug_node(addr: &str) -> Result<()> {
+    let mut client = create_client(addr).await.unwrap();
+    let response = client.debug_node(raft_service::Empty {}).await.unwrap();
+    println!("{}", response.into_inner().result);
     Ok(())
 }

@@ -5,9 +5,8 @@ use crate::raft_service::raft_service_server::{RaftService, RaftServiceServer};
 use crate::raft_service::{self, Empty, RequestIdArgs};
 use crate::request_message::RequestMessage;
 use crate::response_message::ResponseMessage;
-use crate::Peers;
 
-use bincode::{deserialize, serialize};
+use bincode::serialize;
 use raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -111,6 +110,7 @@ impl RaftService for RaftServer {
         }
 
         let mut reply = raft_service::ChangeConfigResponse::default();
+
         match timeout(Duration::from_secs(2), rx).await {
             Ok(Ok(_raft_response)) => {
                 reply.result_type =
@@ -122,7 +122,7 @@ impl RaftService for RaftServer {
                 reply.result_type =
                     raft_service::ChangeConfigResultType::ChangeConfigTimeoutError as i32;
                 reply.data = vec![];
-                log::error!("timeout waiting for reply");
+                slog::error!(self.logger, "timeout waiting for reply");
             }
         }
 

@@ -2,13 +2,15 @@ include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
 use crate::commands::debug::debug_persisted;
 use clap::{App, Arg, SubCommand};
+use commands::debug::debug_node;
 use raft::derializer::set_custom_deserializer;
 use raftify::raft::default_logger;
 use raftify::{MyDeserializer, Result};
 
 mod commands;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let logger = default_logger();
 
     set_custom_deserializer(MyDeserializer);
@@ -62,7 +64,7 @@ fn main() -> Result<()> {
                 }
                 Some(("node", node_matches)) => {
                     if let Some(address) = node_matches.value_of("address") {
-                        // 'node' 서브커맨드 로직 구현
+                        debug_node(address).await?;
                     }
                 }
                 Some(("persisted", node_matches)) => {

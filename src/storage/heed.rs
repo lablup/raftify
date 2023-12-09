@@ -10,7 +10,7 @@ use crate::config::Config;
 use prost::Message;
 use std::borrow::Cow;
 use std::cmp::max;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 pub trait LogStore: Storage {
@@ -507,9 +507,8 @@ impl Storage for HeedStorage {
         let store = self.rl();
         let reader = store.env.read_txn().unwrap();
 
-        store.snapshot(&reader, request_index, to).map_err(|e| {
-            log::error!("Snapshot error occurred: {:?}", e);
-            raft::Error::Store(raft::StorageError::SnapshotTemporarilyUnavailable)
-        })
+        store
+            .snapshot(&reader, request_index, to)
+            .map_err(|_| raft::Error::Store(raft::StorageError::SnapshotTemporarilyUnavailable))
     }
 }
