@@ -28,7 +28,7 @@ pub use crate::config::Config;
 pub use crate::error::{Error, Result};
 pub use crate::follower_role::FollowerRole;
 pub use crate::mailbox::Mailbox;
-pub use crate::peer::{Peer, PeerState};
+pub use crate::peer::Peer;
 pub use crate::peers::Peers;
 pub use crate::raft_client::create_client;
 pub use crate::raft_facade::Raft;

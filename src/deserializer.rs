@@ -15,6 +15,10 @@ impl CustomDeserializer for MyDeserializer {
             Bytes::Protobuf(v) => v.as_ref(),
         };
 
+        if let Ok(v) = deserialize::<u64>(v) {
+            return format!("{:?}", v);
+        }
+
         format!("{:?}", v)
     }
 

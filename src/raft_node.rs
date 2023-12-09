@@ -5,70 +5,24 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::error::Result;
-use crate::raft_service::raft_service_client::RaftServiceClient;
 use crate::request_message::RequestMessage;
 use crate::response_message::ResponseMessage;
 use crate::storage::heed::{HeedStorage, LogStore};
 use crate::storage::utils::get_storage_path;
-use crate::Peers;
 use crate::{AbstractStateMachine, Config};
+use crate::{Error, Peers};
 
 use bincode::{deserialize, serialize};
 use prost::Message as PMessage;
+use raft::derializer::format_message;
 use raft::eraftpb::{
     ConfChange, ConfChangeType, ConfChangeV2, Entry, EntryType, Message as RaftMessage, Snapshot,
 };
 use raft::raw_node::RawNode;
-use tokio::sync::{mpsc, RwLockReadGuard, RwLockWriteGuard};
+use tokio::sync::{mpsc, Mutex, RwLockReadGuard, RwLockWriteGuard};
 use tokio::sync::{oneshot, RwLock};
 use tokio::time::timeout;
 use tonic::Request;
-
-struct MessageSender {
-    message: RaftMessage,
-    client: RaftServiceClient<tonic::transport::channel::Channel>,
-    client_id: u64,
-    chan: mpsc::Sender<RequestMessage>,
-    max_retries: usize,
-    timeout: Duration,
-    logger: slog::Logger,
-}
-
-impl MessageSender {
-    /// attempt to send a message MessageSender::max_retries times at MessageSender::timeout
-    /// interval.
-    async fn send(mut self) {
-        let mut current_retry = 0usize;
-        loop {
-            let message_request = Request::new(self.message.clone());
-            match self.client.send_message(message_request).await {
-                Ok(_) => {
-                    return;
-                }
-                Err(e) => {
-                    if current_retry < self.max_retries {
-                        current_retry += 1;
-                        tokio::time::sleep(self.timeout).await;
-                    } else {
-                        slog::debug!(
-                            self.logger,
-                            "error sending message after {} retries: {}",
-                            self.max_retries,
-                            e
-                        );
-                        let _ = self
-                            .chan
-                            .send(RequestMessage::ReportUnreachable {
-                                node_id: self.client_id,
-                            })
-                            .await;
-                        return;
-                    }
-                }
-            }
-        }
-    }
-}
 
 #[derive(Clone)]
 pub struct RaftNode<FSM: AbstractStateMachine + Clone + 'static>(Arc<RwLock<RaftNodeCore<FSM>>>);
@@ -121,12 +75,12 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         self.rl().await.get_leader_id()
     }
 
-    pub async fn get_peers(&self) -> Peers {
-        self.rl().await.get_peers()
-    }
+    // pub async fn get_peers(&self) -> Peers {
+    //     self.rl().await.get_peers()
+    // }
 
     pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
-        self.wl().await.add_peer(id, addr)
+        self.wl().await.add_peer(id, addr).await
     }
 
     pub async fn inspect(&self) -> Result<String> {
@@ -150,7 +104,7 @@ pub struct RaftNodeCore<FSM: AbstractStateMachine + Clone + 'static> {
     pub raw_node: RawNode<HeedStorage>,
     pub rcv: mpsc::Receiver<RequestMessage>,
     pub fsm: FSM,
-    pub peers: Peers,
+    pub peers: Arc<Mutex<Peers>>,
     pub snd: mpsc::Sender<RequestMessage>,
     response_seq: AtomicU64,
     config: Config,
@@ -246,8 +200,8 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             config,
             logger,
             last_snapshot_created,
-            peers: initial_peers,
             should_exit: false,
+            peers: Arc::new(Mutex::new(initial_peers)),
         })
     }
 
@@ -279,7 +233,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         Ok(RaftNodeCore {
             raw_node,
             rcv,
-            peers,
             fsm,
             response_seq,
             snd,
@@ -287,6 +240,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             logger,
             last_snapshot_created,
             should_exit: false,
+            peers: Arc::new(Mutex::new(peers)),
         })
     }
 
@@ -302,17 +256,18 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         self.raw_node.raft.leader_id
     }
 
-    pub fn get_peers(&self) -> Peers {
-        self.peers.to_owned()
-    }
+    // pub fn get_peers(&self) -> Peers {
+    //     self.peers.to_owned()
+    // }
 
-    pub fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
-        self.peers.add_peer(id, addr)
+    pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
+        // self.peers.add_peer(id, addr)
+        self.peers.lock().await.add_peer(id, addr)
     }
 
     async fn send_wrongleader_response(&self, channel: oneshot::Sender<ResponseMessage>) {
         let leader_id = self.get_leader_id();
-        let peers = self.peers.clone();
+        let peers = self.peers.lock().await;
         let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
 
         let raft_response = ResponseMessage::WrongLeader {
@@ -323,9 +278,21 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         let _ = channel.send(raft_response);
     }
 
-    async fn send_messages(&mut self, messages: Vec<RaftMessage>) -> Result<()> {
-        for message in messages {
-            let client = match self.peers.get_mut(&message.get_to()) {
+    async fn send_message(
+        peers: Arc<Mutex<Peers>>,
+        message: RaftMessage,
+        max_retries: usize,
+        timeout: Duration,
+    ) -> Result<()> {
+        let client_id = message.get_to();
+        let mut retries = 0;
+
+        loop {
+            let message = Request::new(message.clone());
+            // let peer = self.peers.get_mut(&client_id)
+            // let client = peer.client.clone().unwrap();
+
+            let mut client = match peers.lock().await.get_mut(&client_id) {
                 Some(peer) => {
                     if peer.client.is_none() {
                         peer.connect().await?;
@@ -335,17 +302,33 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                 None => continue,
             };
 
-            let message_sender = MessageSender {
-                client_id: message.get_to(),
-                client: client.clone(),
-                message,
-                chan: self.snd.clone(),
-                timeout: Duration::from_secs_f32(self.config.message_timeout),
-                max_retries: self.config.max_retry_cnt as usize,
-                logger: self.logger.clone(),
-            };
+            match client.send_message(message).await {
+                Ok(_) => return Ok(()),
+                Err(e) if retries < max_retries => {
+                    retries += 1;
+                    tokio::time::sleep(timeout).await;
+                }
+                Err(e) => {
+                    // slog::debug!(
+                    //     self.logger,
+                    //     "Error sending message after {} retries: {}",
+                    //     max_retries,
+                    //     e
+                    // );
+                    return Err(Error::Unknown);
+                }
+            }
+        }
+    }
 
-            tokio::spawn(message_sender.send());
+    async fn send_messages(&mut self, messages: Vec<RaftMessage>) -> Result<()> {
+        for message in messages {
+            tokio::spawn(RaftNodeCore::<FSM>::send_message(
+                self.peers.clone(),
+                message,
+                self.config.max_retry_cnt as usize,
+                Duration::from_secs_f32(self.config.message_timeout),
+            ));
         }
         Ok(())
     }
@@ -427,7 +410,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                         node_id,
                         addr
                     );
-                    self.peers.add_peer(node_id, &addr.to_string());
+                    self.peers.lock().await.add_peer(node_id, &addr.to_string());
                 }
                 ConfChangeType::RemoveNode => {
                     if node_id == self.get_id() {
@@ -435,7 +418,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                         slog::info!(self.logger, "Node {} quit the cluster.", node_id);
                     } else {
                         slog::info!(self.logger, "Node {} removed from the cluster.", node_id);
-                        self.peers.remove(&node_id);
+                        self.peers.lock().await.remove(&node_id);
                     }
                 }
                 _ => unimplemented!(),
@@ -466,7 +449,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             }) {
                 response = ResponseMessage::JoinSuccess {
                     assigned_id: conf_changes[0].get_node_id(),
-                    peers: self.peers.clone(),
+                    peers: self.peers.lock().await.clone(),
                 };
             }
 
@@ -532,9 +515,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             last_applied, last_committed, last_persisted
         );
 
-        let result = format!(
-            "{outline:}\n{persistence_info:}\n{prs_info}\n{raftlog_metadata:}", 
-        );
+        let result = format!("{outline:}\n{persistence_info:}\n{prs_info}\n{raftlog_metadata:}",);
 
         Ok(result)
     }
@@ -548,7 +529,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
 
         loop {
             if self.should_exit {
-                slog::info!(self.logger, "Quitting raft");
+                slog::info!(self.logger, "Node {} quit the cluster.", self.get_id());
                 return Ok(());
             }
 
@@ -583,7 +564,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                         "Node {} received Raft message from the node {}, Message: {:?}",
                         self.raw_node.raft.id,
                         message.from,
-                        message
+                        format_message(&message)
                     );
                     self.raw_node.step(*message)?
                 }
@@ -592,7 +573,14 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                         // wrong leader send client cluster data
                         let leader_id = self.get_leader_id();
                         // leader can't be an empty node
-                        let leader_addr = self.peers.get(&leader_id).unwrap().addr.to_string();
+                        let leader_addr = self
+                            .peers
+                            .lock()
+                            .await
+                            .get(&leader_id)
+                            .unwrap()
+                            .addr
+                            .to_string();
                         let raft_response = ResponseMessage::WrongLeader {
                             leader_id,
                             leader_addr,
@@ -610,13 +598,13 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                         // TODO: retry strategy in case of failure
                         self.send_wrongleader_response(chan).await;
                     } else {
-                        let reserved_id = self.peers.reserve_peer(self.get_id());
+                        let reserved_id = self.peers.lock().await.reserve_peer(self.get_id());
                         slog::info!(self.logger, "Reserved peer id, {}", reserved_id);
 
                         chan.send(ResponseMessage::IdReserved {
                             reserved_id,
                             leader_id: self.get_id(),
-                            peers: self.peers.clone(),
+                            peers: self.peers.lock().await.clone(),
                         })
                         .unwrap();
                     }

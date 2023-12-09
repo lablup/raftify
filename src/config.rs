@@ -14,6 +14,7 @@ pub struct Config {
     pub lmdb_map_size: i32,
     pub cluster_id: String,
     pub terminate_on_remove: bool,
+    pub conf_change_request_timeout: f32,
 }
 
 impl Config {
@@ -29,6 +30,7 @@ impl Config {
         lmdb_map_size: i32,
         cluster_id: String,
         terminate_on_remove: bool,
+        conf_change_request_timeout: f32,
     ) -> Self {
         Self {
             raft_config,
@@ -42,6 +44,7 @@ impl Config {
             lmdb_map_size,
             cluster_id,
             terminate_on_remove,
+            conf_change_request_timeout,
         }
     }
 }
@@ -60,6 +63,7 @@ impl Default for Config {
             lmdb_map_size: 1024 * 1024 * 1024,
             cluster_id: String::from("default"),
             terminate_on_remove: false,
+            conf_change_request_timeout: 2.0,
         }
     }
 }
@@ -97,6 +101,7 @@ impl fmt::Debug for Config {
                 lmdb_map_size: {lmdb_map_size}, \
                 cluster_id: {cluster_id}, \
                 terminate_on_remove: {terminate_on_remove} \
+                conf_change_request_timeout: {conf_change_request_timeout} \
             }}",
             id = self.raft_config.id,
             election_tick = self.raft_config.election_tick,
@@ -124,6 +129,7 @@ impl fmt::Debug for Config {
             lmdb_map_size = self.lmdb_map_size,
             cluster_id = self.cluster_id,
             terminate_on_remove = self.terminate_on_remove,
+            conf_change_request_timeout = self.conf_change_request_timeout,
         )
     }
 }

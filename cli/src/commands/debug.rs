@@ -38,3 +38,7 @@ pub async fn debug_node(addr: &str) -> Result<()> {
     println!("{}", response.into_inner().result);
     Ok(())
 }
+
+pub async fn debug_entries(addr: &str) -> Result<()> {
+    todo!()
+}

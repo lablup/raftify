@@ -55,26 +55,24 @@ async fn main() -> Result<()> {
         .get_matches();
 
     match matches.subcommand() {
-        Some(("debug", debug_matches)) => {
-            match debug_matches.subcommand() {
-                Some(("entries", entries_matches)) => {
-                    if let Some(address) = entries_matches.value_of("address") {
-                        // 'entries' 서브커맨드 로직 구현
-                    }
+        Some(("debug", debug_matches)) => match debug_matches.subcommand() {
+            Some(("entries", entries_matches)) => {
+                if let Some(address) = entries_matches.value_of("address") {
+                    debug_node(address).await?;
                 }
-                Some(("node", node_matches)) => {
-                    if let Some(address) = node_matches.value_of("address") {
-                        debug_node(address).await?;
-                    }
-                }
-                Some(("persisted", node_matches)) => {
-                    if let Some(path) = node_matches.value_of("path") {
-                        debug_persisted(path, logger)?;
-                    }
-                }
-                _ => {}
             }
-        }
+            Some(("node", node_matches)) => {
+                if let Some(address) = node_matches.value_of("address") {
+                    debug_node(address).await?;
+                }
+            }
+            Some(("persisted", node_matches)) => {
+                if let Some(path) = node_matches.value_of("path") {
+                    debug_persisted(path, logger)?;
+                }
+            }
+            _ => {}
+        },
         _ => {}
     };
 

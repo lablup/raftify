@@ -8,7 +8,7 @@ use crate::raft_service::raft_service_client::RaftServiceClient;
 use crate::raft_service::{ChangeConfigResultType, RequestIdArgs, ResultCode};
 use crate::request_message::RequestMessage;
 use crate::storage::heed::LogStore;
-use crate::{AbstractStateMachine, Config, Mailbox, MyDeserializer, Peer, Peers};
+use crate::{create_client, AbstractStateMachine, Config, Mailbox, MyDeserializer, Peer, Peers};
 
 use bincode::{deserialize, serialize};
 use raft::derializer::set_custom_deserializer;
@@ -73,10 +73,10 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
 
         Ok(Self {
             addr,
-            config,
             tx: tx.clone(),
             raft_node,
-            raft_server: RaftServer::new(tx.clone(), addr.clone(), logger.clone()),
+            raft_server: RaftServer::new(tx.clone(), addr.clone(), config.clone(), logger.clone()),
+            config,
             logger,
         })
     }
@@ -127,7 +127,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
         let mut leader_addr = peer_addr;
 
         loop {
-            let mut client = RaftServiceClient::connect(format!("http://{}", leader_addr)).await?;
+            let mut client = create_client(leader_addr).await.unwrap();
             let response = client
                 .request_id(Request::new(RequestIdArgs {}))
                 .await?

@@ -1,19 +1,13 @@
 #[macro_use]
 extern crate slog;
 
-use env_logger::Builder;
-use log::LevelFilter;
-use raftify::raft::derializer::set_custom_deserializer;
 use slog::Drain;
 use static_cluster::utils::{build_config, load_peers};
 
 use actix_web::{get, web, App, HttpServer, Responder};
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
-use raftify::{
-    create_client, raft_service, AbstractStateMachine, Mailbox, MyDeserializer, Raft,
-    RaftServiceClient, Result,
-};
+use raftify::{AbstractStateMachine, Mailbox, Raft, Result};
 use serde::{Deserialize, Serialize};
 use slog_envlogger::LogBuilder;
 // use slog_envlogger::LogBuilder;
@@ -107,12 +101,6 @@ async fn leave(data: web::Data<(Arc<Mailbox>, HashStore, Raft<HashStore>)>) -> i
     "OK".to_string()
 }
 
-#[get("/debug")]
-async fn debug(data: web::Data<(Arc<Mailbox>, HashStore, Raft<HashStore>)>) -> impl Responder {
-    let raft_node = data.2.raft_node.clone();
-    raft_node.inspect().await.unwrap()
-}
-
 #[actix_rt::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let decorator = slog_term::TermDecorator::new().build();
@@ -140,11 +128,14 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let peers = load_peers().await.unwrap();
 
     let (raft, raft_handle) = match options.peer_addr {
-        Some(peer_addr) => {
+        Some(_) => {
             log::info!("Running in Follower mode");
-            let request_id_resp = Raft::<HashStore>::request_id(peer_addr.clone()).await?;
-            let mut raft = Raft::build(
-                request_id_resp.reserved_id,
+            // let request_id_resp = Raft::<HashStore>::request_id(peer_addr.clone()).await?;
+            let node_id = peers
+                .get_node_id_by_addr(options.raft_addr.clone())
+                .unwrap();
+            let raft = Raft::build(
+                node_id,
                 options.raft_addr,
                 store.clone(),
                 cfg,
@@ -152,7 +143,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 Some(peers),
             )?;
             let handle = tokio::spawn(raft.clone().run());
-            raft.join(request_id_resp).await?;
             (raft, handle)
         }
         None => {
@@ -185,7 +175,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .service(put)
                     .service(get)
                     .service(leave)
-                    .service(debug)
             })
             .bind(addr)
             .unwrap()

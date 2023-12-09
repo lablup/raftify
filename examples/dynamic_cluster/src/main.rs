@@ -106,12 +106,6 @@ async fn leave(data: web::Data<(Arc<Mailbox>, HashStore, Raft<HashStore>)>) -> i
     "OK".to_string()
 }
 
-#[get("/debug")]
-async fn debug(data: web::Data<(Arc<Mailbox>, HashStore, Raft<HashStore>)>) -> impl Responder {
-    let raft_node = data.2.raft_node.clone();
-    raft_node.inspect().await.unwrap()
-}
-
 #[actix_rt::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let decorator = slog_term::TermDecorator::new().build();
@@ -183,7 +177,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .service(put)
                     .service(get)
                     .service(leave)
-                    .service(debug)
             })
             .bind(addr)
             .unwrap()

@@ -5,6 +5,7 @@ use crate::raft_service::raft_service_server::{RaftService, RaftServiceServer};
 use crate::raft_service::{self, Empty, RequestIdArgs};
 use crate::request_message::RequestMessage;
 use crate::response_message::ResponseMessage;
+use crate::Config;
 
 use bincode::serialize;
 use raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
@@ -18,6 +19,7 @@ use tonic::{Request, Response, Status};
 pub struct RaftServer {
     snd: mpsc::Sender<RequestMessage>,
     addr: SocketAddr,
+    config: Config,
     logger: slog::Logger,
 }
 
@@ -25,10 +27,16 @@ impl RaftServer {
     pub fn new<A: ToSocketAddrs>(
         snd: mpsc::Sender<RequestMessage>,
         addr: A,
+        config: Config,
         logger: slog::Logger,
     ) -> Self {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
-        RaftServer { snd, addr, logger }
+        RaftServer {
+            snd,
+            addr,
+            config,
+            logger,
+        }
     }
 
     pub async fn run(self) {
@@ -111,7 +119,12 @@ impl RaftService for RaftServer {
 
         let mut reply = raft_service::ChangeConfigResponse::default();
 
-        match timeout(Duration::from_secs(2), rx).await {
+        match timeout(
+            Duration::from_secs_f32(self.config.conf_change_request_timeout),
+            rx,
+        )
+        .await
+        {
             Ok(Ok(_raft_response)) => {
                 reply.result_type =
                     raft_service::ChangeConfigResultType::ChangeConfigSuccess as i32;
