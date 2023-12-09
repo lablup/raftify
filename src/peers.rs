@@ -22,6 +22,16 @@ impl Peers {
         }
     }
 
+    pub fn iter(&self) -> SortedPeersIter {
+        let mut keys: Vec<_> = self.inner.keys().cloned().collect();
+        keys.sort();
+        SortedPeersIter {
+            keys,
+            peers: &self.inner,
+            index: 0,
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
@@ -57,4 +67,24 @@ impl Peers {
             .find(|(_, peer)| peer.addr == addr)
             .map(|(id, _)| *id)
     }
+}
+
+impl<'a> Iterator for SortedPeersIter<'a> {
+    type Item = (u64, &'a Peer);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.keys.len() {
+            let key = self.keys[self.index];
+            self.index += 1;
+            self.peers.get(&key).map(|value| (key, value))
+        } else {
+            None
+        }
+    }
+}
+
+pub struct SortedPeersIter<'a> {
+    keys: Vec<u64>,
+    peers: &'a HashMap<u64, Peer>,
+    index: usize,
 }
