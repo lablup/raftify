@@ -1,4 +1,3 @@
-// main.rs 또는 다른 파일
 include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
 use crate::commands::debug::debug_persisted;

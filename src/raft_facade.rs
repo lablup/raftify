@@ -8,9 +8,10 @@ use crate::raft_service::raft_service_client::RaftServiceClient;
 use crate::raft_service::{ChangeConfigResultType, RequestIdArgs, ResultCode};
 use crate::request_message::RequestMessage;
 use crate::storage::heed::LogStore;
-use crate::{AbstractStateMachine, Config, Mailbox, Peer, Peers};
+use crate::{AbstractStateMachine, Config, Mailbox, MyDeserializer, Peer, Peers};
 
 use bincode::{deserialize, serialize};
+use raft::derializer::set_custom_deserializer;
 use raft::eraftpb::{ConfChangeSingle, ConfChangeType, ConfChangeV2};
 use tokio::signal;
 use tokio::sync::mpsc;
@@ -43,6 +44,8 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
         logger: slog::Logger,
         initial_peers: Option<Peers>,
     ) -> Result<Self> {
+        set_custom_deserializer(MyDeserializer);
+
         let addr = addr.to_socket_addrs()?.next().unwrap();
         let initial_peers = initial_peers.unwrap_or_default();
 

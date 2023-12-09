@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use raftify::Config;
 use raftify::HeedStorage;
-use raftify::Result;
 use raftify::LogStore;
+use raftify::Result;
 
 pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
     let mut config = Config::default();
@@ -15,16 +15,16 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
     let entries = storage.all_entries()?;
 
     println!("---- Persisted entries ----");
-    for entry in entries {
-        println!("{:?}", entry);
+    for (i, entry) in entries.iter().enumerate() {
+        println!("Key {}: {:?}", i + 1, entry);
     }
 
     println!();
 
     println!("---- Metadata ----");
-    println!("HardState: {:?}", storage.hard_state()?);
-    println!("ConfState: {:?}", storage.conf_state()?);
-    println!("Snapshot: {:?}", storage.snapshot(0, 0)?);
-    println!("Last index: {:?}", storage.last_index()?);
+    println!("{:?}", storage.hard_state()?);
+    println!("{:?}", storage.conf_state()?);
+    println!("{:?}", storage.snapshot(0, 0)?);
+    println!("Last index: {}", storage.last_index()?);
     Ok(())
 }

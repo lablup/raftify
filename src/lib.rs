@@ -2,6 +2,7 @@
 extern crate async_trait;
 
 mod config;
+mod deserializer;
 mod error;
 mod follower_role;
 mod mailbox;
@@ -19,6 +20,7 @@ mod utils;
 
 pub mod raft_service;
 
+pub use deserializer::MyDeserializer;
 pub use raft;
 pub use raft::Config as RaftConfig;
 

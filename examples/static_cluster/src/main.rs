@@ -3,6 +3,7 @@ extern crate slog;
 
 use env_logger::Builder;
 use log::LevelFilter;
+use raftify::raft::derializer::set_custom_deserializer;
 use slog::Drain;
 use static_cluster::utils::{build_config, load_peers};
 
@@ -10,7 +11,7 @@ use actix_web::{get, web, App, HttpServer, Responder};
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
 use raftify::{
-    create_client, raft_service, AbstractStateMachine, Mailbox, Raft, RaftServiceClient, Result,
+    create_client, raft_service, AbstractStateMachine, Mailbox, Raft, RaftServiceClient, Result, MyDeserializer,
 };
 use serde::{Deserialize, Serialize};
 use slog_envlogger::LogBuilder;
