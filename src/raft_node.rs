@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use std::fs;
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -9,6 +11,7 @@ use crate::raft_service::raft_service_client::RaftServiceClient;
 use crate::request_message::RequestMessage;
 use crate::response_message::ResponseMessage;
 use crate::storage::heed::{HeedStorage, LogStore};
+use crate::storage::utils::get_storage_path;
 use crate::Peers;
 use crate::{AbstractStateMachine, Config};
 
@@ -176,11 +179,15 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         // Because we don't use the same configuration to initialize every node, so we use
         // a non-zero index to force new followers catch up logs by snapshot first, which will
         // bring all nodes to the same initial state.
-        snapshot.mut_metadata().index = 1;
-        snapshot.mut_metadata().term = 1;
+        snapshot.mut_metadata().index = 0;
+        snapshot.mut_metadata().term = 0;
         snapshot.mut_metadata().mut_conf_state().voters = vec![1];
 
-        let mut storage = HeedStorage::create(1, &config, logger.clone())?;
+        let mut storage = HeedStorage::create(
+            get_storage_path(config.log_dir.as_str(), 1)?,
+            &config,
+            logger.clone(),
+        )?;
         storage.apply_snapshot(snapshot).unwrap();
 
         let mut raw_node = RawNode::new(&raft_config, storage, &logger)?;
@@ -242,7 +249,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
     pub fn new_follower(
         rcv: mpsc::Receiver<RequestMessage>,
         snd: mpsc::Sender<RequestMessage>,
-        id: u64,
+        node_id: u64,
         fsm: FSM,
         config: Config,
         peers: Peers,
@@ -250,10 +257,14 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
     ) -> Result<Self> {
         let mut raft_config = config.raft_config.clone();
 
-        raft_config.id = id;
+        raft_config.id = node_id;
         raft_config.validate()?;
 
-        let storage = HeedStorage::create(id, &config, logger.clone())?;
+        let storage = HeedStorage::create(
+            get_storage_path(config.log_dir.as_str(), node_id)?,
+            &config,
+            logger.clone(),
+        )?;
         let raw_node = RawNode::new(&raft_config, storage, &logger)?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now()

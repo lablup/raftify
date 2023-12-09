@@ -10,8 +10,7 @@ use crate::config::Config;
 use prost::Message;
 use std::borrow::Cow;
 use std::cmp::max;
-use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 pub trait LogStore: Storage {
@@ -26,6 +25,7 @@ pub trait LogStore: Storage {
     fn apply_snapshot(&mut self, snapshot: Snapshot) -> Result<()>;
     fn last_index(&self) -> Result<u64>;
     fn compact(&mut self, index: u64) -> Result<()>;
+    fn all_entries(&self) -> raft::Result<Vec<Entry>>;
 }
 
 const SNAPSHOT_KEY: &str = "snapshot";
@@ -108,16 +108,7 @@ pub struct HeedStorageCore {
 }
 
 impl HeedStorageCore {
-    pub fn create(node_id: u64, config: &Config, logger: slog::Logger) -> Result<Self> {
-        let log_dir_path = format!("{}/node-{}", config.log_dir.clone(), node_id);
-        let log_dir_path = Path::new(&log_dir_path);
-
-        if fs::metadata(Path::new(&log_dir_path)).is_ok() {
-            fs::remove_dir_all(log_dir_path).expect("Failed to remove log directory");
-        }
-
-        fs::create_dir_all(Path::new(&log_dir_path))?;
-
+    pub fn create(log_dir_path: PathBuf, config: &Config, logger: slog::Logger) -> Result<Self> {
         let env = heed::EnvOpenOptions::new()
             .map_size(config.lmdb_map_size as usize)
             .max_dbs(3000)
@@ -263,6 +254,17 @@ impl HeedStorageCore {
         Ok(entries)
     }
 
+    fn all_entries(&self, reader: &heed::RoTxn) -> Result<Vec<Entry>> {
+        let iter = self.entries_db.iter(&reader)?;
+        let entries = iter
+            .filter_map(|e| match e {
+                Ok((_, e)) => Some(e),
+                _ => None,
+            })
+            .collect();
+        Ok(entries)
+    }
+
     fn append(&self, writer: &mut heed::RwTxn, entries: &[Entry]) -> Result<()> {
         let mut last_index = self.last_index(&writer)?;
         // TODO: ensure entry arrive in the right order
@@ -281,8 +283,8 @@ impl HeedStorageCore {
 pub struct HeedStorage(Arc<RwLock<HeedStorageCore>>);
 
 impl HeedStorage {
-    pub fn create(node_id: u64, config: &Config, logger: slog::Logger) -> Result<Self> {
-        let core = HeedStorageCore::create(node_id, config, logger)?;
+    pub fn create(log_dir_path: PathBuf, config: &Config, logger: slog::Logger) -> Result<Self> {
+        let core = HeedStorageCore::create(log_dir_path, config, logger)?;
         Ok(Self(Arc::new(RwLock::new(core))))
     }
 
@@ -406,6 +408,16 @@ impl LogStore for HeedStorage {
         let reader = store.env.read_txn()?;
         let last_index = store.last_index(&reader)?;
         Ok(last_index)
+    }
+
+    fn all_entries(&self) -> raft::Result<Vec<Entry>> {
+        let store = self.rl();
+        let reader = store.env.read_txn().unwrap();
+
+        let entries = store
+            .all_entries(&reader)
+            .map_err(|e| raft::Error::Store(raft::StorageError::Other(e.into())))?;
+        Ok(entries)
     }
 }
 

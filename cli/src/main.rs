@@ -1,9 +1,16 @@
 // main.rs 또는 다른 파일
 include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
+use crate::commands::debug::debug_persisted;
 use clap::{App, Arg, SubCommand};
+use raftify::raft::default_logger;
+use raftify::Result;
 
-fn main() {
+mod commands;
+
+fn main() -> Result<()> {
+    let logger = default_logger();
+
     let matches = App::new("raftify")
         .version(PKG_VERSION)
         .author(PKG_AUTHORS)
@@ -48,25 +55,24 @@ fn main() {
             match debug_matches.subcommand() {
                 Some(("entries", entries_matches)) => {
                     if let Some(address) = entries_matches.value_of("address") {
-                        println!("Running 'entries' for address: {}", address);
                         // 'entries' 서브커맨드 로직 구현
                     }
                 }
                 Some(("node", node_matches)) => {
                     if let Some(address) = node_matches.value_of("address") {
-                        println!("Running 'node' for address: {}", address);
                         // 'node' 서브커맨드 로직 구현
                     }
                 }
                 Some(("persisted", node_matches)) => {
                     if let Some(path) = node_matches.value_of("path") {
-                        println!("Running 'node' for address: {}", path);
-                        // 'persisted' 서브커맨드 로직 구현
+                        debug_persisted(path, logger)?;
                     }
                 }
                 _ => {}
             }
         }
         _ => {}
-    }
+    };
+
+    Ok(())
 }

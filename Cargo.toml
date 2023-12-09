@@ -31,8 +31,7 @@ tonic-build = "0.9"
 
 [workspace]
 members = [
-    "examples/static_cluster",
     "examples/dynamic_cluster",
-    "examples/client",
-    "binding/python"
+    "examples/static_cluster",
+    "cli"
 ]

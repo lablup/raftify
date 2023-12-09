@@ -4,5 +4,5 @@ build:
 clean:
 	rm -rf node-*
 
-install:
+install-cli:
 	cd cli && cargo install --path . && cd ..

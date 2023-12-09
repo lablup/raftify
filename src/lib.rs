@@ -32,5 +32,7 @@ pub use crate::raft_client::create_client;
 pub use crate::raft_facade::Raft;
 pub use crate::raft_service::raft_service_client::RaftServiceClient;
 pub use crate::state_machine::AbstractStateMachine;
+pub use crate::storage::heed::HeedStorage;
+pub use crate::storage::heed::LogStore;
 pub use async_trait::async_trait;
 pub(crate) use utils::get_filesize;
