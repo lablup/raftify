@@ -11,7 +11,8 @@ use actix_web::{get, web, App, HttpServer, Responder};
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
 use raftify::{
-    create_client, raft_service, AbstractStateMachine, Mailbox, Raft, RaftServiceClient, Result, MyDeserializer,
+    create_client, raft_service, AbstractStateMachine, Mailbox, MyDeserializer, Raft,
+    RaftServiceClient, Result,
 };
 use serde::{Deserialize, Serialize};
 use slog_envlogger::LogBuilder;

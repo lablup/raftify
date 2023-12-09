@@ -1,62 +1,78 @@
+use std::net::SocketAddr;
+
+use bincode::deserialize;
 use raft::{
-    derializer::{format_confchangev2, Bytes, CustomDeserializer},
-    eraftpb::ConfChangeV2,
+    derializer::{format_confchange, format_confchangev2, Bytes, CustomDeserializer},
+    eraftpb::{ConfChange, ConfChangeV2},
 };
 pub struct MyDeserializer;
 use prost::Message as PMessage;
 
 impl CustomDeserializer for MyDeserializer {
     fn entry_context_deserialize(&self, v: &Bytes) -> String {
-        match v {
-            Bytes::Prost(v) => format!("{:?}", (&v[..])),
-            Bytes::Protobuf(v) => format!("{:?}", v.as_ref()),
-        }
+        let v = match v {
+            Bytes::Prost(v) => &v[..],
+            Bytes::Protobuf(v) => v.as_ref(),
+        };
+
+        format!("{:?}", v)
     }
 
     fn entry_data_deserialize(&self, v: &Bytes) -> String {
-        match v {
-            Bytes::Prost(v) => format!("{:?}", {
-                if let Ok(cc) = ConfChangeV2::decode(&v[..]) {
-                    return format_confchangev2(&cc);
-                }
+        let v = match v {
+            Bytes::Prost(v) => &v[..],
+            Bytes::Protobuf(v) => v.as_ref(),
+        };
 
-                &v[..]
-            }),
-            Bytes::Protobuf(v) => format!("{:?}", {
-                if let Ok(cc) = ConfChangeV2::decode(v.as_ref()) {
-                    return format_confchangev2(&cc);
-                }
-
-                v.as_ref()
-            }),
+        if let Ok(cc) = ConfChange::decode(&v[..]) {
+            return format_confchange(&cc);
         }
+        if let Ok(cc) = ConfChangeV2::decode(&v[..]) {
+            return format_confchangev2(&cc);
+        }
+
+        format!("{:?}", v)
     }
 
     fn confchangev2_context_deserialize(&self, v: &Bytes) -> String {
-        match v {
-            Bytes::Prost(v) => format!("{:?}", (&v[..])),
-            Bytes::Protobuf(v) => format!("{:?}", v.as_ref()),
+        let v = match v {
+            Bytes::Prost(v) => &v[..],
+            Bytes::Protobuf(v) => v.as_ref(),
+        };
+
+        if let Ok(addrs) = deserialize::<Vec<SocketAddr>>(&v[..]) {
+            return format!("{:?}", addrs);
         }
+
+        format!("{:?}", v)
     }
 
     fn confchange_context_deserialize(&self, v: &Bytes) -> String {
-        match v {
-            Bytes::Prost(v) => format!("{:?}", (&v[..])),
-            Bytes::Protobuf(v) => format!("{:?}", v.as_ref()),
+        let v = match v {
+            Bytes::Prost(v) => &v[..],
+            Bytes::Protobuf(v) => v.as_ref(),
+        };
+
+        if let Ok(addrs) = deserialize::<Vec<SocketAddr>>(&v[..]) {
+            return format!("{:?}", addrs);
         }
+
+        format!("{:?}", v)
     }
 
     fn message_context_deserializer(&self, v: &Bytes) -> String {
-        match v {
-            Bytes::Prost(v) => format!("{:?}", (&v[..])),
-            Bytes::Protobuf(v) => format!("{:?}", v.as_ref()),
-        }
+        let v = match v {
+            Bytes::Prost(v) => &v[..],
+            Bytes::Protobuf(v) => v.as_ref(),
+        };
+        format!("{:?}", v)
     }
 
     fn snapshot_data_deserializer(&self, v: &Bytes) -> String {
-        match v {
-            Bytes::Prost(v) => format!("{:?}", (&v[..])),
-            Bytes::Protobuf(v) => format!("{:?}", v.as_ref()),
-        }
+        let v = match v {
+            Bytes::Prost(v) => &v[..],
+            Bytes::Protobuf(v) => v.as_ref(),
+        };
+        format!("{:?}", v)
     }
 }
