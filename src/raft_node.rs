@@ -486,9 +486,8 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
     }
 
     pub async fn inspect(&self) -> Result<String> {
-        // let prs = self.raft.prs().iter().map(|(k, v)| (k, v)).collect();
-
         let raw_node = &self.raw_node;
+        let prs = raw_node.raft.prs().get(self.get_id()).unwrap();
         let store = raw_node.store();
 
         let id = raw_node.raft.id;
@@ -518,6 +517,13 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             hard_state, conf_state, last_index, snapshot
         );
 
+        let prs_info = format!(
+            "========= Progresses =========\n\
+            {:?}
+            ",
+            prs
+        );
+
         let raftlog_metadata = format!(
             "========= RaftLog Metadata =========\n\
             last_applied: {}\n\
@@ -526,7 +532,9 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             last_applied, last_committed, last_persisted
         );
 
-        let result = format!("{}\n{}\n{}", outline, persistence_info, raftlog_metadata);
+        let result = format!(
+            "{outline:}\n{persistence_info:}\n{prs_info}\n{raftlog_metadata:}", 
+        );
 
         Ok(result)
     }
