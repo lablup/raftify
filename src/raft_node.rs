@@ -402,7 +402,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             let change_type = conf_change.get_change_type();
 
             match change_type {
-                ConfChangeType::AddNode => {
+                ConfChangeType::AddNode | ConfChangeType::AddLearnerNode => {
                     let addr = addrs[cc_idx];
                     slog::info!(
                         self.logger,
@@ -421,7 +421,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                         self.peers.lock().await.remove(&node_id);
                     }
                 }
-                _ => unimplemented!(),
             }
         }
 
