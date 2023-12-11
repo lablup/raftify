@@ -9,7 +9,6 @@ pub enum RequestMessage {
         chan: Sender<ResponseMessage>,
     },
     ClusterBootstrapReady {
-        peers: Peers,
         chan: Sender<ResponseMessage>,
     },
     Propose {

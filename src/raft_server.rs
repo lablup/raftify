@@ -7,7 +7,7 @@ use crate::request_message::RequestMessage;
 use crate::response_message::ResponseMessage;
 use crate::{Config, Peers};
 
-use bincode::{serialize, deserialize};
+use bincode::{deserialize, serialize};
 use raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -207,19 +207,20 @@ impl RaftService for RaftServer {
             Err(_) => slog::error!(self.logger, "send error"),
         }
         let _response = rx.await.unwrap();
-        Ok(Response::new(raft_service::MemberBootstrapReadyResponse {}))
+        Ok(Response::new(raft_service::MemberBootstrapReadyResponse {
+            code: raft_service::ResultCode::Ok as i32,
+        }))
     }
 
     async fn cluster_bootstrap_ready(
         &self,
         request: Request<raft_service::ClusterBootstrapReadyArgs>,
     ) -> Result<Response<raft_service::ClusterBootstrapReadyResponse>, Status> {
-        let request_args = request.into_inner();
+        let _request_args = request.into_inner();
         let (tx, rx) = oneshot::channel();
         let sender = self.snd.clone();
-        let peers: Peers = deserialize(&request_args.peers[..]).unwrap();
         match sender
-            .send(RequestMessage::ClusterBootstrapReady { peers, chan: tx })
+            .send(RequestMessage::ClusterBootstrapReady { chan: tx })
             .await
         {
             Ok(_) => (),

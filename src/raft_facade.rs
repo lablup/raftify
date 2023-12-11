@@ -5,7 +5,9 @@ use crate::error::{Error, Result};
 use crate::raft_node::RaftNode;
 use crate::raft_server::RaftServer;
 use crate::raft_service::raft_service_client::RaftServiceClient;
-use crate::raft_service::{ChangeConfigResultType, RequestIdArgs, ResultCode};
+use crate::raft_service::{
+    ChangeConfigResultType, MemberBootstrapReadyArgs, RequestIdArgs, ResultCode,
+};
 use crate::request_message::RequestMessage;
 use crate::storage::heed::LogStore;
 use crate::{create_client, AbstractStateMachine, Config, Mailbox, MyDeserializer, Peer, Peers};
@@ -50,6 +52,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
         let initial_peers = initial_peers.unwrap_or_default();
 
         let (tx, rx) = mpsc::channel(100);
+        let bootstrap_done = initial_peers.is_empty();
 
         let raft_node = match node_id {
             1 => RaftNode::bootstrap_cluster(
@@ -59,6 +62,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
                 config.clone(),
                 initial_peers,
                 logger.clone(),
+                bootstrap_done,
             ),
             _ => RaftNode::new_follower(
                 rx,
@@ -68,6 +72,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
                 config.clone(),
                 initial_peers,
                 logger.clone(),
+                bootstrap_done,
             ),
         }?;
 
@@ -97,9 +102,9 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
         );
 
         let raft_node = self.raft_node.clone();
-        let raft_node_handle = tokio::spawn(async move { raft_node.to_owned().run().await });
+        let raft_node_handle = tokio::spawn(raft_node.clone().run());
         let raft_server = self.raft_server.to_owned();
-        let raft_server_handle = tokio::spawn(async move { raft_server.run().await });
+        let raft_server_handle = tokio::spawn(raft_server.run());
 
         tokio::select! {
             _ = signal::ctrl_c() => {
@@ -111,7 +116,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
             } => {
                 match result {
                     Ok(_) => {
-                        slog::debug!(self.logger, "Both tasks completed successfully.");
+                        slog::trace!(self.logger, "All tasks quitted successfully.");
                         Ok(())
                     },
                     Err(e) => {
@@ -156,6 +161,36 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
                 ResultCode::Error => return Err(Error::JoinError),
             }
         }
+    }
+
+    pub async fn member_bootstrap_ready<A: ToSocketAddrs>(
+        &mut self,
+        leader_addr: A,
+        node_id: u64,
+    ) -> Result<()> {
+        let mut leader_client = create_client(leader_addr).await.unwrap();
+        let response = leader_client
+            .member_bootstrap_ready(Request::new(MemberBootstrapReadyArgs { node_id }))
+            .await
+            .unwrap()
+            .into_inner();
+
+        match response.code() {
+            ResultCode::Ok => {
+                slog::info!(
+                    self.logger,
+                    "Member send the bootstrap ready request successfully"
+                );
+            }
+            ResultCode::Error => {
+                slog::error!(self.logger, "Failed to send the bootstrap ready request.");
+            }
+            ResultCode::WrongLeader => {
+                slog::error!(self.logger, "Wrong leader address. Check leader changes while sending bootstrap ready request.");
+            }
+        }
+
+        Ok(())
     }
 
     pub async fn snapshot(&mut self) -> Result<()> {

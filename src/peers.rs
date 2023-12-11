@@ -36,6 +36,10 @@ impl Peers {
         self.inner.is_empty()
     }
 
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
     pub fn get(&self, id: &u64) -> Option<&Peer> {
         self.inner.get(&id)
     }

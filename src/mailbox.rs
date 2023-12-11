@@ -32,12 +32,12 @@ impl Mailbox {
                 err => {
                     slog::trace!(self.logger, "Error: {:?}", err);
                     Err(Error::Unknown)
-                },
+                }
             },
             err => {
                 slog::trace!(self.logger, "Error: {:?}", err);
                 Err(Error::Unknown)
-            },
+            }
         }
     }
 

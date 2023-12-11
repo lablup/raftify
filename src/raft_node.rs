@@ -5,12 +5,13 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::error::{Result, SendMessageError};
+use crate::raft_service::ClusterBootstrapReadyArgs;
 use crate::request_message::RequestMessage;
 use crate::response_message::ResponseMessage;
 use crate::storage::heed::{HeedStorage, LogStore};
 use crate::storage::utils::get_storage_path;
+use crate::Peers;
 use crate::{AbstractStateMachine, Config};
-use crate::{Error, Peers};
 
 use bincode::{deserialize, serialize};
 use prost::Message as PMessage;
@@ -45,9 +46,18 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         config: Config,
         initial_peers: Peers,
         logger: slog::Logger,
+        bootstrap_done: bool,
     ) -> Result<Self> {
-        RaftNodeCore::bootstrap_cluster(rcv, snd, fsm, config, initial_peers, logger)
-            .map(|core| Self(Arc::new(RwLock::new(core))))
+        RaftNodeCore::bootstrap_cluster(
+            rcv,
+            snd,
+            fsm,
+            config,
+            initial_peers,
+            logger,
+            bootstrap_done,
+        )
+        .map(|core| Self(Arc::new(RwLock::new(core))))
     }
 
     pub fn new_follower(
@@ -58,8 +68,9 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         config: Config,
         peers: Peers,
         logger: slog::Logger,
+        bootstrap_done: bool,
     ) -> Result<Self> {
-        RaftNodeCore::new_follower(rcv, snd, id, fsm, config, peers, logger)
+        RaftNodeCore::new_follower(rcv, snd, id, fsm, config, peers, logger, bootstrap_done)
             .map(|core| Self(Arc::new(RwLock::new(core))))
     }
 
@@ -95,6 +106,10 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         self.wl().await.make_snapshot(index, term).await
     }
 
+    // pub async fn wait_for_initial_peers_bootstrap(mut self) -> Result<()> {
+    //     self.wl().await.wait_for_initial_peers_bootstrap().await
+    // }
+
     pub async fn run(mut self) -> Result<()> {
         self.wl().await.run().await
     }
@@ -111,6 +126,8 @@ pub struct RaftNodeCore<FSM: AbstractStateMachine + Clone + 'static> {
     should_exit: bool,
     last_snapshot_created: Instant,
     logger: slog::Logger,
+    bootstrap_done: bool,
+    peers_bootstrap_ready: Option<HashMap<u64, bool>>,
 }
 
 impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
@@ -121,6 +138,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         config: Config,
         initial_peers: Peers,
         logger: slog::Logger,
+        bootstrap_done: bool,
     ) -> Result<Self> {
         let mut raft_config = config.raft_config.clone();
 
@@ -135,7 +153,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
 
         let mut snapshot = Snapshot::default();
         snapshot.mut_metadata().index = 0;
-        snapshot.mut_metadata().term = 1;
+        snapshot.mut_metadata().term = 0;
         snapshot.mut_metadata().mut_conf_state().voters = vec![1];
         storage.apply_snapshot(snapshot).unwrap();
 
@@ -145,6 +163,15 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
 
         raw_node.raft.become_candidate();
         raw_node.raft.become_leader();
+
+        let peers_bootstrap_ready = match initial_peers.is_empty() {
+            true => None,
+            false => {
+                let mut initial = HashMap::new();
+                initial.insert(1, true);
+                Some(initial)
+            },
+        };
 
         Ok(RaftNodeCore {
             raw_node,
@@ -157,6 +184,8 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             last_snapshot_created,
             should_exit: false,
             peers: Arc::new(Mutex::new(initial_peers)),
+            bootstrap_done,
+            peers_bootstrap_ready,
         })
     }
 
@@ -168,6 +197,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         config: Config,
         peers: Peers,
         logger: slog::Logger,
+        bootstrap_done: bool,
     ) -> Result<Self> {
         let mut raft_config = config.raft_config.clone();
 
@@ -196,6 +226,8 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             last_snapshot_created,
             should_exit: false,
             peers: Arc::new(Mutex::new(peers)),
+            bootstrap_done,
+            peers_bootstrap_ready: None,
         })
     }
 
@@ -216,7 +248,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
     // }
 
     pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
-        // self.peers.add_peer(id, addr)
         self.peers.lock().await.add_peer(id, addr)
     }
 
@@ -280,7 +311,11 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         }
     }
 
-    async fn send_messages(&mut self, messages: Vec<RaftMessage>) -> Result<()> {
+    async fn send_messages(&mut self, messages: Vec<RaftMessage>) {
+        if !self.bootstrap_done {
+            return;
+        }
+
         for message in messages {
             tokio::spawn(RaftNodeCore::<FSM>::send_message(
                 message,
@@ -289,7 +324,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                 self.logger.clone(),
             ));
         }
-        Ok(())
     }
 
     async fn handle_committed_entries(
@@ -478,6 +512,116 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         Ok(result)
     }
 
+    pub async fn wait_for_initial_peers_bootstrap(&mut self) -> Result<()> {
+        if !self.is_leader() {
+            return Ok(());
+        }
+
+        let peers_bootstrap_ready = self.peers_bootstrap_ready.clone().unwrap();
+
+        loop {
+            {
+                let peers = self.peers.lock().await;
+                if peers.len() == peers_bootstrap_ready.len()
+                    && peers_bootstrap_ready.iter().all(|v| *v.1 == true)
+                {
+                    break;
+                }
+                slog::trace!(
+                    self.logger,
+                    "Waiting for all follower nodes to be ready to join the cluster..."
+                );
+            }
+            // tokio::time::sleep(Duration::from_secs(1)).await;
+            return Ok(());
+        }
+
+        slog::info!(
+            self.logger,
+            "Received All follower nodes join requests, preparing to bootstrap the cluster..."
+        );
+
+        self.bootstrap_peers().await?;
+
+        let mut peers = self.peers.lock().await;
+
+        for node_id in peers_bootstrap_ready.keys() {
+            let peer = peers.get_mut(node_id).expect("Peer not found!");
+            peer.connect().await?;
+            peer.client
+                .as_mut()
+                .unwrap()
+                .cluster_bootstrap_ready(Request::new(ClusterBootstrapReadyArgs {}))
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    /// Commit the configuration change to add all follower nodes to the cluster.
+    async fn bootstrap_peers(&mut self) -> Result<()> {
+        assert!(self.is_leader());
+
+        self.make_snapshot(self.raw_node.store().last_index()?, 1)
+            .await?;
+
+        let initial_peers = self.peers.lock().await;
+
+        let mut conf_changes = vec![];
+        let mut entries = vec![];
+        let last_index = self.raw_node.store().last_index().unwrap();
+
+        for (i, peer) in initial_peers.iter().enumerate() {
+            let node_id = &peer.0;
+            let node_addr = initial_peers.get(node_id).unwrap().addr;
+            // Skip leader
+            if *node_id == 1 {
+                continue;
+            }
+            let mut conf_change = ConfChange::default();
+            conf_change.set_node_id(*node_id);
+            conf_change.set_change_type(ConfChangeType::AddNode);
+            conf_change.set_context(serialize(&vec![node_addr]).unwrap());
+            conf_changes.push(conf_change.clone());
+            let conf_state = self.raw_node.apply_conf_change(&conf_change)?;
+            self.raw_node.mut_store().set_conf_state(&conf_state)?;
+
+            let mut entry = Entry::default();
+            entry.set_entry_type(EntryType::EntryConfChangeV2);
+            entry.set_term(1);
+            entry.set_index(last_index + i as u64);
+            entry.set_data(conf_change.encode_to_vec());
+            entry.set_context(vec![]);
+            entries.push(entry);
+        }
+
+        let commit_index = last_index + entries.len() as u64;
+        self.raw_node.raft.raft_log.append(&entries);
+        self.raw_node.raft.raft_log.stable_entries(commit_index, 1);
+        self.raw_node.mut_store().append(&entries)?;
+        self.raw_node
+            .mut_store()
+            .create_snapshot(vec![], commit_index, 1)?;
+
+        let hs = self.raw_node.store().hard_state()?;
+
+        self.last_snapshot_created = Instant::now();
+
+        let last_applied = self.raw_node.raft.raft_log.applied;
+        let store = self.raw_node.mut_store();
+        store.compact(last_applied)?;
+        store.create_snapshot(vec![], commit_index, hs.term)?;
+
+        self.raw_node.raft.raft_log.committed = commit_index;
+
+        // let leader_id = self.get_id();
+        // self.raw_node.raft.prs().get_mut(leader_id).unwrap().matched = last_index;
+
+        self.bootstrap_done = true;
+
+        Ok(())
+    }
+
     pub async fn run(&mut self) -> Result<()> {
         let mut heartbeat = Duration::from_secs_f32(self.config.tick_interval);
         let mut now = Instant::now();
@@ -491,7 +635,33 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                 return Ok(());
             }
 
+            if !self.bootstrap_done {
+                self.wait_for_initial_peers_bootstrap().await?;
+            }
+
             match timeout(heartbeat, self.rcv.recv()).await {
+                Ok(Some(RequestMessage::ClusterBootstrapReady { chan })) => {
+                    slog::info!(
+                        self.logger,
+                        "All nodes are ready to join the cluster. Start to bootstrap process..."
+                    );
+                    chan.send(ResponseMessage::Ok).unwrap();
+                    self.bootstrap_done = true;
+                }
+                Ok(Some(RequestMessage::MemberBootstrapReady { node_id, chan })) => {
+                    assert!(self.is_leader());
+                    slog::info!(
+                        self.logger,
+                        "Node {} requested to join the cluster.",
+                        node_id
+                    );
+                    self.peers_bootstrap_ready
+                        .as_mut()
+                        .unwrap()
+                        .insert(node_id, true);
+
+                    chan.send(ResponseMessage::Ok).unwrap();
+                }
                 Ok(Some(RequestMessage::ConfigChange { chan, conf_change })) => {
                     if self.raw_node.raft.has_pending_conf() {
                         slog::warn!(self.logger, "Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index);
@@ -582,7 +752,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             let elapsed = now.elapsed();
             now = Instant::now();
             if elapsed > heartbeat {
-                heartbeat = Duration::from_millis(100);
+                heartbeat = Duration::from_secs_f32(self.config.tick_interval);
                 self.raw_node.tick();
             } else {
                 heartbeat -= elapsed;
@@ -602,13 +772,13 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         let mut ready = self.raw_node.ready();
 
         if !ready.messages().is_empty() {
-            self.send_messages(ready.take_messages()).await?;
+            self.send_messages(ready.take_messages()).await;
         }
 
         if *ready.snapshot() != Snapshot::default() {
             slog::info!(
                 self.logger,
-                "Restoring a state machine from the snapshot..."
+                "Restoring state machine and snapshot metadata..."
             );
             let snapshot = ready.snapshot();
             if !snapshot.get_data().is_empty() {
@@ -633,7 +803,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         }
 
         if !ready.persisted_messages().is_empty() {
-            self.send_messages(ready.take_persisted_messages()).await?;
+            self.send_messages(ready.take_persisted_messages()).await;
         }
 
         let mut light_rd = self.raw_node.advance(ready);
@@ -643,7 +813,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             store.set_hard_state_commit(commit)?;
         }
 
-        self.send_messages(light_rd.take_messages()).await?;
+        self.send_messages(light_rd.take_messages()).await;
         self.handle_committed_entries(light_rd.take_committed_entries(), client_send)
             .await?;
 

@@ -27,9 +27,9 @@ message MemberBootstrapReadyArgs {
   uint64 node_id                  = 1;
 }
 message MemberBootstrapReadyResponse {
+  ResultCode code                = 1;
 }
 message ClusterBootstrapReadyArgs {
-  bytes peers                     = 1;
 }
 message ClusterBootstrapReadyResponse {
 }

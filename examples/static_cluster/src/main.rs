@@ -134,7 +134,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             let node_id = peers
                 .get_node_id_by_addr(options.raft_addr.clone())
                 .unwrap();
-            let raft = Raft::build(
+            let leader_addr = peers.get(&1).unwrap().addr;
+            let mut raft = Raft::build(
                 node_id,
                 options.raft_addr,
                 store.clone(),
@@ -143,6 +144,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 Some(peers),
             )?;
             let handle = tokio::spawn(raft.clone().run());
+            raft.member_bootstrap_ready(leader_addr, node_id).await?;
             (raft, handle)
         }
         None => {
