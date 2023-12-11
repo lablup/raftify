@@ -5,9 +5,9 @@ use crate::raft_service::raft_service_server::{RaftService, RaftServiceServer};
 use crate::raft_service::{self, Empty, RequestIdArgs};
 use crate::request_message::RequestMessage;
 use crate::response_message::ResponseMessage;
-use crate::Config;
+use crate::{Config, Peers};
 
-use bincode::serialize;
+use bincode::{serialize, deserialize};
 use raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -187,5 +187,47 @@ impl RaftService for RaftServer {
             }
             _ => unreachable!(),
         }
+    }
+
+    async fn member_bootstrap_ready(
+        &self,
+        request: Request<raft_service::MemberBootstrapReadyArgs>,
+    ) -> Result<Response<raft_service::MemberBootstrapReadyResponse>, Status> {
+        let request_args = request.into_inner();
+        let (tx, rx) = oneshot::channel();
+        let sender = self.snd.clone();
+        match sender
+            .send(RequestMessage::MemberBootstrapReady {
+                node_id: request_args.node_id,
+                chan: tx,
+            })
+            .await
+        {
+            Ok(_) => (),
+            Err(_) => slog::error!(self.logger, "send error"),
+        }
+        let _response = rx.await.unwrap();
+        Ok(Response::new(raft_service::MemberBootstrapReadyResponse {}))
+    }
+
+    async fn cluster_bootstrap_ready(
+        &self,
+        request: Request<raft_service::ClusterBootstrapReadyArgs>,
+    ) -> Result<Response<raft_service::ClusterBootstrapReadyResponse>, Status> {
+        let request_args = request.into_inner();
+        let (tx, rx) = oneshot::channel();
+        let sender = self.snd.clone();
+        let peers: Peers = deserialize(&request_args.peers[..]).unwrap();
+        match sender
+            .send(RequestMessage::ClusterBootstrapReady { peers, chan: tx })
+            .await
+        {
+            Ok(_) => (),
+            Err(_) => slog::error!(self.logger, "send error"),
+        }
+        let _response = rx.await.unwrap();
+        Ok(Response::new(
+            raft_service::ClusterBootstrapReadyResponse {},
+        ))
     }
 }

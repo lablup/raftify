@@ -14,6 +14,7 @@ use std::time::Duration;
 pub struct Mailbox {
     pub snd: mpsc::Sender<RequestMessage>,
     pub peers: HashMap<u64, String>,
+    pub logger: slog::Logger,
 }
 
 impl Mailbox {
@@ -28,9 +29,15 @@ impl Mailbox {
         match sender.send(proposal).await {
             Ok(_) => match timeout(Duration::from_secs(2), rx).await {
                 Ok(Ok(ResponseMessage::Response { data })) => Ok(data),
-                _ => Err(Error::Unknown),
+                err => {
+                    slog::trace!(self.logger, "Error: {:?}", err);
+                    Err(Error::Unknown)
+                },
             },
-            _ => Err(Error::Unknown),
+            err => {
+                slog::trace!(self.logger, "Error: {:?}", err);
+                Err(Error::Unknown)
+            },
         }
     }
 

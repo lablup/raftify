@@ -146,49 +146,6 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         raw_node.raft.become_candidate();
         raw_node.raft.become_leader();
 
-        if !initial_peers.is_empty() {
-            let mut conf_changes = vec![];
-            let mut entries = vec![];
-            let last_persisted = raw_node.store().last_index().unwrap();
-
-            for (i, peer) in initial_peers.iter().enumerate() {
-                let node_id = &peer.0;
-                let node_addr = initial_peers.get(node_id).unwrap().addr;
-
-                // Skip leader
-                if *node_id == 1 {
-                    continue;
-                }
-
-                let mut conf_change = ConfChange::default();
-                conf_change.set_node_id(*node_id);
-                conf_change.set_change_type(ConfChangeType::AddNode);
-                conf_change.set_context(serialize(&vec![node_addr]).unwrap());
-                conf_changes.push(conf_change.clone());
-
-                let conf_state = raw_node.apply_conf_change(&conf_change)?;
-                raw_node.mut_store().set_conf_state(&conf_state)?;
-
-                let mut entry = Entry::default();
-                entry.set_entry_type(EntryType::EntryConfChangeV2);
-                entry.set_term(1);
-                entry.set_index(1 + last_persisted + i as u64);
-                entry.set_data(conf_change.encode_to_vec());
-                entry.set_context(vec![]);
-
-                entries.push(entry);
-            }
-
-            let last_index = last_persisted + initial_peers.inner.len() as u64;
-
-            raw_node.raft.raft_log.append(&entries);
-            raw_node.raft.raft_log.stable_entries(last_index, 1);
-            raw_node.mut_store().append(&entries)?;
-            raw_node
-                .mut_store()
-                .create_snapshot(vec![], last_index, 1)?;
-        }
-
         Ok(RaftNodeCore {
             raw_node,
             rcv,

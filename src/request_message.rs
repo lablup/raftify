@@ -4,6 +4,14 @@ use tokio::sync::oneshot::Sender;
 use crate::{response_message::ResponseMessage, Peers};
 
 pub enum RequestMessage {
+    MemberBootstrapReady {
+        node_id: u64,
+        chan: Sender<ResponseMessage>,
+    },
+    ClusterBootstrapReady {
+        peers: Peers,
+        chan: Sender<ResponseMessage>,
+    },
     Propose {
         proposal: Vec<u8>,
         chan: Sender<ResponseMessage>,

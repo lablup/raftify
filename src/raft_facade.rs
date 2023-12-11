@@ -85,6 +85,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
         Mailbox {
             snd: self.tx.to_owned(),
             peers: HashMap::new(),
+            logger: self.logger.clone(),
         }
     }
 
