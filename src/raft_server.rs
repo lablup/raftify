@@ -227,8 +227,8 @@ impl RaftService for RaftServer {
             Err(_) => slog::error!(self.logger, "send error"),
         }
         let _response = rx.await.unwrap();
-        Ok(Response::new(
-            raft_service::ClusterBootstrapReadyResponse {},
-        ))
+        Ok(Response::new(raft_service::ClusterBootstrapReadyResponse {
+            code: raft_service::ResultCode::Ok as i32,
+        }))
     }
 }

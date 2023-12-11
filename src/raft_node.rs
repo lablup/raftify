@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::error::{Result, SendMessageError};
-use crate::raft_service::ClusterBootstrapReadyArgs;
+use crate::raft_service::{ClusterBootstrapReadyArgs, ResultCode};
 use crate::request_message::RequestMessage;
 use crate::response_message::ResponseMessage;
 use crate::storage::heed::{HeedStorage, LogStore};
@@ -170,7 +170,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                 let mut initial = HashMap::new();
                 initial.insert(1, true);
                 Some(initial)
-            },
+            }
         };
 
         Ok(RaftNodeCore {
@@ -546,15 +546,39 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         let mut peers = self.peers.lock().await;
 
         for node_id in peers_bootstrap_ready.keys() {
+            if *node_id == 1 {
+                continue;
+            }
+
             let peer = peers.get_mut(node_id).expect("Peer not found!");
-            peer.connect().await?;
-            peer.client
+
+            // Connection error, but try to bootstrap.
+            if let Err(err) = peer.connect().await {
+                slog::error!(self.logger, "Failed to connect to node {}: {}", node_id, err);
+            }
+
+            let response = peer
+                .client
                 .as_mut()
                 .unwrap()
                 .cluster_bootstrap_ready(Request::new(ClusterBootstrapReadyArgs {}))
-                .await?;
-        }
+                .await?
+                .into_inner();
 
+            match response.code() {
+                ResultCode::Ok => {}
+                ResultCode::Error => {
+                    slog::error!(self.logger, "Node {} failed to join the cluster.", node_id);
+                }
+                ResultCode::WrongLeader => {
+                    slog::error!(
+                        self.logger,
+                        "Node {} failed to join the cluster because of wrong leader.",
+                        node_id
+                    );
+                }
+            }
+        }
         Ok(())
     }
 
@@ -643,7 +667,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                 Ok(Some(RequestMessage::ClusterBootstrapReady { chan })) => {
                     slog::info!(
                         self.logger,
-                        "All nodes are ready to join the cluster. Start to bootstrap process..."
+                        "All initial nodes (peers) requested to join cluster. Start to bootstrap process..."
                     );
                     chan.send(ResponseMessage::Ok).unwrap();
                     self.bootstrap_done = true;

@@ -32,6 +32,7 @@ message MemberBootstrapReadyResponse {
 message ClusterBootstrapReadyArgs {
 }
 message ClusterBootstrapReadyResponse {
+  ResultCode code                = 1;
 }
 
 // Used in Dynamic Member's Bootstrap
