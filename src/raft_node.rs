@@ -295,6 +295,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             Some(peer) => {
                 if peer.client.is_none() {
                     if let Err(e) = peer.connect().await {
+                        slog::trace!(logger, "Connection error: {:?}", e);
                         ok = Err(SendMessageError::ConnectionError(client_id.to_string()));
                     }
                 }
@@ -309,6 +310,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         if let Some(mut client) = client {
             let message = Request::new(message.clone());
             if let Err(e) = client.send_message(message).await {
+                slog::trace!(logger, "Message transmission error: {:?}", e);
                 ok = Err(SendMessageError::TransmissionError(client_id.to_string()));
             }
         }
