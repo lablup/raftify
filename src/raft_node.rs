@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::error::Result;
+use crate::error::{Result, SendMessageError};
 use crate::request_message::RequestMessage;
 use crate::response_message::ResponseMessage;
 use crate::storage::heed::{HeedStorage, LogStore};
@@ -14,7 +14,7 @@ use crate::{Error, Peers};
 
 use bincode::{deserialize, serialize};
 use prost::Message as PMessage;
-use raft::derializer::format_message;
+use raft::derializer::{format_confchangev2, format_message};
 use raft::eraftpb::{
     ConfChange, ConfChangeType, ConfChangeV2, Entry, EntryType, Message as RaftMessage, Snapshot,
 };
@@ -127,19 +127,16 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         raft_config.id = 1;
         raft_config.validate()?;
 
-        let mut snapshot = Snapshot::default();
-        // Because we don't use the same configuration to initialize every node, so we use
-        // a non-zero index to force new followers catch up logs by snapshot first, which will
-        // bring all nodes to the same initial state.
-        snapshot.mut_metadata().index = 0;
-        snapshot.mut_metadata().term = 0;
-        snapshot.mut_metadata().mut_conf_state().voters = vec![1];
-
         let mut storage = HeedStorage::create(
             get_storage_path(config.log_dir.as_str(), 1)?,
             &config,
             logger.clone(),
         )?;
+
+        let mut snapshot = Snapshot::default();
+        snapshot.mut_metadata().index = 0;
+        snapshot.mut_metadata().term = 1;
+        snapshot.mut_metadata().mut_conf_state().voters = vec![1];
         storage.apply_snapshot(snapshot).unwrap();
 
         let mut raw_node = RawNode::new(&raft_config, storage, &logger)?;
@@ -182,13 +179,14 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                 entries.push(entry);
             }
 
-            let commit_index = last_persisted + initial_peers.inner.len() as u64;
+            let last_index = last_persisted + initial_peers.inner.len() as u64;
 
             raw_node.raft.raft_log.append(&entries);
-            raw_node.raft.raft_log.stable_entries(commit_index, 1);
+            raw_node.raft.raft_log.stable_entries(last_index, 1);
             raw_node.mut_store().append(&entries)?;
-
-            raw_node.raft.raft_log.committed = commit_index;
+            raw_node
+                .mut_store()
+                .create_snapshot(vec![], last_index, 1)?;
         }
 
         Ok(RaftNodeCore {
@@ -265,7 +263,10 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         self.peers.lock().await.add_peer(id, addr)
     }
 
-    async fn send_wrongleader_response(&self, channel: oneshot::Sender<ResponseMessage>) {
+    async fn send_wrongleader_response(
+        &self,
+        channel: oneshot::Sender<ResponseMessage>,
+    ) -> Result<()> {
         let leader_id = self.get_leader_id();
         let peers = self.peers.lock().await;
         let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
@@ -274,60 +275,59 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             leader_id,
             leader_addr,
         };
+
         // TODO handle error here
-        let _ = channel.send(raft_response);
+        channel.send(raft_response).unwrap();
+        Ok(())
     }
 
     async fn send_message(
-        peers: Arc<Mutex<Peers>>,
         message: RaftMessage,
-        max_retries: usize,
-        timeout: Duration,
-    ) -> Result<()> {
+        peers: Arc<Mutex<Peers>>,
+        snd: mpsc::Sender<RequestMessage>,
+        logger: slog::Logger,
+    ) {
         let client_id = message.get_to();
-        let mut retries = 0;
 
-        loop {
-            let message = Request::new(message.clone());
-            // let peer = self.peers.get_mut(&client_id)
-            // let client = peer.client.clone().unwrap();
+        let mut ok = std::result::Result::<(), SendMessageError>::Ok(());
 
-            let mut client = match peers.lock().await.get_mut(&client_id) {
-                Some(peer) => {
-                    if peer.client.is_none() {
-                        peer.connect().await?;
+        let client = match peers.lock().await.get_mut(&client_id) {
+            Some(peer) => {
+                if peer.client.is_none() {
+                    if let Err(e) = peer.connect().await {
+                        ok = Err(SendMessageError::ConnectionError(client_id.to_string()));
                     }
-                    peer.client.clone().unwrap()
                 }
-                None => continue,
-            };
-
-            match client.send_message(message).await {
-                Ok(_) => return Ok(()),
-                Err(e) if retries < max_retries => {
-                    retries += 1;
-                    tokio::time::sleep(timeout).await;
-                }
-                Err(e) => {
-                    // slog::debug!(
-                    //     self.logger,
-                    //     "Error sending message after {} retries: {}",
-                    //     max_retries,
-                    //     e
-                    // );
-                    return Err(Error::Unknown);
-                }
+                peer.client.clone()
             }
+            None => {
+                ok = Err(SendMessageError::PeerNotFoundError(client_id.to_string()));
+                None
+            }
+        };
+
+        if let Some(mut client) = client {
+            let message = Request::new(message.clone());
+            if let Err(e) = client.send_message(message).await {
+                ok = Err(SendMessageError::TransmissionError(client_id.to_string()));
+            }
+        }
+
+        if let Err(e) = ok {
+            slog::debug!(logger, "Error occurred while sending message: {}", e);
+            snd.send(RequestMessage::ReportUnreachable { node_id: client_id })
+                .await
+                .unwrap();
         }
     }
 
     async fn send_messages(&mut self, messages: Vec<RaftMessage>) -> Result<()> {
         for message in messages {
             tokio::spawn(RaftNodeCore::<FSM>::send_message(
-                self.peers.clone(),
                 message,
-                self.config.max_retry_cnt as usize,
-                Duration::from_secs_f32(self.config.message_timeout),
+                self.peers.clone(),
+                self.snd.clone(),
+                self.logger.clone(),
             ));
         }
         Ok(())
@@ -340,9 +340,9 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
     ) -> Result<()> {
         for mut entry in committed_entries {
             if entry.get_data().is_empty() {
-                // Empty entry, when the peer becomes Leader it will send an empty entry.
                 continue;
             }
+
             match entry.get_entry_type() {
                 EntryType::EntryConfChangeV2 => {
                     self.handle_committed_config_change_entry(&mut entry, client_send)
@@ -383,7 +383,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         let last_applied = self.raw_node.raft.raft_log.applied;
         let store = self.raw_node.mut_store();
         store.compact(last_applied)?;
-        let _ = store.create_snapshot(snapshot_data, index, term);
+        store.create_snapshot(snapshot_data, index, term)?;
         Ok(())
     }
 
@@ -542,15 +542,14 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                     if !self.is_leader() {
                         // wrong leader send client cluster data
                         // TODO: retry strategy in case of failure
-                        self.send_wrongleader_response(chan).await;
+                        self.send_wrongleader_response(chan).await?;
                     } else {
                         let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
                         client_send.insert(response_seq, chan);
                         slog::debug!(
                             self.logger,
-                            "Proposed new config change..., seq={}, conf_change_v2={:?}",
-                            response_seq,
-                            conf_change
+                            "Proposed new config change..., seq={response_seq:}, conf_change_v2={}",
+                            format_confchangev2(&conf_change)
                         );
 
                         self.raw_node
@@ -560,7 +559,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                 Ok(Some(RequestMessage::RaftMessage { message })) => {
                     slog::debug!(
                         self.logger,
-                        "Node {} received Raft message from the node {}, Message: {:?}",
+                        "Node {} received Raft message from the node {}, Message: {}",
                         self.raw_node.raft.id,
                         message.from,
                         format_message(&message)
@@ -595,7 +594,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
                 Ok(Some(RequestMessage::RequestId { chan })) => {
                     if !self.is_leader() {
                         // TODO: retry strategy in case of failure
-                        self.send_wrongleader_response(chan).await;
+                        self.send_wrongleader_response(chan).await?;
                     } else {
                         let reserved_id = self.peers.lock().await.reserve_peer(self.get_id());
                         slog::info!(self.logger, "Reserved peer id, {}", reserved_id);
@@ -648,8 +647,14 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         }
 
         if *ready.snapshot() != Snapshot::default() {
+            slog::info!(
+                self.logger,
+                "Restoring a state machine from the snapshot..."
+            );
             let snapshot = ready.snapshot();
-            self.fsm.restore(snapshot.get_data()).await?;
+            if !snapshot.get_data().is_empty() {
+                self.fsm.restore(snapshot.get_data()).await?;
+            }
             let store = self.raw_node.mut_store();
             store.apply_snapshot(snapshot.clone())?;
         }

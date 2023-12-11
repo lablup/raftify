@@ -26,6 +26,16 @@ pub enum Error {
     Unknown,
 }
 
+#[derive(Debug, ThisError)]
+pub enum SendMessageError {
+    #[error("Failed to connect to node {0}")]
+    ConnectionError(String),
+    #[error("Peer not found node {0}")]
+    PeerNotFoundError(String),
+    #[error("Failed to send message to node {0}")]
+    TransmissionError(String),
+}
+
 impl Error {
     pub fn boxed(self) -> Box<Self> {
         Box::new(self)

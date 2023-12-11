@@ -67,7 +67,10 @@ impl RaftService for RaftServer {
         let _request_args = request.into_inner();
         let sender = self.snd.clone();
         let (tx, rx) = oneshot::channel();
-        let _ = sender.send(RequestMessage::RequestId { chan: tx }).await;
+        sender
+            .send(RequestMessage::RequestId { chan: tx })
+            .await
+            .unwrap();
         let response = rx.await.unwrap();
         match response {
             ResponseMessage::WrongLeader {
