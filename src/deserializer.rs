@@ -28,11 +28,15 @@ impl CustomDeserializer for MyDeserializer {
             Bytes::Protobuf(v) => v.as_ref(),
         };
 
-        if let Ok(cc) = ConfChange::decode(&v[..]) {
-            return format_confchange(&cc);
-        }
-        if let Ok(cc) = ConfChangeV2::decode(&v[..]) {
-            return format_confchangev2(&cc);
+        // Empty byte slice is being translated to empty confchange v1 whose all values are 0,
+        // but we won't need such thing anyway.
+        if !v.is_empty() {
+            if let Ok(cc) = ConfChange::decode(&v[..]) {
+                return format_confchange(&cc);
+            }
+            if let Ok(cc) = ConfChangeV2::decode(&v[..]) {
+                return format_confchangev2(&cc);
+            }
         }
 
         format!("{:?}", v)
