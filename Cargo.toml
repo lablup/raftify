@@ -15,7 +15,7 @@ bytes = "1.5.0"
 heed = "0.20.0-alpha.9"
 heed-traits = "0.20.0-alpha.9"
 log = { version = "0.4", features = ["std"] }
-parking_lot = "0.11"
+parking_lot = "0.12.1"
 prost = "0.11"
 raft = { git = "https://github.com/jopemachine/raft-rs.git", features = ["prost-codec", "default-logger"], default-features = false }
 serde = { version = "1.0", features = ["derive"] }
