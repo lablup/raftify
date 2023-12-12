@@ -1,6 +1,8 @@
+use crate::error::Result;
+
 pub trait AbstractLogEntry: Clone + Send + Sync {
-    fn encode(&self) -> Vec<u8>;
-    fn decode(bytes: &[u8]) -> Self
+    fn encode(&self) -> Result<Vec<u8>>;
+    fn decode(bytes: &[u8]) -> Result<Self>
     where
         Self: Sized;
 }

@@ -34,13 +34,13 @@ pub enum LogEntry {
 }
 
 impl AbstractLogEntry for LogEntry {
-    fn encode(&self) -> Vec<u8> {
-        serialize(self).unwrap()
+    fn encode(&self) -> Result<Vec<u8>> {
+        serialize(self).map_err(|e| e.into())
     }
 
-    fn decode(bytes: &[u8]) -> LogEntry {
-        let log_entry: LogEntry = deserialize(bytes).unwrap();
-        log_entry
+    fn decode(bytes: &[u8]) -> Result<LogEntry> {
+        let log_entry: LogEntry = deserialize(bytes)?;
+        Ok(log_entry)
     }
 }
 
@@ -62,16 +62,14 @@ impl AbstractStateMachine<LogEntry> for HashStore {
         match log_entry {
             LogEntry::Insert { ref key, ref value } => {
                 let mut db = self.0.write().unwrap();
+                log::info!("Inserted: ({}, {})", key, value);
                 db.insert(*key, value.clone());
-                // log::info!("Inserted: ({}, {})", key, value);
-                // serialize(&value).unwrap()
             }
         };
         Ok(log_entry)
     }
 
     async fn snapshot(&self) -> Result<HashStore> {
-        // Ok(serialize(&self.0.read().unwrap().clone())?)
         let snapshot = self.0.read().unwrap().clone();
         Ok(HashStore(Arc::new(RwLock::new(snapshot))))
     }
@@ -83,8 +81,8 @@ impl AbstractStateMachine<LogEntry> for HashStore {
         Ok(())
     }
 
-    fn encode(&self) -> Vec<u8> {
-        serialize(&self.0.read().unwrap().clone()).unwrap()
+    fn encode(&self) -> Result<Vec<u8>> {
+        serialize(&self.0.read().unwrap().clone()).map_err(|e| e.into())
     }
 
     fn decode(bytes: &[u8]) -> Result<Self> {

@@ -12,7 +12,7 @@ pub trait AbstractStateMachine<LogEntry: AbstractLogEntry>: Send {
     where
         Self: Sized;
 
-    fn encode(&self) -> Vec<u8>;
+    fn encode(&self) -> Result<Vec<u8>>;
     fn decode(bytes: &[u8]) -> Result<Self>
     where
         Self: Sized;

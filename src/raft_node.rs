@@ -149,7 +149,7 @@ pub struct RaftNodeCore<
     bootstrap_done: bool,
     peers_bootstrap_ready: Option<HashMap<u64, bool>>,
 
-    _phantomData: PhantomData<LogEntry>,
+    _phantom_log_entry: PhantomData<LogEntry>,
 }
 
 impl<
@@ -212,7 +212,7 @@ impl<
             peers: Arc::new(Mutex::new(initial_peers)),
             bootstrap_done,
             peers_bootstrap_ready,
-            _phantomData: PhantomData,
+            _phantom_log_entry: PhantomData,
         })
     }
 
@@ -255,7 +255,7 @@ impl<
             peers: Arc::new(Mutex::new(peers)),
             bootstrap_done,
             peers_bootstrap_ready: None,
-            _phantomData: PhantomData,
+            _phantom_log_entry: PhantomData,
         })
     }
 
@@ -384,11 +384,11 @@ impl<
         senders: &mut HashMap<u64, oneshot::Sender<ResponseMessage>>,
     ) -> Result<()> {
         let response_seq: u64 = deserialize(&entry.get_context())?;
-        let log_entry = LogEntry::decode(entry.get_data());
+        let log_entry = LogEntry::decode(entry.get_data())?;
         let data = self.fsm.apply(log_entry).await?;
 
-        // TODO: fix this
-        let data = data.encode();
+        // TODO: fix this if possible
+        let data = data.encode()?;
         if let Some(sender) = senders.remove(&response_seq) {
             sender.send(ResponseMessage::Response { data }).unwrap();
         }
@@ -404,8 +404,7 @@ impl<
     pub async fn make_snapshot(&mut self, index: u64, term: u64) -> Result<()> {
         self.last_snapshot_created = Instant::now();
         let snapshot_data = self.fsm.snapshot().await?;
-        // TODO: fix this.
-        let snapshot_data = snapshot_data.encode();
+        let snapshot_data = snapshot_data.encode()?;
 
         let last_applied = self.raw_node.raft.raft_log.applied;
         let store = self.raw_node.mut_store();
