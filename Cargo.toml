@@ -12,12 +12,12 @@ keywords = ["raft", "distributed-systems", "ha"]
 async-trait = "0.1.48"
 bincode = "1.3"
 bytes = "1.5.0"
-heed = "0.10.6"
-heed-traits = "0.7"
+heed = "0.20.0-alpha.9"
+heed-traits = "0.20.0-alpha.9"
 log = { version = "0.4", features = ["std"] }
 parking_lot = "0.11"
 prost = "0.11"
-raft = { path = "/Users/jopemachine/Desktop/raft-rs", features = ["prost-codec", "default-logger"], default-features = false }
+raft = { git = "https://github.com/jopemachine/raft-rs.git", features = ["prost-codec", "default-logger"], default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 slog = "2"

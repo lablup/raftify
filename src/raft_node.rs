@@ -554,7 +554,12 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
 
             // Connection error, but try to bootstrap.
             if let Err(err) = peer.connect().await {
-                slog::error!(self.logger, "Failed to connect to node {}: {}", node_id, err);
+                slog::error!(
+                    self.logger,
+                    "Failed to connect to node {}: {}",
+                    node_id,
+                    err
+                );
             }
 
             let response = peer

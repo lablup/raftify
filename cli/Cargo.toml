@@ -23,7 +23,7 @@ heed-traits = "0.7"
 log = { version = "0.4", features = ["std"] }
 parking_lot = "0.11"
 prost = "0.11"
-raft = { path = "/Users/jopemachine/Desktop/raft-rs", features = ["prost-codec", "default-logger"], default-features = false }
+raft = { git = "https://github.com/jopemachine/raft-rs.git", features = ["prost-codec", "default-logger"], default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 slog = "2"

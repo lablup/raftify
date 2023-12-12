@@ -1,7 +1,8 @@
 use crate::error::Result;
 
-use heed::types::*;
-use heed::{Database, Env, PolyDatabase};
+use bincode::{deserialize, serialize};
+use heed::types::{Bytes as HeedBytes, Str as HeedStr};
+use heed::{Database, Env};
 use heed_traits::{BytesDecode, BytesEncode};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raft::{prelude::*, GetEntriesContext};
@@ -10,6 +11,7 @@ use crate::config::Config;
 use prost::Message;
 use std::borrow::Cow;
 use std::cmp::max;
+use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -33,32 +35,10 @@ const LAST_INDEX_KEY: &str = "last_index";
 const HARD_STATE_KEY: &str = "hard_state";
 const CONF_STATE_KEY: &str = "conf_state";
 
-macro_rules! heed_type {
-    ($heed_type:ident, $type:ty) => {
-        struct $heed_type;
-
-        impl<'a> BytesEncode<'a> for $heed_type {
-            type EItem = $type;
-            fn bytes_encode(item: &'a Self::EItem) -> Option<Cow<'a, [u8]>> {
-                let mut bytes = vec![];
-                prost::Message::encode(item, &mut bytes).ok()?;
-                Some(Cow::Owned(bytes))
-            }
-        }
-
-        impl<'a> BytesDecode<'a> for $heed_type {
-            type DItem = $type;
-            fn bytes_decode(bytes: &'a [u8]) -> Option<Self::DItem> {
-                prost::Message::decode(bytes).ok()
-            }
-        }
-    };
-}
-
 #[derive(Eq, PartialEq)]
-pub struct KeyString(String);
+pub struct HeedEntryKeyString(String);
 
-impl Ord for KeyString {
+impl Ord for HeedEntryKeyString {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         let self_num: u64 = self.0.parse().unwrap();
         let other_num: u64 = other.0.parse().unwrap();
@@ -66,43 +46,66 @@ impl Ord for KeyString {
     }
 }
 
-impl PartialOrd for KeyString {
+impl PartialOrd for HeedEntryKeyString {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a> BytesEncode<'a> for KeyString {
+impl<'a> BytesEncode<'a> for HeedEntryKeyString {
     type EItem = String;
 
-    fn bytes_encode(item: &'a Self::EItem) -> Option<Cow<'a, [u8]>> {
-        Some(Cow::Borrowed(item.as_bytes()))
+    fn bytes_encode(
+        item: &'a Self::EItem,
+    ) -> std::result::Result<Cow<'a, [u8]>, Box<dyn Error + Send + Sync>> {
+        Ok(Cow::Borrowed(item.as_bytes()))
     }
 }
 
-impl<'a> BytesDecode<'a> for KeyString {
+impl<'a> BytesDecode<'a> for HeedEntryKeyString {
     type DItem = String;
 
-    fn bytes_decode(bytes: &'a [u8]) -> Option<Self::DItem> {
-        Some(String::from_utf8_lossy(bytes).into_owned())
+    fn bytes_decode(
+        bytes: &'a [u8],
+    ) -> std::result::Result<Self::DItem, Box<dyn Error + Send + Sync>> {
+        Ok(String::from_utf8_lossy(bytes).into_owned())
     }
 }
 
-impl From<u64> for KeyString {
+impl From<u64> for HeedEntryKeyString {
     fn from(num: u64) -> Self {
-        KeyString(num.to_string())
+        HeedEntryKeyString(num.to_string())
     }
 }
 
-heed_type!(HeedSnapshot, Snapshot);
-heed_type!(HeedEntry, Entry);
-heed_type!(HeedHardState, HardState);
-heed_type!(HeedConfState, ConfState);
+struct HeedEntry;
+
+impl BytesEncode<'_> for HeedEntry {
+    type EItem = Entry;
+
+    fn bytes_encode(
+        item: &Self::EItem,
+    ) -> std::result::Result<Cow<'_, [u8]>, Box<dyn Error + Send + Sync>> {
+        let mut bytes = vec![];
+        item.encode(&mut bytes)?;
+        Ok(Cow::Owned(bytes))
+    }
+}
+
+impl BytesDecode<'_> for HeedEntry {
+    type DItem = Entry;
+
+    fn bytes_decode(
+        bytes: &[u8],
+    ) -> std::result::Result<Self::DItem, Box<dyn Error + Send + Sync>> {
+        Ok(Entry::decode(bytes)?)
+    }
+}
 
 pub struct HeedStorageCore {
     env: Env,
-    entries_db: Database<KeyString, HeedEntry>,
-    metadata_db: PolyDatabase,
+    entries_db: Database<HeedEntryKeyString, HeedEntry>,
+    metadata_db: Database<HeedStr, HeedBytes>,
     config: Config,
     logger: slog::Logger,
 }
@@ -114,12 +117,15 @@ impl HeedStorageCore {
             .max_dbs(3000)
             .open(log_dir_path)?;
 
-        let entries_db: Database<KeyString, HeedEntry> = env.create_database(Some("entries"))?;
+        let mut writer = env.write_txn()?;
 
-        let metadata_db = env.create_poly_database(Some("meta"))?;
+        let entries_db: Database<HeedEntryKeyString, HeedEntry> =
+            env.create_database(&mut writer, Some("entries"))?;
+        let metadata_db = env.create_database(&mut writer, Some("meta"))?;
 
         let hard_state = HardState::default();
         let conf_state = ConfState::default();
+        writer.commit()?;
 
         let storage = Self {
             metadata_db,
@@ -139,34 +145,49 @@ impl HeedStorageCore {
     }
 
     fn set_hard_state(&self, writer: &mut heed::RwTxn, hard_state: &HardState) -> Result<()> {
-        self.metadata_db
-            .put::<_, Str, HeedHardState>(writer, HARD_STATE_KEY, hard_state)?;
+        self.metadata_db.put(
+            writer,
+            &HARD_STATE_KEY.to_owned(),
+            hard_state.encode_to_vec().as_slice(),
+        )?;
         Ok(())
     }
 
     fn hard_state(&self, reader: &heed::RoTxn) -> Result<HardState> {
         let hard_state = self
             .metadata_db
-            .get::<_, Str, HeedHardState>(reader, HARD_STATE_KEY)?;
-        Ok(hard_state.expect("Missing hard_state in metadata"))
+            .get(reader, &HARD_STATE_KEY.to_owned())?
+            .expect("Missing hard_state in metadata");
+
+        let hard_state: HardState = prost::Message::decode(hard_state)?;
+        Ok(hard_state)
     }
 
     pub fn set_conf_state(&self, writer: &mut heed::RwTxn, conf_state: &ConfState) -> Result<()> {
-        self.metadata_db
-            .put::<_, Str, HeedConfState>(writer, CONF_STATE_KEY, conf_state)?;
+        self.metadata_db.put(
+            writer,
+            &CONF_STATE_KEY.to_owned(),
+            &conf_state.encode_to_vec().as_slice(),
+        )?;
         Ok(())
     }
 
     pub fn conf_state(&self, reader: &heed::RoTxn) -> Result<ConfState> {
         let conf_state = self
             .metadata_db
-            .get::<_, Str, HeedConfState>(reader, CONF_STATE_KEY)?;
-        Ok(conf_state.expect("Missing conf_state in metadata"))
+            .get(reader, &CONF_STATE_KEY.to_owned())?
+            .expect("Missing conf_state in metadata");
+
+        let conf_state: ConfState = prost::Message::decode(conf_state)?;
+        Ok(conf_state)
     }
 
     fn set_snapshot(&self, writer: &mut heed::RwTxn, snapshot: &Snapshot) -> Result<()> {
-        self.metadata_db
-            .put::<_, Str, HeedSnapshot>(writer, SNAPSHOT_KEY, snapshot)?;
+        self.metadata_db.put(
+            writer,
+            &SNAPSHOT_KEY.to_owned(),
+            snapshot.encode_to_vec().as_slice(),
+        )?;
         Ok(())
     }
 
@@ -176,25 +197,35 @@ impl HeedStorageCore {
         _request_index: u64,
         _to: u64,
     ) -> Result<Snapshot> {
-        let snapshot = self
-            .metadata_db
-            .get::<_, Str, HeedSnapshot>(reader, SNAPSHOT_KEY)?;
-        let snapshot = snapshot.unwrap_or_default();
-        Ok(snapshot)
+        let snapshot = self.metadata_db.get(reader, &SNAPSHOT_KEY.to_owned())?;
+
+        Ok(match snapshot {
+            Some(snapshot) => {
+                let snapshot: Snapshot = prost::Message::decode(snapshot)?;
+                snapshot
+            }
+            None => Snapshot::default(),
+        })
     }
 
     fn last_index(&self, reader: &heed::RoTxn) -> Result<u64> {
-        let last_index = self
-            .metadata_db
-            .get::<_, Str, OwnedType<u64>>(reader, LAST_INDEX_KEY)?
-            .unwrap_or(0);
+        let last_index = self.metadata_db.get(reader, &LAST_INDEX_KEY.to_owned())?;
 
-        Ok(last_index)
+        match last_index {
+            Some(last_index) => {
+                let last_index: u64 = deserialize(last_index)?;
+                Ok(last_index)
+            }
+            None => Ok(0),
+        }
     }
 
     fn set_last_index(&self, writer: &mut heed::RwTxn, index: u64) -> Result<()> {
-        self.metadata_db
-            .put::<_, Str, OwnedType<u64>>(writer, LAST_INDEX_KEY, &index)?;
+        self.metadata_db.put(
+            writer,
+            &LAST_INDEX_KEY.to_owned(),
+            serialize(&index)?.as_slice(),
+        )?;
         Ok(())
     }
 
