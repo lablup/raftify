@@ -14,6 +14,7 @@ async fn main() -> Result<()> {
     let logger = default_logger();
 
     // TODO: Think about how to do this.
+    // TODO: Consider to use PyO3 and python instead of this way (only in CLI module).
     // set_custom_deserializer(MyDeserializer::<LogEntry, HashStore>::new());
 
     let matches = App::new("raftify")

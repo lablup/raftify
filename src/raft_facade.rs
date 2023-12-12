@@ -11,12 +11,11 @@ use crate::raft_service::{
 use crate::request_message::RequestMessage;
 use crate::storage::heed::LogStore;
 use crate::{
-    create_client, AbstractLogEntry, AbstractStateMachine, Config, Mailbox, MyDeserializer, Peer,
+    create_client, AbstractLogEntry, AbstractStateMachine, Config, Mailbox, Peer,
     Peers,
 };
 
 use bincode::{deserialize, serialize};
-use raft::derializer::set_custom_deserializer;
 use raft::eraftpb::{ConfChangeSingle, ConfChangeType, ConfChangeV2};
 use tokio::signal;
 use tokio::sync::mpsc;
@@ -56,8 +55,6 @@ impl<
         logger: slog::Logger,
         initial_peers: Option<Peers>,
     ) -> Result<Self> {
-        // set_custom_deserializer(MyDeserializer);
-
         let addr = addr.to_socket_addrs()?.next().unwrap();
         let initial_peers = initial_peers.unwrap_or_default();
 
