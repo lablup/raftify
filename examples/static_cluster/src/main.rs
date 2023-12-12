@@ -10,10 +10,10 @@ use bincode::{deserialize, serialize};
 use raftify::{AbstractStateMachine, Mailbox, Raft, Result};
 use serde::{Deserialize, Serialize};
 use slog_envlogger::LogBuilder;
-// use slog_envlogger::LogBuilder;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use structopt::StructOpt;
+// use slog_envlogger::LogBuilder;
 
 #[derive(Debug, StructOpt)]
 struct Options {
@@ -26,7 +26,7 @@ struct Options {
 }
 
 #[derive(Serialize, Deserialize)]
-pub enum Message {
+pub enum LogEntry {
     Insert { key: u64, value: String },
 }
 
@@ -45,16 +45,16 @@ impl HashStore {
 #[async_trait]
 impl AbstractStateMachine for HashStore {
     async fn apply(&mut self, message: &[u8]) -> Result<Vec<u8>> {
-        let message: Message = deserialize(message).unwrap();
-        let message: Vec<u8> = match message {
-            Message::Insert { key, value } => {
+        let log_entry: LogEntry = deserialize(message).unwrap();
+        let log_entry: Vec<u8> = match log_entry {
+            LogEntry::Insert { key, value } => {
                 let mut db = self.0.write().unwrap();
                 db.insert(key, value.clone());
                 log::info!("Inserted: ({}, {})", key, value);
                 serialize(&value).unwrap()
             }
         };
-        Ok(message)
+        Ok(log_entry)
     }
 
     async fn snapshot(&self) -> Result<Vec<u8>> {
@@ -74,12 +74,12 @@ async fn put(
     data: web::Data<(Arc<Mailbox>, HashStore, Raft<HashStore>)>,
     path: web::Path<(u64, String)>,
 ) -> impl Responder {
-    let message = Message::Insert {
+    let log_entry = LogEntry::Insert {
         key: path.0,
         value: path.1.clone(),
     };
-    let message = serialize(&message).unwrap();
-    let result = data.0.send(message).await.unwrap();
+    let log_entry = serialize(&log_entry).unwrap();
+    let result = data.0.send(log_entry).await.unwrap();
     let result: String = deserialize(&result).unwrap();
     format!("{:?}", result)
 }
@@ -130,7 +130,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let (raft, raft_handle) = match options.peer_addr {
         Some(_) => {
             log::info!("Running in Follower mode");
-            // let request_id_resp = Raft::<HashStore>::request_id(peer_addr.clone()).await?;
             let node_id = peers
                 .get_node_id_by_addr(options.raft_addr.clone())
                 .unwrap();

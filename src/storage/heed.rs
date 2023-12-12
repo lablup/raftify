@@ -143,9 +143,7 @@ impl HeedStorageCore {
     }
 
     fn hard_state(&self, reader: &heed::RoTxn) -> Result<HardState> {
-        let hard_state = self
-            .metadata_db
-            .get(reader, &HARD_STATE_KEY.to_owned())?;
+        let hard_state = self.metadata_db.get(reader, &HARD_STATE_KEY.to_owned())?;
 
         match hard_state {
             Some(hard_state) => {
@@ -166,9 +164,7 @@ impl HeedStorageCore {
     }
 
     pub fn conf_state(&self, reader: &heed::RoTxn) -> Result<ConfState> {
-        let conf_state = self
-            .metadata_db
-            .get(reader, &CONF_STATE_KEY.to_owned())?;
+        let conf_state = self.metadata_db.get(reader, &CONF_STATE_KEY.to_owned())?;
 
         match conf_state {
             Some(conf_state) => {

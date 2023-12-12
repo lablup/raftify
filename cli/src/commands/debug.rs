@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use raft::derializer::format_entry;
+use raft::derializer::format_snapshot;
 use raftify::create_client;
 use raftify::raft_service;
 use raftify::Config;
@@ -19,7 +20,7 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
 
     println!("---- Persisted entries ----");
     for (i, entry) in entries.iter().enumerate() {
-        println!("Key {}: {:?}", i + 1, format_entry(entry));
+        println!("Key {}, {:?}", i + 1, format_entry(entry));
     }
 
     println!();
@@ -27,7 +28,7 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
     println!("---- Metadata ----");
     println!("{:?}", storage.hard_state()?);
     println!("{:?}", storage.conf_state()?);
-    println!("{:?}", storage.snapshot(0, 0)?);
+    println!("{:?}", format_snapshot(&storage.snapshot(0, 0)?));
     println!("Last index: {}", storage.last_index()?);
     Ok(())
 }

@@ -10,7 +10,10 @@ use crate::raft_service::{
 };
 use crate::request_message::RequestMessage;
 use crate::storage::heed::LogStore;
-use crate::{create_client, AbstractStateMachine, Config, Mailbox, MyDeserializer, Peer, Peers};
+use crate::{
+    create_client, AbstractLogEntry, AbstractStateMachine, Config, Mailbox, MyDeserializer, Peer,
+    Peers,
+};
 
 use bincode::{deserialize, serialize};
 use raft::derializer::set_custom_deserializer;
@@ -20,8 +23,11 @@ use tokio::sync::mpsc;
 use tonic::Request;
 
 #[derive(Clone)]
-pub struct Raft<FSM: AbstractStateMachine + Clone + 'static> {
-    pub raft_node: RaftNode<FSM>,
+pub struct Raft<
+    LogEntry: AbstractLogEntry + 'static,
+    FSM: AbstractStateMachine<LogEntry> + Clone + 'static,
+> {
+    pub raft_node: RaftNode<LogEntry, FSM>,
     pub raft_server: RaftServer,
     pub tx: mpsc::Sender<RequestMessage>,
     pub addr: SocketAddr,
@@ -37,7 +43,11 @@ pub struct RequestIdResponse {
     pub peers: HashMap<u64, Peer>,
 }
 
-impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
+impl<
+        LogEntry: AbstractLogEntry,
+        FSM: AbstractStateMachine<LogEntry> + Clone + Send + Sync + 'static,
+    > Raft<LogEntry, FSM>
+{
     pub fn build<A: ToSocketAddrs>(
         node_id: u64,
         addr: A,
@@ -46,7 +56,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + Sync + 'static> Raft<FSM> {
         logger: slog::Logger,
         initial_peers: Option<Peers>,
     ) -> Result<Self> {
-        set_custom_deserializer(MyDeserializer);
+        // set_custom_deserializer(MyDeserializer);
 
         let addr = addr.to_socket_addrs()?.next().unwrap();
         let initial_peers = initial_peers.unwrap_or_default();

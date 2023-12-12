@@ -1,14 +1,18 @@
-use std::net::SocketAddr;
-
+use crate::AbstractLogEntry;
 use bincode::deserialize;
+use prost::Message as PMessage;
 use raft::{
     derializer::{format_confchange, format_confchangev2, Bytes, CustomDeserializer},
     eraftpb::{ConfChange, ConfChangeV2},
 };
-pub struct MyDeserializer;
-use prost::Message as PMessage;
+use std::marker::PhantomData;
+use std::net::SocketAddr;
 
-impl CustomDeserializer for MyDeserializer {
+pub struct MyDeserializer<LogEntry: AbstractLogEntry + 'static> {
+    _marker: PhantomData<LogEntry>,
+}
+
+impl<LogEntry: AbstractLogEntry> CustomDeserializer for MyDeserializer<LogEntry> {
     fn entry_context_deserialize(&self, v: &Bytes) -> String {
         let v = match v {
             Bytes::Prost(v) => &v[..],
@@ -81,6 +85,9 @@ impl CustomDeserializer for MyDeserializer {
             Bytes::Prost(v) => &v[..],
             Bytes::Protobuf(v) => v.as_ref(),
         };
+
+        let v2 = LogEntry::decode(v);
+
         format!("{:?}", v)
     }
 }

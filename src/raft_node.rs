@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -10,7 +11,7 @@ use crate::request_message::RequestMessage;
 use crate::response_message::ResponseMessage;
 use crate::storage::heed::{HeedStorage, LogStore};
 use crate::storage::utils::get_storage_path;
-use crate::Peers;
+use crate::{AbstractLogEntry, Peers};
 use crate::{AbstractStateMachine, Config};
 
 use bincode::{deserialize, serialize};
@@ -26,19 +27,30 @@ use tokio::time::timeout;
 use tonic::Request;
 
 #[derive(Clone)]
-pub struct RaftNode<FSM: AbstractStateMachine + Clone + 'static>(Arc<RwLock<RaftNodeCore<FSM>>>);
+pub struct RaftNode<
+    LogEntry: AbstractLogEntry + Send + 'static,
+    FSM: AbstractStateMachine<LogEntry> + Clone + 'static,
+>(Arc<RwLock<RaftNodeCore<LogEntry, FSM>>>);
 
-impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
-    async fn wl(&mut self) -> RwLockWriteGuard<RaftNodeCore<FSM>> {
+impl<
+        LogEntry: AbstractLogEntry + Send + 'static,
+        FSM: AbstractStateMachine<LogEntry> + Clone + Send + 'static,
+    > RaftNode<LogEntry, FSM>
+{
+    async fn wl(&mut self) -> RwLockWriteGuard<RaftNodeCore<LogEntry, FSM>> {
         self.0.write().await
     }
 
-    async fn rl(&self) -> RwLockReadGuard<RaftNodeCore<FSM>> {
+    async fn rl(&self) -> RwLockReadGuard<RaftNodeCore<LogEntry, FSM>> {
         self.0.read().await
     }
 }
 
-impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
+impl<
+        LogEntry: AbstractLogEntry + Send + 'static,
+        FSM: AbstractStateMachine<LogEntry> + Clone + Send + 'static,
+    > RaftNode<LogEntry, FSM>
+{
     pub fn bootstrap_cluster(
         rcv: mpsc::Receiver<RequestMessage>,
         snd: mpsc::Sender<RequestMessage>,
@@ -48,7 +60,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         logger: slog::Logger,
         bootstrap_done: bool,
     ) -> Result<Self> {
-        RaftNodeCore::bootstrap_cluster(
+        RaftNodeCore::<LogEntry, FSM>::bootstrap_cluster(
             rcv,
             snd,
             fsm,
@@ -70,8 +82,17 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         logger: slog::Logger,
         bootstrap_done: bool,
     ) -> Result<Self> {
-        RaftNodeCore::new_follower(rcv, snd, id, fsm, config, peers, logger, bootstrap_done)
-            .map(|core| Self(Arc::new(RwLock::new(core))))
+        RaftNodeCore::<LogEntry, FSM>::new_follower(
+            rcv,
+            snd,
+            id,
+            fsm,
+            config,
+            peers,
+            logger,
+            bootstrap_done,
+        )
+        .map(|core| Self(Arc::new(RwLock::new(core))))
     }
 
     pub async fn is_leader(&self) -> bool {
@@ -106,16 +127,15 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNode<FSM> {
         self.wl().await.make_snapshot(index, term).await
     }
 
-    // pub async fn wait_for_initial_peers_bootstrap(mut self) -> Result<()> {
-    //     self.wl().await.wait_for_initial_peers_bootstrap().await
-    // }
-
     pub async fn run(mut self) -> Result<()> {
         self.wl().await.run().await
     }
 }
 
-pub struct RaftNodeCore<FSM: AbstractStateMachine + Clone + 'static> {
+pub struct RaftNodeCore<
+    LogEntry: AbstractLogEntry + Send + 'static,
+    FSM: AbstractStateMachine<LogEntry> + Clone + 'static,
+> {
     pub raw_node: RawNode<HeedStorage>,
     pub rcv: mpsc::Receiver<RequestMessage>,
     pub fsm: FSM,
@@ -128,9 +148,15 @@ pub struct RaftNodeCore<FSM: AbstractStateMachine + Clone + 'static> {
     logger: slog::Logger,
     bootstrap_done: bool,
     peers_bootstrap_ready: Option<HashMap<u64, bool>>,
+
+    _phantomData: PhantomData<LogEntry>,
 }
 
-impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
+impl<
+        LogEntry: AbstractLogEntry + Send + 'static,
+        FSM: AbstractStateMachine<LogEntry> + Clone + Send + 'static,
+    > RaftNodeCore<LogEntry, FSM>
+{
     pub fn bootstrap_cluster(
         rcv: mpsc::Receiver<RequestMessage>,
         snd: mpsc::Sender<RequestMessage>,
@@ -186,6 +212,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             peers: Arc::new(Mutex::new(initial_peers)),
             bootstrap_done,
             peers_bootstrap_ready,
+            _phantomData: PhantomData,
         })
     }
 
@@ -228,6 +255,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             peers: Arc::new(Mutex::new(peers)),
             bootstrap_done,
             peers_bootstrap_ready: None,
+            _phantomData: PhantomData,
         })
     }
 
@@ -317,7 +345,7 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         }
 
         for message in messages {
-            tokio::spawn(RaftNodeCore::<FSM>::send_message(
+            tokio::spawn(RaftNodeCore::<LogEntry, FSM>::send_message(
                 message,
                 self.peers.clone(),
                 self.snd.clone(),
@@ -356,7 +384,11 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
         senders: &mut HashMap<u64, oneshot::Sender<ResponseMessage>>,
     ) -> Result<()> {
         let response_seq: u64 = deserialize(&entry.get_context())?;
-        let data = self.fsm.apply(entry.get_data()).await?;
+        let log_entry = LogEntry::decode(entry.get_data());
+        let data = self.fsm.apply(log_entry).await?;
+
+        // TODO: fix this
+        let data = data.encode();
         if let Some(sender) = senders.remove(&response_seq) {
             sender.send(ResponseMessage::Response { data }).unwrap();
         }
@@ -372,6 +404,8 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
     pub async fn make_snapshot(&mut self, index: u64, term: u64) -> Result<()> {
         self.last_snapshot_created = Instant::now();
         let snapshot_data = self.fsm.snapshot().await?;
+        // TODO: fix this.
+        let snapshot_data = snapshot_data.encode();
 
         let last_applied = self.raw_node.raft.raft_log.applied;
         let store = self.raw_node.mut_store();
@@ -811,7 +845,8 @@ impl<FSM: AbstractStateMachine + Clone + Send + 'static> RaftNodeCore<FSM> {
             );
             let snapshot = ready.snapshot();
             if !snapshot.get_data().is_empty() {
-                self.fsm.restore(snapshot.get_data()).await?;
+                let snapshot = FSM::decode(snapshot.get_data()).unwrap();
+                self.fsm.restore(snapshot).await?;
             }
             let store = self.raw_node.mut_store();
             store.apply_snapshot(snapshot.clone())?;
