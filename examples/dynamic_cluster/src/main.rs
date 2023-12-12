@@ -5,12 +5,13 @@ extern crate slog_scope;
 extern crate slog_term;
 
 use dynamic_cluster::utils::build_config;
+use raftify::raft::derializer::set_custom_deserializer;
 use slog::Drain;
 
 use actix_web::{get, web, App, HttpServer, Responder};
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
-use raftify::{AbstractLogEntry, AbstractStateMachine, Mailbox, Raft, Result};
+use raftify::{AbstractLogEntry, AbstractStateMachine, Mailbox, MyDeserializer, Raft, Result};
 use serde::{Deserialize, Serialize};
 use slog_envlogger::LogBuilder;
 use std::collections::HashMap;
@@ -44,7 +45,7 @@ impl AbstractLogEntry for LogEntry {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct HashStore(Arc<RwLock<HashMap<u64, String>>>);
 
 impl HashStore {
@@ -141,6 +142,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let drain = builder.build();
 
     let logger = slog::Logger::root(drain, o!());
+
+    set_custom_deserializer(MyDeserializer::<LogEntry, HashStore>::new());
 
     // converts log to slog
     // let _scope_guard = slog_scope::set_global_logger(logger.clone());

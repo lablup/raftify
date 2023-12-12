@@ -1,18 +1,40 @@
-use crate::AbstractLogEntry;
+use crate::{AbstractLogEntry, AbstractStateMachine};
 use bincode::deserialize;
 use prost::Message as PMessage;
 use raft::{
     derializer::{format_confchange, format_confchangev2, Bytes, CustomDeserializer},
     eraftpb::{ConfChange, ConfChangeV2},
 };
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::net::SocketAddr;
 
-pub struct MyDeserializer<LogEntry: AbstractLogEntry + 'static> {
+pub struct MyDeserializer<
+    LogEntry: AbstractLogEntry + Debug + 'static,
+    FSM: AbstractStateMachine<LogEntry> + Debug + Clone + Send + Sync + 'static,
+> {
     _marker: PhantomData<LogEntry>,
+    _marker2: PhantomData<FSM>,
 }
 
-impl<LogEntry: AbstractLogEntry> CustomDeserializer for MyDeserializer<LogEntry> {
+impl<
+        LogEntry: AbstractLogEntry + Debug,
+        FSM: AbstractStateMachine<LogEntry> + Debug + Clone + Send + Sync + 'static,
+    > MyDeserializer<LogEntry, FSM>
+{
+    pub fn new() -> Self {
+        Self {
+            _marker: PhantomData,
+            _marker2: PhantomData,
+        }
+    }
+}
+
+impl<
+        LogEntry: AbstractLogEntry + Debug,
+        FSM: AbstractStateMachine<LogEntry> + Debug + Clone + Send + Sync + 'static,
+    > CustomDeserializer for MyDeserializer<LogEntry, FSM>
+{
     fn entry_context_deserialize(&self, v: &Bytes) -> String {
         let v = match v {
             Bytes::Prost(v) => &v[..],
@@ -41,6 +63,10 @@ impl<LogEntry: AbstractLogEntry> CustomDeserializer for MyDeserializer<LogEntry>
             if let Ok(cc) = ConfChangeV2::decode(&v[..]) {
                 return format_confchangev2(&cc);
             }
+        }
+
+        if let Ok(log_entry) = LogEntry::decode(v) {
+            return format!("{:?}", log_entry);
         }
 
         format!("{:?}", v)
@@ -86,7 +112,9 @@ impl<LogEntry: AbstractLogEntry> CustomDeserializer for MyDeserializer<LogEntry>
             Bytes::Protobuf(v) => v.as_ref(),
         };
 
-        let v2 = LogEntry::decode(v);
+        if let Ok(fsm) = FSM::decode(v) {
+            return format!("{:?}", fsm);
+        }
 
         format!("{:?}", v)
     }

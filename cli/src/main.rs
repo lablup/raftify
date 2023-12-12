@@ -13,7 +13,8 @@ mod commands;
 async fn main() -> Result<()> {
     let logger = default_logger();
 
-    set_custom_deserializer(MyDeserializer);
+    // TODO: Think about how to do this.
+    // set_custom_deserializer(MyDeserializer::<LogEntry, HashStore>::new());
 
     let matches = App::new("raftify")
         .version(PKG_VERSION)
