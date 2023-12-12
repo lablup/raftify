@@ -5,7 +5,7 @@ use std::{
 };
 
 pub fn get_storage_path(log_dir: &str, node_id: u64) -> Result<PathBuf> {
-    let log_dir_path = format!("{}/node-{}", log_dir.clone(), node_id);
+    let log_dir_path = format!("{}/node-{}", log_dir, node_id);
     let log_dir_path = Path::new(&log_dir_path);
 
     if fs::metadata(Path::new(&log_dir_path)).is_ok() {

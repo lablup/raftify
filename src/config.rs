@@ -90,8 +90,8 @@ impl fmt::Debug for Config {
                 tick_interval: {tick_interval}, \
                 lmdb_map_size: {lmdb_map_size}, \
                 cluster_id: {cluster_id}, \
-                terminate_on_remove: {terminate_on_remove} \
-                conf_change_request_timeout: {conf_change_request_timeout} \
+                terminate_on_remove: {terminate_on_remove}, \
+                conf_change_request_timeout: {conf_change_request_timeout}, \
             }}",
             id = self.raft_config.id,
             election_tick = self.raft_config.election_tick,

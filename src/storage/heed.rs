@@ -3,15 +3,14 @@ use crate::error::Result;
 use bincode::{deserialize, serialize};
 use heed::types::{Bytes as HeedBytes, Str as HeedStr};
 use heed::{Database, Env};
-use heed_traits::{BytesDecode, BytesEncode};
+use heed_traits::{BoxedError, BytesDecode, BytesEncode};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raft::{prelude::*, GetEntriesContext};
 
 use crate::config::Config;
-use prost::Message;
+use prost::Message as PMessage;
 use std::borrow::Cow;
 use std::cmp::max;
-use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -55,9 +54,7 @@ impl PartialOrd for HeedEntryKeyString {
 impl<'a> BytesEncode<'a> for HeedEntryKeyString {
     type EItem = String;
 
-    fn bytes_encode(
-        item: &'a Self::EItem,
-    ) -> std::result::Result<Cow<'a, [u8]>, Box<dyn Error + Send + Sync>> {
+    fn bytes_encode(item: &'a Self::EItem) -> std::result::Result<Cow<'a, [u8]>, BoxedError> {
         Ok(Cow::Borrowed(item.as_bytes()))
     }
 }
@@ -65,9 +62,7 @@ impl<'a> BytesEncode<'a> for HeedEntryKeyString {
 impl<'a> BytesDecode<'a> for HeedEntryKeyString {
     type DItem = String;
 
-    fn bytes_decode(
-        bytes: &'a [u8],
-    ) -> std::result::Result<Self::DItem, Box<dyn Error + Send + Sync>> {
+    fn bytes_decode(bytes: &'a [u8]) -> std::result::Result<Self::DItem, BoxedError> {
         Ok(String::from_utf8_lossy(bytes).into_owned())
     }
 }
@@ -78,14 +73,12 @@ impl From<u64> for HeedEntryKeyString {
     }
 }
 
-struct HeedEntry;
+enum HeedEntry {}
 
 impl BytesEncode<'_> for HeedEntry {
     type EItem = Entry;
 
-    fn bytes_encode(
-        item: &Self::EItem,
-    ) -> std::result::Result<Cow<'_, [u8]>, Box<dyn Error + Send + Sync>> {
+    fn bytes_encode(item: &Self::EItem) -> std::result::Result<Cow<'_, [u8]>, BoxedError> {
         let mut bytes = vec![];
         item.encode(&mut bytes)?;
         Ok(Cow::Owned(bytes))
@@ -95,9 +88,7 @@ impl BytesEncode<'_> for HeedEntry {
 impl BytesDecode<'_> for HeedEntry {
     type DItem = Entry;
 
-    fn bytes_decode(
-        bytes: &[u8],
-    ) -> std::result::Result<Self::DItem, Box<dyn Error + Send + Sync>> {
+    fn bytes_decode(bytes: &[u8]) -> std::result::Result<Self::DItem, BoxedError> {
         Ok(Entry::decode(bytes)?)
     }
 }
@@ -121,10 +112,9 @@ impl HeedStorageCore {
 
         let entries_db: Database<HeedEntryKeyString, HeedEntry> =
             env.create_database(&mut writer, Some("entries"))?;
-        let metadata_db = env.create_database(&mut writer, Some("meta"))?;
+        let metadata_db: Database<HeedStr, HeedBytes> =
+            env.create_database(&mut writer, Some("meta"))?;
 
-        let hard_state = HardState::default();
-        let conf_state = ConfState::default();
         writer.commit()?;
 
         let storage = Self {
@@ -136,8 +126,6 @@ impl HeedStorageCore {
         };
 
         let mut writer = storage.env.write_txn()?;
-        storage.set_hard_state(&mut writer, &hard_state)?;
-        storage.set_conf_state(&mut writer, &conf_state)?;
         storage.append(&mut writer, &[Entry::default()])?;
         writer.commit()?;
 
@@ -150,17 +138,22 @@ impl HeedStorageCore {
             &HARD_STATE_KEY.to_owned(),
             hard_state.encode_to_vec().as_slice(),
         )?;
+
         Ok(())
     }
 
     fn hard_state(&self, reader: &heed::RoTxn) -> Result<HardState> {
         let hard_state = self
             .metadata_db
-            .get(reader, &HARD_STATE_KEY.to_owned())?
-            .expect("Missing hard_state in metadata");
+            .get(reader, &HARD_STATE_KEY.to_owned())?;
 
-        let hard_state: HardState = prost::Message::decode(hard_state)?;
-        Ok(hard_state)
+        match hard_state {
+            Some(hard_state) => {
+                let hard_state = HardState::decode(hard_state)?;
+                Ok(hard_state)
+            }
+            None => Ok(HardState::default()),
+        }
     }
 
     pub fn set_conf_state(&self, writer: &mut heed::RwTxn, conf_state: &ConfState) -> Result<()> {
@@ -175,11 +168,15 @@ impl HeedStorageCore {
     pub fn conf_state(&self, reader: &heed::RoTxn) -> Result<ConfState> {
         let conf_state = self
             .metadata_db
-            .get(reader, &CONF_STATE_KEY.to_owned())?
-            .expect("Missing conf_state in metadata");
+            .get(reader, &CONF_STATE_KEY.to_owned())?;
 
-        let conf_state: ConfState = prost::Message::decode(conf_state)?;
-        Ok(conf_state)
+        match conf_state {
+            Some(conf_state) => {
+                let conf_state = ConfState::decode(conf_state)?;
+                Ok(conf_state)
+            }
+            None => Ok(ConfState::default()),
+        }
     }
 
     fn set_snapshot(&self, writer: &mut heed::RwTxn, snapshot: &Snapshot) -> Result<()> {
@@ -201,7 +198,7 @@ impl HeedStorageCore {
 
         Ok(match snapshot {
             Some(snapshot) => {
-                let snapshot: Snapshot = prost::Message::decode(snapshot)?;
+                let snapshot = Snapshot::decode(snapshot)?;
                 snapshot
             }
             None => Snapshot::default(),
