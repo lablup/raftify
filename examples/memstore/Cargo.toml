@@ -1,5 +1,5 @@
 [package]
-name = "dynamic_cluster"
+name = "memstore"
 version = "0.1.0"
 authors = ["jopemachine <gbl@lablup.com>"]
 edition = "2021"

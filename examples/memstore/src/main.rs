@@ -4,8 +4,8 @@ extern crate slog_async;
 extern crate slog_scope;
 extern crate slog_term;
 
-use dynamic_cluster::state_machine::{HashStore, LogEntry};
-use dynamic_cluster::utils::{build_config, load_peers};
+use memstore::state_machine::{HashStore, LogEntry};
+use memstore::utils::{build_config, load_peers};
 use raftify::raft::derializer::set_custom_deserializer;
 use raftify::RequestIdResponse;
 use slog::Drain;
@@ -88,7 +88,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     // converts log to slog
     // let _scope_guard = slog_scope::set_global_logger(logger.clone());
-    let _log_guard = slog_stdlog::init_with_level(log::Level::Debug).unwrap();
+    // let _log_guard = slog_stdlog::init_with_level(log::Level::Debug).unwrap();
 
     let options = Options::from_args();
     let store = HashStore::new();
@@ -120,6 +120,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     request_id_resp.to_owned().unwrap().reserved_id
                 }
             };
+            println!("peers: {:?}", peers);
 
             let mut raft = Raft::build(
                 node_id,
