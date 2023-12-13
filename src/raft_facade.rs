@@ -10,10 +10,7 @@ use crate::raft_service::{
 };
 use crate::request_message::RequestMessage;
 use crate::storage::heed::LogStore;
-use crate::{
-    create_client, AbstractLogEntry, AbstractStateMachine, Config, Mailbox, Peer,
-    Peers,
-};
+use crate::{create_client, AbstractLogEntry, AbstractStateMachine, Config, Mailbox, Peer, Peers};
 
 use bincode::{deserialize, serialize};
 use raft::eraftpb::{ConfChangeSingle, ConfChangeType, ConfChangeV2};

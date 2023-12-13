@@ -107,9 +107,9 @@ impl<
         self.rl().await.get_leader_id()
     }
 
-    // pub async fn get_peers(&self) -> Peers {
-    //     self.rl().await.get_peers()
-    // }
+    pub async fn get_peers(&self) -> Peers {
+        self.rl().await.get_peers().await
+    }
 
     pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
         self.wl().await.add_peer(id, addr).await
@@ -271,9 +271,9 @@ impl<
         self.raw_node.raft.leader_id
     }
 
-    // pub fn get_peers(&self) -> Peers {
-    //     self.peers.to_owned()
-    // }
+    pub async fn get_peers(&self) -> Peers {
+        self.peers.lock().await.to_owned()
+    }
 
     pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
         self.peers.lock().await.add_peer(id, addr)

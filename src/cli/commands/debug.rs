@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
+use crate::create_client;
+use crate::raft_service;
+use crate::Config;
+use crate::HeedStorage;
+use crate::LogStore;
+use crate::Result;
 use raft::derializer::format_entry;
 use raft::derializer::format_snapshot;
-use raftify::create_client;
-use raftify::raft_service;
-use raftify::Config;
-use raftify::HeedStorage;
-use raftify::LogStore;
-use raftify::Result;
 
 pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
     let mut config = Config::default();

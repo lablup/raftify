@@ -1,8 +1,12 @@
 [package]
-name = "static_cluster"
+name = "dynamic_cluster"
 version = "0.1.0"
 authors = ["jopemachine <gbl@lablup.com>"]
 edition = "2021"
+
+[[bin]]
+name = "raftify-cli"
+path = "src/cli/main.rs"
 
 [dependencies]
 actix-rt = "2.0"

@@ -1,21 +1,22 @@
 include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
-use crate::commands::debug::debug_persisted;
+use crate::{AbstractLogEntry, AbstractStateMachine, MyDeserializer, Result};
 use clap::{App, Arg, SubCommand};
 use commands::debug::debug_node;
+use commands::debug::debug_persisted;
+use raft::default_logger;
 use raft::derializer::set_custom_deserializer;
-use raftify::raft::default_logger;
-use raftify::{MyDeserializer, Result};
+use std::fmt::Debug;
 
 mod commands;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+pub async fn cli_handler<
+    LogEntry: AbstractLogEntry + Debug + Send + 'static,
+    FSM: AbstractStateMachine<LogEntry> + Debug + Clone + Send + Sync + 'static,
+>() -> Result<()> {
     let logger = default_logger();
 
-    // TODO: Think about how to do this.
-    // TODO: Consider to use PyO3 and python instead of this way (only in CLI module).
-    // set_custom_deserializer(MyDeserializer::<LogEntry, HashStore>::new());
+    set_custom_deserializer(MyDeserializer::<LogEntry, FSM>::new());
 
     let matches = App::new("raftify")
         .version(PKG_VERSION)

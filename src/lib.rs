@@ -19,10 +19,12 @@ mod state_machine;
 mod storage;
 mod utils;
 
+pub mod cli;
 pub mod raft_service;
-
 pub use deserializer::MyDeserializer;
 pub use raft;
+
+pub use crate::raft_facade::RequestIdResponse;
 pub use raft::Config as RaftConfig;
 
 pub use crate::config::Config;
