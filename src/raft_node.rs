@@ -16,9 +16,10 @@ use crate::{AbstractStateMachine, Config};
 
 use bincode::{deserialize, serialize};
 use prost::Message as PMessage;
-use raft::derializer::{format_confchangev2, format_message};
+use raft::derializer::{format_confchangev2, format_entry, format_message};
 use raft::eraftpb::{
-    ConfChange, ConfChangeType, ConfChangeV2, Entry, EntryType, Message as RaftMessage, Snapshot,
+    ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2, Entry, EntryType,
+    Message as RaftMessage, Snapshot,
 };
 use raft::raw_node::RawNode;
 use tokio::sync::{mpsc, Mutex, RwLockReadGuard, RwLockWriteGuard};
@@ -365,11 +366,11 @@ impl<
             }
 
             match entry.get_entry_type() {
-                EntryType::EntryConfChangeV2 => {
+                EntryType::EntryConfChange | EntryType::EntryConfChangeV2 => {
                     self.handle_committed_config_change_entry(&mut entry, client_send)
                         .await?;
                 }
-                _ => {
+                EntryType::EntryNormal => {
                     self.handle_committed_normal_entry(&entry, client_send)
                         .await?;
                 }
@@ -418,7 +419,22 @@ impl<
         entry: &Entry,
         senders: &mut HashMap<u64, oneshot::Sender<ResponseMessage>>,
     ) -> Result<()> {
-        let conf_change_v2: ConfChangeV2 = PMessage::decode(entry.get_data())?;
+        let conf_change_v2 = match entry.get_entry_type() {
+            EntryType::EntryConfChange => {
+                let conf_change = ConfChange::decode(entry.get_data())?;
+                let mut cc_v2 = ConfChangeV2::default();
+
+                let mut cs = ConfChangeSingle::default();
+                cs.set_node_id(conf_change.node_id);
+                cs.set_change_type(conf_change.get_change_type());
+                cc_v2.set_changes(vec![cs].into());
+                cc_v2.set_context(conf_change.context);
+
+                cc_v2
+            }
+            EntryType::EntryConfChangeV2 => ConfChangeV2::decode(entry.get_data())?,
+            _ => unreachable!(),
+        };
 
         let conf_changes = conf_change_v2.get_changes();
         let addrs: Vec<SocketAddr> = deserialize(conf_change_v2.get_context())?;
@@ -461,7 +477,11 @@ impl<
             }
         }
 
-        let response_seq: AtomicU64 = deserialize(entry.get_context())?;
+        let response_seq = match entry.get_context().is_empty() {
+            true => AtomicU64::new(0),
+            false => deserialize(entry.get_context())?,
+        };
+
         let response_seq_value = response_seq.load(Ordering::Relaxed);
 
         if let Some(sender) = senders.remove(&response_seq_value) {
@@ -617,6 +637,7 @@ impl<
                 }
             }
         }
+
         Ok(())
     }
 
@@ -629,7 +650,6 @@ impl<
 
         let initial_peers = self.peers.lock().await;
 
-        let mut conf_changes = vec![];
         let mut entries = vec![];
         let last_index = self.raw_node.store().last_index().unwrap();
 
@@ -644,12 +664,12 @@ impl<
             conf_change.set_node_id(*node_id);
             conf_change.set_change_type(ConfChangeType::AddNode);
             conf_change.set_context(serialize(&vec![node_addr]).unwrap());
-            conf_changes.push(conf_change.clone());
+
             let conf_state = self.raw_node.apply_conf_change(&conf_change)?;
             self.raw_node.mut_store().set_conf_state(&conf_state)?;
 
             let mut entry = Entry::default();
-            entry.set_entry_type(EntryType::EntryConfChangeV2);
+            entry.set_entry_type(EntryType::EntryConfChange);
             entry.set_term(1);
             entry.set_index(last_index + i as u64);
             entry.set_data(conf_change.encode_to_vec());
@@ -657,27 +677,43 @@ impl<
             entries.push(entry);
         }
 
+        let unstable = &mut self.raw_node.raft.raft_log.unstable;
+        unstable.entries = entries.clone();
         let commit_index = last_index + entries.len() as u64;
-        self.raw_node.raft.raft_log.append(&entries);
-        self.raw_node.raft.raft_log.stable_entries(commit_index, 1);
-        self.raw_node.mut_store().append(&entries)?;
-        self.raw_node
-            .mut_store()
-            .create_snapshot(vec![], commit_index, 1)?;
+        unstable.stable_entries(commit_index, 1);
 
-        let hs = self.raw_node.store().hard_state()?;
+        self.raw_node.mut_store().append(&entries)?;
 
         self.last_snapshot_created = Instant::now();
 
         let last_applied = self.raw_node.raft.raft_log.applied;
         let store = self.raw_node.mut_store();
         store.compact(last_applied)?;
-        store.create_snapshot(vec![], commit_index, hs.term)?;
+        store.create_snapshot(vec![], commit_index, 1)?;
 
+        self.raw_node.raft.raft_log.applied = commit_index;
         self.raw_node.raft.raft_log.committed = commit_index;
+        self.raw_node.raft.raft_log.persisted = commit_index;
 
-        // let leader_id = self.get_id();
-        // self.raw_node.raft.prs().get_mut(leader_id).unwrap().matched = last_index;
+        let leader_id = self.get_leader_id();
+        self.raw_node
+            .raft
+            .mut_prs()
+            .get_mut(leader_id)
+            .unwrap()
+            .matched = commit_index;
+        self.raw_node
+            .raft
+            .mut_prs()
+            .get_mut(leader_id)
+            .unwrap()
+            .committed_index = commit_index;
+        self.raw_node
+            .raft
+            .mut_prs()
+            .get_mut(leader_id)
+            .unwrap()
+            .next_idx = commit_index + 1;
 
         self.bootstrap_done = true;
 
@@ -820,7 +856,13 @@ impl<
                 heartbeat -= elapsed;
             }
 
-            self.on_ready(&mut client_send).await?;
+            // TODO: Remove this after investigating why tokio::join not failing when one of the Result is Err
+            match self.on_ready(&mut client_send).await {
+                Ok(_) => {}
+                Err(e) => {
+                    panic!("Error occurred while processing ready: {}", e);
+                }
+            }
         }
     }
 
