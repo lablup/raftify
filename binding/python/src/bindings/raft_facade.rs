@@ -1,4 +1,5 @@
 use pyo3::{prelude::*, types::PyString};
+use raftify::raft::default_logger;
 use raftify::{Peers, Raft};
 use slog::{o, Drain};
 
@@ -26,10 +27,7 @@ impl RaftFacade {
         let fsm = PyFSM::new(fsm);
         let config = config.extract::<PyConfig>(py)?;
 
-        let decorator = slog_term::TermDecorator::new().build();
-        let drain = slog_term::FullFormat::new(decorator).build().fuse();
-        let drain = slog_async::Async::new(drain).build().fuse();
-        let logger = slog::Logger::root(drain, o!());
+        let logger = default_logger();
 
         let initial_peers = Peers::new();
 

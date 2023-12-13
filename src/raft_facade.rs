@@ -119,10 +119,14 @@ impl<
                 tokio::try_join!(raft_node_handle, raft_server_handle)
             } => {
                 match result {
-                    Ok(_) => {
+                    Ok((Ok(()), ())) => {
                         slog::trace!(self.logger, "All tasks quitted successfully.");
                         Ok(())
                     },
+                    Ok((Err(e), ())) => {
+                        slog::error!(self.logger, "Error: {:?}", e);
+                        Err(Error::Other(Box::new(e)))
+                    }
                     Err(e) => {
                         slog::error!(self.logger, "Error: {:?}", e);
                         Err(Error::Other(Box::new(e)))
