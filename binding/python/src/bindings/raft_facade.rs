@@ -3,12 +3,12 @@ use raftify::{Peers, Raft};
 use slog::{o, Drain};
 
 use super::config::PyConfig;
-use super::fsm::PyFSM;
+use super::fsm::{PyFSM, PyLogEntry};
 
 #[derive(Clone)]
 #[pyclass(name = "Raft")]
 pub struct RaftFacade {
-    raft: Raft<PyFSM>,
+    raft: Raft<PyLogEntry, PyFSM>,
 }
 
 #[pymethods]
@@ -45,23 +45,6 @@ impl RaftFacade {
         .unwrap();
         Ok(Self { raft })
     }
-
-    // * Thread version
-    // pub fn run(&mut self) -> PyResult<()> {
-    //     let rt = tokio::runtime::Runtime::new().unwrap();
-    //     rt.block_on(async {
-    //         let raft = self.raft.clone();
-    //         let handle = tokio::spawn(async move {
-    //             match raft.run().await {
-    //                 Ok(_) => println!("RaftNode exited successfully"),
-    //                 Err(e) => println!("RaftNode exited with error: {}", e),
-    //             }
-    //         });
-
-    //         handle.await.unwrap();
-    //     });
-    //     Ok(())
-    // }
 
     pub async fn run(&mut self) -> PyResult<()> {
         self._run()

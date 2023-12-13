@@ -26,7 +26,10 @@ struct Options {
     peer_addr: Option<String>,
     #[structopt(long)]
     web_server: Option<String>,
-    #[structopt(long, help = "Ignore cluster_config.toml's peers and bootstrap a new cluster")]
+    #[structopt(
+        long,
+        help = "Ignore cluster_config.toml's peers and bootstrap a new cluster"
+    )]
     ignore_static_bootstrap: bool,
 }
 
@@ -131,8 +134,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
             if let Some(request_id_resp) = request_id_resp {
                 raft.join(request_id_resp).await?;
-            }
-            else if let Some(peers) = peers {
+            } else if let Some(peers) = peers {
                 let leader_addr = peers.get(&1).unwrap().addr;
                 raft.member_bootstrap_ready(leader_addr, node_id).await?;
             } else {

@@ -12,10 +12,6 @@ pub struct PyConfig {
     #[pyo3(get, set)]
     compacted_logs_size_threshold: i32,
     #[pyo3(get, set)]
-    max_retry_cnt: i32,
-    #[pyo3(get, set)]
-    message_timeout: f32,
-    #[pyo3(get, set)]
     snapshot_interval: f32,
     #[pyo3(get, set)]
     tick_interval: f32,
@@ -25,6 +21,8 @@ pub struct PyConfig {
     cluster_id: String,
     #[pyo3(get, set)]
     terminate_on_remove: bool,
+    #[pyo3(get, set)]
+    conf_change_request_timeout: f32,
 }
 
 macro_rules! extract_or_default {
@@ -190,13 +188,12 @@ impl From<PyConfig> for Config {
             log_dir: py_config.log_dir,
             compacted_log_dir: py_config.compacted_log_dir,
             compacted_logs_size_threshold: py_config.compacted_logs_size_threshold,
-            max_retry_cnt: py_config.max_retry_cnt,
-            message_timeout: py_config.message_timeout,
             snapshot_interval: py_config.snapshot_interval,
             tick_interval: py_config.tick_interval,
             lmdb_map_size: py_config.lmdb_map_size,
             cluster_id: py_config.cluster_id,
             terminate_on_remove: py_config.terminate_on_remove,
+            conf_change_request_timeout: py_config.conf_change_request_timeout,
         }
     }
 }
@@ -208,13 +205,12 @@ impl From<Config> for PyConfig {
             log_dir: config.log_dir,
             compacted_log_dir: config.compacted_log_dir,
             compacted_logs_size_threshold: config.compacted_logs_size_threshold,
-            max_retry_cnt: config.max_retry_cnt,
-            message_timeout: config.message_timeout,
             snapshot_interval: config.snapshot_interval,
             tick_interval: config.tick_interval,
             lmdb_map_size: config.lmdb_map_size,
             cluster_id: config.cluster_id,
             terminate_on_remove: config.terminate_on_remove,
+            conf_change_request_timeout: config.conf_change_request_timeout,
         }
     }
 }
