@@ -60,6 +60,15 @@ async fn get(
     format!("{:?}", response)
 }
 
+#[get("/leader")]
+async fn leader_id(
+    data: web::Data<(Arc<Mailbox>, HashStore, Raft<LogEntry, HashStore>)>,
+) -> impl Responder {
+    let raft = data.2.clone();
+    let leader_id = raft.raft_node.get_leader_id().await.to_string();
+    format!("{:?}", leader_id)
+}
+
 #[get("/leave")]
 async fn leave(
     data: web::Data<(Arc<Mailbox>, HashStore, Raft<LogEntry, HashStore>)>,
@@ -173,6 +182,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .service(put)
                     .service(get)
                     .service(leave)
+                    .service(leader_id)
             })
             .bind(addr)
             .unwrap()
