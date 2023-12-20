@@ -16,7 +16,7 @@ use crate::{AbstractStateMachine, Config};
 
 use bincode::{deserialize, serialize};
 use prost::Message as PMessage;
-use raft::derializer::{format_confchangev2, format_entry, format_message};
+use raft::derializer::{format_confchangev2, format_message, format_snapshot};
 use raft::eraftpb::{
     ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2, Entry, EntryType,
     Message as RaftMessage, Snapshot,
@@ -542,7 +542,10 @@ impl<
             conf_state: {:?}\n\
             last_index: {}\n\
             snapshot: {:?}\n",
-            hard_state, conf_state, last_index, snapshot
+            hard_state,
+            conf_state,
+            last_index,
+            format_snapshot(&snapshot),
         );
 
         let prs_info = format!(

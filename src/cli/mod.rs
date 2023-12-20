@@ -14,10 +14,6 @@ pub async fn cli_handler<
     LogEntry: AbstractLogEntry + Debug + Send + 'static,
     FSM: AbstractStateMachine<LogEntry> + Debug + Clone + Send + Sync + 'static,
 >() -> Result<()> {
-    let logger = default_logger();
-
-    set_custom_deserializer(MyDeserializer::<LogEntry, FSM>::new());
-
     let matches = App::new("raftify")
         .version(PKG_VERSION)
         .author(PKG_AUTHORS)
@@ -56,6 +52,9 @@ pub async fn cli_handler<
         )
         // .subcommand(SubCommand::with_name("health").about("Check health"))
         .get_matches();
+
+    let logger = default_logger();
+    set_custom_deserializer(MyDeserializer::<LogEntry, FSM>::new());
 
     match matches.subcommand() {
         Some(("debug", debug_matches)) => match debug_matches.subcommand() {
