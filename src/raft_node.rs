@@ -191,13 +191,10 @@ impl<
         raw_node.raft.become_candidate();
         raw_node.raft.become_leader();
 
-        let peers_bootstrap_ready = match initial_peers.is_empty() {
-            true => None,
-            false => {
-                let mut initial = HashMap::new();
-                initial.insert(1, true);
-                Some(initial)
-            }
+        let peers_bootstrap_ready = if !initial_peers.is_empty() {
+            Some(HashMap::from([(1, true)]))
+        } else {
+            None
         };
 
         Ok(RaftNodeCore {
