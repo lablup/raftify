@@ -5,9 +5,9 @@ use crate::raft_service::raft_service_server::{RaftService, RaftServiceServer};
 use crate::raft_service::{self, Empty, RequestIdArgs};
 use crate::request_message::RequestMessage;
 use crate::response_message::ResponseMessage;
-use crate::{Config, Peers};
+use crate::Config;
 
-use bincode::{deserialize, serialize};
+use bincode::serialize;
 use raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;

@@ -11,15 +11,12 @@ use crate::{
 
 pub type Raft = Raft_<LogEntry, HashStore>;
 
-static RAFTS: Lazy<Mutex<Vec<Raft>>> = Lazy::new(|| Mutex::new(vec![]));
+pub static RAFTS: Lazy<Mutex<Vec<Raft>>> = Lazy::new(|| Mutex::new(vec![]));
 
-fn run_raft(node_id: &u64, peers: Peers) -> Result<(Raft, JoinHandle<Result<()>>)> {
+fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
     let peer = peers.get(node_id).unwrap();
-
     let cfg = build_config();
-
     let store = HashStore::new();
-
     let logger = default_logger();
 
     let raft = Raft::build(
@@ -32,18 +29,20 @@ fn run_raft(node_id: &u64, peers: Peers) -> Result<(Raft, JoinHandle<Result<()>>
     )
     .expect("Raft build failed!");
 
+    RAFTS.lock().unwrap().push(raft.clone());
+
     let raft_handle = tokio::spawn(raft.clone().run());
 
-    Ok((raft.clone(), raft_handle))
+    Ok(raft_handle)
 }
 
 pub async fn run_rafts(peers: Peers) -> Result<()> {
     let mut raft_handles = vec![];
 
     for (node_id, _) in peers.iter() {
-        let (raft, raft_handle) = run_raft(&node_id, peers.clone())?;
-        RAFTS.lock().unwrap().push(raft);
+        let raft_handle = run_raft(&node_id, peers.clone())?;
         raft_handles.push(raft_handle);
+        println!("Node {} starting...", node_id);
     }
 
     let results = future::join_all(raft_handles).await;

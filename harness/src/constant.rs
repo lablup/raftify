@@ -1,4 +1,4 @@
-pub const CLUSTER_INFO_PATH: &str = "./harness/fixtures";
+pub const CLUSTER_INFO_PATH: &str = "./fixtures";
 
 pub const RAFT_ADDRS: [&str; 5] = [
     "127.0.0.1:60061",

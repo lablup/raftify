@@ -9,11 +9,8 @@ use crate::request_message::RequestMessage;
 use crate::storage::heed::LogStore;
 use crate::{create_client, AbstractLogEntry, AbstractStateMachine, Config, Mailbox, Peer, Peers};
 use std::collections::HashMap;
-use std::error::Error as _;
-use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
-use tonic::transport::Error as TonicError;
 
 use bincode::{deserialize, serialize};
 use raft::eraftpb::{ConfChangeSingle, ConfChangeType, ConfChangeV2};
@@ -193,6 +190,7 @@ impl<
                 Err(e) => {
                     slog::info!(self.logger, "Leader connection failed, Cause: {}", e);
                     sleep(Duration::from_secs(1)).await;
+                    tokio::task::yield_now().await;
                     continue;
                 }
             }
@@ -229,6 +227,10 @@ impl<
             .make_snapshot(store.last_index()?, hard_state.term)
             .await?;
         Ok(())
+    }
+
+    pub async fn cluster_size(&self) -> usize {
+        self.raft_node.get_cluster_size().await
     }
 
     pub async fn join(&mut self, request_id_response: RequestIdResponse) -> Result<()> {

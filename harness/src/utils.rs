@@ -1,10 +1,13 @@
 use serde::Deserialize;
-use std::fs;
 use std::net::SocketAddr;
 use std::path::Path;
+use std::{fs, time::Duration};
+use tokio::time::sleep;
 use toml;
 
 use raftify::{Config, Peers, RaftConfig};
+
+use crate::raft_server::Raft;
 
 pub fn build_config() -> Config {
     let mut cfg = Config::default();
@@ -37,12 +40,7 @@ pub struct TomlInnerRaftConfig {
 }
 
 pub async fn load_peers(filename: &str) -> Result<Peers, Box<dyn std::error::Error>> {
-    let path = Path::new(file!())
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .join(filename);
+    let path = Path::new("fixtures").join(filename);
     let config_str = fs::read_to_string(path)?;
 
     let raft_config: TomlRaftConfig = toml::from_str(&config_str)?;
@@ -55,4 +53,33 @@ pub async fn load_peers(filename: &str) -> Result<Peers, Box<dyn std::error::Err
     }
 
     Ok(peers)
+}
+
+pub async fn wait_for_until_cluster_size_increase(raft: Raft, target: usize) {
+    println!("cluster size targe!t: {}", target);
+
+    loop {
+        let size = raft.cluster_size().await;
+        println!("cluster size: {}", size);
+        if size >= target {
+            break;
+        }
+        sleep(Duration::from_secs(1)).await;
+    }
+
+    // Wait for the conf_change reflected to the cluster
+    sleep(Duration::from_secs(1)).await;
+}
+
+pub async fn wait_for_until_cluster_size_decrease(raft: Raft, target: usize) {
+    loop {
+        let size = raft.cluster_size().await;
+        if size <= target {
+            break;
+        }
+        sleep(Duration::from_secs(1)).await;
+    }
+
+    // Wait for the conf_change reflected to the cluster
+    sleep(Duration::from_secs(1)).await;
 }

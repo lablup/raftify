@@ -124,6 +124,21 @@ impl<
         self.rl().await.raw_node.store().clone()
     }
 
+    pub async fn get_cluster_size(&self) -> usize {
+        self.rl()
+            .await
+            .raw_node
+            .raft
+            .prs()
+            .iter()
+            .collect::<Vec<_>>()
+            .len()
+    }
+
+    pub async fn quit(&mut self) {
+        self.wl().await.should_exit = true;
+    }
+
     pub async fn make_snapshot(&mut self, index: u64, term: u64) -> Result<()> {
         self.wl().await.make_snapshot(index, term).await
     }
