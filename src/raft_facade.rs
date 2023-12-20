@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-use std::net::{SocketAddr, ToSocketAddrs};
-
 use crate::error::{Error, Result};
 use crate::raft_node::RaftNode;
 use crate::raft_server::RaftServer;
@@ -11,11 +8,18 @@ use crate::raft_service::{
 use crate::request_message::RequestMessage;
 use crate::storage::heed::LogStore;
 use crate::{create_client, AbstractLogEntry, AbstractStateMachine, Config, Mailbox, Peer, Peers};
+use std::collections::HashMap;
+use std::error::Error as _;
+use std::io;
+use std::net::{SocketAddr, ToSocketAddrs};
+use std::time::Duration;
+use tonic::transport::Error as TonicError;
 
 use bincode::{deserialize, serialize};
 use raft::eraftpb::{ConfChangeSingle, ConfChangeType, ConfChangeV2};
 use tokio::signal;
 use tokio::sync::mpsc;
+use tokio::time::sleep;
 use tonic::Request;
 
 #[derive(Clone)]
@@ -148,7 +152,7 @@ impl<
         let mut leader_addr = peer_addr;
 
         loop {
-            let mut client = create_client(leader_addr).await.unwrap();
+            let mut client = create_client(&leader_addr).await.unwrap();
             let response = client
                 .request_id(Request::new(RequestIdArgs {}))
                 .await?
@@ -183,7 +187,17 @@ impl<
         leader_addr: A,
         node_id: u64,
     ) -> Result<()> {
-        let mut leader_client = create_client(leader_addr).await.unwrap();
+        let mut leader_client = loop {
+            match create_client(&leader_addr).await {
+                Ok(client) => break client,
+                Err(e) => {
+                    slog::info!(self.logger, "Leader connection failed, Cause: {}", e);
+                    sleep(Duration::from_secs(1)).await;
+                    continue;
+                }
+            }
+        };
+
         let response = leader_client
             .member_bootstrap_ready(Request::new(MemberBootstrapReadyArgs { node_id }))
             .await

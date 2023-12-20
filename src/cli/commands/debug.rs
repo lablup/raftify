@@ -34,7 +34,7 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
 }
 
 pub async fn debug_node(addr: &str) -> Result<()> {
-    let mut client = create_client(addr).await.unwrap();
+    let mut client = create_client(&addr).await.unwrap();
     let response = client.debug_node(raft_service::Empty {}).await.unwrap();
     println!("{}", response.into_inner().result);
     Ok(())

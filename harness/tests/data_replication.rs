@@ -1,4 +1,4 @@
-use harness::{constant::THREE_NODE_EXAMPLE, utils::load_peers, raft_server::run_rafts};
+use harness::{constant::THREE_NODE_EXAMPLE, raft_server::run_rafts, utils::load_peers};
 
 #[tokio::test]
 pub async fn test_data_replication() {

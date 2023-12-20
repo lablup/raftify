@@ -20,7 +20,7 @@ impl Peer {
     }
 
     pub async fn connect(&mut self) -> Result<()> {
-        let client = create_client(self.addr).await?;
+        let client = create_client(&self.addr).await?;
         self.client = Some(client);
         Ok(())
     }

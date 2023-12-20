@@ -1,13 +1,19 @@
 use std::net::ToSocketAddrs;
 
 use crate::RaftServiceClient;
-use crate::Result;
 use bytes::Bytes;
 use tonic::transport::Channel;
+use tonic::transport::Error as TonicError;
 
 // TODO: Support https schema
-pub async fn create_client<A: ToSocketAddrs>(addr: A) -> Result<RaftServiceClient<Channel>> {
-    let addr = addr.to_socket_addrs()?.next().unwrap();
+pub async fn create_client<A: ToSocketAddrs>(
+    addr: &A,
+) -> Result<RaftServiceClient<Channel>, TonicError> {
+    let addr = addr
+        .to_socket_addrs()
+        .expect("Wrong socket address")
+        .next()
+        .unwrap();
     let addr = format!("http://{}", addr.to_string());
     let addr = Bytes::copy_from_slice(addr.as_bytes());
 
