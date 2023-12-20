@@ -26,7 +26,7 @@ pub async fn cli_handler<
                         .about("List persisted log entries and metadata")
                         .arg(
                             Arg::with_name("path")
-                                .help("The log dir path")
+                                .help("The log directory path")
                                 .required(true)
                                 .index(1),
                         ),

@@ -1,0 +1,63 @@
+use futures::future;
+use once_cell::sync::Lazy;
+use raftify::{raft::default_logger, Peers, Raft as Raft_, Result};
+use std::sync::Mutex;
+use tokio::task::JoinHandle;
+
+use crate::{
+    state_machine::{HashStore, LogEntry},
+    utils::build_config,
+};
+
+pub type Raft = Raft_<LogEntry, HashStore>;
+
+static RAFTS: Lazy<Mutex<Vec<Raft>>> = Lazy::new(|| Mutex::new(vec![]));
+
+fn run_raft(node_id: &u64, peers: Peers) -> Result<(Raft, JoinHandle<Result<()>>)> {
+    let peer = peers.get(node_id).unwrap();
+
+    let cfg = build_config();
+
+    let store = HashStore::new();
+
+    let logger = default_logger();
+
+    let raft = Raft::build(
+        *node_id,
+        peer.addr,
+        store,
+        cfg,
+        logger.clone(),
+        Some(peers.clone()),
+    )
+    .expect("Raft build failed!");
+
+    let raft_handle = tokio::spawn(raft.clone().run());
+
+    Ok((raft.clone(), raft_handle))
+}
+
+pub async fn run_rafts(peers: Peers) -> Result<()> {
+    let mut raft_handles = vec![];
+
+    for (node_id, _) in peers.iter() {
+        let (raft, raft_handle) = run_raft(&node_id, peers.clone())?;
+        RAFTS.lock().unwrap().push(raft);
+        raft_handles.push(raft_handle);
+    }
+
+    let results = future::join_all(raft_handles).await;
+
+    for (result_idx, result) in results.iter().enumerate() {
+        match result {
+            Ok(_) => println!("All tasks completed successfully"),
+            Err(e) => println!(
+                "Error occurred while running node {}. Error: {:?}",
+                result_idx + 1,
+                e
+            ),
+        }
+    }
+
+    Ok(())
+}

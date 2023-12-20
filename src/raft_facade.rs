@@ -26,7 +26,7 @@ pub struct Raft<
     pub raft_node: RaftNode<LogEntry, FSM>,
     pub raft_server: RaftServer,
     pub tx: mpsc::Sender<RequestMessage>,
-    pub addr: SocketAddr,
+    pub raft_addr: SocketAddr,
     pub logger: slog::Logger,
     pub config: Config,
 }
@@ -46,13 +46,13 @@ impl<
 {
     pub fn build<A: ToSocketAddrs>(
         node_id: u64,
-        addr: A,
+        raft_addr: A,
         fsm: FSM,
         config: Config,
         logger: slog::Logger,
         initial_peers: Option<Peers>,
     ) -> Result<Self> {
-        let addr = addr.to_socket_addrs()?.next().unwrap();
+        let raft_addr = raft_addr.to_socket_addrs()?.next().unwrap();
         let initial_peers = initial_peers.unwrap_or_default();
 
         let (tx, rx) = mpsc::channel(100);
@@ -80,11 +80,18 @@ impl<
             ),
         }?;
 
+        let raft_server = RaftServer::new(
+            tx.clone(),
+            raft_addr.clone(),
+            config.clone(),
+            logger.clone(),
+        );
+
         Ok(Self {
-            addr,
+            raft_addr,
             tx: tx.clone(),
             raft_node,
-            raft_server: RaftServer::new(tx.clone(), addr.clone(), config.clone(), logger.clone()),
+            raft_server,
             config,
             logger,
         })
@@ -226,7 +233,7 @@ impl<
         cs.set_node_id(reserved_id);
         cs.set_change_type(ConfChangeType::AddNode);
         change.set_changes(vec![cs].into());
-        change.set_context(serialize(&vec![self.addr.clone()])?);
+        change.set_context(serialize(&vec![self.raft_addr.clone()])?);
 
         let peer_addr = request_id_response.leader_addr;
 

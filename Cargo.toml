@@ -36,4 +36,5 @@ built = "0.5"
 members = [
     "binding/python",
     "examples/memstore",
+    "harness",
 ]
