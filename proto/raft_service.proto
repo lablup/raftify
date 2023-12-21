@@ -6,9 +6,9 @@ import "eraftpb.proto";
 service RaftService {
   rpc MemberBootstrapReady(MemberBootstrapReadyArgs) returns (MemberBootstrapReadyResponse) {}
   rpc ClusterBootstrapReady(ClusterBootstrapReadyArgs) returns (ClusterBootstrapReadyResponse) {}
-  rpc RequestId(RequestIdArgs) returns (RequestIdResponse) {}
+  rpc RequestId(Empty) returns (RequestIdResponse) {}
   rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
-  rpc SendMessage(eraftpb.Message) returns (RaftResponse) {}
+  rpc SendMessage(eraftpb.Message) returns (Empty) {}
   rpc DebugNode(Empty) returns (DebugNodeResponse) {}
 }
 
@@ -36,8 +36,6 @@ message ClusterBootstrapReadyResponse {
 }
 
 // Used in Dynamic Member's Bootstrap
-message RequestIdArgs {
-}
 
 message RequestIdResponse{
   ResultCode code                = 1;
@@ -54,9 +52,6 @@ message Entry {
   string value  = 2;
 }
 
-message RaftResponse {
-  bytes inner = 2;
-}
 
 // Config Change
 

@@ -7,14 +7,12 @@ extern crate slog_term;
 use memstore::state_machine::{HashStore, LogEntry};
 use memstore::utils::{build_config, load_peers};
 use raftify::raft::derializer::set_custom_deserializer;
-use raftify::RequestIdResponse;
+use raftify::{AbstractLogEntry, RequestIdResponse};
 use slog::Drain;
 
 use actix_web::{get, web, App, HttpServer, Responder};
-use bincode::{deserialize, serialize};
-use raftify::{Mailbox, MyDeserializer, Raft};
+use raftify::{MyDeserializer, Raft};
 use slog_envlogger::LogBuilder;
-use std::sync::Arc;
 use structopt::StructOpt;
 // use slog_envlogger::LogBuilder;
 
@@ -35,47 +33,43 @@ struct Options {
 
 #[get("/put/{id}/{name}")]
 async fn put(
-    data: web::Data<(Arc<Mailbox>, HashStore, Raft<LogEntry, HashStore>)>,
+    data: web::Data<(HashStore, Raft<LogEntry, HashStore>)>,
     path: web::Path<(u64, String)>,
 ) -> impl Responder {
     let log_entry = LogEntry::Insert {
         key: path.0,
         value: path.1.clone(),
     };
-    let log_entry = serialize(&log_entry).unwrap();
-    let result = data.0.send(log_entry).await.unwrap();
+    data.1.raft_node.propose(log_entry.encode().unwrap()).await;
 
-    let result: LogEntry = deserialize(&result).unwrap();
-    format!("{:?}", result)
+    "OK".to_string()
 }
 
 #[get("/get/{id}")]
 async fn get(
-    data: web::Data<(Arc<Mailbox>, HashStore, Raft<LogEntry, HashStore>)>,
+    data: web::Data<(HashStore, Raft<LogEntry, HashStore>)>,
     path: web::Path<u64>,
 ) -> impl Responder {
     let id = path.into_inner();
 
-    let response = data.1.get(id);
+    let response = data.0.get(id);
     format!("{:?}", response)
 }
 
 #[get("/leader")]
-async fn leader_id(
-    data: web::Data<(Arc<Mailbox>, HashStore, Raft<LogEntry, HashStore>)>,
-) -> impl Responder {
-    let raft = data.2.clone();
-    let leader_id = raft.raft_node.get_leader_id().await.to_string();
+async fn leader_id(data: web::Data<(HashStore, Raft<LogEntry, HashStore>)>) -> impl Responder {
+    let raft = data.clone();
+    let leader_id = raft.1.raft_node.get_leader_id().await.to_string();
     format!("{:?}", leader_id)
 }
 
-#[get("/leave")]
-async fn leave(
-    data: web::Data<(Arc<Mailbox>, HashStore, Raft<LogEntry, HashStore>)>,
-) -> impl Responder {
-    data.0.leave().await.unwrap();
-    "OK".to_string()
-}
+// #[get("/leave")]
+// async fn leave(
+//     data: web::Data<(HashStore, Raft<LogEntry, HashStore>)>,
+// ) -> impl Responder {
+//     data.leave().await.unwrap();
+//     "OK".to_string()
+// }
 
 #[actix_rt::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
@@ -126,6 +120,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     request_id_resp = Raft::<LogEntry, HashStore>::request_id(peer_addr.clone())
                         .await
                         .ok();
+                    println!("request_id_resp : {:?}", request_id_resp);
                     request_id_resp.to_owned().unwrap().reserved_id
                 }
             };
@@ -168,20 +163,14 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    let mailbox = Arc::new(raft.mailbox());
-
     if let Some(addr) = options.web_server {
         let _web_server = tokio::spawn(
             HttpServer::new(move || {
                 App::new()
-                    .app_data(web::Data::new((
-                        mailbox.clone(),
-                        store.clone(),
-                        raft.clone(),
-                    )))
+                    .app_data(web::Data::new((store.clone(), raft.clone())))
                     .service(put)
                     .service(get)
-                    .service(leave)
+                    // .service(leave)
                     .service(leader_id)
             })
             .bind(addr)

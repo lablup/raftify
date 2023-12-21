@@ -3,11 +3,10 @@ use crate::raft_node::RaftNode;
 use crate::raft_server::RaftServer;
 use crate::raft_service::raft_service_client::RaftServiceClient;
 use crate::raft_service::{
-    ChangeConfigResultType, MemberBootstrapReadyArgs, RequestIdArgs, ResultCode,
+    ChangeConfigResultType, MemberBootstrapReadyArgs, ResultCode, self,
 };
-use crate::request_message::RequestMessage;
-use crate::storage::heed::LogStore;
-use crate::{create_client, AbstractLogEntry, AbstractStateMachine, Config, Mailbox, Peer, Peers};
+use crate::request_message::ServerRequestMsg;
+use crate::{create_client, AbstractLogEntry, AbstractStateMachine, Config, Peer, Peers};
 use std::collections::HashMap;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
@@ -26,7 +25,7 @@ pub struct Raft<
 > {
     pub raft_node: RaftNode<LogEntry, FSM>,
     pub raft_server: RaftServer,
-    pub tx: mpsc::Sender<RequestMessage>,
+    pub server_tx: mpsc::Sender<ServerRequestMsg>,
     pub raft_addr: SocketAddr,
     pub logger: slog::Logger,
     pub config: Config,
@@ -56,33 +55,38 @@ impl<
         let raft_addr = raft_addr.to_socket_addrs()?.next().unwrap();
         let initial_peers = initial_peers.unwrap_or_default();
 
-        let (tx, rx) = mpsc::channel(100);
+        let (local_tx, local_rx) = mpsc::channel(100);
+        let (server_tx, server_rx) = mpsc::channel(100);
         let bootstrap_done = initial_peers.is_empty();
 
         let raft_node = match node_id {
             1 => RaftNode::bootstrap_cluster(
-                rx,
-                tx.clone(),
                 fsm,
                 config.clone(),
                 initial_peers,
                 logger.clone(),
                 bootstrap_done,
+                server_rx,
+                server_tx.clone(),
+                local_rx,
+                local_tx.clone(),
             ),
             _ => RaftNode::new_follower(
-                rx,
-                tx.clone(),
                 node_id,
                 fsm,
                 config.clone(),
                 initial_peers,
                 logger.clone(),
                 bootstrap_done,
+                server_rx,
+                server_tx.clone(),
+                local_rx,
+                local_tx.clone(),
             ),
         }?;
 
         let raft_server = RaftServer::new(
-            tx.clone(),
+            server_tx.clone(),
             raft_addr.clone(),
             config.clone(),
             logger.clone(),
@@ -90,20 +94,12 @@ impl<
 
         Ok(Self {
             raft_addr,
-            tx: tx.clone(),
+            server_tx: server_tx.clone(),
             raft_node,
             raft_server,
             config,
             logger,
         })
-    }
-
-    pub fn mailbox(&self) -> Mailbox {
-        Mailbox {
-            snd: self.tx.to_owned(),
-            peers: HashMap::new(),
-            logger: self.logger.clone(),
-        }
     }
 
     pub async fn run(self) -> Result<()> {
@@ -151,12 +147,16 @@ impl<
         loop {
             let mut client = create_client(&leader_addr).await.unwrap();
             let response = client
-                .request_id(Request::new(RequestIdArgs {}))
+                .request_id(Request::new(raft_service::Empty {}))
                 .await?
                 .into_inner();
 
+            println!("Response code: {:?}", response.code());
+            println!("Response: {:?}", response);
+
             match response.code() {
                 ResultCode::WrongLeader => {
+                    println!("wrongLeader!!");
                     leader_addr = response.leader_addr;
                     println!(
                         "Sent message to the wrong leader, retrying with leader at {}",
@@ -165,14 +165,17 @@ impl<
                     continue;
                 }
                 ResultCode::Ok => {
-                    break {
-                        Ok(RequestIdResponse {
-                            reserved_id: response.reserved_id,
-                            leader_id: response.leader_id,
-                            leader_addr: response.leader_addr,
-                            peers: deserialize(&response.peers)?,
-                        })
-                    };
+                    println!("ok!! 1 {:?}", response);
+                    let res = Ok(RequestIdResponse {
+                        reserved_id: response.reserved_id,
+                        leader_id: response.leader_id,
+                        leader_addr: response.leader_addr,
+                        peers: deserialize(&response.peers)?,
+                    });
+
+                    println!("ok!! 2 {:?}", res);
+
+                    return res;
                 }
                 ResultCode::Error => return Err(Error::JoinError),
             }
@@ -220,18 +223,18 @@ impl<
         Ok(())
     }
 
-    pub async fn snapshot(&mut self) -> Result<()> {
-        let store = self.raft_node.store().await;
-        let hard_state = store.hard_state()?;
-        self.raft_node
-            .make_snapshot(store.last_index()?, hard_state.term)
-            .await?;
-        Ok(())
-    }
+    // pub async fn snapshot(&mut self) -> Result<()> {
+    //     let store = self.raft_node.store().await;
+    //     let hard_state = store.hard_state()?;
+    //     self.raft_node
+    //         .make_snapshot(store.last_index()?, hard_state.term)
+    //         .await?;
+    //     Ok(())
+    // }
 
-    pub async fn cluster_size(&self) -> usize {
-        self.raft_node.get_cluster_size().await
-    }
+    // pub async fn cluster_size(&self) -> usize {
+    //     self.raft_node.get_cluster_size().await
+    // }
 
     pub async fn join(&mut self, request_id_response: RequestIdResponse) -> Result<()> {
         let leader_id = request_id_response.leader_id;

@@ -34,7 +34,5 @@ built = "0.5"
 
 [workspace]
 members = [
-    "binding/python",
     "examples/memstore",
-    "harness",
 ]

@@ -7,11 +7,15 @@ use std::time::{Duration, Instant};
 
 use crate::error::{Result, SendMessageError};
 use crate::raft_service::{ClusterBootstrapReadyArgs, ResultCode};
-use crate::request_message::RequestMessage;
-use crate::response_message::ResponseMessage;
+use crate::request_message::{LocalRequestMsg, ServerRequestMsg};
+use crate::response_message::{
+    LocalResponseMsg, ResponseMessage, ServerConfChangeResponseResult, ServerResponseMsg,
+    ServerResponseResult,
+};
 use crate::storage::heed::{HeedStorage, LogStore};
 use crate::storage::utils::get_storage_path;
-use crate::{AbstractLogEntry, Peers};
+use crate::utils::OneShotMutex;
+use crate::{AbstractLogEntry, Error, Peers};
 use crate::{AbstractStateMachine, Config};
 
 use bincode::{deserialize, serialize};
@@ -22,29 +26,21 @@ use raft::eraftpb::{
     Message as RaftMessage, Snapshot,
 };
 use raft::raw_node::RawNode;
-use tokio::sync::{mpsc, Mutex, RwLockReadGuard, RwLockWriteGuard};
-use tokio::sync::{oneshot, RwLock};
-use tokio::time::timeout;
+use tokio::select;
+use tokio::sync::oneshot;
+use tokio::sync::{mpsc, Mutex};
+use tokio::time::interval;
 use tonic::Request;
 
 #[derive(Clone)]
 pub struct RaftNode<
     LogEntry: AbstractLogEntry + Send + 'static,
     FSM: AbstractStateMachine<LogEntry> + Clone + 'static,
->(Arc<RwLock<RaftNodeCore<LogEntry, FSM>>>);
-
-impl<
-        LogEntry: AbstractLogEntry + Send + 'static,
-        FSM: AbstractStateMachine<LogEntry> + Clone + Send + 'static,
-    > RaftNode<LogEntry, FSM>
-{
-    async fn wl(&mut self) -> RwLockWriteGuard<RaftNodeCore<LogEntry, FSM>> {
-        self.0.write().await
-    }
-
-    async fn rl(&self) -> RwLockReadGuard<RaftNodeCore<LogEntry, FSM>> {
-        self.0.read().await
-    }
+> {
+    // The lock of RaftNodeCore is locked when RaftNode.run is called and is never released until program terminates.
+    // However, to implement the Clone trait in RaftNode, Arc and Mutex are necessary. That's why we use OneShotMutex here.
+    inner: Arc<OneShotMutex<RaftNodeCore<LogEntry, FSM>>>,
+    local_sender: mpsc::Sender<LocalRequestMsg>,
 }
 
 impl<
@@ -53,98 +49,227 @@ impl<
     > RaftNode<LogEntry, FSM>
 {
     pub fn bootstrap_cluster(
-        rcv: mpsc::Receiver<RequestMessage>,
-        snd: mpsc::Sender<RequestMessage>,
         fsm: FSM,
         config: Config,
         initial_peers: Peers,
         logger: slog::Logger,
         bootstrap_done: bool,
+        server_rcv: mpsc::Receiver<ServerRequestMsg>,
+        server_snd: mpsc::Sender<ServerRequestMsg>,
+        local_rcv: mpsc::Receiver<LocalRequestMsg>,
+        local_snd: mpsc::Sender<LocalRequestMsg>,
     ) -> Result<Self> {
         RaftNodeCore::<LogEntry, FSM>::bootstrap_cluster(
-            rcv,
-            snd,
             fsm,
             config,
             initial_peers,
             logger,
             bootstrap_done,
+            server_rcv,
+            server_snd,
+            local_rcv,
+            local_snd.clone(),
         )
-        .map(|core| Self(Arc::new(RwLock::new(core))))
+        .map(|core| Self {
+            inner: Arc::new(OneShotMutex::new(core)),
+            local_sender: local_snd.clone(),
+        })
     }
 
     pub fn new_follower(
-        rcv: mpsc::Receiver<RequestMessage>,
-        snd: mpsc::Sender<RequestMessage>,
         id: u64,
         fsm: FSM,
         config: Config,
         peers: Peers,
         logger: slog::Logger,
         bootstrap_done: bool,
+        server_rcv: mpsc::Receiver<ServerRequestMsg>,
+        server_snd: mpsc::Sender<ServerRequestMsg>,
+        local_rcv: mpsc::Receiver<LocalRequestMsg>,
+        local_snd: mpsc::Sender<LocalRequestMsg>,
     ) -> Result<Self> {
         RaftNodeCore::<LogEntry, FSM>::new_follower(
-            rcv,
-            snd,
             id,
             fsm,
             config,
             peers,
             logger,
             bootstrap_done,
+            server_rcv,
+            server_snd,
+            local_rcv,
+            local_snd.clone(),
         )
-        .map(|core| Self(Arc::new(RwLock::new(core))))
+        .map(|core| Self {
+            inner: Arc::new(OneShotMutex::new(core)),
+            local_sender: local_snd.clone(),
+        })
     }
 
     pub async fn is_leader(&self) -> bool {
-        self.rl().await.is_leader()
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::IsLeader { chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+
+        match resp {
+            LocalResponseMsg::IsLeader { is_leader } => is_leader,
+            _ => unreachable!(),
+        }
     }
 
     pub async fn get_id(&self) -> u64 {
-        self.rl().await.get_id()
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::IsLeader { chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+
+        match resp {
+            LocalResponseMsg::GetId { id } => id,
+            _ => unreachable!(),
+        }
     }
 
     pub async fn get_leader_id(&self) -> u64 {
-        self.rl().await.get_leader_id()
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::GetLeaderId { chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+
+        match resp {
+            LocalResponseMsg::GetLeaderId { leader_id } => leader_id,
+            _ => unreachable!(),
+        }
     }
 
     pub async fn get_peers(&self) -> Peers {
-        self.rl().await.get_peers().await
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::GetPeers { chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+
+        match resp {
+            LocalResponseMsg::GetPeers { peers } => peers,
+            _ => unreachable!(),
+        }
     }
 
     pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
-        self.wl().await.add_peer(id, addr).await
+        let addr = addr.to_socket_addrs().unwrap().next().unwrap().to_string();
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::AddPeer { id, addr, chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+
+        match resp {
+            LocalResponseMsg::AddPeer {} => (),
+            _ => unreachable!(),
+        }
     }
 
     pub async fn inspect(&self) -> Result<String> {
-        self.rl().await.inspect().await
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::Inspect { chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+
+        match resp {
+            LocalResponseMsg::Inspect { result } => Ok(result),
+            _ => unreachable!(),
+        }
     }
 
     pub async fn store(&self) -> HeedStorage {
-        self.rl().await.raw_node.store().clone()
-    }
-
-    pub async fn get_cluster_size(&self) -> usize {
-        self.rl()
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::Storage { chan: tx })
             .await
-            .raw_node
-            .raft
-            .prs()
-            .iter()
-            .collect::<Vec<_>>()
-            .len()
+            .unwrap();
+        let resp = rx.await.unwrap();
+
+        match resp {
+            LocalResponseMsg::Storage { storage } => storage,
+            _ => unreachable!(),
+        }
     }
 
-    pub async fn quit(&mut self) {
-        self.wl().await.should_exit = true;
+    pub async fn propose(&self, proposal: Vec<u8>) {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::Propose { proposal, chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
+            LocalResponseMsg::Propose {} => (),
+            _ => unreachable!(),
+        }
     }
 
-    pub async fn make_snapshot(&mut self, index: u64, term: u64) -> Result<()> {
-        self.wl().await.make_snapshot(index, term).await
-    }
+    // pub async fn get_cluster_size(&self) -> usize {
+    //     self.rl()
+    //         .await
+    //         .raw_node
+    //         .raft
+    //         .prs()
+    //         .iter()
+    //         .collect::<Vec<_>>()
+    //         .len()
+    // }
 
-    pub async fn run(mut self) -> Result<()> {
-        self.wl().await.run().await
+    // pub async fn quit(&mut self) {
+    //     self.wl().await.should_exit = true;
+    // }
+
+    // pub async fn make_snapshot(&mut self, index: u64, term: u64) -> Result<()> {
+    //     self.wl().await.make_snapshot(index, term).await
+    // }
+
+    pub async fn run(self) -> Result<()> {
+        self.inner
+            .lock()
+            .await
+            .expect("RaftNode mutex's owner should be RaftNode.run!")
+            .run()
+            .await
+    }
+}
+
+enum ResponseSender {
+    Local(oneshot::Sender<LocalResponseMsg>),
+    Server(oneshot::Sender<ServerResponseMsg>),
+}
+
+impl ResponseSender {
+    fn send(self, response: ResponseMessage) {
+        match self {
+            ResponseSender::Local(sender) => {
+                if let ResponseMessage::Local(response) = response {
+                    sender.send(response).unwrap()
+                } else {
+                    unreachable!()
+                }
+            }
+            ResponseSender::Server(sender) => {
+                if let ResponseMessage::Server(response) = response {
+                    sender.send(response).unwrap()
+                } else {
+                    unreachable!()
+                }
+            }
+        }
     }
 }
 
@@ -153,10 +278,8 @@ pub struct RaftNodeCore<
     FSM: AbstractStateMachine<LogEntry> + Clone + 'static,
 > {
     pub raw_node: RawNode<HeedStorage>,
-    pub rcv: mpsc::Receiver<RequestMessage>,
     pub fsm: FSM,
     pub peers: Arc<Mutex<Peers>>,
-    pub snd: mpsc::Sender<RequestMessage>,
     response_seq: AtomicU64,
     config: Config,
     should_exit: bool,
@@ -164,8 +287,15 @@ pub struct RaftNodeCore<
     logger: slog::Logger,
     bootstrap_done: bool,
     peers_bootstrap_ready: Option<HashMap<u64, bool>>,
+    response_senders: HashMap<u64, ResponseSender>,
 
-    _phantom_log_entry: PhantomData<LogEntry>,
+    server_rcv: mpsc::Receiver<ServerRequestMsg>,
+    server_snd: mpsc::Sender<ServerRequestMsg>,
+    local_rcv: mpsc::Receiver<LocalRequestMsg>,
+    #[allow(dead_code)]
+    local_snd: mpsc::Sender<LocalRequestMsg>,
+
+    _phantom_log_entry_typ: PhantomData<LogEntry>,
 }
 
 impl<
@@ -174,13 +304,15 @@ impl<
     > RaftNodeCore<LogEntry, FSM>
 {
     pub fn bootstrap_cluster(
-        rcv: mpsc::Receiver<RequestMessage>,
-        snd: mpsc::Sender<RequestMessage>,
         fsm: FSM,
         config: Config,
         initial_peers: Peers,
         logger: slog::Logger,
         bootstrap_done: bool,
+        server_rcv: mpsc::Receiver<ServerRequestMsg>,
+        server_snd: mpsc::Sender<ServerRequestMsg>,
+        local_rcv: mpsc::Receiver<LocalRequestMsg>,
+        local_snd: mpsc::Sender<LocalRequestMsg>,
     ) -> Result<Self> {
         let mut raft_config = config.raft_config.clone();
 
@@ -214,10 +346,8 @@ impl<
 
         Ok(RaftNodeCore {
             raw_node,
-            rcv,
             fsm,
             response_seq,
-            snd,
             config,
             logger,
             last_snapshot_created,
@@ -225,19 +355,26 @@ impl<
             peers: Arc::new(Mutex::new(initial_peers)),
             bootstrap_done,
             peers_bootstrap_ready,
-            _phantom_log_entry: PhantomData,
+            response_senders: HashMap::new(),
+            server_rcv,
+            server_snd,
+            local_rcv,
+            local_snd,
+            _phantom_log_entry_typ: PhantomData,
         })
     }
 
     pub fn new_follower(
-        rcv: mpsc::Receiver<RequestMessage>,
-        snd: mpsc::Sender<RequestMessage>,
         node_id: u64,
         fsm: FSM,
         config: Config,
         peers: Peers,
         logger: slog::Logger,
         bootstrap_done: bool,
+        server_rcv: mpsc::Receiver<ServerRequestMsg>,
+        server_snd: mpsc::Sender<ServerRequestMsg>,
+        local_rcv: mpsc::Receiver<LocalRequestMsg>,
+        local_snd: mpsc::Sender<LocalRequestMsg>,
     ) -> Result<Self> {
         let mut raft_config = config.raft_config.clone();
 
@@ -257,10 +394,8 @@ impl<
 
         Ok(RaftNodeCore {
             raw_node,
-            rcv,
             fsm,
             response_seq,
-            snd,
             config,
             logger,
             last_snapshot_created,
@@ -268,7 +403,12 @@ impl<
             peers: Arc::new(Mutex::new(peers)),
             bootstrap_done,
             peers_bootstrap_ready: None,
-            _phantom_log_entry: PhantomData,
+            response_senders: HashMap::new(),
+            server_rcv,
+            server_snd,
+            local_rcv,
+            local_snd,
+            _phantom_log_entry_typ: PhantomData,
         })
     }
 
@@ -292,46 +432,28 @@ impl<
         self.peers.lock().await.add_peer(id, addr)
     }
 
-    async fn send_wrongleader_response(
-        &self,
-        channel: oneshot::Sender<ResponseMessage>,
-    ) -> Result<()> {
-        let leader_id = self.get_leader_id();
-        let peers = self.peers.lock().await;
-        let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
-
-        let raft_response = ResponseMessage::WrongLeader {
-            leader_id,
-            leader_addr,
-        };
-
-        // TODO handle error here
-        channel.send(raft_response).unwrap();
-        Ok(())
-    }
-
     async fn send_message(
         message: RaftMessage,
         peers: Arc<Mutex<Peers>>,
-        snd: mpsc::Sender<RequestMessage>,
+        snd: mpsc::Sender<ServerRequestMsg>,
         logger: slog::Logger,
     ) {
-        let client_id = message.get_to();
+        let node_id = message.get_to();
 
         let mut ok = std::result::Result::<(), SendMessageError>::Ok(());
 
-        let client = match peers.lock().await.get_mut(&client_id) {
+        let client = match peers.lock().await.get_mut(&node_id) {
             Some(peer) => {
                 if peer.client.is_none() {
                     if let Err(e) = peer.connect().await {
                         slog::trace!(logger, "Connection error: {:?}", e);
-                        ok = Err(SendMessageError::ConnectionError(client_id.to_string()));
+                        ok = Err(SendMessageError::ConnectionError(node_id.to_string()));
                     }
                 }
                 peer.client.clone()
             }
             None => {
-                ok = Err(SendMessageError::PeerNotFoundError(client_id.to_string()));
+                ok = Err(SendMessageError::PeerNotFoundError(node_id.to_string()));
                 None
             }
         };
@@ -340,13 +462,13 @@ impl<
             let message = Request::new(message.clone());
             if let Err(e) = client.send_message(message).await {
                 slog::trace!(logger, "Message transmission error: {:?}", e);
-                ok = Err(SendMessageError::TransmissionError(client_id.to_string()));
+                ok = Err(SendMessageError::TransmissionError(node_id.to_string()));
             }
         }
 
         if let Err(e) = ok {
             slog::debug!(logger, "Error occurred while sending message: {}", e);
-            snd.send(RequestMessage::ReportUnreachable { node_id: client_id })
+            snd.send(ServerRequestMsg::ReportUnreachable { node_id })
                 .await
                 .unwrap();
         }
@@ -361,17 +483,13 @@ impl<
             tokio::spawn(RaftNodeCore::<LogEntry, FSM>::send_message(
                 message,
                 self.peers.clone(),
-                self.snd.clone(),
+                self.server_snd.clone(),
                 self.logger.clone(),
             ));
         }
     }
 
-    async fn handle_committed_entries(
-        &mut self,
-        committed_entries: Vec<Entry>,
-        client_send: &mut HashMap<u64, oneshot::Sender<ResponseMessage>>,
-    ) -> Result<()> {
+    async fn handle_committed_entries(&mut self, committed_entries: Vec<Entry>) -> Result<()> {
         for mut entry in committed_entries {
             if entry.get_data().is_empty() {
                 continue;
@@ -379,31 +497,35 @@ impl<
 
             match entry.get_entry_type() {
                 EntryType::EntryConfChange | EntryType::EntryConfChangeV2 => {
-                    self.handle_committed_config_change_entry(&mut entry, client_send)
+                    self.handle_committed_config_change_entry(&mut entry)
                         .await?;
                 }
                 EntryType::EntryNormal => {
-                    self.handle_committed_normal_entry(&entry, client_send)
-                        .await?;
+                    self.handle_committed_normal_entry(&entry).await?;
                 }
             }
         }
         Ok(())
     }
 
-    async fn handle_committed_normal_entry(
-        &mut self,
-        entry: &Entry,
-        senders: &mut HashMap<u64, oneshot::Sender<ResponseMessage>>,
-    ) -> Result<()> {
+    async fn handle_committed_normal_entry(&mut self, entry: &Entry) -> Result<()> {
         let response_seq: u64 = deserialize(&entry.get_context())?;
         let log_entry = LogEntry::decode(entry.get_data())?;
-        let data = self.fsm.apply(log_entry).await?;
+        let _data = self.fsm.apply(log_entry).await?;
 
-        // TODO: fix this if possible
-        let data = data.encode()?;
-        if let Some(sender) = senders.remove(&response_seq) {
-            sender.send(ResponseMessage::Response { data }).unwrap();
+        if let Some(sender) = self.response_senders.remove(&response_seq) {
+            match sender {
+                ResponseSender::Local(sender) => {
+                    sender.send(LocalResponseMsg::Propose {}).unwrap();
+                }
+                ResponseSender::Server(sender) => {
+                    sender
+                        .send(ServerResponseMsg::Propose {
+                            result: ServerResponseResult::Success,
+                        })
+                        .unwrap();
+                }
+            }
         }
 
         if Instant::now()
@@ -426,11 +548,7 @@ impl<
         Ok(())
     }
 
-    async fn handle_committed_config_change_entry(
-        &mut self,
-        entry: &Entry,
-        senders: &mut HashMap<u64, oneshot::Sender<ResponseMessage>>,
-    ) -> Result<()> {
+    async fn handle_committed_config_change_entry(&mut self, entry: &Entry) -> Result<()> {
         let conf_change_v2 = match entry.get_entry_type() {
             EntryType::EntryConfChange => {
                 let conf_change = ConfChange::decode(entry.get_data())?;
@@ -489,22 +607,23 @@ impl<
             }
         }
 
-        let response_seq = match entry.get_context().is_empty() {
-            true => AtomicU64::new(0),
-            false => deserialize(entry.get_context())?,
+        let response_seq = if entry.get_context().is_empty() {
+            AtomicU64::new(0)
+        } else {
+            deserialize(entry.get_context())?
         };
 
         let response_seq_value = response_seq.load(Ordering::Relaxed);
 
-        if let Some(sender) = senders.remove(&response_seq_value) {
-            let mut response: ResponseMessage = ResponseMessage::Error;
+        if let Some(sender) = self.response_senders.remove(&response_seq_value) {
+            let mut response = ServerConfChangeResponseResult::Error(Error::Unknown);
 
             // TODO: Handle other cases
             if conf_changes.iter().all(|cc| {
                 cc.get_change_type() == ConfChangeType::AddNode
                     || cc.get_change_type() == ConfChangeType::AddLearnerNode
             }) {
-                response = ResponseMessage::JoinSuccess {
+                response = ServerConfChangeResponseResult::JoinSuccess {
                     assigned_id: conf_changes[0].get_node_id(),
                     peers: self.peers.lock().await.clone(),
                 };
@@ -514,12 +633,10 @@ impl<
                 .iter()
                 .all(|cc| cc.get_change_type() == ConfChangeType::RemoveNode)
             {
-                response = ResponseMessage::Ok;
+                response = ServerConfChangeResponseResult::RemoveSuccess;
             }
 
-            if sender.send(response).is_err() {
-                slog::error!(self.logger, "error sending response")
-            }
+            sender.send(ServerResponseMsg::ConfigChange { result: response }.into());
         }
 
         Ok(())
@@ -735,12 +852,216 @@ impl<
         Ok(())
     }
 
-    pub async fn run(&mut self) -> Result<()> {
-        let mut heartbeat = Duration::from_secs_f32(self.config.tick_interval);
-        let mut now = Instant::now();
+    pub async fn handle_local_request_msg(&mut self, message: LocalRequestMsg) -> Result<()> {
+        match message {
+            LocalRequestMsg::IsLeader { chan } => {
+                chan.send(LocalResponseMsg::IsLeader {
+                    is_leader: self.is_leader(),
+                })
+                .unwrap();
+            }
+            LocalRequestMsg::GetId { chan } => {
+                chan.send(LocalResponseMsg::GetId { id: self.get_id() })
+                    .unwrap();
+            }
+            LocalRequestMsg::GetLeaderId { chan } => {
+                chan.send(LocalResponseMsg::GetLeaderId {
+                    leader_id: self.get_leader_id(),
+                })
+                .unwrap();
+            }
+            LocalRequestMsg::GetPeers { chan } => {
+                chan.send(LocalResponseMsg::GetPeers {
+                    peers: self.get_peers().await,
+                })
+                .unwrap();
+            }
+            LocalRequestMsg::AddPeer { id, addr, chan } => {
+                self.add_peer(id, addr).await;
+                chan.send(LocalResponseMsg::AddPeer {}).unwrap();
+            }
+            LocalRequestMsg::Storage { chan } => {
+                chan.send(LocalResponseMsg::Storage {
+                    storage: self.raw_node.store().clone(),
+                })
+                .unwrap();
+            }
+            LocalRequestMsg::Inspect { chan } => {
+                chan.send(LocalResponseMsg::Inspect {
+                    result: self.inspect().await?,
+                })
+                .unwrap();
+            }
+            LocalRequestMsg::Propose { proposal, chan } => {
+                let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
+                self.response_senders
+                    .insert(response_seq, ResponseSender::Local(chan));
+                let response_seq = serialize(&response_seq)?;
+                self.raw_node.propose(response_seq, proposal)?;
+            }
+            // LocalRequestMsg::Quit => {
+            //     self.should_exit = true;
+            // }
+            // LocalRequestMsg::MakeSnapshot { index, term, chan } => {
+            //     self.make_snapshot(index, term).await?;
+            //     chan.send(LocalResponseMsg::Ok).unwrap();
+            // }
+            _ => unreachable!(),
+        }
 
-        // A map to contain sender to client responses
-        let mut client_send = HashMap::new();
+        Ok(())
+    }
+
+    pub async fn handle_server_request_msg(&mut self, message: ServerRequestMsg) -> Result<()> {
+        match message {
+            ServerRequestMsg::ClusterBootstrapReady { chan } => {
+                slog::info!(
+                    self.logger,
+                    "All initial nodes (peers) requested to join cluster. Start to bootstrap process..."
+                );
+                chan.send(ServerResponseMsg::ClusterBootstrapReady {
+                    result: ServerResponseResult::Success,
+                })
+                .unwrap();
+                self.bootstrap_done = true;
+            }
+            ServerRequestMsg::MemberBootstrapReady { node_id, chan } => {
+                assert!(self.is_leader());
+                slog::info!(
+                    self.logger,
+                    "Node {} requested to join the cluster.",
+                    node_id
+                );
+                self.peers_bootstrap_ready
+                    .as_mut()
+                    .unwrap()
+                    .insert(node_id, true);
+
+                chan.send(ServerResponseMsg::MemberBootstrapReady {
+                    result: ServerResponseResult::Success,
+                })
+                .unwrap();
+            }
+            ServerRequestMsg::ConfigChange { chan, conf_change } => {
+                if self.raw_node.raft.has_pending_conf() {
+                    slog::warn!(self.logger, "Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index);
+                    return Ok(());
+                }
+
+                if !self.is_leader() {
+                    // wrong leader send client cluster data
+                    // TODO: retry strategy in case of failure
+                    let leader_id = self.get_leader_id();
+                    let peers = self.peers.lock().await;
+                    let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
+
+                    chan.send(ServerResponseMsg::ConfigChange {
+                        result: ServerConfChangeResponseResult::WrongLeader {
+                            leader_id,
+                            leader_addr,
+                        },
+                    })
+                    .unwrap();
+                } else {
+                    let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
+                    self.response_senders
+                        .insert(response_seq, ResponseSender::Server(chan));
+                    slog::debug!(
+                        self.logger,
+                        "Proposed new config change..., seq={response_seq:}, conf_change_v2={}",
+                        format_confchangev2(&conf_change)
+                    );
+
+                    self.raw_node
+                        .propose_conf_change(serialize(&response_seq).unwrap(), conf_change)?;
+                }
+            }
+            ServerRequestMsg::RaftMessage { message } => {
+                slog::debug!(
+                    self.logger,
+                    "Node {} received Raft message from the node {}, Message: {}",
+                    self.raw_node.raft.id,
+                    message.from,
+                    format_message(&message)
+                );
+                self.raw_node.step(*message)?
+            }
+            ServerRequestMsg::Propose { proposal, chan } => {
+                if !self.is_leader() {
+                    // wrong leader send client cluster data
+                    let leader_id = self.get_leader_id();
+                    // leader can't be an empty node
+                    let leader_addr = self
+                        .peers
+                        .lock()
+                        .await
+                        .get(&leader_id)
+                        .unwrap()
+                        .addr
+                        .to_string();
+                    let raft_response = ServerResponseMsg::Propose {
+                        result: ServerResponseResult::WrongLeader {
+                            leader_id,
+                            leader_addr,
+                        },
+                    };
+                    chan.send(raft_response).unwrap();
+                } else {
+                    let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
+                    self.response_senders
+                        .insert(response_seq, ResponseSender::Server(chan));
+                    let response_seq = serialize(&response_seq)?;
+                    self.raw_node.propose(response_seq, proposal)?;
+                }
+            }
+            ServerRequestMsg::RequestId { chan } => {
+                if !self.is_leader() {
+                    // TODO: retry strategy in case of failure
+                    let leader_id = self.get_leader_id();
+                    let peers = self.peers.lock().await;
+                    let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
+
+                    chan.send(ServerResponseMsg::RequestId {
+                        result: ServerResponseResult::WrongLeader {
+                            leader_id,
+                            leader_addr,
+                        },
+                        leader_addr: None,
+                        leader_id: None,
+                        reserved_id: None,
+                        peers: None,
+                    })
+                    .unwrap();
+                } else {
+                    let reserved_id = self.peers.lock().await.reserve_peer(self.get_id());
+                    slog::info!(self.logger, "Reserved node id, {}", reserved_id);
+
+                    chan.send(ServerResponseMsg::RequestId {
+                        result: ServerResponseResult::Success,
+                        reserved_id: Some(reserved_id),
+                        leader_id: Some(self.get_id()),
+                        leader_addr: None,
+                        peers: Some(self.peers.lock().await.clone()),
+                    })
+                    .unwrap();
+                }
+            }
+            ServerRequestMsg::ReportUnreachable { node_id } => {
+                self.raw_node.report_unreachable(node_id);
+            }
+            ServerRequestMsg::DebugNode { chan } => {
+                chan.send(ServerResponseMsg::DebugNode {
+                    result: self.inspect().await?,
+                })
+                .unwrap();
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn run(&mut self) -> Result<()> {
+        let mut tick_timer = interval(Duration::from_secs_f32(self.config.tick_interval));
 
         loop {
             if self.should_exit {
@@ -752,139 +1073,33 @@ impl<
                 self.wait_for_initial_peers_bootstrap().await?;
             }
 
-            match timeout(heartbeat, self.rcv.recv()).await {
-                Ok(Some(RequestMessage::ClusterBootstrapReady { chan })) => {
-                    slog::info!(
-                        self.logger,
-                        "All initial nodes (peers) requested to join cluster. Start to bootstrap process..."
-                    );
-                    chan.send(ResponseMessage::Ok).unwrap();
-                    self.bootstrap_done = true;
+            select! {
+                _ = tick_timer.tick() => {
+                    self.raw_node.tick();
                 }
-                Ok(Some(RequestMessage::MemberBootstrapReady { node_id, chan })) => {
-                    assert!(self.is_leader());
-                    slog::info!(
-                        self.logger,
-                        "Node {} requested to join the cluster.",
-                        node_id
-                    );
-                    self.peers_bootstrap_ready
-                        .as_mut()
-                        .unwrap()
-                        .insert(node_id, true);
-
-                    chan.send(ResponseMessage::Ok).unwrap();
-                }
-                Ok(Some(RequestMessage::ConfigChange { chan, conf_change })) => {
-                    if self.raw_node.raft.has_pending_conf() {
-                        slog::warn!(self.logger, "Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index);
-                        continue;
-                    }
-
-                    if !self.is_leader() {
-                        // wrong leader send client cluster data
-                        // TODO: retry strategy in case of failure
-                        self.send_wrongleader_response(chan).await?;
-                    } else {
-                        let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
-                        client_send.insert(response_seq, chan);
-                        slog::debug!(
-                            self.logger,
-                            "Proposed new config change..., seq={response_seq:}, conf_change_v2={}",
-                            format_confchangev2(&conf_change)
-                        );
-
-                        self.raw_node
-                            .propose_conf_change(serialize(&response_seq).unwrap(), conf_change)?;
+                msg = self.server_rcv.recv() => {
+                    if let Some(message) = msg {
+                        self.handle_server_request_msg(message).await?;
                     }
                 }
-                Ok(Some(RequestMessage::RaftMessage { message })) => {
-                    slog::debug!(
-                        self.logger,
-                        "Node {} received Raft message from the node {}, Message: {}",
-                        self.raw_node.raft.id,
-                        message.from,
-                        format_message(&message)
-                    );
-                    self.raw_node.step(*message)?
-                }
-                Ok(Some(RequestMessage::Propose { proposal, chan })) => {
-                    if !self.is_leader() {
-                        // wrong leader send client cluster data
-                        let leader_id = self.get_leader_id();
-                        // leader can't be an empty node
-                        let leader_addr = self
-                            .peers
-                            .lock()
-                            .await
-                            .get(&leader_id)
-                            .unwrap()
-                            .addr
-                            .to_string();
-                        let raft_response = ResponseMessage::WrongLeader {
-                            leader_id,
-                            leader_addr,
-                        };
-                        chan.send(raft_response).unwrap();
-                    } else {
-                        let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
-                        client_send.insert(response_seq, chan);
-                        let response_seq = serialize(&response_seq).unwrap();
-                        self.raw_node.propose(response_seq, proposal).unwrap();
+                msg = self.local_rcv.recv() => {
+                    if let Some(message) = msg {
+                        self.handle_local_request_msg(message).await?;
                     }
                 }
-                Ok(Some(RequestMessage::RequestId { chan })) => {
-                    if !self.is_leader() {
-                        // TODO: retry strategy in case of failure
-                        self.send_wrongleader_response(chan).await?;
-                    } else {
-                        let reserved_id = self.peers.lock().await.reserve_peer(self.get_id());
-                        slog::info!(self.logger, "Reserved peer id, {}", reserved_id);
-
-                        chan.send(ResponseMessage::IdReserved {
-                            reserved_id,
-                            leader_id: self.get_id(),
-                            peers: self.peers.lock().await.clone(),
-                        })
-                        .unwrap();
-                    }
-                }
-                Ok(Some(RequestMessage::ReportUnreachable { node_id })) => {
-                    self.raw_node.report_unreachable(node_id);
-                }
-                Ok(Some(RequestMessage::DebugNode { chan })) => {
-                    chan.send(ResponseMessage::DebugNode {
-                        result: self.inspect().await?,
-                    })
-                    .unwrap();
-                }
-                Ok(_) => unreachable!(),
-                Err(_) => (),
-            }
-
-            let elapsed = now.elapsed();
-            now = Instant::now();
-            if elapsed > heartbeat {
-                heartbeat = Duration::from_secs_f32(self.config.tick_interval);
-                self.raw_node.tick();
-            } else {
-                heartbeat -= elapsed;
             }
 
             // TODO: Remove this after investigating why tokio::join not failing when one of the Result is Err
-            match self.on_ready(&mut client_send).await {
+            match self.on_ready().await {
                 Ok(_) => {}
                 Err(e) => {
-                    panic!("Error occurred while processing ready: {}", e);
+                    panic!("Error occurred while processing ready: {:?}", e);
                 }
             }
         }
     }
 
-    async fn on_ready(
-        &mut self,
-        client_send: &mut HashMap<u64, oneshot::Sender<ResponseMessage>>,
-    ) -> Result<()> {
+    async fn on_ready(&mut self) -> Result<()> {
         if !self.raw_node.has_ready() {
             return Ok(());
         }
@@ -908,7 +1123,7 @@ impl<
             store.apply_snapshot(snapshot.clone())?;
         }
 
-        self.handle_committed_entries(ready.take_committed_entries(), client_send)
+        self.handle_committed_entries(ready.take_committed_entries())
             .await?;
 
         if !ready.entries().is_empty() {
@@ -934,7 +1149,7 @@ impl<
         }
 
         self.send_messages(light_rd.take_messages()).await;
-        self.handle_committed_entries(light_rd.take_committed_entries(), client_send)
+        self.handle_committed_entries(light_rd.take_committed_entries())
             .await?;
 
         self.raw_node.advance_apply();

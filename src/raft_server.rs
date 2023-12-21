@@ -2,9 +2,9 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
 
 use crate::raft_service::raft_service_server::{RaftService, RaftServiceServer};
-use crate::raft_service::{self, Empty, RequestIdArgs};
-use crate::request_message::RequestMessage;
-use crate::response_message::ResponseMessage;
+use crate::raft_service::{self, Empty};
+use crate::request_message::ServerRequestMsg;
+use crate::response_message::{ServerResponseMsg, ServerResponseResult};
 use crate::Config;
 
 use bincode::serialize;
@@ -17,7 +17,7 @@ use tonic::{Request, Response, Status};
 
 #[derive(Clone)]
 pub struct RaftServer {
-    snd: mpsc::Sender<RequestMessage>,
+    snd: mpsc::Sender<ServerRequestMsg>,
     addr: SocketAddr,
     config: Config,
     logger: slog::Logger,
@@ -25,7 +25,7 @@ pub struct RaftServer {
 
 impl RaftServer {
     pub fn new<A: ToSocketAddrs>(
-        snd: mpsc::Sender<RequestMessage>,
+        snd: mpsc::Sender<ServerRequestMsg>,
         addr: A,
         config: Config,
         logger: slog::Logger,
@@ -62,41 +62,46 @@ impl RaftServer {
 impl RaftService for RaftServer {
     async fn request_id(
         &self,
-        request: Request<RequestIdArgs>,
+        request: Request<Empty>,
     ) -> Result<Response<raft_service::RequestIdResponse>, Status> {
         let _request_args = request.into_inner();
         let sender = self.snd.clone();
         let (tx, rx) = oneshot::channel();
         sender
-            .send(RequestMessage::RequestId { chan: tx })
+            .send(ServerRequestMsg::RequestId { chan: tx })
             .await
             .unwrap();
         let response = rx.await.unwrap();
+
         match response {
-            ResponseMessage::WrongLeader {
+            ServerResponseMsg::RequestId {
+                result,
+                reserved_id,
                 leader_id,
                 leader_addr,
-            } => {
-                slog::warn!(self.logger, "sending wrong leader");
-                Ok(Response::new(raft_service::RequestIdResponse {
+                peers,
+            } => match result {
+                ServerResponseResult::Success => {
+                    Ok(Response::new(raft_service::RequestIdResponse {
+                        code: raft_service::ResultCode::Ok as i32,
+                        leader_id: leader_id.unwrap(),
+                        leader_addr: self.addr.to_string(),
+                        reserved_id: reserved_id.unwrap(),
+                        peers: serialize(&peers.unwrap()).unwrap(),
+                    }))
+                }
+                ServerResponseResult::WrongLeader {
+                    leader_id,
+                    leader_addr,
+                } => Ok(Response::new(raft_service::RequestIdResponse {
                     code: raft_service::ResultCode::WrongLeader as i32,
                     leader_id,
                     leader_addr,
                     reserved_id: 0,
                     peers: vec![],
-                }))
-            }
-            ResponseMessage::IdReserved {
-                reserved_id,
-                leader_id,
-                peers,
-            } => Ok(Response::new(raft_service::RequestIdResponse {
-                code: raft_service::ResultCode::Ok as i32,
-                leader_id,
-                leader_addr: self.addr.to_string(),
-                reserved_id,
-                peers: serialize(&peers).unwrap(),
-            })),
+                })),
+                _ => unreachable!(),
+            },
             _ => unreachable!(),
         }
     }
@@ -109,7 +114,7 @@ impl RaftService for RaftServer {
         let sender = self.snd.clone();
         let (tx, rx) = oneshot::channel();
 
-        let message = RequestMessage::ConfigChange {
+        let message = ServerRequestMsg::ConfigChange {
             conf_change: request_args,
             chan: tx,
         };
@@ -148,11 +153,11 @@ impl RaftService for RaftServer {
     async fn send_message(
         &self,
         request: Request<RaftMessage>,
-    ) -> Result<Response<raft_service::RaftResponse>, Status> {
+    ) -> Result<Response<raft_service::Empty>, Status> {
         let request_args = request.into_inner();
         let sender = self.snd.clone();
         match sender
-            .send(RequestMessage::RaftMessage {
+            .send(ServerRequestMsg::RaftMessage {
                 message: Box::new(request_args),
             })
             .await
@@ -161,10 +166,7 @@ impl RaftService for RaftServer {
             Err(_) => slog::error!(self.logger, "send error"),
         }
 
-        let response = ResponseMessage::Ok;
-        Ok(Response::new(raft_service::RaftResponse {
-            inner: serialize(&response).unwrap(),
-        }))
+        Ok(Response::new(raft_service::Empty {}))
     }
 
     async fn debug_node(
@@ -175,14 +177,14 @@ impl RaftService for RaftServer {
         let sender = self.snd.clone();
         let (tx, rx) = oneshot::channel();
 
-        match sender.send(RequestMessage::DebugNode { chan: tx }).await {
+        match sender.send(ServerRequestMsg::DebugNode { chan: tx }).await {
             Ok(_) => (),
             Err(_) => slog::error!(self.logger, "send error"),
         }
 
         let response = rx.await.unwrap();
         match response {
-            ResponseMessage::DebugNode { result } => {
+            ServerResponseMsg::DebugNode { result } => {
                 Ok(Response::new(raft_service::DebugNodeResponse { result }))
             }
             _ => unreachable!(),
@@ -197,7 +199,7 @@ impl RaftService for RaftServer {
         let (tx, rx) = oneshot::channel();
         let sender = self.snd.clone();
         match sender
-            .send(RequestMessage::MemberBootstrapReady {
+            .send(ServerRequestMsg::MemberBootstrapReady {
                 node_id: request_args.node_id,
                 chan: tx,
             })
@@ -220,7 +222,7 @@ impl RaftService for RaftServer {
         let (tx, rx) = oneshot::channel();
         let sender = self.snd.clone();
         match sender
-            .send(RequestMessage::ClusterBootstrapReady { chan: tx })
+            .send(ServerRequestMsg::ClusterBootstrapReady { chan: tx })
             .await
         {
             Ok(_) => (),

@@ -11,6 +11,7 @@ use crate::config::Config;
 use prost::Message as PMessage;
 use std::borrow::Cow;
 use std::cmp::max;
+use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -305,6 +306,15 @@ impl HeedStorageCore {
 
 #[derive(Clone)]
 pub struct HeedStorage(Arc<RwLock<HeedStorageCore>>);
+
+// TODO: Improve this.
+impl fmt::Debug for HeedStorage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("HeedStorage")
+            .field(&format_args!("..."))
+            .finish()
+    }
+}
 
 impl HeedStorage {
     pub fn create(log_dir_path: PathBuf, config: &Config, logger: slog::Logger) -> Result<Self> {
