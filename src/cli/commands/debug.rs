@@ -40,6 +40,6 @@ pub async fn debug_node(addr: &str) -> Result<()> {
     Ok(())
 }
 
-pub async fn debug_entries(addr: &str) -> Result<()> {
+pub async fn debug_entries(_addr: &str) -> Result<()> {
     todo!()
 }

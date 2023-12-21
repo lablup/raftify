@@ -56,7 +56,7 @@ pub async fn test_data_replication() {
         let store = raft_4.raft_node.store().await;
         let store_lk = store.0.read().unwrap();
 
-        //  Data should be replicated to new joined node.
+        // Data should be replicated to new joined node.
         assert_eq!(store_lk.get(&1).unwrap(), "test");
 
         for (_, raft) in rafts.iter_mut() {

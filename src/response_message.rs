@@ -44,19 +44,15 @@ pub enum ServerResponseMsg {
     MemberBootstrapReady {
         result: ServerResponseResult,
     },
-
     ClusterBootstrapReady {
         result: ServerResponseResult,
     },
-
     Propose {
         result: ServerResponseResult,
     },
-
     ConfigChange {
         result: ServerConfChangeResponseResult,
     },
-
     RequestId {
         result: ServerResponseResult,
         reserved_id: Option<u64>,
@@ -64,15 +60,12 @@ pub enum ServerResponseMsg {
         leader_addr: Option<String>,
         peers: Option<Peers>,
     },
-
     ReportUnreachable {
         result: ServerResponseResult,
     },
-
     DebugNode {
         result: String,
     },
-
     RaftMessage {
         result: ServerResponseResult,
     },
