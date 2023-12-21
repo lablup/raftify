@@ -7,7 +7,7 @@ use toml;
 
 use raftify::{Config, Peers, RaftConfig};
 
-use crate::raft_server::{Raft, RAFTS};
+use crate::raft_server::Raft;
 
 pub fn build_config() -> Config {
     let mut cfg = Config::default();
@@ -56,6 +56,8 @@ pub async fn load_peers(filename: &str) -> Result<Peers, Box<dyn std::error::Err
 }
 
 pub async fn wait_for_until_cluster_size_increase(raft: Raft, target: usize) {
+    println!("Waiting for cluster size to increase to {}...", target);
+
     loop {
         let size = raft.cluster_size().await;
         if size >= target {
@@ -69,6 +71,8 @@ pub async fn wait_for_until_cluster_size_increase(raft: Raft, target: usize) {
 }
 
 pub async fn wait_for_until_cluster_size_decrease(raft: Raft, target: usize) {
+    println!("Waiting for cluster size to decrease to {}...", target);
+
     loop {
         let size = raft.cluster_size().await;
         if size <= target {

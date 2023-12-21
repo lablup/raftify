@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -745,7 +744,6 @@ impl<
                     "Waiting for all follower nodes to be ready to join the cluster..."
                 );
             }
-            // tokio::time::sleep(Duration::from_secs(1)).await;
             return Ok(());
         }
 

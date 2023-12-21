@@ -1,7 +1,7 @@
 use futures::future;
 use once_cell::sync::Lazy;
 use raftify::{raft::default_logger, Peers, Raft as Raft_, Result};
-use std::sync::Mutex;
+use std::{collections::HashMap, sync::Mutex};
 use tokio::task::JoinHandle;
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
 
 pub type Raft = Raft_<LogEntry, HashStore>;
 
-pub static RAFTS: Lazy<Mutex<Vec<Raft>>> = Lazy::new(|| Mutex::new(vec![]));
+pub static RAFTS: Lazy<Mutex<HashMap<u64, Raft>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
     let peer = peers.get(node_id).unwrap();
@@ -29,7 +29,7 @@ fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
     )
     .expect("Raft build failed!");
 
-    RAFTS.lock().unwrap().push(raft.clone());
+    RAFTS.lock().unwrap().insert(*node_id, raft.clone());
 
     let raft_handle = tokio::spawn(raft.clone().run());
 
@@ -61,16 +61,36 @@ pub async fn run_rafts(peers: Peers) -> Result<()> {
     Ok(())
 }
 
-pub async fn bootstrap(peers: Peers) -> Result<()> {
+pub async fn handle_bootstrap(peers: Peers) -> Result<()> {
     let leader_addr = peers.get(&1).unwrap().addr;
 
     for (node_id, _) in peers.iter() {
         if node_id != 1 {
             let mut raft_lk = RAFTS.lock().unwrap();
-            let raft = raft_lk.get_mut(node_id as usize - 1).unwrap();
+            let raft = raft_lk.get_mut(&node_id).unwrap();
             raft.member_bootstrap_ready(leader_addr, node_id).await?;
         }
     }
 
     Ok(())
+}
+
+pub async fn spawn_extra_node(peer_addr: &str, raft_addr: &str) -> Result<JoinHandle<Result<()>>> {
+    let join_ticket = Raft::request_id(peer_addr.to_owned()).await.unwrap();
+
+    let node_id = join_ticket.reserved_id;
+    let cfg = build_config();
+    let store = HashStore::new();
+    let logger = default_logger();
+
+    let mut raft = Raft::build(node_id, raft_addr, store, cfg, logger.clone(), None)
+        .expect("Raft build failed!");
+
+    RAFTS.lock().unwrap().insert(node_id, raft.clone());
+
+    let raft_handle = tokio::spawn(raft.clone().run());
+
+    raft.join(join_ticket).await.unwrap();
+
+    Ok(raft_handle)
 }
