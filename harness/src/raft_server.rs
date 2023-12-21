@@ -60,3 +60,17 @@ pub async fn run_rafts(peers: Peers) -> Result<()> {
 
     Ok(())
 }
+
+pub async fn bootstrap(peers: Peers) -> Result<()> {
+    let leader_addr = peers.get(&1).unwrap().addr;
+
+    for (node_id, _) in peers.iter() {
+        if node_id != 1 {
+            let mut raft_lk = RAFTS.lock().unwrap();
+            let raft = raft_lk.get_mut(node_id as usize - 1).unwrap();
+            raft.member_bootstrap_ready(leader_addr, node_id).await?;
+        }
+    }
+
+    Ok(())
+}

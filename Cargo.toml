@@ -35,4 +35,5 @@ built = "0.5"
 [workspace]
 members = [
     "examples/memstore",
+    "harness"
 ]

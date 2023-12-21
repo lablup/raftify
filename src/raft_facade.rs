@@ -2,9 +2,7 @@ use crate::error::{Error, Result};
 use crate::raft_node::RaftNode;
 use crate::raft_server::RaftServer;
 use crate::raft_service::raft_service_client::RaftServiceClient;
-use crate::raft_service::{
-    ChangeConfigResultType, MemberBootstrapReadyArgs, ResultCode, self,
-};
+use crate::raft_service::{self, ChangeConfigResultType, MemberBootstrapReadyArgs, ResultCode};
 use crate::request_message::ServerRequestMsg;
 use crate::{create_client, AbstractLogEntry, AbstractStateMachine, Config, Peer, Peers};
 use std::collections::HashMap;
@@ -151,12 +149,8 @@ impl<
                 .await?
                 .into_inner();
 
-            println!("Response code: {:?}", response.code());
-            println!("Response: {:?}", response);
-
             match response.code() {
                 ResultCode::WrongLeader => {
-                    println!("wrongLeader!!");
                     leader_addr = response.leader_addr;
                     println!(
                         "Sent message to the wrong leader, retrying with leader at {}",
@@ -165,17 +159,12 @@ impl<
                     continue;
                 }
                 ResultCode::Ok => {
-                    println!("ok!! 1 {:?}", response);
-                    let res = Ok(RequestIdResponse {
+                    return Ok(RequestIdResponse {
                         reserved_id: response.reserved_id,
                         leader_id: response.leader_id,
                         leader_addr: response.leader_addr,
                         peers: deserialize(&response.peers)?,
                     });
-
-                    println!("ok!! 2 {:?}", res);
-
-                    return res;
                 }
                 ResultCode::Error => return Err(Error::JoinError),
             }
@@ -232,9 +221,9 @@ impl<
     //     Ok(())
     // }
 
-    // pub async fn cluster_size(&self) -> usize {
-    //     self.raft_node.get_cluster_size().await
-    // }
+    pub async fn cluster_size(&self) -> usize {
+        self.raft_node.get_cluster_size().await
+    }
 
     pub async fn join(&mut self, request_id_response: RequestIdResponse) -> Result<()> {
         let leader_id = request_id_response.leader_id;

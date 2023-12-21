@@ -1,7 +1,10 @@
 use raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 use tokio::sync::oneshot::Sender;
 
-use crate::response_message::{LocalResponseMsg, ServerResponseMsg};
+use crate::{
+    response_message::{LocalResponseMsg, ServerResponseMsg},
+    AbstractLogEntry, AbstractStateMachine,
+};
 
 pub enum ServerRequestMsg {
     MemberBootstrapReady {
@@ -33,42 +36,44 @@ pub enum ServerRequestMsg {
     },
 }
 
-pub enum LocalRequestMsg {
+pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>> {
     IsLeader {
-        chan: Sender<LocalResponseMsg>,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     GetId {
-        chan: Sender<LocalResponseMsg>,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     GetLeaderId {
-        chan: Sender<LocalResponseMsg>,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     GetPeers {
-        chan: Sender<LocalResponseMsg>,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     AddPeer {
         id: u64,
         addr: String,
-        chan: Sender<LocalResponseMsg>,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     Inspect {
-        chan: Sender<LocalResponseMsg>,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     Store {
-        chan: Sender<LocalResponseMsg>,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     Storage {
-        chan: Sender<LocalResponseMsg>,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     GetClusterSize {
-        chan: Sender<LocalResponseMsg>,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
-    Quit {},
+    Quit {
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
+    },
     MakeSnapshot {
-        chan: Sender<LocalResponseMsg>,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     Propose {
         proposal: Vec<u8>,
-        chan: Sender<LocalResponseMsg>,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
 }

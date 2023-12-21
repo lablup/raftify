@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -40,7 +41,7 @@ pub struct RaftNode<
     // The lock of RaftNodeCore is locked when RaftNode.run is called and is never released until program terminates.
     // However, to implement the Clone trait in RaftNode, Arc and Mutex are necessary. That's why we use OneShotMutex here.
     inner: Arc<OneShotMutex<RaftNodeCore<LogEntry, FSM>>>,
-    local_sender: mpsc::Sender<LocalRequestMsg>,
+    local_sender: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
 }
 
 impl<
@@ -56,8 +57,8 @@ impl<
         bootstrap_done: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
-        local_rcv: mpsc::Receiver<LocalRequestMsg>,
-        local_snd: mpsc::Sender<LocalRequestMsg>,
+        local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
+        local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
         RaftNodeCore::<LogEntry, FSM>::bootstrap_cluster(
             fsm,
@@ -85,8 +86,8 @@ impl<
         bootstrap_done: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
-        local_rcv: mpsc::Receiver<LocalRequestMsg>,
-        local_snd: mpsc::Sender<LocalRequestMsg>,
+        local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
+        local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
         RaftNodeCore::<LogEntry, FSM>::new_follower(
             id,
@@ -191,7 +192,21 @@ impl<
         }
     }
 
-    pub async fn store(&self) -> HeedStorage {
+    pub async fn store(&self) -> FSM {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::Store { chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+
+        match resp {
+            LocalResponseMsg::Store { store } => store,
+            _ => unreachable!(),
+        }
+    }
+
+    pub async fn storage(&self) -> HeedStorage {
         let (tx, rx) = oneshot::channel();
         self.local_sender
             .send(LocalRequestMsg::Storage { chan: tx })
@@ -218,20 +233,31 @@ impl<
         }
     }
 
-    // pub async fn get_cluster_size(&self) -> usize {
-    //     self.rl()
-    //         .await
-    //         .raw_node
-    //         .raft
-    //         .prs()
-    //         .iter()
-    //         .collect::<Vec<_>>()
-    //         .len()
-    // }
+    pub async fn get_cluster_size(&self) -> usize {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::GetClusterSize { chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
+            LocalResponseMsg::GetClusterSize { size } => size,
+            _ => unreachable!(),
+        }
+    }
 
-    // pub async fn quit(&mut self) {
-    //     self.wl().await.should_exit = true;
-    // }
+    pub async fn quit(&mut self) {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::Quit { chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
+            LocalResponseMsg::Quit {} => (),
+            _ => unreachable!(),
+        }
+    }
 
     // pub async fn make_snapshot(&mut self, index: u64, term: u64) -> Result<()> {
     //     self.wl().await.make_snapshot(index, term).await
@@ -241,19 +267,21 @@ impl<
         self.inner
             .lock()
             .await
-            .expect("RaftNode mutex's owner should be RaftNode.run!")
+            .expect("RaftNode mutex's owner should be only RaftNode.run!")
             .run()
             .await
     }
 }
 
-enum ResponseSender {
-    Local(oneshot::Sender<LocalResponseMsg>),
+enum ResponseSender<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>> {
+    Local(oneshot::Sender<LocalResponseMsg<LogEntry, FSM>>),
     Server(oneshot::Sender<ServerResponseMsg>),
 }
 
-impl ResponseSender {
-    fn send(self, response: ResponseMessage) {
+impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>>
+    ResponseSender<LogEntry, FSM>
+{
+    fn send(self, response: ResponseMessage<LogEntry, FSM>) {
         match self {
             ResponseSender::Local(sender) => {
                 if let ResponseMessage::Local(response) = response {
@@ -287,13 +315,13 @@ pub struct RaftNodeCore<
     logger: slog::Logger,
     bootstrap_done: bool,
     peers_bootstrap_ready: Option<HashMap<u64, bool>>,
-    response_senders: HashMap<u64, ResponseSender>,
+    response_senders: HashMap<u64, ResponseSender<LogEntry, FSM>>,
 
     server_rcv: mpsc::Receiver<ServerRequestMsg>,
     server_snd: mpsc::Sender<ServerRequestMsg>,
-    local_rcv: mpsc::Receiver<LocalRequestMsg>,
+    local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
     #[allow(dead_code)]
-    local_snd: mpsc::Sender<LocalRequestMsg>,
+    local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
 
     _phantom_log_entry_typ: PhantomData<LogEntry>,
 }
@@ -311,8 +339,8 @@ impl<
         bootstrap_done: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
-        local_rcv: mpsc::Receiver<LocalRequestMsg>,
-        local_snd: mpsc::Sender<LocalRequestMsg>,
+        local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
+        local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
         let mut raft_config = config.raft_config.clone();
 
@@ -373,8 +401,8 @@ impl<
         bootstrap_done: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
-        local_rcv: mpsc::Receiver<LocalRequestMsg>,
-        local_snd: mpsc::Sender<LocalRequestMsg>,
+        local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
+        local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
         let mut raft_config = config.raft_config.clone();
 
@@ -852,7 +880,10 @@ impl<
         Ok(())
     }
 
-    pub async fn handle_local_request_msg(&mut self, message: LocalRequestMsg) -> Result<()> {
+    pub async fn handle_local_request_msg(
+        &mut self,
+        message: LocalRequestMsg<LogEntry, FSM>,
+    ) -> Result<()> {
         match message {
             LocalRequestMsg::IsLeader { chan } => {
                 chan.send(LocalResponseMsg::IsLeader {
@@ -880,6 +911,12 @@ impl<
                 self.add_peer(id, addr).await;
                 chan.send(LocalResponseMsg::AddPeer {}).unwrap();
             }
+            LocalRequestMsg::Store { chan } => {
+                chan.send(LocalResponseMsg::Store {
+                    store: self.fsm.clone(),
+                })
+                .unwrap();
+            }
             LocalRequestMsg::Storage { chan } => {
                 chan.send(LocalResponseMsg::Storage {
                     storage: self.raw_node.store().clone(),
@@ -899,9 +936,15 @@ impl<
                 let response_seq = serialize(&response_seq)?;
                 self.raw_node.propose(response_seq, proposal)?;
             }
-            // LocalRequestMsg::Quit => {
-            //     self.should_exit = true;
-            // }
+            LocalRequestMsg::GetClusterSize { chan } => {
+                let size = self.raw_node.raft.prs().iter().collect::<Vec<_>>().len();
+                chan.send(LocalResponseMsg::GetClusterSize { size })
+                    .unwrap();
+            }
+            LocalRequestMsg::Quit { chan } => {
+                self.should_exit = true;
+                chan.send(LocalResponseMsg::Quit {}).unwrap();
+            }
             // LocalRequestMsg::MakeSnapshot { index, term, chan } => {
             //     self.make_snapshot(index, term).await?;
             //     chan.send(LocalResponseMsg::Ok).unwrap();

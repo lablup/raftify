@@ -1,17 +1,24 @@
-use crate::{Error, HeedStorage, Peers};
+use std::{fmt, marker::PhantomData};
 
-pub enum ResponseMessage {
+use crate::{AbstractLogEntry, AbstractStateMachine, Error, HeedStorage, Peers};
+
+pub enum ResponseMessage<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>> {
     Server(ServerResponseMsg),
-    Local(LocalResponseMsg),
+    Local(LocalResponseMsg<LogEntry, FSM>),
+    _Phantom(PhantomData<LogEntry>),
 }
 
-impl From<LocalResponseMsg> for ResponseMessage {
-    fn from(msg: LocalResponseMsg) -> Self {
+impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>>
+    From<LocalResponseMsg<LogEntry, FSM>> for ResponseMessage<LogEntry, FSM>
+{
+    fn from(msg: LocalResponseMsg<LogEntry, FSM>) -> Self {
         ResponseMessage::Local(msg)
     }
 }
 
-impl From<ServerResponseMsg> for ResponseMessage {
+impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>> From<ServerResponseMsg>
+    for ResponseMessage<LogEntry, FSM>
+{
     fn from(msg: ServerResponseMsg) -> Self {
         ResponseMessage::Server(msg)
     }
@@ -71,17 +78,33 @@ pub enum ServerResponseMsg {
     },
 }
 
-#[derive(Debug)]
-pub enum LocalResponseMsg {
+pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>> {
     IsLeader { is_leader: bool },
     GetId { id: u64 },
     GetLeaderId { leader_id: u64 },
     GetPeers { peers: Peers },
     AddPeer {},
     Inspect { result: String },
+    Store { store: FSM },
     Storage { storage: HeedStorage },
     GetClusterSize { size: usize },
     Quit {},
     MakeSnapshot {},
     Propose {},
+    _Phantom(PhantomData<LogEntry>),
+}
+
+impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>> fmt::Debug
+    for LocalResponseMsg<LogEntry, FSM>
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LocalResponseMsg::Store { store: _store } => {
+                write!(f, "LocalResponseMsg::Store")
+            }
+            _ => {
+                write!(f, "{:?}", self)
+            }
+        }
+    }
 }

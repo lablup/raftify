@@ -120,7 +120,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     request_id_resp = Raft::<LogEntry, HashStore>::request_id(peer_addr.clone())
                         .await
                         .ok();
-                    println!("request_id_resp : {:?}", request_id_resp);
                     request_id_resp.to_owned().unwrap().reserved_id
                 }
             };
