@@ -294,9 +294,22 @@ impl<
         }
     }
 
-    // pub async fn make_snapshot(&mut self, index: u64, term: u64) -> Result<()> {
-    //     self.wl().await.make_snapshot(index, term).await
-    // }
+    pub async fn make_snapshot(&mut self, index: u64, term: u64) {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::MakeSnapshot {
+                index,
+                term,
+                chan: tx,
+            })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
+            LocalResponseMsg::MakeSnapshot {} => (),
+            _ => unreachable!(),
+        }
+    }
 
     pub async fn run(self) -> Result<()> {
         self.inner
@@ -863,10 +876,10 @@ impl<
                 self.handle_confchange_request(conf_change, ResponseSender::Local(chan))
                     .await?;
             }
-            // LocalRequestMsg::MakeSnapshot { index, term, chan } => {
-            //     self.make_snapshot(index, term).await?;
-            //     chan.send(LocalResponseMsg::Ok).unwrap();
-            // }
+            LocalRequestMsg::MakeSnapshot { index, term, chan } => {
+                self.make_snapshot(index, term).await?;
+                chan.send(LocalResponseMsg::MakeSnapshot {}).unwrap();
+            }
             _ => unreachable!(),
         }
 

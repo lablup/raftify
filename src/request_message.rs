@@ -73,6 +73,8 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<L
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     MakeSnapshot {
+        index: u64,
+        term: u64,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     Propose {

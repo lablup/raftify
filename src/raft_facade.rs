@@ -4,7 +4,7 @@ use crate::raft_server::RaftServer;
 use crate::raft_service::raft_service_client::RaftServiceClient;
 use crate::raft_service::{self, ChangeConfigResultType, MemberBootstrapReadyArgs, ResultCode};
 use crate::request_message::ServerRequestMsg;
-use crate::{create_client, AbstractLogEntry, AbstractStateMachine, Config, Peer, Peers};
+use crate::{create_client, AbstractLogEntry, AbstractStateMachine, Config, LogStore, Peer, Peers};
 use std::collections::HashMap;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
@@ -202,14 +202,15 @@ impl<
         Ok(())
     }
 
-    // pub async fn snapshot(&mut self) -> Result<()> {
-    //     let store = self.raft_node.store().await;
-    //     let hard_state = store.hard_state()?;
-    //     self.raft_node
-    //         .make_snapshot(store.last_index()?, hard_state.term)
-    //         .await?;
-    //     Ok(())
-    // }
+    pub async fn snapshot(&mut self) -> Result<()> {
+        let store = self.raft_node.storage().await;
+        let hard_state = store.hard_state()?;
+
+        self.raft_node
+            .make_snapshot(store.last_index()?, hard_state.term)
+            .await;
+        Ok(())
+    }
 
     pub async fn cluster_size(&self) -> usize {
         self.raft_node.get_cluster_size().await
