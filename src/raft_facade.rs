@@ -12,7 +12,7 @@ use std::time::Duration;
 use bincode::{deserialize, serialize};
 use raft::eraftpb::{ConfChangeSingle, ConfChangeType, ConfChangeV2};
 use tokio::signal;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tokio::time::sleep;
 use tonic::Request;
 
@@ -101,39 +101,28 @@ impl<
     }
 
     pub async fn run(self) -> Result<()> {
-        slog::info!(
-            self.logger,
-            "Start to run RaftNode. Configuration: {:?}",
-            self.config
-        );
+        slog::info!(self.logger, "Start to run RaftNode. {:?}", self.config);
+
+        let (quit_signal_tx, quit_signal_rx) = oneshot::channel::<()>();
 
         let raft_node = self.raft_node.clone();
-        let raft_node_handle = tokio::spawn(raft_node.clone().run());
-        let raft_server = self.raft_server.to_owned();
-        let raft_server_handle = tokio::spawn(raft_server.run());
+        let raft_node_handle = tokio::spawn(raft_node.run());
+        let raft_server = self.raft_server.clone();
+        let raft_server_handle = tokio::spawn(raft_server.run(quit_signal_rx));
 
         tokio::select! {
             _ = signal::ctrl_c() => {
-                slog::info!(self.logger, "Ctrl+C detected. Shutting down...");
+                slog::info!(self.logger, "Ctrl+C signal detected. Shutting down...");
                 Ok(())
             }
-            result = async {
-                tokio::try_join!(raft_node_handle, raft_server_handle)
-            } => {
-                match result {
-                    Ok((Ok(()), ())) => {
-                        slog::trace!(self.logger, "All tasks quitted successfully.");
-                        Ok(())
-                    },
-                    Ok((Err(e), ())) => {
-                        slog::error!(self.logger, "Error: {:?}", e);
-                        Err(Error::Other(Box::new(e)))
-                    }
-                    Err(e) => {
-                        slog::error!(self.logger, "Error: {:?}", e);
-                        Err(Error::Other(Box::new(e)))
-                    }
-                }
+            _ = raft_node_handle => {
+                quit_signal_tx.send(()).unwrap();
+                slog::info!(self.logger, "All tasks quitted successfully.");
+                Ok(())
+            }
+            _ = raft_server_handle => {
+                slog::error!(self.logger, "RaftNode not quitted, but RaftServer quitted. Shutting down...");
+                Ok(())
             }
         }
     }
@@ -143,7 +132,7 @@ impl<
         let mut leader_addr = peer_addr;
 
         loop {
-            let mut client = create_client(&leader_addr).await.unwrap();
+            let mut client = create_client(&leader_addr).await?;
             let response = client
                 .request_id(Request::new(raft_service::Empty {}))
                 .await?
@@ -153,7 +142,7 @@ impl<
                 ResultCode::WrongLeader => {
                     leader_addr = response.leader_addr;
                     println!(
-                        "Sent message to the wrong leader, retrying with leader at {}",
+                        "Sent message to the wrong leader, retrying with the leader at {}.",
                         leader_addr
                     );
                     continue;
@@ -180,7 +169,7 @@ impl<
             match create_client(&leader_addr).await {
                 Ok(client) => break client,
                 Err(e) => {
-                    slog::info!(self.logger, "Leader connection failed, Cause: {}", e);
+                    slog::info!(self.logger, "Leader connection failed. Cause: {}", e);
                     sleep(Duration::from_secs(1)).await;
                     tokio::task::yield_now().await;
                     continue;
@@ -190,15 +179,14 @@ impl<
 
         let response = leader_client
             .member_bootstrap_ready(Request::new(MemberBootstrapReadyArgs { node_id }))
-            .await
-            .unwrap()
+            .await?
             .into_inner();
 
         match response.code() {
             ResultCode::Ok => {
                 slog::info!(
                     self.logger,
-                    "Member send the bootstrap ready request successfully"
+                    "Member send the bootstrap ready request successfully."
                 );
             }
             ResultCode::Error => {

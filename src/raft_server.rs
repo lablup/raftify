@@ -10,7 +10,7 @@ use crate::{function_name, Config, Error};
 use bincode::serialize;
 use raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 use tokio::sync::mpsc;
-use tokio::sync::oneshot;
+use tokio::sync::oneshot::{self, Receiver};
 use tokio::time::timeout;
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
@@ -39,7 +39,7 @@ impl RaftServer {
         }
     }
 
-    pub async fn run(self) -> Result<(), Error> {
+    pub async fn run(self, quit_signal_rx: Receiver<()>) -> Result<(), Error> {
         let addr = self.addr;
         let logger = self.logger.clone();
         slog::info!(
@@ -48,12 +48,13 @@ impl RaftServer {
             addr
         );
 
-        Server::builder()
-            .add_service(RaftServiceServer::new(self))
-            .serve(addr)
-            .await?;
+        let shutdown_signal = async {
+            quit_signal_rx.await.ok();
+        };
 
-        slog::info!(logger, "RaftServer quits to listen gRPC requests.");
+        Server::builder()
+                .add_service(RaftServiceServer::new(self))
+                .serve_with_shutdown(addr, shutdown_signal).await?;
 
         Ok(())
     }
