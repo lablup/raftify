@@ -60,7 +60,7 @@ pub async fn test_data_replication() {
         assert_eq!(store_lk.get(&1).unwrap(), "test");
 
         for (_, raft) in rafts.iter_mut() {
-            raft.raft_node.quit(true).await;
+            raft.raft_node.quit().await;
         }
     }
 }

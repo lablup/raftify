@@ -25,7 +25,7 @@ pub async fn test_leader_election() {
 
     sleep(Duration::from_secs(1)).await;
 
-    raft_1.raft_node.quit(false).await;
+    raft_1.raft_node.leave().await;
 
     sleep(Duration::from_secs(3)).await;
 
@@ -34,11 +34,9 @@ pub async fn test_leader_election() {
     wait_for_until_cluster_size_decrease(raft_2.clone(), 2).await;
 
     let leader_id = raft_2.raft_node.get_leader_id().await;
-
     assert!(leader_id == 2 || leader_id == 3);
 
-    raft_2.raft_node.quit(true).await;
-
+    raft_2.raft_node.quit().await;
     let raft_3 = rafts.get_mut(&3).unwrap();
-    raft_3.raft_node.quit(true).await;
+    raft_3.raft_node.quit().await;
 }

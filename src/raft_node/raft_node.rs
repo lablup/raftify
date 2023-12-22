@@ -252,15 +252,27 @@ impl<
         }
     }
 
-    pub async fn quit(&mut self, force: bool) {
+    pub async fn quit(&mut self) {
         let (tx, rx) = oneshot::channel();
         self.local_sender
-            .send(LocalRequestMsg::Quit { force, chan: tx })
+            .send(LocalRequestMsg::Quit { chan: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
         match resp {
             LocalResponseMsg::Quit {} => (),
+            _ => unreachable!(),
+        }
+    }
+
+    pub async fn leave(&mut self) {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::Leave { chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
             LocalResponseMsg::ConfigChange { result: _result } => (),
             _ => unreachable!(),
         }
@@ -831,22 +843,21 @@ impl<
                 chan.send(LocalResponseMsg::GetClusterSize { size })
                     .unwrap();
             }
-            LocalRequestMsg::Quit { force, chan } => {
-                if force {
-                    self.should_exit = true;
-                    chan.send(LocalResponseMsg::Quit {}).unwrap();
-                } else {
-                    let mut conf_change = ConfChange::default();
-                    conf_change.set_node_id(self.get_id());
-                    conf_change.set_change_type(ConfChangeType::RemoveNode);
-                    conf_change.set_context(serialize(&vec![self.raft_addr]).unwrap());
+            LocalRequestMsg::Quit { chan } => {
+                self.should_exit = true;
+                chan.send(LocalResponseMsg::Quit {}).unwrap();
+            }
+            LocalRequestMsg::Leave { chan } => {
+                let mut conf_change = ConfChange::default();
+                conf_change.set_node_id(self.get_id());
+                conf_change.set_change_type(ConfChangeType::RemoveNode);
+                conf_change.set_context(serialize(&vec![self.raft_addr]).unwrap());
 
-                    self.handle_confchange_request(
-                        to_confchange_v2(conf_change),
-                        ResponseSender::Local(chan),
-                    )
-                    .await?;
-                }
+                self.handle_confchange_request(
+                    to_confchange_v2(conf_change),
+                    ResponseSender::Local(chan),
+                )
+                .await?;
             }
             LocalRequestMsg::ConfigChange { conf_change, chan } => {
                 self.handle_confchange_request(conf_change, ResponseSender::Local(chan))

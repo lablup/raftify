@@ -67,7 +67,9 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<L
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     Quit {
-        force: bool,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
+    },
+    Leave {
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     MakeSnapshot {
