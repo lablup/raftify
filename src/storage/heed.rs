@@ -15,6 +15,9 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use super::constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_KEY};
+use super::utils::format_entry_key_string;
+
 pub trait LogStore: Storage {
     fn append(&mut self, entries: &[Entry]) -> Result<()>;
     fn hard_state(&self) -> Result<HardState>;
@@ -30,33 +33,16 @@ pub trait LogStore: Storage {
     fn all_entries(&self) -> raft::Result<Vec<Entry>>;
 }
 
-const SNAPSHOT_KEY: &str = "snapshot";
-const LAST_INDEX_KEY: &str = "last_index";
-const HARD_STATE_KEY: &str = "hard_state";
-const CONF_STATE_KEY: &str = "conf_state";
-
 #[derive(Eq, PartialEq)]
 pub struct HeedEntryKeyString(String);
-
-impl Ord for HeedEntryKeyString {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let self_num: u64 = self.0.parse().unwrap();
-        let other_num: u64 = other.0.parse().unwrap();
-        self_num.cmp(&other_num)
-    }
-}
-
-impl PartialOrd for HeedEntryKeyString {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
 
 impl<'a> BytesEncode<'a> for HeedEntryKeyString {
     type EItem = String;
 
     fn bytes_encode(item: &'a Self::EItem) -> std::result::Result<Cow<'a, [u8]>, BoxedError> {
-        Ok(Cow::Borrowed(item.as_bytes()))
+        Ok(Cow::Owned(
+            format_entry_key_string(item).as_bytes().to_vec(),
+        ))
     }
 }
 
@@ -248,9 +234,10 @@ impl HeedStorageCore {
     ) -> Result<Vec<Entry>> {
         slog::info!(self.logger, "Entries [{}, {}) requested", low, high);
 
-        let iter = self
-            .entries_db
-            .range(&reader, &(low.to_string()..high.to_string()))?;
+        let low_str = format_entry_key_string(low.to_string().as_str());
+        let high_str = format_entry_key_string(high.to_string().as_str());
+
+        let iter = self.entries_db.range(&reader, &(low_str..high_str))?;
         let max_size: Option<u64> = max_size.into();
         let mut size_count = 0;
         let mut buf = vec![];
@@ -277,6 +264,7 @@ impl HeedStorageCore {
                 None => true,
             })
             .collect();
+
         Ok(entries)
     }
 
