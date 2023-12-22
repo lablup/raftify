@@ -130,7 +130,7 @@ impl<
     pub async fn get_id(&self) -> u64 {
         let (tx, rx) = oneshot::channel();
         self.local_sender
-            .send(LocalRequestMsg::IsLeader { chan: tx })
+            .send(LocalRequestMsg::GetId { chan: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
