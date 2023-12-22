@@ -25,14 +25,14 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>> From<Serve
 }
 
 #[derive(Debug)]
-pub enum ServerResponseResult {
+pub enum ResponseResult {
     Success,
     Error(Error),
     WrongLeader { leader_id: u64, leader_addr: String },
 }
 
 #[derive(Debug)]
-pub enum ServerConfChangeResponseResult {
+pub enum ConfChangeResponseResult {
     JoinSuccess { assigned_id: u64, peers: Peers },
     RemoveSuccess,
     Error(Error),
@@ -42,32 +42,32 @@ pub enum ServerConfChangeResponseResult {
 #[derive(Debug)]
 pub enum ServerResponseMsg {
     MemberBootstrapReady {
-        result: ServerResponseResult,
+        result: ResponseResult,
     },
     ClusterBootstrapReady {
-        result: ServerResponseResult,
+        result: ResponseResult,
     },
     Propose {
-        result: ServerResponseResult,
+        result: ResponseResult,
     },
     ConfigChange {
-        result: ServerConfChangeResponseResult,
+        result: ConfChangeResponseResult,
     },
     RequestId {
-        result: ServerResponseResult,
+        result: ResponseResult,
         reserved_id: Option<u64>,
         leader_id: Option<u64>,
         leader_addr: Option<String>,
         peers: Option<Peers>,
     },
     ReportUnreachable {
-        result: ServerResponseResult,
+        result: ResponseResult,
     },
     DebugNode {
         result: String,
     },
     RaftMessage {
-        result: ServerResponseResult,
+        result: ResponseResult,
     },
 }
 
@@ -77,13 +77,14 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<
     GetLeaderId { leader_id: u64 },
     GetPeers { peers: Peers },
     AddPeer {},
-    Inspect { result: String },
     Store { store: FSM },
     Storage { storage: HeedStorage },
     GetClusterSize { size: usize },
+    ConfigChange { result: ConfChangeResponseResult },
     Quit {},
     MakeSnapshot {},
     Propose {},
+    DebugNode { result: String },
     _Phantom(PhantomData<LogEntry>),
 }
 

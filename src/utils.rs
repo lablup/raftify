@@ -1,8 +1,21 @@
+use raft::eraftpb::{ConfChange, ConfChangeSingle, ConfChangeV2};
 use serde_json::json;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
 use tokio::sync::Mutex;
+
+pub fn to_confchange_v2(conf_change: ConfChange) -> ConfChangeV2 {
+    let mut cc_v2 = ConfChangeV2::default();
+
+    let mut cs = ConfChangeSingle::default();
+    cs.set_node_id(conf_change.node_id);
+    cs.set_change_type(conf_change.get_change_type());
+    cc_v2.set_changes(vec![cs].into());
+    cc_v2.set_context(conf_change.context);
+
+    cc_v2
+}
 
 pub fn get_filesize(path: &str) -> u64 {
     match fs::metadata(path) {

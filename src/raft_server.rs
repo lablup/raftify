@@ -4,7 +4,7 @@ use std::time::Duration;
 use crate::raft_service::raft_service_server::{RaftService, RaftServiceServer};
 use crate::raft_service::{self, Empty};
 use crate::request_message::ServerRequestMsg;
-use crate::response_message::{ServerResponseMsg, ServerResponseResult};
+use crate::response_message::{ResponseResult, ServerResponseMsg};
 use crate::{function_name, Config, Error};
 
 use bincode::serialize;
@@ -53,8 +53,9 @@ impl RaftServer {
         };
 
         Server::builder()
-                .add_service(RaftServiceServer::new(self))
-                .serve_with_shutdown(addr, shutdown_signal).await?;
+            .add_service(RaftServiceServer::new(self))
+            .serve_with_shutdown(addr, shutdown_signal)
+            .await?;
 
         Ok(())
     }
@@ -93,16 +94,14 @@ impl RaftService for RaftServer {
                 leader_addr,
                 peers,
             } => match result {
-                ServerResponseResult::Success => {
-                    Ok(Response::new(raft_service::RequestIdResponse {
-                        code: raft_service::ResultCode::Ok as i32,
-                        leader_id: leader_id.unwrap(),
-                        leader_addr: self.addr.to_string(),
-                        reserved_id: reserved_id.unwrap(),
-                        peers: serialize(&peers.unwrap()).unwrap(),
-                    }))
-                }
-                ServerResponseResult::WrongLeader {
+                ResponseResult::Success => Ok(Response::new(raft_service::RequestIdResponse {
+                    code: raft_service::ResultCode::Ok as i32,
+                    leader_id: leader_id.unwrap(),
+                    leader_addr: self.addr.to_string(),
+                    reserved_id: reserved_id.unwrap(),
+                    peers: serialize(&peers.unwrap()).unwrap(),
+                })),
+                ResponseResult::WrongLeader {
                     leader_id,
                     leader_addr,
                 } => Ok(Response::new(raft_service::RequestIdResponse {

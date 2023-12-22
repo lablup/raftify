@@ -65,7 +65,7 @@ impl fmt::Debug for Config {
         write!(
             f,
             "Config {{ \
-                raft: {{ \
+                raft_config: {{ \
                     id: {id}, \
                     election_tick: {election_tick}, \
                     heartbeat_tick: {heartbeat_tick}, \

@@ -54,7 +54,7 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<L
         addr: String,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
-    Inspect {
+    DebugNode {
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     Store {
@@ -74,6 +74,10 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<L
     },
     Propose {
         proposal: Vec<u8>,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
+    },
+    ConfigChange {
+        conf_change: ConfChangeV2,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
 }

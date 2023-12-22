@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use crate::raft_node::RaftNode;
+use crate::raft_node::raft_node::RaftNode;
 use crate::raft_server::RaftServer;
 use crate::raft_service::raft_service_client::RaftServiceClient;
 use crate::raft_service::{self, ChangeConfigResultType, MemberBootstrapReadyArgs, ResultCode};

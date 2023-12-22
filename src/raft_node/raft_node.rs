@@ -6,15 +6,15 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::error::{Result, SendMessageError};
+use crate::raft_node::bootstrap::bootstrap_peers;
 use crate::raft_service::{ClusterBootstrapReadyArgs, ResultCode};
 use crate::request_message::{LocalRequestMsg, ServerRequestMsg};
 use crate::response_message::{
-    LocalResponseMsg, ResponseMessage, ServerConfChangeResponseResult, ServerResponseMsg,
-    ServerResponseResult,
+    ConfChangeResponseResult, LocalResponseMsg, ResponseResult, ServerResponseMsg,
 };
 use crate::storage::heed::{HeedStorage, LogStore};
 use crate::storage::utils::get_storage_path;
-use crate::utils::OneShotMutex;
+use crate::utils::{to_confchange_v2, OneShotMutex};
 use crate::{AbstractLogEntry, Error, Peers};
 use crate::{AbstractStateMachine, Config};
 
@@ -22,8 +22,7 @@ use bincode::{deserialize, serialize};
 use prost::Message as PMessage;
 use raft::derializer::{format_confchangev2, format_message, format_snapshot};
 use raft::eraftpb::{
-    ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2, Entry, EntryType,
-    Message as RaftMessage, Snapshot,
+    ConfChange, ConfChangeType, ConfChangeV2, Entry, EntryType, Message as RaftMessage, Snapshot,
 };
 use raft::raw_node::RawNode;
 use tokio::select;
@@ -31,6 +30,8 @@ use tokio::sync::oneshot;
 use tokio::sync::{mpsc, Mutex};
 use tokio::time::interval;
 use tonic::Request;
+
+use super::response_sender::ResponseSender;
 
 #[derive(Clone)]
 pub struct RaftNode<
@@ -180,13 +181,13 @@ impl<
     pub async fn inspect(&self) -> Result<String> {
         let (tx, rx) = oneshot::channel();
         self.local_sender
-            .send(LocalRequestMsg::Inspect { chan: tx })
+            .send(LocalRequestMsg::DebugNode { chan: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
 
         match resp {
-            LocalResponseMsg::Inspect { result } => Ok(result),
+            LocalResponseMsg::DebugNode { result } => Ok(result),
             _ => unreachable!(),
         }
     }
@@ -269,34 +270,6 @@ impl<
             .expect("RaftNode mutex's owner should be only RaftNode.run!")
             .run()
             .await
-    }
-}
-
-enum ResponseSender<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>> {
-    Local(oneshot::Sender<LocalResponseMsg<LogEntry, FSM>>),
-    Server(oneshot::Sender<ServerResponseMsg>),
-}
-
-impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>>
-    ResponseSender<LogEntry, FSM>
-{
-    fn send(self, response: ResponseMessage<LogEntry, FSM>) {
-        match self {
-            ResponseSender::Local(sender) => {
-                if let ResponseMessage::Local(response) = response {
-                    sender.send(response).unwrap()
-                } else {
-                    unreachable!()
-                }
-            }
-            ResponseSender::Server(sender) => {
-                if let ResponseMessage::Server(response) = response {
-                    sender.send(response).unwrap()
-                } else {
-                    unreachable!()
-                }
-            }
-        }
     }
 }
 
@@ -528,12 +501,12 @@ impl<
             }
 
             match entry.get_entry_type() {
+                EntryType::EntryNormal => {
+                    self.handle_committed_normal_entry(&entry).await?;
+                }
                 EntryType::EntryConfChange | EntryType::EntryConfChangeV2 => {
                     self.handle_committed_config_change_entry(&mut entry)
                         .await?;
-                }
-                EntryType::EntryNormal => {
-                    self.handle_committed_normal_entry(&entry).await?;
                 }
             }
         }
@@ -553,7 +526,7 @@ impl<
                 ResponseSender::Server(sender) => {
                     sender
                         .send(ServerResponseMsg::Propose {
-                            result: ServerResponseResult::Success,
+                            result: ResponseResult::Success,
                         })
                         .unwrap();
                 }
@@ -582,18 +555,7 @@ impl<
 
     async fn handle_committed_config_change_entry(&mut self, entry: &Entry) -> Result<()> {
         let conf_change_v2 = match entry.get_entry_type() {
-            EntryType::EntryConfChange => {
-                let conf_change = ConfChange::decode(entry.get_data())?;
-                let mut cc_v2 = ConfChangeV2::default();
-
-                let mut cs = ConfChangeSingle::default();
-                cs.set_node_id(conf_change.node_id);
-                cs.set_change_type(conf_change.get_change_type());
-                cc_v2.set_changes(vec![cs].into());
-                cc_v2.set_context(conf_change.context);
-
-                cc_v2
-            }
+            EntryType::EntryConfChange => to_confchange_v2(ConfChange::decode(entry.get_data())?),
             EntryType::EntryConfChangeV2 => ConfChangeV2::decode(entry.get_data())?,
             _ => unreachable!(),
         };
@@ -652,27 +614,41 @@ impl<
         let response_seq_value = response_seq.load(Ordering::Relaxed);
 
         if let Some(sender) = self.response_senders.remove(&response_seq_value) {
-            let mut response = ServerConfChangeResponseResult::Error(Error::Unknown);
+            let mut response = ConfChangeResponseResult::Error(Error::Unknown);
 
-            // TODO: Handle other cases
             if conf_changes.iter().all(|cc| {
                 cc.get_change_type() == ConfChangeType::AddNode
                     || cc.get_change_type() == ConfChangeType::AddLearnerNode
             }) {
-                response = ServerConfChangeResponseResult::JoinSuccess {
+                // TODO: Add support for multiple nodes joining.
+                assert_eq!(conf_changes.len(), 1);
+
+                response = ConfChangeResponseResult::JoinSuccess {
                     assigned_id: conf_changes[0].get_node_id(),
                     peers: self.peers.lock().await.clone(),
                 };
-            }
-
-            if conf_changes
+            } else if conf_changes
                 .iter()
                 .all(|cc| cc.get_change_type() == ConfChangeType::RemoveNode)
             {
-                response = ServerConfChangeResponseResult::RemoveSuccess;
+                response = ConfChangeResponseResult::RemoveSuccess;
+            } else {
+                // TODO: Handle other cases
+                unreachable!();
             }
 
-            sender.send(ServerResponseMsg::ConfigChange { result: response }.into());
+            match sender {
+                ResponseSender::Local(sender) => {
+                    sender
+                        .send(LocalResponseMsg::ConfigChange { result: response })
+                        .unwrap();
+                }
+                ResponseSender::Server(sender) => {
+                    sender
+                        .send(ServerResponseMsg::ConfigChange { result: response })
+                        .unwrap();
+                }
+            }
         }
 
         Ok(())
@@ -815,62 +791,8 @@ impl<
         self.make_snapshot(self.raw_node.store().last_index()?, 1)
             .await?;
 
-        let initial_peers = self.peers.lock().await;
-
-        let mut entries = vec![];
-        let last_index = self.raw_node.store().last_index().unwrap();
-
-        for (i, peer) in initial_peers.iter().enumerate() {
-            let node_id = &peer.0;
-            let node_addr = initial_peers.get(node_id).unwrap().addr;
-            // Skip leader
-            if *node_id == 1 {
-                continue;
-            }
-            let mut conf_change = ConfChange::default();
-            conf_change.set_node_id(*node_id);
-            conf_change.set_change_type(ConfChangeType::AddNode);
-            conf_change.set_context(serialize(&vec![node_addr]).unwrap());
-
-            let conf_state = self.raw_node.apply_conf_change(&conf_change)?;
-            self.raw_node.mut_store().set_conf_state(&conf_state)?;
-
-            let mut entry = Entry::default();
-            entry.set_entry_type(EntryType::EntryConfChange);
-            entry.set_term(1);
-            entry.set_index(last_index + i as u64);
-            entry.set_data(conf_change.encode_to_vec());
-            entry.set_context(vec![]);
-            entries.push(entry);
-        }
-
-        let unstable = &mut self.raw_node.raft.raft_log.unstable;
-        unstable.entries = entries.clone();
-        let commit_index = last_index + entries.len() as u64;
-        unstable.stable_entries(commit_index, 1);
-
-        self.raw_node.mut_store().append(&entries)?;
-
-        self.last_snapshot_created = Instant::now();
-
-        let last_applied = self.raw_node.raft.raft_log.applied;
-        let store = self.raw_node.mut_store();
-        store.compact(last_applied)?;
-        store.create_snapshot(vec![], commit_index, 1)?;
-
-        self.raw_node.raft.raft_log.applied = commit_index;
-        self.raw_node.raft.raft_log.committed = commit_index;
-        self.raw_node.raft.raft_log.persisted = commit_index;
-
-        let leader_id = self.get_leader_id();
-        let leader_pr = self.raw_node.raft.mut_prs().get_mut(leader_id).unwrap();
-
-        leader_pr.matched = commit_index;
-        leader_pr.committed_index = commit_index;
-        leader_pr.next_idx = commit_index + 1;
-
+        bootstrap_peers(self.peers.clone(), &mut self.raw_node).await?;
         self.bootstrap_done = true;
-
         Ok(())
     }
 
@@ -917,8 +839,8 @@ impl<
                 })
                 .unwrap();
             }
-            LocalRequestMsg::Inspect { chan } => {
-                chan.send(LocalResponseMsg::Inspect {
+            LocalRequestMsg::DebugNode { chan } => {
+                chan.send(LocalResponseMsg::DebugNode {
                     result: self.inspect().await?,
                 })
                 .unwrap();
@@ -939,6 +861,7 @@ impl<
                 self.should_exit = true;
                 chan.send(LocalResponseMsg::Quit {}).unwrap();
             }
+            LocalRequestMsg::ConfigChange { conf_change, chan } => {}
             // LocalRequestMsg::MakeSnapshot { index, term, chan } => {
             //     self.make_snapshot(index, term).await?;
             //     chan.send(LocalResponseMsg::Ok).unwrap();
@@ -957,7 +880,7 @@ impl<
                     "All initial nodes (peers) requested to join cluster. Start to bootstrap process..."
                 );
                 chan.send(ServerResponseMsg::ClusterBootstrapReady {
-                    result: ServerResponseResult::Success,
+                    result: ResponseResult::Success,
                 })
                 .unwrap();
                 self.bootstrap_done = true;
@@ -975,7 +898,7 @@ impl<
                     .insert(node_id, true);
 
                 chan.send(ServerResponseMsg::MemberBootstrapReady {
-                    result: ServerResponseResult::Success,
+                    result: ResponseResult::Success,
                 })
                 .unwrap();
             }
@@ -993,7 +916,7 @@ impl<
                     let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
 
                     chan.send(ServerResponseMsg::ConfigChange {
-                        result: ServerConfChangeResponseResult::WrongLeader {
+                        result: ConfChangeResponseResult::WrongLeader {
                             leader_id,
                             leader_addr,
                         },
@@ -1037,7 +960,7 @@ impl<
                         .addr
                         .to_string();
                     let raft_response = ServerResponseMsg::Propose {
-                        result: ServerResponseResult::WrongLeader {
+                        result: ResponseResult::WrongLeader {
                             leader_id,
                             leader_addr,
                         },
@@ -1059,7 +982,7 @@ impl<
                     let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
 
                     chan.send(ServerResponseMsg::RequestId {
-                        result: ServerResponseResult::WrongLeader {
+                        result: ResponseResult::WrongLeader {
                             leader_id,
                             leader_addr,
                         },
@@ -1074,7 +997,7 @@ impl<
                     slog::info!(self.logger, "Reserved node id, {}", reserved_id);
 
                     chan.send(ServerResponseMsg::RequestId {
-                        result: ServerResponseResult::Success,
+                        result: ResponseResult::Success,
                         reserved_id: Some(reserved_id),
                         leader_id: Some(self.get_id()),
                         leader_addr: None,
