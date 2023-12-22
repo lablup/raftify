@@ -40,35 +40,29 @@ pub enum ConfChangeResponseResult {
 }
 
 #[derive(Debug)]
+pub enum RequestIdResponseResult {
+    Success {
+        reserved_id: u64,
+        leader_id: u64,
+        peers: Peers,
+    },
+    Error(Error),
+    WrongLeader {
+        leader_id: u64,
+        leader_addr: String,
+    },
+}
+
+#[derive(Debug)]
 pub enum ServerResponseMsg {
-    MemberBootstrapReady {
-        result: ResponseResult,
-    },
-    ClusterBootstrapReady {
-        result: ResponseResult,
-    },
-    Propose {
-        result: ResponseResult,
-    },
-    ConfigChange {
-        result: ConfChangeResponseResult,
-    },
-    RequestId {
-        result: ResponseResult,
-        reserved_id: Option<u64>,
-        leader_id: Option<u64>,
-        leader_addr: Option<String>,
-        peers: Option<Peers>,
-    },
-    ReportUnreachable {
-        result: ResponseResult,
-    },
-    DebugNode {
-        result: String,
-    },
-    RaftMessage {
-        result: ResponseResult,
-    },
+    MemberBootstrapReady { result: ResponseResult },
+    ClusterBootstrapReady { result: ResponseResult },
+    Propose { result: ResponseResult },
+    ConfigChange { result: ConfChangeResponseResult },
+    RequestId { result: RequestIdResponseResult },
+    ReportUnreachable { result: ResponseResult },
+    DebugNode { result: String },
+    RaftMessage { result: ResponseResult },
 }
 
 pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>> {

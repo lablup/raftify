@@ -1,14 +1,12 @@
 use std::time::Duration;
 
 use harness::{
-    constant::{RAFT_ADDRS, THREE_NODE_EXAMPLE},
-    raft_server::{handle_bootstrap, run_rafts, spawn_extra_node, RAFTS},
-    state_machine::LogEntry,
+    constant::THREE_NODE_EXAMPLE,
+    raft_server::{handle_bootstrap, run_rafts, RAFTS},
     utils::{
         load_peers, wait_for_until_cluster_size_decrease, wait_for_until_cluster_size_increase,
     },
 };
-use raftify::AbstractLogEntry;
 use tokio::time::sleep;
 
 #[tokio::test]
@@ -27,7 +25,7 @@ pub async fn test_leader_election() {
 
     sleep(Duration::from_secs(1)).await;
 
-    raft_1.raft_node.quit().await;
+    raft_1.raft_node.quit(false).await;
 
     sleep(Duration::from_secs(3)).await;
 
@@ -39,7 +37,8 @@ pub async fn test_leader_election() {
 
     assert!(leader_id == 2 || leader_id == 3);
 
-    for (_, raft) in rafts.iter_mut() {
-        raft.raft_node.quit().await;
-    }
+    raft_2.raft_node.quit(true).await;
+
+    let raft_3 = rafts.get_mut(&3).unwrap();
+    raft_3.raft_node.quit(true).await;
 }

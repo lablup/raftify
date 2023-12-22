@@ -4,7 +4,7 @@ use std::time::Duration;
 use crate::raft_service::raft_service_server::{RaftService, RaftServiceServer};
 use crate::raft_service::{self, Empty};
 use crate::request_message::ServerRequestMsg;
-use crate::response_message::{ResponseResult, ServerResponseMsg};
+use crate::response_message::{RequestIdResponseResult, ServerResponseMsg};
 use crate::{function_name, Config, Error};
 
 use bincode::serialize;
@@ -87,21 +87,19 @@ impl RaftService for RaftServer {
         let response = rx.await.unwrap();
 
         match response {
-            ServerResponseMsg::RequestId {
-                result,
-                reserved_id,
-                leader_id,
-                leader_addr,
-                peers,
-            } => match result {
-                ResponseResult::Success => Ok(Response::new(raft_service::RequestIdResponse {
+            ServerResponseMsg::RequestId { result } => match result {
+                RequestIdResponseResult::Success {
+                    reserved_id,
+                    leader_id,
+                    peers,
+                } => Ok(Response::new(raft_service::RequestIdResponse {
                     code: raft_service::ResultCode::Ok as i32,
-                    leader_id: leader_id.unwrap(),
+                    leader_id,
+                    reserved_id,
                     leader_addr: self.addr.to_string(),
-                    reserved_id: reserved_id.unwrap(),
-                    peers: serialize(&peers.unwrap()).unwrap(),
+                    peers: serialize(&peers).unwrap(),
                 })),
-                ResponseResult::WrongLeader {
+                RequestIdResponseResult::WrongLeader {
                     leader_id,
                     leader_addr,
                 } => Ok(Response::new(raft_service::RequestIdResponse {

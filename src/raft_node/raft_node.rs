@@ -10,7 +10,8 @@ use crate::raft_node::bootstrap::bootstrap_peers;
 use crate::raft_service::{ClusterBootstrapReadyArgs, ResultCode};
 use crate::request_message::{LocalRequestMsg, ServerRequestMsg};
 use crate::response_message::{
-    ConfChangeResponseResult, LocalResponseMsg, ResponseResult, ServerResponseMsg,
+    ConfChangeResponseResult, LocalResponseMsg, RequestIdResponseResult, ResponseMessage,
+    ResponseResult, ServerResponseMsg,
 };
 use crate::storage::heed::{HeedStorage, LogStore};
 use crate::storage::utils::get_storage_path;
@@ -20,7 +21,7 @@ use crate::{AbstractStateMachine, Config};
 
 use bincode::{deserialize, serialize};
 use prost::Message as PMessage;
-use raft::derializer::{format_confchangev2, format_message, format_snapshot};
+use raft::derializer::{format_confchangev2, format_message};
 use raft::eraftpb::{
     ConfChange, ConfChangeType, ConfChangeV2, Entry, EntryType, Message as RaftMessage, Snapshot,
 };
@@ -32,6 +33,7 @@ use tokio::time::interval;
 use tonic::Request;
 
 use super::response_sender::ResponseSender;
+use super::utils::inspect_raftnode;
 
 #[derive(Clone)]
 pub struct RaftNode<
@@ -53,6 +55,7 @@ impl<
         fsm: FSM,
         config: Config,
         initial_peers: Peers,
+        raft_addr: SocketAddr,
         logger: slog::Logger,
         bootstrap_done: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
@@ -64,6 +67,7 @@ impl<
             fsm,
             config,
             initial_peers,
+            raft_addr,
             logger,
             bootstrap_done,
             server_rcv,
@@ -82,6 +86,7 @@ impl<
         fsm: FSM,
         config: Config,
         peers: Peers,
+        raft_addr: SocketAddr,
         logger: slog::Logger,
         bootstrap_done: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
@@ -94,6 +99,7 @@ impl<
             fsm,
             config,
             peers,
+            raft_addr,
             logger,
             bootstrap_done,
             server_rcv,
@@ -246,15 +252,32 @@ impl<
         }
     }
 
-    pub async fn quit(&mut self) {
+    pub async fn quit(&mut self, force: bool) {
         let (tx, rx) = oneshot::channel();
         self.local_sender
-            .send(LocalRequestMsg::Quit { chan: tx })
+            .send(LocalRequestMsg::Quit { force, chan: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
         match resp {
             LocalResponseMsg::Quit {} => (),
+            LocalResponseMsg::ConfigChange { result: _result } => (),
+            _ => unreachable!(),
+        }
+    }
+
+    pub async fn change_config(&mut self, conf_change: ConfChangeV2) -> ConfChangeResponseResult {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::ConfigChange {
+                conf_change,
+                chan: tx,
+            })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
+            LocalResponseMsg::ConfigChange { result } => result,
             _ => unreachable!(),
         }
     }
@@ -281,6 +304,7 @@ pub struct RaftNodeCore<
     pub fsm: FSM,
     pub peers: Arc<Mutex<Peers>>,
     response_seq: AtomicU64,
+    raft_addr: SocketAddr,
     config: Config,
     should_exit: bool,
     last_snapshot_created: Instant,
@@ -307,6 +331,7 @@ impl<
         fsm: FSM,
         config: Config,
         initial_peers: Peers,
+        raft_addr: SocketAddr,
         logger: slog::Logger,
         bootstrap_done: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
@@ -349,6 +374,7 @@ impl<
             fsm,
             response_seq,
             config,
+            raft_addr,
             logger,
             last_snapshot_created,
             should_exit: false,
@@ -369,6 +395,7 @@ impl<
         fsm: FSM,
         config: Config,
         peers: Peers,
+        raft_addr: SocketAddr,
         logger: slog::Logger,
         bootstrap_done: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
@@ -397,6 +424,7 @@ impl<
             fsm,
             response_seq,
             config,
+            raft_addr,
             logger,
             last_snapshot_created,
             should_exit: false,
@@ -655,58 +683,7 @@ impl<
     }
 
     pub async fn inspect(&self) -> Result<String> {
-        let raw_node = &self.raw_node;
-        let prs = raw_node.raft.prs().get(self.get_id()).unwrap();
-        let store = raw_node.store();
-
-        let id = raw_node.raft.id;
-        let leader_id = raw_node.raft.leader_id;
-        let hard_state = store.hard_state()?;
-        let conf_state = store.conf_state()?;
-        let snapshot = store.snapshot(0, 0)?;
-        let last_index = raw_node.raft.raft_log.last_index();
-
-        let last_applied = raw_node.raft.raft_log.applied;
-        let last_committed = raw_node.raft.raft_log.committed;
-        let last_persisted = raw_node.raft.raft_log.persisted;
-
-        let outline = format!(
-            "========= Outline =========\n\
-            node_id: {}\n\
-            leader_id: {}\n",
-            id, leader_id
-        );
-
-        let persistence_info = format!(
-            "========= Persistence Info =========\n\
-            hard_state: {:?}\n\
-            conf_state: {:?}\n\
-            last_index: {}\n\
-            snapshot: {:?}\n",
-            hard_state,
-            conf_state,
-            last_index,
-            format_snapshot(&snapshot),
-        );
-
-        let prs_info = format!(
-            "========= Progresses =========\n\
-            {:?}
-            ",
-            prs
-        );
-
-        let raftlog_metadata = format!(
-            "========= RaftLog Metadata =========\n\
-            last_applied: {}\n\
-            last_committed: {}\n\
-            last_persisted: {}\n",
-            last_applied, last_committed, last_persisted
-        );
-
-        let result = format!("{outline:}\n{persistence_info:}\n{prs_info}\n{raftlog_metadata:}",);
-
-        Ok(result)
+        inspect_raftnode(&self.raw_node)
     }
 
     pub async fn wait_for_initial_peers_bootstrap(&mut self) -> Result<()> {
@@ -846,27 +823,147 @@ impl<
                 .unwrap();
             }
             LocalRequestMsg::Propose { proposal, chan } => {
-                let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
-                self.response_senders
-                    .insert(response_seq, ResponseSender::Local(chan));
-                let response_seq = serialize(&response_seq)?;
-                self.raw_node.propose(response_seq, proposal)?;
+                self.handle_propose_request(proposal, ResponseSender::Local(chan))
+                    .await?;
             }
             LocalRequestMsg::GetClusterSize { chan } => {
                 let size = self.raw_node.raft.prs().iter().collect::<Vec<_>>().len();
                 chan.send(LocalResponseMsg::GetClusterSize { size })
                     .unwrap();
             }
-            LocalRequestMsg::Quit { chan } => {
-                self.should_exit = true;
-                chan.send(LocalResponseMsg::Quit {}).unwrap();
+            LocalRequestMsg::Quit { force, chan } => {
+                if force {
+                    self.should_exit = true;
+                    chan.send(LocalResponseMsg::Quit {}).unwrap();
+                } else {
+                    let mut conf_change = ConfChange::default();
+                    conf_change.set_node_id(self.get_id());
+                    conf_change.set_change_type(ConfChangeType::RemoveNode);
+                    conf_change.set_context(serialize(&vec![self.raft_addr]).unwrap());
+
+                    self.handle_confchange_request(
+                        to_confchange_v2(conf_change),
+                        ResponseSender::Local(chan),
+                    )
+                    .await?;
+                }
             }
-            LocalRequestMsg::ConfigChange { conf_change, chan } => {}
+            LocalRequestMsg::ConfigChange { conf_change, chan } => {
+                self.handle_confchange_request(conf_change, ResponseSender::Local(chan))
+                    .await?;
+            }
             // LocalRequestMsg::MakeSnapshot { index, term, chan } => {
             //     self.make_snapshot(index, term).await?;
             //     chan.send(LocalResponseMsg::Ok).unwrap();
             // }
             _ => unreachable!(),
+        }
+
+        Ok(())
+    }
+
+    async fn handle_propose_request(
+        &mut self,
+        proposal: Vec<u8>,
+        chan: ResponseSender<LogEntry, FSM>,
+    ) -> Result<()> {
+        if !self.is_leader() {
+            // wrong leader send client cluster data
+            let leader_id = self.get_leader_id();
+            // leader can't be an empty node
+            let leader_addr = self
+                .peers
+                .lock()
+                .await
+                .get(&leader_id)
+                .unwrap()
+                .addr
+                .to_string();
+
+            let raft_response: ResponseMessage<LogEntry, FSM> = match chan {
+                ResponseSender::Local(_) => LocalResponseMsg::Propose {}.into(),
+                ResponseSender::Server(_) => ServerResponseMsg::Propose {
+                    result: ResponseResult::WrongLeader {
+                        leader_id,
+                        leader_addr,
+                    },
+                }
+                .into(),
+            };
+
+            chan.send(raft_response);
+        } else {
+            let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
+            match chan {
+                ResponseSender::Local(chan) => {
+                    self.response_senders
+                        .insert(response_seq, ResponseSender::Local(chan));
+                }
+                ResponseSender::Server(chan) => {
+                    self.response_senders
+                        .insert(response_seq, ResponseSender::Server(chan));
+                }
+            };
+
+            let response_seq = serialize(&response_seq)?;
+            self.raw_node.propose(response_seq, proposal)?;
+        }
+
+        Ok(())
+    }
+
+    async fn handle_confchange_request(
+        &mut self,
+        conf_change: ConfChangeV2,
+        chan: ResponseSender<LogEntry, FSM>,
+    ) -> Result<()> {
+        if self.raw_node.raft.has_pending_conf() {
+            slog::warn!(self.logger, "Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index);
+            return Ok(());
+        }
+
+        if !self.is_leader() {
+            // wrong leader send client cluster data
+            // TODO: retry strategy in case of failure
+            let leader_id = self.get_leader_id();
+            let peers = self.peers.lock().await;
+            let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
+
+            let result = ConfChangeResponseResult::WrongLeader {
+                leader_id,
+                leader_addr,
+            };
+
+            match chan {
+                ResponseSender::Local(chan) => chan
+                    .send(LocalResponseMsg::ConfigChange { result })
+                    .unwrap(),
+                ResponseSender::Server(chan) => chan
+                    .send(ServerResponseMsg::ConfigChange { result })
+                    .unwrap(),
+            }
+        } else {
+            let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
+
+            match chan {
+                ResponseSender::Local(chan) => {
+                    self.response_senders
+                        .insert(response_seq, ResponseSender::Local(chan));
+                }
+                ResponseSender::Server(chan) => {
+                    self.response_senders
+                        .insert(response_seq, ResponseSender::Server(chan));
+                }
+            };
+
+            slog::debug!(
+                self.logger,
+                "Proposed new config change..., seq={response_seq:}, conf_change_v2={}",
+                format_confchangev2(&conf_change)
+            );
+
+            self.raw_node
+                .propose_conf_change(serialize(&response_seq).unwrap(), conf_change)?;
         }
 
         Ok(())
@@ -902,39 +999,9 @@ impl<
                 })
                 .unwrap();
             }
-            ServerRequestMsg::ConfigChange { chan, conf_change } => {
-                if self.raw_node.raft.has_pending_conf() {
-                    slog::warn!(self.logger, "Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index);
-                    return Ok(());
-                }
-
-                if !self.is_leader() {
-                    // wrong leader send client cluster data
-                    // TODO: retry strategy in case of failure
-                    let leader_id = self.get_leader_id();
-                    let peers = self.peers.lock().await;
-                    let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
-
-                    chan.send(ServerResponseMsg::ConfigChange {
-                        result: ConfChangeResponseResult::WrongLeader {
-                            leader_id,
-                            leader_addr,
-                        },
-                    })
-                    .unwrap();
-                } else {
-                    let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
-                    self.response_senders
-                        .insert(response_seq, ResponseSender::Server(chan));
-                    slog::debug!(
-                        self.logger,
-                        "Proposed new config change..., seq={response_seq:}, conf_change_v2={}",
-                        format_confchangev2(&conf_change)
-                    );
-
-                    self.raw_node
-                        .propose_conf_change(serialize(&response_seq).unwrap(), conf_change)?;
-                }
+            ServerRequestMsg::ConfigChange { conf_change, chan } => {
+                self.handle_confchange_request(conf_change, ResponseSender::Server(chan))
+                    .await?;
             }
             ServerRequestMsg::RaftMessage { message } => {
                 slog::debug!(
@@ -947,32 +1014,8 @@ impl<
                 self.raw_node.step(*message)?
             }
             ServerRequestMsg::Propose { proposal, chan } => {
-                if !self.is_leader() {
-                    // wrong leader send client cluster data
-                    let leader_id = self.get_leader_id();
-                    // leader can't be an empty node
-                    let leader_addr = self
-                        .peers
-                        .lock()
-                        .await
-                        .get(&leader_id)
-                        .unwrap()
-                        .addr
-                        .to_string();
-                    let raft_response = ServerResponseMsg::Propose {
-                        result: ResponseResult::WrongLeader {
-                            leader_id,
-                            leader_addr,
-                        },
-                    };
-                    chan.send(raft_response).unwrap();
-                } else {
-                    let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
-                    self.response_senders
-                        .insert(response_seq, ResponseSender::Server(chan));
-                    let response_seq = serialize(&response_seq)?;
-                    self.raw_node.propose(response_seq, proposal)?;
-                }
+                self.handle_propose_request(proposal, ResponseSender::Server(chan))
+                    .await?;
             }
             ServerRequestMsg::RequestId { chan } => {
                 if !self.is_leader() {
@@ -982,14 +1025,10 @@ impl<
                     let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
 
                     chan.send(ServerResponseMsg::RequestId {
-                        result: ResponseResult::WrongLeader {
+                        result: RequestIdResponseResult::WrongLeader {
                             leader_id,
                             leader_addr,
                         },
-                        leader_addr: None,
-                        leader_id: None,
-                        reserved_id: None,
-                        peers: None,
                     })
                     .unwrap();
                 } else {
@@ -997,11 +1036,11 @@ impl<
                     slog::info!(self.logger, "Reserved node id, {}", reserved_id);
 
                     chan.send(ServerResponseMsg::RequestId {
-                        result: ResponseResult::Success,
-                        reserved_id: Some(reserved_id),
-                        leader_id: Some(self.get_id()),
-                        leader_addr: None,
-                        peers: Some(self.peers.lock().await.clone()),
+                        result: RequestIdResponseResult::Success {
+                            reserved_id: reserved_id,
+                            leader_id: self.get_id(),
+                            peers: self.peers.lock().await.clone(),
+                        },
                     })
                     .unwrap();
                 }
