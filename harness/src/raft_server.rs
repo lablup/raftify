@@ -28,7 +28,8 @@ fn build_logger(node_id: u64) -> slog::Logger {
     }
     let drain = builder.build();
 
-    slog::Logger::root(drain, o!("Node ID" => node_id))
+    let pid = std::process::id();
+    slog::Logger::root(drain, o!("Node ID" => node_id, "PID" => pid))
 }
 
 fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
