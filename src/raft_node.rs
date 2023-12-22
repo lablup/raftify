@@ -503,6 +503,11 @@ impl<
 
     async fn send_messages(&mut self, messages: Vec<RaftMessage>) {
         if !self.bootstrap_done {
+            slog::warn!(
+                self.logger,
+                "Skipping sending messages because bootstrap is not done yet. {:?}",
+                messages
+            );
             return;
         }
 
@@ -630,7 +635,11 @@ impl<
                 self.make_snapshot(entry.index, entry.term).await?;
             }
             Err(e) => {
-                slog::error!(self.logger, "Failed to apply configuration change: {}", e);
+                slog::error!(
+                    self.logger,
+                    "Failed to apply the configuration change. Error: {:?}",
+                    e
+                );
             }
         }
 
@@ -749,7 +758,7 @@ impl<
 
         slog::info!(
             self.logger,
-            "Received All follower nodes join requests, preparing to bootstrap the cluster..."
+            "Received all follower nodes' join requests, preparing to bootstrap the cluster..."
         );
 
         self.bootstrap_peers().await?;
@@ -854,24 +863,11 @@ impl<
         self.raw_node.raft.raft_log.persisted = commit_index;
 
         let leader_id = self.get_leader_id();
-        self.raw_node
-            .raft
-            .mut_prs()
-            .get_mut(leader_id)
-            .unwrap()
-            .matched = commit_index;
-        self.raw_node
-            .raft
-            .mut_prs()
-            .get_mut(leader_id)
-            .unwrap()
-            .committed_index = commit_index;
-        self.raw_node
-            .raft
-            .mut_prs()
-            .get_mut(leader_id)
-            .unwrap()
-            .next_idx = commit_index + 1;
+        let leader_pr = self.raw_node.raft.mut_prs().get_mut(leader_id).unwrap();
+
+        leader_pr.matched = commit_index;
+        leader_pr.committed_index = commit_index;
+        leader_pr.next_idx = commit_index + 1;
 
         self.bootstrap_done = true;
 
@@ -1101,7 +1097,7 @@ impl<
         Ok(())
     }
 
-    pub async fn run(&mut self) -> Result<()> {
+    pub async fn run(mut self) -> Result<()> {
         let mut tick_timer = interval(Duration::from_secs_f32(self.config.tick_interval));
 
         loop {
@@ -1189,7 +1185,10 @@ impl<
             store.set_hard_state_commit(commit)?;
         }
 
-        self.send_messages(light_rd.take_messages()).await;
+        if !light_rd.messages().is_empty() {
+            self.send_messages(light_rd.take_messages()).await;
+        }
+
         self.handle_committed_entries(light_rd.take_committed_entries())
             .await?;
 
