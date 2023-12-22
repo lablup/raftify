@@ -1,6 +1,8 @@
 use futures::future;
 use once_cell::sync::Lazy;
-use raftify::{raft::default_logger, Peers, Raft as Raft_, Result};
+use raftify::{Peers, Raft as Raft_, Result};
+use slog::{o, Drain};
+use slog_envlogger::LogBuilder;
 use std::{collections::HashMap, sync::Mutex};
 use tokio::task::JoinHandle;
 
@@ -13,11 +15,27 @@ pub type Raft = Raft_<LogEntry, HashStore>;
 
 pub static RAFTS: Lazy<Mutex<HashMap<u64, Raft>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
+fn build_logger(node_id: u64) -> slog::Logger {
+    let decorator = slog_term::TermDecorator::new().build();
+    let drain = slog_term::FullFormat::new(decorator).build().fuse();
+    let drain = slog_async::Async::new(drain).build().fuse();
+
+    let mut builder = LogBuilder::new(drain);
+    builder = builder.filter(None, slog::FilterLevel::Debug);
+
+    if let Ok(s) = std::env::var("RUST_LOG") {
+        builder = builder.parse(&s);
+    }
+    let drain = builder.build();
+
+    slog::Logger::root(drain, o!("Node ID" => node_id))
+}
+
 fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
     let peer = peers.get(node_id).unwrap();
     let cfg = build_config();
     let store = HashStore::new();
-    let logger = default_logger();
+    let logger = build_logger(*node_id);
 
     let raft = Raft::build(
         *node_id,
@@ -81,7 +99,7 @@ pub async fn spawn_extra_node(peer_addr: &str, raft_addr: &str) -> Result<JoinHa
     let node_id = join_ticket.reserved_id;
     let cfg = build_config();
     let store = HashStore::new();
-    let logger = default_logger();
+    let logger = build_logger(node_id);
 
     let mut raft = Raft::build(node_id, raft_addr, store, cfg, logger.clone(), None)
         .expect("Raft build failed!");
