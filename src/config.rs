@@ -6,7 +6,7 @@ pub struct Config {
     pub raft_config: RaftConfig,
     pub log_dir: String,
     pub compacted_log_dir: String,
-    pub compacted_logs_size_threshold: i32,
+    pub compacted_log_size_threshold: i32,
     pub snapshot_interval: f32,
     pub tick_interval: f32,
     pub lmdb_map_size: i32,
@@ -19,7 +19,7 @@ impl Config {
     pub fn new(
         log_dir: String,
         compacted_log_dir: String,
-        compacted_logs_size_threshold: i32,
+        compacted_log_size_threshold: i32,
         raft_config: RaftConfig,
         snapshot_interval: f32,
         tick_interval: f32,
@@ -32,7 +32,7 @@ impl Config {
             raft_config,
             log_dir,
             compacted_log_dir,
-            compacted_logs_size_threshold,
+            compacted_log_size_threshold,
             snapshot_interval,
             tick_interval,
             lmdb_map_size,
@@ -49,7 +49,7 @@ impl Default for Config {
             raft_config: RaftConfig::default(),
             log_dir: String::from("./"),
             compacted_log_dir: String::from("./"),
-            compacted_logs_size_threshold: 1024 * 1024 * 1024,
+            compacted_log_size_threshold: 1024 * 1024 * 1024,
             snapshot_interval: 0.0,
             tick_interval: 0.1,
             lmdb_map_size: 1024 * 1024 * 1024,
@@ -85,7 +85,7 @@ impl fmt::Debug for Config {
                 }}, \
                 log_dir: {log_dir}, \
                 compacted_log_dir: {compacted_log_dir}, \
-                compacted_logs_size_threshold: {compacted_logs_size_threshold}, \
+                compacted_log_size_threshold: {compacted_log_size_threshold}, \
                 snapshot_interval: {snapshot_interval}, \
                 tick_interval: {tick_interval}, \
                 lmdb_map_size: {lmdb_map_size}, \
@@ -111,7 +111,7 @@ impl fmt::Debug for Config {
             max_committed_size_per_ready = self.raft_config.max_committed_size_per_ready,
             log_dir = self.log_dir,
             compacted_log_dir = self.compacted_log_dir,
-            compacted_logs_size_threshold = self.compacted_logs_size_threshold,
+            compacted_log_size_threshold = self.compacted_log_size_threshold,
             snapshot_interval = self.snapshot_interval,
             tick_interval = self.tick_interval,
             lmdb_map_size = self.lmdb_map_size,

@@ -1,6 +1,6 @@
 [package]
 name = "raftify-py"
-version = "0.2.28"
+version = "0.3.0"
 authors = ["Lablup Inc."]
 license = "Apache-2.0"
 repository = "https://github.com/lablup/raftify"

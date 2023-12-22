@@ -20,12 +20,11 @@ impl RaftFacade {
         node_id: u64,
         addr: &PyString,
         fsm: PyObject,
-        config: PyObject,
+        config: PyConfig,
         // logger: PyObject,
         initial_peers: Option<PyObject>,
     ) -> PyResult<Self> {
         let fsm = PyFSM::new(fsm);
-        let config = config.extract::<PyConfig>(py)?;
 
         let logger = default_logger();
 
@@ -41,6 +40,7 @@ impl RaftFacade {
             Some(initial_peers),
         )
         .unwrap();
+
         Ok(Self { raft })
     }
 

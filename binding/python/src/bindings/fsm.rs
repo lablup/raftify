@@ -40,7 +40,7 @@ impl AbstractLogEntry for PyLogEntry {
 }
 
 #[derive(Clone)]
-#[pyclass(name = "StateMachine")]
+#[pyclass(name = "AbstractStateMachine")]
 pub struct PyFSM {
     pub store: Py<PyAny>,
 }
@@ -98,7 +98,7 @@ impl AbstractStateMachine<PyLogEntry> for PyFSM {
         Python::with_gil(|py| {
             let fsm_class = PyModule::import(py, "raftify")
                 .unwrap()
-                .getattr("StateMachine")
+                .getattr("AbstractStateMachine")
                 .unwrap();
 
             let py_result = fsm_class.getattr("decode").unwrap().call1((data,)).unwrap();
