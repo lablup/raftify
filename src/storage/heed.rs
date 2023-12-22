@@ -54,12 +54,6 @@ impl<'a> BytesDecode<'a> for HeedEntryKeyString {
     }
 }
 
-impl From<u64> for HeedEntryKeyString {
-    fn from(num: u64) -> Self {
-        HeedEntryKeyString(num.to_string())
-    }
-}
-
 enum HeedEntry {}
 
 impl BytesEncode<'_> for HeedEntry {
@@ -501,9 +495,10 @@ impl Storage for HeedStorage {
             Some(entry) => Ok(entry.term),
             None => {
                 if idx < first_index {
-                    return Err(raft::Error::Store(raft::StorageError::Compacted));
+                    Err(raft::Error::Store(raft::StorageError::Compacted))
+                } else {
+                    Err(raft::Error::Store(raft::StorageError::Unavailable))
                 }
-                return Err(raft::Error::Store(raft::StorageError::Unavailable));
             }
         }
     }
