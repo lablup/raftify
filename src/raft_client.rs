@@ -11,7 +11,7 @@ pub async fn create_client<A: ToSocketAddrs>(
 ) -> Result<RaftServiceClient<Channel>, TonicError> {
     let addr = addr
         .to_socket_addrs()
-        .expect("Wrong socket address")
+        .expect("Invalid socket address format")
         .next()
         .unwrap();
     let addr = format!("http://{}", addr.to_string());

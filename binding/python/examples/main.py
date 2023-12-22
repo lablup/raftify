@@ -50,20 +50,6 @@ class HashStore:
         self._store = pickle.loads(snapshot)
 
 
-# # * Thread version
-# def run_raft():
-#     cfg = Config()
-#     addr = "127.0.0.1:60161"
-#     store = HashStore()
-#     raft = Raft.build(1, addr, store, cfg)
-#     raft.run()
-
-
-# Threading
-# thread = threading.Thread(target=run_raft)
-# thread.start()
-
-# Coroutine
 async def main():
     cfg = Config()
     addr = "127.0.0.1:60161"

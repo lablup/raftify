@@ -1,47 +1,37 @@
 use pyo3::{prelude::*, types::PyString};
 use raftify::raft::default_logger;
-use raftify::{Peers, Raft};
-use slog::{o, Drain};
+use raftify::Raft;
 
 use super::config::PyConfig;
 use super::fsm::{PyFSM, PyLogEntry};
+use super::peers::PyPeers;
 
 #[derive(Clone)]
 #[pyclass(name = "Raft")]
-pub struct RaftFacade {
-    raft: Raft<PyLogEntry, PyFSM>,
+pub struct PyRaftFacade {
+    inner: Raft<PyLogEntry, PyFSM>,
 }
 
 #[pymethods]
-impl RaftFacade {
+impl PyRaftFacade {
     #[staticmethod]
     pub fn build(
-        py: Python,
+        _py: Python,
         node_id: u64,
         addr: &PyString,
         fsm: PyObject,
         config: PyConfig,
         // logger: PyObject,
-        initial_peers: Option<PyObject>,
+        initial_peers: Option<PyPeers>,
     ) -> PyResult<Self> {
         let fsm = PyFSM::new(fsm);
-
         let logger = default_logger();
+        let addr = addr.to_string();
+        let initial_peers = initial_peers.map(|peers| peers.inner);
 
-        let initial_peers = Peers::new();
+        let raft = Raft::build(node_id, addr, fsm, config.into(), logger, initial_peers).unwrap();
 
-        let addr = addr.to_string_lossy().to_string();
-        let raft = Raft::build(
-            node_id,
-            addr,
-            fsm,
-            config.into(),
-            logger,
-            Some(initial_peers),
-        )
-        .unwrap();
-
-        Ok(Self { raft })
+        Ok(Self { inner: raft })
     }
 
     pub async fn run(&mut self) -> PyResult<()> {
@@ -49,10 +39,10 @@ impl RaftFacade {
     }
 }
 
-impl RaftFacade {
+impl PyRaftFacade {
     #[tokio::main]
-    pub async fn _run(&mut self) -> PyResult<()> {
-        let raft = self.raft.clone();
+    async fn _run(&mut self) -> PyResult<()> {
+        let raft = self.inner.clone();
         match raft.run().await {
             Ok(_) => println!("RaftNode exited successfully"),
             Err(e) => println!("RaftNode exited with error: {}", e),

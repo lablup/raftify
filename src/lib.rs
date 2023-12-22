@@ -41,3 +41,4 @@ pub use crate::storage::heed::HeedStorage;
 pub use crate::storage::heed::LogStore;
 pub use async_trait::async_trait;
 pub(crate) use utils::get_filesize;
+pub use tonic::transport::Channel;
