@@ -5,7 +5,7 @@ use crate::raft_service::raft_service_server::{RaftService, RaftServiceServer};
 use crate::raft_service::{self, Empty};
 use crate::request_message::ServerRequestMsg;
 use crate::response_message::{ServerResponseMsg, ServerResponseResult};
-use crate::Config;
+use crate::{function_name, Config, Error};
 
 use bincode::serialize;
 use raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
@@ -39,7 +39,7 @@ impl RaftServer {
         }
     }
 
-    pub async fn run(self) {
+    pub async fn run(self) -> Result<(), Error> {
         let addr = self.addr;
         let logger = self.logger.clone();
         slog::info!(
@@ -47,14 +47,25 @@ impl RaftServer {
             "RaftServer starts to listen gRPC requests on \"{}\"...",
             addr
         );
-        let svc = RaftServiceServer::new(self);
-        Server::builder()
-            .add_service(svc)
-            .serve(addr)
-            .await
-            .expect("error running server");
 
-        slog::debug!(logger, "RaftServer quits to listen gRPC requests.");
+        Server::builder()
+            .add_service(RaftServiceServer::new(self))
+            .serve(addr)
+            .await?;
+
+        slog::info!(logger, "RaftServer quits to listen gRPC requests.");
+
+        Ok(())
+    }
+}
+
+impl RaftServer {
+    fn print_send_error(&self, function_name: &str) {
+        slog::error!(
+            self.logger,
+            "Error occurred in sending message ('RaftServer --> RaftNode'). Function: '{}'",
+            function_name
+        );
     }
 }
 
@@ -122,7 +133,7 @@ impl RaftService for RaftServer {
         // TODO: Handle this kind of errors
         match sender.send(message).await {
             Ok(_) => (),
-            Err(_) => slog::error!(self.logger, "send error"),
+            Err(_) => self.print_send_error(function_name!()),
         }
 
         let mut reply = raft_service::ChangeConfigResponse::default();
@@ -163,7 +174,7 @@ impl RaftService for RaftServer {
             .await
         {
             Ok(_) => (),
-            Err(_) => slog::error!(self.logger, "send error"),
+            Err(_) => self.print_send_error(function_name!()),
         }
 
         Ok(Response::new(raft_service::Empty {}))
@@ -179,7 +190,7 @@ impl RaftService for RaftServer {
 
         match sender.send(ServerRequestMsg::DebugNode { chan: tx }).await {
             Ok(_) => (),
-            Err(_) => slog::error!(self.logger, "send error"),
+            Err(_) => self.print_send_error(function_name!()),
         }
 
         let response = rx.await.unwrap();
@@ -206,7 +217,7 @@ impl RaftService for RaftServer {
             .await
         {
             Ok(_) => (),
-            Err(_) => slog::error!(self.logger, "send error"),
+            Err(_) => self.print_send_error(function_name!()),
         }
         let _response = rx.await.unwrap();
         Ok(Response::new(raft_service::MemberBootstrapReadyResponse {
@@ -226,7 +237,7 @@ impl RaftService for RaftServer {
             .await
         {
             Ok(_) => (),
-            Err(_) => slog::error!(self.logger, "send error"),
+            Err(_) => self.print_send_error(function_name!()),
         }
         let _response = rx.await.unwrap();
         Ok(Response::new(raft_service::ClusterBootstrapReadyResponse {

@@ -28,6 +28,18 @@ impl<T> OneShotMutex<T> {
     }
 }
 
+#[macro_export]
+macro_rules! function_name {
+    () => {{
+        fn f() {}
+        fn type_name_of<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+        let name = type_name_of(f);
+        &name[..name.len() - 3] // subtract length of "f"
+    }};
+}
+
 // pub fn append_to_json_file(dest_path: &str, new_data: &Vec<Entry>) {
 //     let path = Path::new(dest_path);
 //     fs::create_dir_all(path.parent().unwrap()).unwrap();
