@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use crate::error::{Result, SendMessageError};
 use crate::raft_node::bootstrap::bootstrap_peers;
-use crate::raft_service::{ClusterBootstrapReadyArgs, ResultCode};
+use crate::raft_service::{ChangeConfigResultType, ClusterBootstrapReadyArgs, ResultCode};
 use crate::request_message::{LocalRequestMsg, ServerRequestMsg};
 use crate::response_message::{
     ConfChangeResponseResult, LocalResponseMsg, RequestIdResponseResult, ResponseMessage,
@@ -16,14 +16,15 @@ use crate::response_message::{
 use crate::storage::heed::{HeedStorage, LogStore};
 use crate::storage::utils::get_storage_path;
 use crate::utils::{to_confchange_v2, OneShotMutex};
-use crate::{AbstractLogEntry, Error, Peers};
+use crate::{AbstractLogEntry, ClusterJoinTicket, Error, Peers, RaftServiceClient};
 use crate::{AbstractStateMachine, Config};
 
 use bincode::{deserialize, serialize};
 use prost::Message as PMessage;
 use raft::derializer::{format_confchangev2, format_message};
 use raft::eraftpb::{
-    ConfChange, ConfChangeType, ConfChangeV2, Entry, EntryType, Message as RaftMessage, Snapshot,
+    ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2, Entry, EntryType,
+    Message as RaftMessage, Snapshot,
 };
 use raft::raw_node::RawNode;
 use tokio::select;
@@ -245,7 +246,9 @@ impl<
             .send(LocalRequestMsg::GetClusterSize { chan: tx })
             .await
             .unwrap();
+        println!("lock1?");
         let resp = rx.await.unwrap();
+        println!("lock2?");
         match resp {
             LocalResponseMsg::GetClusterSize { size } => size,
             _ => unreachable!(),
@@ -273,7 +276,7 @@ impl<
             .unwrap();
         let resp = rx.await.unwrap();
         match resp {
-            LocalResponseMsg::ConfigChange { result: _result } => (),
+            LocalResponseMsg::ChangeConfig { result: _result } => (),
             _ => unreachable!(),
         }
     }
@@ -281,7 +284,7 @@ impl<
     pub async fn change_config(&mut self, conf_change: ConfChangeV2) -> ConfChangeResponseResult {
         let (tx, rx) = oneshot::channel();
         self.local_sender
-            .send(LocalRequestMsg::ConfigChange {
+            .send(LocalRequestMsg::ChangeConfig {
                 conf_change,
                 chan: tx,
             })
@@ -289,7 +292,7 @@ impl<
             .unwrap();
         let resp = rx.await.unwrap();
         match resp {
-            LocalResponseMsg::ConfigChange { result } => result,
+            LocalResponseMsg::ChangeConfig { result } => result,
             _ => unreachable!(),
         }
     }
@@ -307,6 +310,22 @@ impl<
         let resp = rx.await.unwrap();
         match resp {
             LocalResponseMsg::MakeSnapshot {} => (),
+            _ => unreachable!(),
+        }
+    }
+
+    pub async fn join_cluster(&self, ticket: ClusterJoinTicket) {
+        let (tx, rx) = oneshot::channel();
+        println!("abc!! 11");
+        self.local_sender
+            .send(LocalRequestMsg::JoinCluster { ticket, chan: tx })
+            .await
+            .unwrap();
+        println!("abc!! 112");
+        let resp = rx.await.unwrap();
+        println!("abc!! 113");
+        match resp {
+            LocalResponseMsg::JoinCluster {} => (),
             _ => unreachable!(),
         }
     }
@@ -566,6 +585,52 @@ impl<
         Ok(())
     }
 
+    async fn handle_join(&mut self, ticket: ClusterJoinTicket) -> Result<()> {
+        let leader_id = ticket.leader_id;
+        let leader_addr = ticket.leader_addr.clone();
+        let reserved_id = ticket.reserved_id;
+
+        for (id, peer_addr) in ticket.peers.iter() {
+            self.add_peer(id.to_owned(), peer_addr).await;
+        }
+
+        self.add_peer(leader_id, leader_addr).await;
+
+        let mut change = ConfChangeV2::default();
+        let mut cs = ConfChangeSingle::default();
+        cs.set_node_id(reserved_id);
+        cs.set_change_type(ConfChangeType::AddNode);
+        change.set_changes(vec![cs].into());
+        change.set_context(serialize(&vec![self.raft_addr.clone()])?);
+
+        let peer_addr = ticket.leader_addr;
+
+        loop {
+            let mut leader_client =
+                RaftServiceClient::connect(format!("http://{}", peer_addr)).await?;
+            let response = leader_client
+                .change_config(Request::new(change.clone()))
+                .await?
+                .into_inner();
+
+            match response.result_type() {
+                ChangeConfigResultType::ChangeConfigWrongLeader => {
+                    // TODO: Handle this
+                    // response.data();
+                    continue;
+                }
+                ChangeConfigResultType::ChangeConfigSuccess => break Ok(()),
+                ChangeConfigResultType::ChangeConfigUnknownError => return Err(Error::JoinError),
+                ChangeConfigResultType::ChangeConfigRejected => {
+                    return Err(Error::Rejected("Join request rejected".to_string()))
+                }
+                ChangeConfigResultType::ChangeConfigTimeoutError => {
+                    return Err(Error::Timeout);
+                }
+            }
+        }
+    }
+
     async fn handle_committed_normal_entry(&mut self, entry: &Entry) -> Result<()> {
         let response_seq: u64 = deserialize(&entry.get_context())?;
         let log_entry = LogEntry::decode(entry.get_data())?;
@@ -693,7 +758,7 @@ impl<
             match sender {
                 ResponseSender::Local(sender) => {
                     sender
-                        .send(LocalResponseMsg::ConfigChange { result: response })
+                        .send(LocalResponseMsg::ChangeConfig { result: response })
                         .unwrap();
                 }
                 ResponseSender::Server(sender) => {
@@ -802,6 +867,7 @@ impl<
         &mut self,
         message: LocalRequestMsg<LogEntry, FSM>,
     ) -> Result<()> {
+        println!("tick 3 before 2 {:?}", message);
         match message {
             LocalRequestMsg::IsLeader { chan } => {
                 chan.send(LocalResponseMsg::IsLeader {
@@ -853,8 +919,10 @@ impl<
             }
             LocalRequestMsg::GetClusterSize { chan } => {
                 let size = self.raw_node.raft.prs().iter().collect::<Vec<_>>().len();
-                chan.send(LocalResponseMsg::GetClusterSize { size })
-                    .unwrap();
+                println!("send!!");
+                let e = chan.send(LocalResponseMsg::GetClusterSize { size });
+
+                println!("send!! ?!!!??!?!?!?!?!?!?? ??, {:?}", e);
             }
             LocalRequestMsg::Quit { chan } => {
                 self.should_exit = true;
@@ -872,13 +940,18 @@ impl<
                 )
                 .await?;
             }
-            LocalRequestMsg::ConfigChange { conf_change, chan } => {
+            LocalRequestMsg::ChangeConfig { conf_change, chan } => {
                 self.handle_confchange_request(conf_change, ResponseSender::Local(chan))
                     .await?;
             }
             LocalRequestMsg::MakeSnapshot { index, term, chan } => {
                 self.make_snapshot(index, term).await?;
                 chan.send(LocalResponseMsg::MakeSnapshot {}).unwrap();
+            }
+            LocalRequestMsg::JoinCluster { ticket, chan } => {
+                println!("abc!!");
+                self.handle_join(ticket).await?;
+                chan.send(LocalResponseMsg::JoinCluster {}).unwrap();
             }
             _ => unreachable!(),
         }
@@ -960,7 +1033,7 @@ impl<
 
             match chan {
                 ResponseSender::Local(chan) => chan
-                    .send(LocalResponseMsg::ConfigChange { result })
+                    .send(LocalResponseMsg::ChangeConfig { result })
                     .unwrap(),
                 ResponseSender::Server(chan) => chan
                     .send(ServerResponseMsg::ConfigChange { result })
@@ -1023,7 +1096,7 @@ impl<
                 })
                 .unwrap();
             }
-            ServerRequestMsg::ConfigChange { conf_change, chan } => {
+            ServerRequestMsg::ChangeConfig { conf_change, chan } => {
                 self.handle_confchange_request(conf_change, ResponseSender::Server(chan))
                     .await?;
             }
@@ -1087,6 +1160,7 @@ impl<
         let mut tick_timer = interval(Duration::from_secs_f32(self.config.tick_interval));
 
         loop {
+            println!("loop");
             if self.should_exit {
                 slog::info!(self.logger, "Node {} quit the cluster.", self.get_id());
                 return Ok(());
@@ -1096,7 +1170,7 @@ impl<
                 self.wait_for_initial_peers_bootstrap().await?;
             }
 
-            select! {
+            tokio::select! {
                 _ = tick_timer.tick() => {
                     self.raw_node.tick();
                 }
@@ -1106,11 +1180,14 @@ impl<
                     }
                 }
                 msg = self.local_rcv.recv() => {
+                    println!("tick 3 before {:?}", msg);
                     if let Some(message) = msg {
                         self.handle_local_request_msg(message).await?;
                     }
                 }
             }
+
+            println!("on_ready");
 
             // TODO: Remove this after investigating why tokio::join not failing when one of the Result is Err
             match self.on_ready().await {

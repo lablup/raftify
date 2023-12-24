@@ -3,7 +3,7 @@ use tokio::sync::oneshot::Sender;
 
 use crate::{
     response_message::{LocalResponseMsg, ServerResponseMsg},
-    AbstractLogEntry, AbstractStateMachine,
+    AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket,
 };
 
 pub enum ServerRequestMsg {
@@ -18,7 +18,7 @@ pub enum ServerRequestMsg {
         proposal: Vec<u8>,
         chan: Sender<ServerResponseMsg>,
     },
-    ConfigChange {
+    ChangeConfig {
         conf_change: ConfChangeV2,
         chan: Sender<ServerResponseMsg>,
     },
@@ -81,8 +81,44 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<L
         proposal: Vec<u8>,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
-    ConfigChange {
+    ChangeConfig {
         conf_change: ConfChangeV2,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
+    JoinCluster {
+        ticket: ClusterJoinTicket,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
+    },
 }
+
+macro_rules! impl_debug_for_enum {
+    ($($variant:ident),*) => {
+        impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>> std::fmt::Debug for LocalRequestMsg<LogEntry, FSM> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    $(
+                        LocalRequestMsg::$variant { .. } => write!(f, stringify!(LocalRequestMsg::$variant)),
+                    )*
+                }
+            }
+        }
+    };
+}
+
+impl_debug_for_enum!(
+    IsLeader,
+    GetId,
+    GetLeaderId,
+    GetPeers,
+    AddPeer,
+    DebugNode,
+    Store,
+    Storage,
+    GetClusterSize,
+    Quit,
+    Leave,
+    MakeSnapshot,
+    Propose,
+    ChangeConfig,
+    JoinCluster
+);

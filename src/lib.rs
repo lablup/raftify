@@ -23,7 +23,7 @@ pub mod raft_service;
 pub use deserializer::MyDeserializer;
 pub use raft;
 
-pub use crate::raft_facade::RequestIdResponse;
+pub use crate::raft_facade::ClusterJoinTicket;
 pub use raft::Config as RaftConfig;
 
 pub use crate::config::Config;
@@ -40,5 +40,5 @@ pub use crate::state_machine::AbstractStateMachine;
 pub use crate::storage::heed::HeedStorage;
 pub use crate::storage::heed::LogStore;
 pub use async_trait::async_trait;
-pub(crate) use utils::get_filesize;
 pub use tonic::transport::Channel;
+pub(crate) use utils::get_filesize;

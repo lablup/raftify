@@ -28,7 +28,9 @@ pub struct PyConfig {
     pub conf_change_request_timeout: f32,
 }
 
+#[pymethods]
 impl PyConfig {
+    #[new]
     pub fn new(
         raft_config: PyRaftConfig,
         log_dir: Option<String>,

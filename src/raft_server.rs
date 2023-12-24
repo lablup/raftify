@@ -123,7 +123,7 @@ impl RaftService for RaftServer {
         let sender = self.snd.clone();
         let (tx, rx) = oneshot::channel();
 
-        let message = ServerRequestMsg::ConfigChange {
+        let message = ServerRequestMsg::ChangeConfig {
             conf_change: request_args,
             chan: tx,
         };

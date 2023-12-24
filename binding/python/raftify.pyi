@@ -1,6 +1,6 @@
 import abc
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
 class AbstractLogEntry(metaclass=abc.ABCMeta):
     @abc.abstractmethod
@@ -30,25 +30,25 @@ class AbstractStateMachine(metaclass=abc.ABCMeta):
 class Raft:
     @staticmethod
     def build(
-        node_id: int,
         raft_addr: str,
         fsm: AbstractStateMachine,
         config: "Config",
+        join_ticket: Optional["ClusterJoinTicket"] = None,
         initial_peers: Optional["Peers"] = None,
     ) -> "Raft":
         """ """
     async def run(self) -> None:
         """ """
     @staticmethod
-    async def request_id(peer_addr: str) -> "RequestIdResponse":
+    async def request_id(peer_addr: str) -> "ClusterJoinTicket":
         """"""
     async def member_bootstrap_ready(self, leader_addr: str, node_id: int) -> None:
+        """ """
+    async def join(self) -> None:
         """ """
     async def snapshot(self) -> None:
         """ """
     async def cluster_size(self) -> int:
-        """ """
-    async def join(ticket: "RequestIdResponse") -> None:
         """ """
 
 class RaftNode:
@@ -74,7 +74,7 @@ class RaftNode:
         """ """
 
 @dataclass
-class RequestIdResponse:
+class ClusterJoinTicket:
     """ """
 
     reserved_id: int

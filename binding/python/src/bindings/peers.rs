@@ -1,7 +1,10 @@
 use std::{collections::HashMap, hash::BuildHasherDefault};
 
 use fxhash::FxHasher;
-use pyo3::{prelude::*, types::PyDict};
+use pyo3::{
+    prelude::*,
+    types::{PyDict, PyString},
+};
 use raftify::Peers;
 
 #[derive(Clone)]
@@ -25,5 +28,24 @@ impl PyPeers {
         }
 
         Self { inner }
+    }
+
+    // TODO: Replace String with Peer
+    pub fn get(&self, node_id: u64) -> Option<String> {
+        self.inner
+            .get(&node_id)
+            .map(|peer| peer.addr.to_owned().to_string())
+    }
+
+    pub fn add_peer(&mut self, node_id: u64, addr: &PyString) {
+        self.inner.add_peer(node_id, addr.to_str().unwrap());
+    }
+
+    pub fn remove(&mut self, node_id: u64) {
+        self.inner.remove(&node_id);
+    }
+
+    pub fn get_node_id_by_addr(&mut self, addr: &PyString) {
+        self.inner.get_node_id_by_addr(addr.to_str().unwrap());
     }
 }

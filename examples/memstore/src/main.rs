@@ -7,7 +7,7 @@ extern crate slog_term;
 use memstore::state_machine::{HashStore, LogEntry};
 use memstore::utils::{build_config, load_peers};
 use raftify::raft::derializer::set_custom_deserializer;
-use raftify::{AbstractLogEntry, RequestIdResponse};
+use raftify::{AbstractLogEntry, ClusterJoinTicket};
 use slog::Drain;
 
 use actix_web::{get, web, App, HttpServer, Responder};
@@ -110,7 +110,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         Some(peer_addr) => {
             log::info!("Running in Follower mode");
 
-            let mut request_id_resp: Option<RequestIdResponse> = None;
+            let mut request_id_resp: Option<ClusterJoinTicket> = None;
 
             let node_id = match peers {
                 Some(ref peers) => peers
@@ -136,7 +136,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             let handle = tokio::spawn(raft.clone().run());
 
             if let Some(request_id_resp) = request_id_resp {
-                raft.join(request_id_resp).await?;
+                raft.join(request_id_resp).await;
             } else if let Some(peers) = peers {
                 let leader_addr = peers.get(&1).unwrap().addr;
                 raft.member_bootstrap_ready(leader_addr, node_id).await?;

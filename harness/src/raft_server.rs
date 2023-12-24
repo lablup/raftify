@@ -109,7 +109,7 @@ pub async fn spawn_extra_node(peer_addr: &str, raft_addr: &str) -> Result<JoinHa
 
     let raft_handle = tokio::spawn(raft.clone().run());
 
-    raft.join(join_ticket).await.unwrap();
+    raft.join(join_ticket).await;
 
     Ok(raft_handle)
 }

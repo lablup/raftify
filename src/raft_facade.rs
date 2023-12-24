@@ -1,16 +1,14 @@
 use crate::error::{Error, Result};
 use crate::raft_node::raft_node::RaftNode;
 use crate::raft_server::RaftServer;
-use crate::raft_service::raft_service_client::RaftServiceClient;
-use crate::raft_service::{self, ChangeConfigResultType, MemberBootstrapReadyArgs, ResultCode};
+use crate::raft_service::{self, MemberBootstrapReadyArgs, ResultCode};
 use crate::request_message::ServerRequestMsg;
-use crate::{create_client, AbstractLogEntry, AbstractStateMachine, Config, LogStore, Peer, Peers};
+use crate::{create_client, AbstractLogEntry, AbstractStateMachine, Config, LogStore, Peers};
 use std::collections::HashMap;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
 
-use bincode::{deserialize, serialize};
-use raft::eraftpb::{ConfChangeSingle, ConfChangeType, ConfChangeV2};
+use bincode::deserialize;
 use tokio::signal;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::sleep;
@@ -30,11 +28,11 @@ pub struct Raft<
 }
 
 #[derive(Debug, Clone)]
-pub struct RequestIdResponse {
+pub struct ClusterJoinTicket {
     pub reserved_id: u64,
     pub leader_id: u64,
     pub leader_addr: String,
-    pub peers: HashMap<u64, Peer>,
+    pub peers: HashMap<u64, SocketAddr>,
 }
 
 impl<
@@ -119,17 +117,17 @@ impl<
             }
             _ = raft_node_handle => {
                 quit_signal_tx.send(()).unwrap();
-                slog::info!(self.logger, "All tasks quitted successfully.");
+                slog::info!(self.logger, "RaftNode quitted. Shutting down...");
                 Ok(())
             }
             _ = raft_server_handle => {
-                slog::error!(self.logger, "RaftNode not quitted, but RaftServer quitted. Shutting down...");
+                slog::crit!(self.logger, "RaftNode not quitted, but RaftServer quitted.");
                 Ok(())
             }
         }
     }
 
-    pub async fn request_id(peer_addr: String) -> Result<RequestIdResponse> {
+    pub async fn request_id(peer_addr: String) -> Result<ClusterJoinTicket> {
         println!("Attempting to get a node_id through \"{}\"...", peer_addr);
         let mut leader_addr = peer_addr;
 
@@ -150,7 +148,7 @@ impl<
                     continue;
                 }
                 ResultCode::Ok => {
-                    return Ok(RequestIdResponse {
+                    return Ok(ClusterJoinTicket {
                         reserved_id: response.reserved_id,
                         leader_id: response.leader_id,
                         leader_addr: response.leader_addr,
@@ -216,49 +214,7 @@ impl<
         self.raft_node.get_cluster_size().await
     }
 
-    pub async fn join(&mut self, request_id_response: RequestIdResponse) -> Result<()> {
-        let leader_id = request_id_response.leader_id;
-        let leader_addr = request_id_response.leader_addr.clone();
-        let reserved_id = request_id_response.reserved_id;
-
-        for (id, peer) in request_id_response.peers.iter() {
-            self.raft_node.add_peer(id.to_owned(), peer.addr).await;
-        }
-
-        self.raft_node.add_peer(leader_id, leader_addr).await;
-
-        let mut change = ConfChangeV2::default();
-        let mut cs = ConfChangeSingle::default();
-        cs.set_node_id(reserved_id);
-        cs.set_change_type(ConfChangeType::AddNode);
-        change.set_changes(vec![cs].into());
-        change.set_context(serialize(&vec![self.raft_addr.clone()])?);
-
-        let peer_addr = request_id_response.leader_addr;
-
-        loop {
-            let mut leader_client =
-                RaftServiceClient::connect(format!("http://{}", peer_addr)).await?;
-            let response = leader_client
-                .change_config(Request::new(change.clone()))
-                .await?
-                .into_inner();
-
-            match response.result_type() {
-                ChangeConfigResultType::ChangeConfigWrongLeader => {
-                    // TODO: Handle this
-                    // response.data();
-                    continue;
-                }
-                ChangeConfigResultType::ChangeConfigSuccess => break Ok(()),
-                ChangeConfigResultType::ChangeConfigUnknownError => return Err(Error::JoinError),
-                ChangeConfigResultType::ChangeConfigRejected => {
-                    return Err(Error::Rejected("Join request rejected".to_string()))
-                }
-                ChangeConfigResultType::ChangeConfigTimeoutError => {
-                    return Err(Error::Timeout);
-                }
-            }
-        }
+    pub async fn join(&self, ticket: ClusterJoinTicket) {
+        self.raft_node.join_cluster(ticket).await;
     }
 }

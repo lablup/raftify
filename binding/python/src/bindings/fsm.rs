@@ -15,7 +15,7 @@ impl AbstractLogEntry for PyLogEntry {
                 .as_ref(py)
                 .call_method("encode", (), None)
                 .and_then(|py_result| py_result.extract::<Vec<u8>>().map(|res| res))
-                .map_err(|err| Error::Unknown)
+                .map_err(|err| Error::Io(err.to_string()))
         })
     }
 
@@ -34,7 +34,7 @@ impl AbstractLogEntry for PyLogEntry {
 
             py_result
                 .extract::<PyLogEntry>()
-                .map_err(|_| Error::Unknown)
+                .map_err(|err| Error::Io(err.to_string()))
         })
     }
 }

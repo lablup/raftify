@@ -74,11 +74,12 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<
     Store { store: FSM },
     Storage { storage: HeedStorage },
     GetClusterSize { size: usize },
-    ConfigChange { result: ConfChangeResponseResult },
+    ChangeConfig { result: ConfChangeResponseResult },
     Quit {},
     MakeSnapshot {},
     Propose {},
     DebugNode { result: String },
+    JoinCluster {},
     _Phantom(PhantomData<LogEntry>),
 }
 

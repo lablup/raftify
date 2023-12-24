@@ -1,4 +1,7 @@
-use super::{fsm::{PyFSM, PyLogEntry}, peers::PyPeers};
+use super::{
+    fsm::{PyFSM, PyLogEntry},
+    peers::PyPeers,
+};
 use pyo3::prelude::*;
 use raftify::RaftNode;
 
