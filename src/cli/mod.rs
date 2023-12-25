@@ -12,7 +12,7 @@ mod commands;
 
 pub async fn cli_handler<
     LogEntry: AbstractLogEntry + Debug + Send + 'static,
-    FSM: AbstractStateMachine<LogEntry> + Debug + Clone + Send + Sync + 'static,
+    FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
 >() -> Result<()> {
     let matches = App::new("raftify")
         .version(PKG_VERSION)

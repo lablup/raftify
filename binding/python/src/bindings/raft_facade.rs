@@ -3,8 +3,8 @@ use raftify::raft::default_logger;
 use raftify::{ClusterJoinTicket, Raft};
 
 use super::config::PyConfig;
-use super::fsm::{PyFSM, PyLogEntry};
 use super::peers::PyPeers;
+use super::state_machine::{PyFSM, PyLogEntry};
 
 #[derive(Clone)]
 #[pyclass(name = "Raft")]
@@ -38,9 +38,9 @@ impl PyRaftFacade {
         addr: &PyString,
         fsm: PyObject,
         config: PyConfig,
-        // logger: PyObject,
         join_ticket: Option<PyClusterJoinTicket>,
         initial_peers: Option<PyPeers>,
+        // logger: PyObject,
     ) -> PyResult<Self> {
         let fsm = PyFSM::new(fsm);
         let logger = default_logger();
@@ -64,12 +64,6 @@ impl PyRaftFacade {
         self._run()
     }
 
-    // // TODO: Remove this and pass ClusterJoinTicket to `join` directly after it become possible
-    // pub fn prepare_join(&mut self, ticket: &PyClusterJoinTicket) -> PyResult<()> {
-    //     self.join_ticket = Some(ticket.inner.clone());
-    //     Ok(())
-    // }
-
     #[staticmethod]
     pub async fn request_id(peer_addr: String) -> PyClusterJoinTicket {
         Self::_request_id(&peer_addr.to_string())
@@ -78,13 +72,13 @@ impl PyRaftFacade {
     // run이 실행된 상태에서의 &mut self가 두 개 이상 존재하게 되므로 데드락
     // 채널을 통해 우회하자 -> 여전히 데드락. 어디에서 데드락이 걸리는 지 확실하지 않음.
     // oneshot::send -> 어째서 여기서 블로킹?
-    pub async fn join(&self) -> PyResult<()> {
-        assert!(self.join_ticket.is_some());
+    // pub async fn join(&self) -> PyResult<()> {
+    //     assert!(self.join_ticket.is_some());
 
-        let ticket = self.join_ticket.clone().unwrap();
-        println!("join 2!!");
-        self._join(ticket)
-    }
+    //     let ticket = self.join_ticket.clone().unwrap();
+    //     println!("join 2!!");
+    //     self._join(ticket)
+    // }
 
     pub async fn cluster_size(&self) -> PyResult<usize> {
         let size = self.inner.cluster_size().await;
@@ -96,7 +90,13 @@ impl PyRaftFacade {
     #[tokio::main]
     async fn _run(&self) -> PyResult<()> {
         let raft = self.inner.clone();
-        raft.run().await.unwrap();
+        let raft_task = tokio::spawn(raft.clone().run());
+
+        if !self.join_ticket.is_none() {
+            raft.join(self.join_ticket.clone().unwrap()).await;
+        }
+
+        let _ = tokio::try_join!(raft_task).unwrap().0.unwrap();
         Ok(())
     }
 
@@ -106,13 +106,5 @@ impl PyRaftFacade {
             .await
             .unwrap();
         PyClusterJoinTicket { inner: ticket }
-    }
-
-    #[tokio::main]
-    async fn _join(&self, ticket: ClusterJoinTicket) -> PyResult<()> {
-        println!("Joining cluster with ticket: {:?}", ticket);
-        self.inner.join(ticket).await;
-        println!("Joining cluster with ticket: 2");
-        Ok(())
     }
 }

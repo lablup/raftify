@@ -15,10 +15,7 @@ use tokio::time::sleep;
 use tonic::Request;
 
 #[derive(Clone)]
-pub struct Raft<
-    LogEntry: AbstractLogEntry + 'static,
-    FSM: AbstractStateMachine<LogEntry> + Clone + 'static,
-> {
+pub struct Raft<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + Clone + 'static> {
     pub raft_node: RaftNode<LogEntry, FSM>,
     pub raft_server: RaftServer,
     pub server_tx: mpsc::Sender<ServerRequestMsg>,
@@ -35,10 +32,8 @@ pub struct ClusterJoinTicket {
     pub peers: HashMap<u64, SocketAddr>,
 }
 
-impl<
-        LogEntry: AbstractLogEntry,
-        FSM: AbstractStateMachine<LogEntry> + Clone + Send + Sync + 'static,
-    > Raft<LogEntry, FSM>
+impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync + 'static>
+    Raft<LogEntry, FSM>
 {
     pub fn build<A: ToSocketAddrs>(
         node_id: u64,

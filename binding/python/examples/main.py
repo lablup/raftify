@@ -3,7 +3,14 @@ import asyncio
 from contextlib import suppress
 import pickle
 from typing import Optional
-from raftify import Peers, Raft, Config, RaftConfig
+from raftify import (
+    Peers,
+    Raft,
+    Config,
+    RaftConfig,
+    # AbstractLogEntry,
+    # AbstractStateMachine,
+)
 import tomli
 from pathlib import Path
 from typing import Any, Iterable
@@ -17,10 +24,7 @@ def load_peers() -> Peers:
     cfg = tomli.loads(path.read_text())["raft"]["peers"]
 
     return Peers(
-        {
-            int(entry["node_id"]): f"{entry['host']}:{entry['port']}"
-            for entry in cfg
-        }
+        {int(entry["node_id"]): f"{entry['host']}:{entry['port']}" for entry in cfg}
     )
 
 
@@ -80,6 +84,7 @@ async def put(request: web.Request) -> web.Response:
     return web.Response(text=f'"{str(result)}"')
 
 
+# class SetCommand(AbstractLogEntry):
 class SetCommand:
     """
     Represent simple key-value command.
@@ -99,6 +104,9 @@ class SetCommand:
         return cls(unpacked["key"], unpacked["value"])
 
 
+# class HashStore(AbstractStateMachine):
+
+
 class HashStore:
     """
     A simple key-value store that stores data in memory.
@@ -114,15 +122,15 @@ class HashStore:
     def as_dict(self) -> dict:
         return self._store
 
-    async def apply(self, msg: bytes) -> bytes:
+    def apply(self, msg: bytes) -> bytes:
         message = SetCommand.decode(msg)
         self._store[message.key] = message.value
         return msg
 
-    async def snapshot(self) -> bytes:
+    def snapshot(self) -> bytes:
         return pickle.dumps(self._store)
 
-    async def restore(self, snapshot: bytes) -> None:
+    def restore(self, snapshot: bytes) -> None:
         self._store = pickle.loads(snapshot)
 
 
@@ -145,22 +153,10 @@ async def main():
     store = HashStore()
     tasks = []
 
-    if peer_addr:
-        join_ticket = await Raft.request_id(peer_addr)
-        raft = Raft.build(raft_addr, store, cfg, join_ticket)
-        print("join 1")
-        tasks.append(asyncio.create_task(raft.run()))
-        # print("join 1.5")
-        # await asyncio.sleep(1)
-        # print("join 3!!!!!!!!")
+    join_ticket = await Raft.request_id(peer_addr) if peer_addr else None
 
-        print("cluste size", await asyncio.create_task(raft.cluster_size()))
-        # print("join 2.1")
-        tasks.append(raft.join())
-        print("join 2")
-    else:
-        raft = Raft.build(raft_addr, store, cfg)
-        tasks.append(asyncio.create_task(raft.run()))
+    raft = Raft.build(raft_addr, store, cfg, join_ticket)
+    tasks.append(asyncio.create_task(raft.run()))
 
     await asyncio.gather(tasks)
 

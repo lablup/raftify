@@ -1,6 +1,6 @@
 use super::{
-    fsm::{PyFSM, PyLogEntry},
     peers::PyPeers,
+    state_machine::{PyFSM, PyLogEntry},
 };
 use pyo3::prelude::*;
 use raftify::RaftNode;

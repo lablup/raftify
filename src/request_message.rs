@@ -36,7 +36,7 @@ pub enum ServerRequestMsg {
     },
 }
 
-pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>> {
+pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
     IsLeader {
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
@@ -93,7 +93,7 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<L
 
 macro_rules! impl_debug_for_enum {
     ($($variant:ident),*) => {
-        impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>> std::fmt::Debug for LocalRequestMsg<LogEntry, FSM> {
+        impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> std::fmt::Debug for LocalRequestMsg<LogEntry, FSM> {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 match self {
                     $(

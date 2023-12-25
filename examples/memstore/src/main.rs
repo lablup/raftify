@@ -124,7 +124,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 }
             };
 
-            let mut raft = Raft::build(
+            let mut raft = Raft::<LogEntry, HashStore>::build(
                 node_id,
                 options.raft_addr,
                 store.clone(),

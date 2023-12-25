@@ -39,7 +39,7 @@ use super::utils::inspect_raftnode;
 #[derive(Clone)]
 pub struct RaftNode<
     LogEntry: AbstractLogEntry + Send + 'static,
-    FSM: AbstractStateMachine<LogEntry> + Clone + 'static,
+    FSM: AbstractStateMachine + Clone + 'static,
 > {
     // The lock of RaftNodeCore is locked when RaftNode.run is called and is never released until program terminates.
     // However, to implement the Clone trait in RaftNode, Arc and Mutex are necessary. That's why we use OneShotMutex here.
@@ -49,7 +49,7 @@ pub struct RaftNode<
 
 impl<
         LogEntry: AbstractLogEntry + Send + 'static,
-        FSM: AbstractStateMachine<LogEntry> + Clone + Send + 'static,
+        FSM: AbstractStateMachine + Clone + Send + 'static,
     > RaftNode<LogEntry, FSM>
 {
     pub fn bootstrap_cluster(
@@ -316,14 +316,11 @@ impl<
 
     pub async fn join_cluster(&self, ticket: ClusterJoinTicket) {
         let (tx, rx) = oneshot::channel();
-        println!("abc!! 11");
         self.local_sender
             .send(LocalRequestMsg::JoinCluster { ticket, chan: tx })
             .await
             .unwrap();
-        println!("abc!! 112");
         let resp = rx.await.unwrap();
-        println!("abc!! 113");
         match resp {
             LocalResponseMsg::JoinCluster {} => (),
             _ => unreachable!(),
@@ -342,7 +339,7 @@ impl<
 
 pub struct RaftNodeCore<
     LogEntry: AbstractLogEntry + Send + 'static,
-    FSM: AbstractStateMachine<LogEntry> + Clone + 'static,
+    FSM: AbstractStateMachine + Clone + 'static,
 > {
     pub raw_node: RawNode<HeedStorage>,
     pub fsm: FSM,
@@ -368,7 +365,7 @@ pub struct RaftNodeCore<
 
 impl<
         LogEntry: AbstractLogEntry + Send + 'static,
-        FSM: AbstractStateMachine<LogEntry> + Clone + Send + 'static,
+        FSM: AbstractStateMachine + Clone + Send + 'static,
     > RaftNodeCore<LogEntry, FSM>
 {
     pub fn bootstrap_cluster(
@@ -633,8 +630,7 @@ impl<
 
     async fn handle_committed_normal_entry(&mut self, entry: &Entry) -> Result<()> {
         let response_seq: u64 = deserialize(&entry.get_context())?;
-        let log_entry = LogEntry::decode(entry.get_data())?;
-        let _data = self.fsm.apply(log_entry).await?;
+        let _data = self.fsm.apply(entry.get_data().to_vec()).await?;
 
         if let Some(sender) = self.response_senders.remove(&response_seq) {
             match sender {
@@ -662,7 +658,6 @@ impl<
     pub async fn make_snapshot(&mut self, index: u64, term: u64) -> Result<()> {
         self.last_snapshot_created = Instant::now();
         let snapshot_data = self.fsm.snapshot().await?;
-        let snapshot_data = snapshot_data.encode()?;
 
         let last_applied = self.raw_node.raft.raft_log.applied;
         let store = self.raw_node.mut_store();
@@ -867,7 +862,6 @@ impl<
         &mut self,
         message: LocalRequestMsg<LogEntry, FSM>,
     ) -> Result<()> {
-        println!("tick 3 before 2 {:?}", message);
         match message {
             LocalRequestMsg::IsLeader { chan } => {
                 chan.send(LocalResponseMsg::IsLeader {
@@ -919,10 +913,8 @@ impl<
             }
             LocalRequestMsg::GetClusterSize { chan } => {
                 let size = self.raw_node.raft.prs().iter().collect::<Vec<_>>().len();
-                println!("send!!");
-                let e = chan.send(LocalResponseMsg::GetClusterSize { size });
-
-                println!("send!! ?!!!??!?!?!?!?!?!?? ??, {:?}", e);
+                chan.send(LocalResponseMsg::GetClusterSize { size })
+                    .unwrap();
             }
             LocalRequestMsg::Quit { chan } => {
                 self.should_exit = true;
@@ -949,7 +941,6 @@ impl<
                 chan.send(LocalResponseMsg::MakeSnapshot {}).unwrap();
             }
             LocalRequestMsg::JoinCluster { ticket, chan } => {
-                println!("abc!!");
                 self.handle_join(ticket).await?;
                 chan.send(LocalResponseMsg::JoinCluster {}).unwrap();
             }
@@ -1160,7 +1151,6 @@ impl<
         let mut tick_timer = interval(Duration::from_secs_f32(self.config.tick_interval));
 
         loop {
-            println!("loop");
             if self.should_exit {
                 slog::info!(self.logger, "Node {} quit the cluster.", self.get_id());
                 return Ok(());
@@ -1180,14 +1170,11 @@ impl<
                     }
                 }
                 msg = self.local_rcv.recv() => {
-                    println!("tick 3 before {:?}", msg);
                     if let Some(message) = msg {
                         self.handle_local_request_msg(message).await?;
                     }
                 }
             }
-
-            println!("on_ready");
 
             // TODO: Remove this after investigating why tokio::join not failing when one of the Result is Err
             match self.on_ready().await {
@@ -1216,8 +1203,7 @@ impl<
             );
             let snapshot = ready.snapshot();
             if !snapshot.get_data().is_empty() {
-                let snapshot = FSM::decode(snapshot.get_data()).unwrap();
-                self.fsm.restore(snapshot).await?;
+                self.fsm.restore(snapshot.get_data().to_vec()).await?;
             }
             let store = self.raw_node.mut_store();
             store.apply_snapshot(snapshot.clone())?;

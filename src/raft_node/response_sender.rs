@@ -2,14 +2,12 @@ use crate::response_message::{LocalResponseMsg, ResponseMessage, ServerResponseM
 use crate::{AbstractLogEntry, AbstractStateMachine};
 use tokio::sync::oneshot;
 
-pub(crate) enum ResponseSender<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>> {
+pub(crate) enum ResponseSender<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
     Local(oneshot::Sender<LocalResponseMsg<LogEntry, FSM>>),
     Server(oneshot::Sender<ServerResponseMsg>),
 }
 
-impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine<LogEntry>>
-    ResponseSender<LogEntry, FSM>
-{
+impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> ResponseSender<LogEntry, FSM> {
     pub fn send(self, response: ResponseMessage<LogEntry, FSM>) {
         match self {
             ResponseSender::Local(sender) => {

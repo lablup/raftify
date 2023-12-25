@@ -11,7 +11,7 @@ use std::net::SocketAddr;
 
 pub struct MyDeserializer<
     LogEntry: AbstractLogEntry + Debug + 'static,
-    FSM: AbstractStateMachine<LogEntry> + Debug + Clone + Send + Sync + 'static,
+    FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
 > {
     _marker: PhantomData<LogEntry>,
     _marker2: PhantomData<FSM>,
@@ -19,7 +19,7 @@ pub struct MyDeserializer<
 
 impl<
         LogEntry: AbstractLogEntry + Debug,
-        FSM: AbstractStateMachine<LogEntry> + Debug + Clone + Send + Sync + 'static,
+        FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
     > MyDeserializer<LogEntry, FSM>
 {
     pub fn new() -> Self {
@@ -32,7 +32,7 @@ impl<
 
 impl<
         LogEntry: AbstractLogEntry + Debug,
-        FSM: AbstractStateMachine<LogEntry> + Debug + Clone + Send + Sync + 'static,
+        FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
     > CustomDeserializer for MyDeserializer<LogEntry, FSM>
 {
     fn entry_context_deserialize(&self, v: &Bytes) -> String {

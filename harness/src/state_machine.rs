@@ -35,8 +35,9 @@ impl HashStore {
 }
 
 #[async_trait]
-impl AbstractStateMachine<LogEntry> for HashStore {
-    async fn apply(&mut self, log_entry: LogEntry) -> Result<LogEntry> {
+impl AbstractStateMachine for HashStore {
+    async fn apply(&mut self, data: Vec<u8>) -> Result<Vec<u8>> {
+        let log_entry: LogEntry = LogEntry::decode(&data)?;
         match log_entry {
             LogEntry::Insert { ref key, ref value } => {
                 let mut db = self.0.write().unwrap();
@@ -44,16 +45,15 @@ impl AbstractStateMachine<LogEntry> for HashStore {
                 db.insert(*key, value.clone());
             }
         };
-        Ok(log_entry)
+        Ok(data)
     }
 
-    async fn snapshot(&self) -> Result<HashStore> {
-        let snapshot = self.0.read().unwrap().clone();
-        Ok(HashStore(Arc::new(RwLock::new(snapshot))))
+    async fn snapshot(&self) -> Result<Vec<u8>> {
+        Ok(serialize(&self.0.read().unwrap().clone())?)
     }
 
-    async fn restore(&mut self, snapshot: HashStore) -> Result<()> {
-        let new: HashMap<u64, String> = snapshot.0.read().unwrap().clone();
+    async fn restore(&mut self, snapshot: Vec<u8>) -> Result<()> {
+        let new: HashMap<u64, String> = deserialize(&snapshot[..]).unwrap();
         let mut db = self.0.write().unwrap();
         let _ = std::mem::replace(&mut *db, new);
         Ok(())
