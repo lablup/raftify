@@ -1850,6 +1850,7 @@ dependencies = [
  "bytes",
  "fxhash",
  "once_cell",
+ "prost",
  "pyo3",
  "raftify",
  "slog",

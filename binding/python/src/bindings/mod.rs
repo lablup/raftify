@@ -1,4 +1,5 @@
 pub mod config;
+pub mod deserializer;
 pub mod errors;
 pub mod peers;
 pub mod raft_client;

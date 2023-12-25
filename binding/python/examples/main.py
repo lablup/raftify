@@ -10,6 +10,12 @@ from raftify import (
     RaftConfig,
     # AbstractLogEntry,
     # AbstractStateMachine,
+    set_confchange_context_deserializer,
+    set_confchangev2_context_deserializer,
+    set_entry_context_deserializer,
+    set_entry_data_deserializer,
+    set_message_context_deserializer,
+    set_snapshot_data_deserializer,
 )
 import tomli
 from pathlib import Path
@@ -104,6 +110,30 @@ class SetCommand:
         return cls(unpacked["key"], unpacked["value"])
 
 
+def pickle_deserialize(data: bytes) -> str | None:
+    if data == b"":
+        return None
+
+    if pickle.PROTO in data:
+        r = pickle.loads(data[data.index(pickle.PROTO) :])
+        return r
+
+    # Not pickle data
+    return None
+
+
+def register_custom_deserializer() -> None:
+    """
+    Initialize the custom deserializers.
+    """
+
+    set_confchange_context_deserializer(pickle_deserialize)
+    set_confchangev2_context_deserializer(pickle_deserialize)
+    set_entry_context_deserializer(pickle_deserialize)
+    set_entry_data_deserializer(pickle_deserialize)
+    set_message_context_deserializer(pickle_deserialize)
+    set_snapshot_data_deserializer(pickle_deserialize)
+
 # class HashStore(AbstractStateMachine):
 
 
@@ -135,6 +165,7 @@ class HashStore:
 
 
 async def main():
+    register_custom_deserializer()
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--ignore-static-bootstrap", action=argparse.BooleanOptionalAction, default=None

@@ -1,15 +1,12 @@
-#![cfg(feature = "include-python-workspace")]
-use raftify::{raft::derializer::set_custom_deserializer, MyDeserializer};
-use bindings::state_machine::{PyFSM, PyLogEntry};
+// #![cfg(feature = "include-python-workspace")]
+use ::raftify::raft::derializer::set_custom_deserializer;
+use bindings::deserializer::PythonDeserializer;
 use pyo3::prelude::*;
 
 mod bindings;
 
 #[pymodule]
 fn raftify(_py: Python, m: &PyModule) -> PyResult<()> {
-    // TODO: How to handle this?
-    // set_custom_deserializer(MyDeserializer::<PyLogEntry, PyFSM>::new());
-
     m.add_class::<bindings::config::PyConfig>()?;
     m.add_class::<bindings::raft_rs::config::PyRaftConfig>()?;
     m.add_class::<bindings::state_machine::PyFSM>()?;
@@ -17,5 +14,38 @@ fn raftify(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<bindings::peers::PyPeers>()?;
     m.add_class::<bindings::raft_client::PyRaftClient>()?;
     m.add_class::<bindings::raft_node::PyRaftNode>()?;
+
+    m.add_function(wrap_pyfunction!(
+        bindings::deserializer::set_confchange_context_deserializer,
+        m
+    )?)?;
+
+    m.add_function(wrap_pyfunction!(
+        bindings::deserializer::set_confchangev2_context_deserializer,
+        m
+    )?)?;
+
+    m.add_function(wrap_pyfunction!(
+        bindings::deserializer::set_entry_context_deserializer,
+        m
+    )?)?;
+
+    m.add_function(wrap_pyfunction!(
+        bindings::deserializer::set_entry_data_deserializer,
+        m
+    )?)?;
+
+    m.add_function(wrap_pyfunction!(
+        bindings::deserializer::set_message_context_deserializer,
+        m
+    )?)?;
+
+    m.add_function(wrap_pyfunction!(
+        bindings::deserializer::set_snapshot_data_deserializer,
+        m
+    )?)?;
+
+    set_custom_deserializer(PythonDeserializer);
+
     Ok(())
 }

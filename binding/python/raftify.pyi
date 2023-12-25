@@ -1,6 +1,6 @@
 import abc
 from dataclasses import dataclass
-from typing import Optional
+from typing import Callable, Optional
 
 class AbstractLogEntry(metaclass=abc.ABCMeta):
     @abc.abstractmethod
@@ -181,3 +181,21 @@ class RaftClient:
         """ """
     async def send_message(self) -> None:
         """ """
+
+def set_snapshot_data_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
+    """ """
+
+def set_message_context_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
+    """ """
+
+def set_confchange_context_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
+    """ """
+
+def set_confchangev2_context_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
+    """ """
+
+def set_entry_data_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
+    """ """
+
+def set_entry_context_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
+    """ """
