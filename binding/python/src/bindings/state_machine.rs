@@ -55,56 +55,56 @@ impl PyFSM {
 #[async_trait]
 impl AbstractStateMachine for PyFSM {
     async fn apply(&mut self, log_entry: Vec<u8>) -> Result<Vec<u8>, Error> {
-        let py = unsafe { Python::assume_gil_acquired() };
-
-        self.store
-            .as_ref(py)
-            .call_method("apply", (log_entry,), None)
-            .and_then(|py_result| py_result.extract::<Vec<u8>>().map(|res| res))
-            .map_err(|err| Error::Unknown)
+        Python::with_gil(|py| {
+            self.store
+                .as_ref(py)
+                .call_method("apply", (PyBytes::new(py, log_entry.as_slice()),), None)
+                .and_then(|py_result| py_result.extract::<Vec<u8>>().map(|res| res))
+                .map_err(|err| Error::Unknown)
+        })
     }
 
     async fn snapshot(&self) -> Result<Vec<u8>, Error> {
-        let py = unsafe { Python::assume_gil_acquired() };
-
-        // TODO: Make snapshot method call to async if possible
-        self.store
-            .as_ref(py)
-            .call_method("snapshot", (), None)
-            .and_then(|py_result| py_result.extract::<Vec<u8>>().map(|res| res))
-            .map_err(|err| Error::Unknown)
+        Python::with_gil(|py| {
+            // TODO: Make snapshot method call to async if possible
+            self.store
+                .as_ref(py)
+                .call_method("snapshot", (), None)
+                .and_then(|py_result| py_result.extract::<Vec<u8>>().map(|res| res))
+                .map_err(|err| Error::Unknown)
+        })
     }
 
     async fn restore(&mut self, snapshot: Vec<u8>) -> Result<(), Error> {
-        let py = unsafe { Python::assume_gil_acquired() };
-
-        self.store
-            .as_ref(py)
-            .call_method("restore", (PyBytes::new(py, snapshot.as_slice()),), None)
-            .and_then(|_| Ok(()))
-            .map_err(|err| Error::Unknown)
+        Python::with_gil(|py| {
+            self.store
+                .as_ref(py)
+                .call_method("restore", (PyBytes::new(py, snapshot.as_slice()),), None)
+                .and_then(|_| Ok(()))
+                .map_err(|err| Error::Unknown)
+        })
     }
 
     fn encode(&self) -> Result<Vec<u8>, Error> {
-        let py = unsafe { Python::assume_gil_acquired() };
-
-        self.store
-            .as_ref(py)
-            .call_method("encode", (), None)
-            .and_then(|py_result| py_result.extract::<Vec<u8>>().map(|res| res))
-            .map_err(|err| Error::Unknown)
+        Python::with_gil(|py| {
+            self.store
+                .as_ref(py)
+                .call_method("encode", (), None)
+                .and_then(|py_result| py_result.extract::<Vec<u8>>().map(|res| res))
+                .map_err(|err| Error::Unknown)
+        })
     }
 
     fn decode(data: &[u8]) -> Result<Self, Error> {
-        let py = unsafe { Python::assume_gil_acquired() };
+        Python::with_gil(|py| {
+            let fsm_class = PyModule::import(py, "raftify")
+                .unwrap()
+                .getattr("StateMachine")
+                .unwrap();
 
-        let fsm_class = PyModule::import(py, "raftify")
-            .unwrap()
-            .getattr("StateMachine")
-            .unwrap();
+            let py_result = fsm_class.getattr("decode").unwrap().call1((data,)).unwrap();
 
-        let py_result = fsm_class.getattr("decode").unwrap().call1((data,)).unwrap();
-
-        py_result.extract::<PyFSM>().map_err(|_| Error::Unknown)
+            py_result.extract::<PyFSM>().map_err(|_| Error::Unknown)
+        })
     }
 }

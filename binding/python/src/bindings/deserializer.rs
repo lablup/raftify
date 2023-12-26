@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use ::once_cell::sync::Lazy;
 use prost::Message as PMessage;
 use pyo3::*;
-use pyo3::{types::PyBytes, IntoPy, PyObject, Python};
+use pyo3::{types::PyBytes, PyObject, Python};
 use raftify::raft::derializer::{format_confchange, format_confchangev2};
 use raftify::raft::{
     derializer::{Bytes, CustomDeserializer},
@@ -69,12 +69,10 @@ impl CustomDeserializer for PythonDeserializer {
             }
         }
 
-        let py = unsafe { Python::assume_gil_acquired() };
-
-        match v {
+        Python::with_gil(|py| match v {
             Bytes::Prost(v) => format!("{:?}", deserialize(py, &v[..])),
             Bytes::Protobuf(v) => format!("{:?}", deserialize(py, &v[..])),
-        }
+        })
     }
 
     fn entry_data_deserialize(&self, v: &Bytes) -> String {
@@ -83,9 +81,7 @@ impl CustomDeserializer for PythonDeserializer {
 
             if let Some(callback) = &*callback_lock {
                 if data.len() != 0 {
-                    let res = callback
-                        .call(py, (PyBytes::new(py, data),), None)
-                        .unwrap();
+                    let res = callback.call(py, (PyBytes::new(py, data),), None).unwrap();
 
                     let res = res.as_ref(py);
 
@@ -105,12 +101,10 @@ impl CustomDeserializer for PythonDeserializer {
             format!("{:?}", data)
         }
 
-        let py = unsafe { Python::assume_gil_acquired() };
-
-        match v {
+        Python::with_gil(|py| match v {
             Bytes::Prost(v) => format!("{:?}", deserialize(py, &v[..])),
             Bytes::Protobuf(v) => format!("{:?}", deserialize(py, &v[..])),
-        }
+        })
     }
 
     fn confchangev2_context_deserialize(&self, v: &Bytes) -> String {
@@ -121,19 +115,17 @@ impl CustomDeserializer for PythonDeserializer {
                 callback
                     .call(py, (PyBytes::new(py, data),), None)
                     .unwrap()
-                    .as_ref(py)
+                    .into_py(py)
                     .to_string()
             } else {
                 format!("{:?}", data)
             }
         }
 
-        let py = unsafe { Python::assume_gil_acquired() };
-
-        match v {
+        Python::with_gil(|py| match v {
             Bytes::Prost(v) => format!("{:?}", deserialize(py, &v[..])),
             Bytes::Protobuf(v) => format!("{:?}", deserialize(py, &v[..])),
-        }
+        })
     }
 
     fn confchange_context_deserialize(&self, v: &Bytes) -> String {
@@ -151,12 +143,10 @@ impl CustomDeserializer for PythonDeserializer {
             }
         }
 
-        let py = unsafe { Python::assume_gil_acquired() };
-
-        match v {
+        Python::with_gil(|py| match v {
             Bytes::Prost(v) => format!("{:?}", deserialize(py, &v[..])),
             Bytes::Protobuf(v) => format!("{:?}", deserialize(py, &v[..])),
-        }
+        })
     }
 
     fn message_context_deserializer(&self, v: &Bytes) -> String {
@@ -174,12 +164,10 @@ impl CustomDeserializer for PythonDeserializer {
             }
         }
 
-        let py = unsafe { Python::assume_gil_acquired() };
-
-        match v {
+        Python::with_gil(|py| match v {
             Bytes::Prost(v) => format!("{:?}", deserialize(py, &v[..])),
             Bytes::Protobuf(v) => format!("{:?}", deserialize(py, &v[..])),
-        }
+        })
     }
 
     fn snapshot_data_deserializer(&self, v: &Bytes) -> String {
@@ -197,11 +185,9 @@ impl CustomDeserializer for PythonDeserializer {
             }
         }
 
-        let py = unsafe { Python::assume_gil_acquired() };
-
-        match v {
+        Python::with_gil(|py| match v {
             Bytes::Prost(v) => format!("{:?}", deserialize(py, &v[..])),
             Bytes::Protobuf(v) => format!("{:?}", deserialize(py, &v[..])),
-        }
+        })
     }
 }

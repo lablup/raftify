@@ -27,7 +27,6 @@ use raft::eraftpb::{
     Message as RaftMessage, Snapshot,
 };
 use raft::raw_node::RawNode;
-use tokio::select;
 use tokio::sync::oneshot;
 use tokio::sync::{mpsc, Mutex};
 use tokio::time::interval;
@@ -246,9 +245,7 @@ impl<
             .send(LocalRequestMsg::GetClusterSize { chan: tx })
             .await
             .unwrap();
-        println!("lock1?");
         let resp = rx.await.unwrap();
-        println!("lock2?");
         match resp {
             LocalResponseMsg::GetClusterSize { size } => size,
             _ => unreachable!(),

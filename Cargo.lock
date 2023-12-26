@@ -1849,6 +1849,7 @@ dependencies = [
  "bincode",
  "bytes",
  "fxhash",
+ "lazy_static",
  "once_cell",
  "prost",
  "pyo3",

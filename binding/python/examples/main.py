@@ -82,11 +82,12 @@ async def get(request: web.Request) -> web.Response:
 
 @routes.get("/put/{id}/{value}")
 async def put(request: web.Request) -> web.Response:
-    raft = request.app["state"]["raft"]
+    raft: Raft = request.app["state"]["raft"]
     id, value = request.match_info["id"], request.match_info["value"]
     message = SetCommand(id, value)
 
-    result = await raft.propose(message.encode())
+    raft.prepare_proposal(message.encode())
+    result = await raft.propose()
     return web.Response(text=f'"{str(result)}"')
 
 
@@ -164,6 +165,13 @@ class HashStore:
         self._store = pickle.loads(snapshot)
 
 
+async def wait_for_termination(raft: Raft):
+    while True:
+        if raft.is_finished():
+            break
+        await asyncio.sleep(1)
+
+
 async def main():
     register_custom_deserializer()
     parser = argparse.ArgumentParser()
@@ -177,7 +185,7 @@ async def main():
 
     raft_addr = args.raft_addr
     peer_addr = args.peer_addr
-    # web_server = args.web_server
+    web_server_addr = args.web_server
     # ignore_static_bootstrap = args.ignore_static_bootstrap
 
     cfg = build_config()
@@ -188,8 +196,10 @@ async def main():
 
     raft = Raft.build(raft_addr, store, cfg, join_ticket)
     tasks.append(asyncio.create_task(raft.run()))
+    tasks.append(asyncio.create_task(wait_for_termination(raft)))
 
-    await asyncio.gather(tasks)
+    async with WebServer(web_server_addr, routes, {"raft": raft, "store": store}):
+        await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":

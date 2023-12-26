@@ -1,16 +1,30 @@
+use std::sync::Arc;
+use std::thread::{self, sleep};
+use std::time::Duration;
+
 use pyo3::{prelude::*, types::PyString};
 use raftify::raft::default_logger;
-use raftify::{ClusterJoinTicket, Raft};
+use raftify::{ClusterJoinTicket, Error, Raft};
+use tokio::task::JoinHandle;
 
 use super::config::PyConfig;
 use super::peers::PyPeers;
 use super::state_machine::{PyFSM, PyLogEntry};
+
+use lazy_static::lazy_static;
+use tokio::runtime::Runtime;
+
+lazy_static! {
+    static ref TOKIO_RT: Runtime = Runtime::new().unwrap();
+}
 
 #[derive(Clone)]
 #[pyclass(name = "Raft")]
 pub struct PyRaftFacade {
     inner: Raft<PyLogEntry, PyFSM>,
     join_ticket: Option<ClusterJoinTicket>,
+    raft_task: Option<Arc<JoinHandle<Result<(), Error>>>>,
+    proposal: Option<Vec<u8>>,
 }
 
 #[derive(Clone)]
@@ -57,53 +71,62 @@ impl PyRaftFacade {
         Ok(Self {
             inner: raft,
             join_ticket: join_ticket.map(|t| t.inner),
+            raft_task: None,
+            proposal: None,
         })
     }
 
-    pub async fn run(&self) -> PyResult<()> {
-        self._run()
+    pub async fn run(&mut self) -> PyResult<()> {
+        self._run().await
     }
 
     #[staticmethod]
     pub async fn request_id(peer_addr: String) -> PyClusterJoinTicket {
-        Self::_request_id(&peer_addr.to_string())
+        Self::_request_id(&peer_addr.to_string()).await
     }
-
-    // run이 실행된 상태에서의 &mut self가 두 개 이상 존재하게 되므로 데드락
-    // 채널을 통해 우회하자 -> 여전히 데드락. 어디에서 데드락이 걸리는 지 확실하지 않음.
-    // oneshot::send -> 어째서 여기서 블로킹?
-    // pub async fn join(&self) -> PyResult<()> {
-    //     assert!(self.join_ticket.is_some());
-
-    //     let ticket = self.join_ticket.clone().unwrap();
-    //     println!("join 2!!");
-    //     self._join(ticket)
-    // }
 
     pub async fn cluster_size(&self) -> PyResult<usize> {
         let size = self.inner.cluster_size().await;
         Ok(size)
     }
+
+    pub fn prepare_proposal(&mut self, proposal: Vec<u8>) {
+        self.proposal = Some(proposal);
+    }
+
+    // 뭐가 됬든 인자를 넘기면 thread unsafe. 그래서 prepare_proposal 같은 번거로운 non async 함수 필요. 왜...?
+    pub async fn propose(&mut self) -> PyResult<()> {
+        self.inner
+            .raft_node
+            .propose(self.proposal.take().unwrap())
+            .await;
+        Ok(())
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.raft_task.clone().unwrap().is_finished()
+    }
 }
 
 impl PyRaftFacade {
-    #[tokio::main]
-    async fn _run(&self) -> PyResult<()> {
+    async fn _run(&mut self) -> PyResult<()> {
         let raft = self.inner.clone();
-        let raft_task = tokio::spawn(raft.clone().run());
+
+        let raft_task = TOKIO_RT.spawn(raft.clone().run());
 
         if !self.join_ticket.is_none() {
             raft.join(self.join_ticket.clone().unwrap()).await;
         }
 
-        let _ = tokio::try_join!(raft_task).unwrap().0.unwrap();
+        self.raft_task = Some(Arc::new(raft_task));
         Ok(())
     }
 
-    #[tokio::main]
     async fn _request_id(peer_addr: &str) -> PyClusterJoinTicket {
-        let ticket = Raft::<PyLogEntry, PyFSM>::request_id(peer_addr.to_owned())
+        let ticket = TOKIO_RT
+            .spawn(Raft::<PyLogEntry, PyFSM>::request_id(peer_addr.to_owned()))
             .await
+            .unwrap()
             .unwrap();
         PyClusterJoinTicket { inner: ticket }
     }

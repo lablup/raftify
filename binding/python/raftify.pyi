@@ -50,6 +50,12 @@ class Raft:
         """ """
     async def cluster_size(self) -> int:
         """ """
+    def prepare_proposal(self, message: bytes) -> None:
+        """ """
+    async def propose(self) -> None:
+        """ """
+    def is_finished(self) -> bool:
+        """ """
 
 class RaftNode:
     async def is_leader(self) -> bool:
