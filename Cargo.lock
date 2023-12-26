@@ -1861,6 +1861,7 @@ dependencies = [
  "slog-term",
  "sloggers",
  "tokio",
+ "tonic",
 ]
 
 [[package]]

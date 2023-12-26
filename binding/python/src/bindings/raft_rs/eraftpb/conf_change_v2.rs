@@ -6,8 +6,7 @@ use pyo3::{
 use raftify::raft::eraftpb::ConfChangeV2;
 
 use super::{
-    conf_change_single::{PyConfChangeSingle},
-    conf_change_transition::PyConfChangeTransition,
+    conf_change_single::PyConfChangeSingle, conf_change_transition::PyConfChangeTransition,
 };
 use raftify::raft::derializer::format_confchangev2;
 
@@ -40,18 +39,17 @@ impl Default for PyConfChangeV2 {
 #[pymethods]
 impl PyConfChangeV2 {
     pub fn to_dict(&mut self, py: Python) -> PyResult<PyObject> {
-        let context = self.get_context(py)?;
-        let transition: String = self.get_transition()?.__repr__();
+        let context = self.get_context(py);
+        let transition: String = self.get_transition().__repr__();
 
-        let changes = self.inner
+        let changes = self
+            .inner
             .get_changes()
             .iter()
             .map(|cs| {
-                PyConfChangeSingle {
-                    inner: cs.clone(),
-                }
-                .to_dict(py)
-                .unwrap()
+                PyConfChangeSingle { inner: cs.clone() }
+                    .to_dict(py)
+                    .unwrap()
             })
             .collect::<Vec<_>>();
         let changes = PyList::new(py, changes);
@@ -63,57 +61,38 @@ impl PyConfChangeV2 {
         Ok(res.into_py(py))
     }
 
-    pub fn get_changes(&self, py: Python) -> PyResult<PyObject> {
-        Ok(self.inner
+    pub fn get_changes(&self, py: Python) -> PyObject {
+        self
+            .inner
             .get_changes()
             .iter()
-            .map(|cs| PyConfChangeSingle {
-                inner: cs.clone(),
-            })
+            .map(|cs| PyConfChangeSingle { inner: cs.clone() })
             .collect::<Vec<_>>()
-            .into_py(py))
+            .into_py(py)
     }
 
-    pub fn set_changes(&mut self, v: &PyList) -> PyResult<()> {
+    pub fn set_changes(&mut self, v: &PyList) {
         self.inner.set_changes(
             v.iter()
                 .map(|cs| cs.extract::<PyConfChangeSingle>().unwrap().inner)
                 .collect::<Vec<_>>(),
-        );
-        Ok(())
+        )
     }
 
-    pub fn clear_changes(&mut self) -> PyResult<()> {
-        self.inner.clear_changes();
-        Ok(())
+    pub fn get_context(&self, py: Python) -> Py<PyBytes> {
+        PyBytes::new(py, self.inner.get_context()).into_py(py)
     }
 
-    pub fn get_context(&self, py: Python) -> PyResult<Py<PyBytes>> {
-        Ok(PyBytes::new(py, self.inner.get_context()).into_py(py))
+    pub fn set_context(&mut self, v: &PyAny) {
+        self.inner.set_context(v.extract::<Vec<u8>>().unwrap());
     }
 
-    pub fn set_context(&mut self, v: &PyAny) -> PyResult<()> {
-        self.inner.set_context(v.extract::<Vec<u8>>()?);
-        Ok(())
+    pub fn get_transition(&self) -> PyConfChangeTransition {
+        PyConfChangeTransition(self.inner.get_transition())
     }
 
-    pub fn clear_context(&mut self) -> PyResult<()> {
-        self.inner.clear_context();
-        Ok(())
-    }
-
-    pub fn get_transition(&self) -> PyResult<PyConfChangeTransition> {
-        Ok(PyConfChangeTransition(self.inner.get_transition()))
-    }
-
-    pub fn set_transition(&mut self, v: &PyConfChangeTransition) -> PyResult<()> {
+    pub fn set_transition(&mut self, v: &PyConfChangeTransition) {
         self.inner.set_transition(v.0);
-        Ok(())
-    }
-
-    pub fn clear_transition(&mut self) -> PyResult<()> {
-        self.inner.clear_transition();
-        Ok(())
     }
 
     // pub fn enter_joint(&self) -> PyResult<Option<bool>> {

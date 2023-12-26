@@ -1,4 +1,4 @@
-use pyo3::{prelude::*, pyclass::CompareOp, exceptions::PyException};
+use pyo3::{exceptions::PyException, prelude::*, pyclass::CompareOp};
 
 use raftify::raft::eraftpb::ConfChangeTransition;
 
