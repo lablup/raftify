@@ -62,8 +62,7 @@ impl PyConfChangeV2 {
     }
 
     pub fn get_changes(&self, py: Python) -> PyObject {
-        self
-            .inner
+        self.inner
             .get_changes()
             .iter()
             .map(|cs| PyConfChangeSingle { inner: cs.clone() })
