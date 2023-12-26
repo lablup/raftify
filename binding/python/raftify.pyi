@@ -1,6 +1,6 @@
 import abc
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Any, Callable, Final, Optional
 
 class AbstractLogEntry(metaclass=abc.ABCMeta):
     @abc.abstractmethod
@@ -55,6 +55,8 @@ class Raft:
     async def propose(self) -> None:
         """ """
     def is_finished(self) -> bool:
+        """ """
+    def get_raft_node(self) -> "RaftNode":
         """ """
 
 class RaftNode:
@@ -183,9 +185,9 @@ class Config:
 class RaftClient:
     """ """
 
-    async def change_config(self) -> None:
+    async def change_config(self, conf_change) -> None:
         """ """
-    async def send_message(self) -> None:
+    async def send_message(self, message) -> None:
         """ """
 
 def set_snapshot_data_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
@@ -205,3 +207,227 @@ def set_entry_data_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
 
 def set_entry_context_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
     """ """
+
+class ConfChangeTransition:
+    """ """
+
+    Auto: Final[Any]
+    """
+    Automatically use the simple protocol if possible, otherwise fall back
+    to ConfChangeType::Implicit. Most applications will want to use this.
+    """
+
+    Implicit: Final[Any]
+    """
+    Use joint consensus unconditionally, and transition out of them
+    automatically (by proposing a zero configuration change).
+
+    This option is suitable for applications that want to minimize the time
+    spent in the joint configuration and do not store the joint configuration
+    in the state machine (outside of InitialState).
+    """
+
+    Explicit: Final[Any]
+    """
+    Use joint consensus and remain in the joint configuration until the
+    application proposes a no-op configuration change. This is suitable for
+    applications that want to explicitly control the transitions, for example
+    to use a custom payload (via the Context field).
+    """
+
+    @staticmethod
+    def from_int(v: int) -> "ConfChangeTransition": ...
+    def __int__(self) -> int: ...
+
+class MessageType:
+    """ """
+
+    MsgHup: Final[Any]
+    MsgBeat: Final[Any]
+    MsgPropose: Final[Any]
+    MsgAppend: Final[Any]
+    MsgAppendResponse: Final[Any]
+    MsgRequestVote: Final[Any]
+    MsgRequestVoteResponse: Final[Any]
+    MsgSnapshot: Final[Any]
+    MsgHeartbeat: Final[Any]
+    MsgHeartbeatResponse: Final[Any]
+    MsgUnreachable: Final[Any]
+    MsgSnapStatus: Final[Any]
+    MsgCheckQuorum: Final[Any]
+    MsgTransferLeader: Final[Any]
+    MsgTimeoutNow: Final[Any]
+    MsgReadIndex: Final[Any]
+    MsgReadIndexResp: Final[Any]
+    MsgRequestPreVote: Final[Any]
+    MsgRequestPreVoteResponse: Final[Any]
+    @staticmethod
+    def from_int(v: int) -> "MessageType": ...
+    def __int__(self) -> int: ...
+
+class ConfChangeType:
+    """ """
+
+    AddNode: Final[Any]
+    AddLearnerNode: Final[Any]
+    RemoveNode: Final[Any]
+    @staticmethod
+    def from_int(v: int) -> "ConfChangeType": ...
+    def __int__(self) -> int: ...
+
+class EntryType:
+    """ """
+
+    EntryConfChange: Final[Any]
+    EntryConfChangeV2: Final[Any]
+    EntryNormal: Final[Any]
+    @staticmethod
+    def from_int(v: int) -> "EntryType": ...
+    def __int__(self) -> int: ...
+
+class Entry:
+    def get_context(self) -> bytes:
+        """ """
+    def set_context(self, context: bytes) -> None:
+        """ """
+    def get_data(self) -> bytes:
+        """ """
+    def set_data(self, data: bytes) -> None:
+        """ """
+    def get_entry_type(self) -> "EntryType":
+        """ """
+    def set_entry_type(self, typ: "EntryType") -> None:
+        """ """
+    def get_term(self) -> int:
+        """ """
+    def set_term(self, term: int) -> None:
+        """ """
+    def get_index(self) -> int:
+        """ """
+    def set_index(self, index: int) -> None:
+        """ """
+    def get_sync_log(self) -> bool:
+        """
+        Deprecated! It is kept for backward compatibility.
+        TODO: remove it in the next major release.
+        """
+    def set_sync_log(self, sync_log: bool) -> None:
+        """
+        Deprecated! It is kept for backward compatibility.
+        TODO: remove it in the next major release.
+        """
+
+class ConfChangeSingle:
+    def get_node_id(self) -> int:
+        """ """
+    def set_node_id(self, node_id: int):
+        """ """
+    def get_change_type(self) -> "ConfChangeType":
+        """ """
+    def set_change_type(self, typ: "ConfChangeType") -> None:
+        """ """
+
+class ConfChangeV2:
+    def get_changes(self) -> list["ConfChangeSingle"]:
+        """ """
+    def set_changes(
+        self, changes: list["ConfChangeSingle"] | list["ConfChangeSingle"]
+    ) -> None:
+        """ """
+    def get_context(self) -> bytes:
+        """ """
+    def set_context(self, context: bytes) -> None:
+        """ """
+    def get_transition(self) -> "ConfChangeTransition":
+        """ """
+    def set_transition(self, transition: "ConfChangeTransition") -> None:
+        """ """
+    # def enter_joint(self) -> Optional[bool]:
+    #     """
+    #     Checks if uses Joint Consensus.
+
+    #     It will return Some if and only if this config change will use Joint Consensus,
+    #     which is the case if it contains more than one change or if the use of Joint
+    #     Consensus was requested explicitly. The bool indicates whether the Joint State
+    #     will be left automatically.
+    #     """
+
+    # def leave_joint(self) -> bool:
+    #     """
+    #     Checks if the configuration change leaves a joint configuration.
+
+    #     This is the case if the ConfChangeV2 is zero, with the possible exception of
+    #     the Context field.
+    #     """
+
+class Message:
+    def get_commit(self) -> int:
+        """ """
+    def set_commit(self, commit: int) -> None:
+        """ """
+    def get_commit_term(self) -> int:
+        """ """
+    def set_commit_term(self, commit_term: int) -> None:
+        """ """
+    def get_from(self) -> int:
+        """ """
+    def set_from(self, from_: int) -> None:
+        """ """
+    def get_index(self) -> int:
+        """ """
+    def set_index(self, index: int) -> None:
+        """ """
+    def get_term(self) -> int:
+        """ """
+    def set_term(self, term: int) -> None:
+        """ """
+    def get_log_term(self) -> int:
+        """
+        """
+    def set_log_term(self, log_index: int) -> None:
+        """
+        """
+    def get_priority(self) -> int:
+        """
+        """
+    def set_priority(self, priority: int) -> None:
+        """
+        """
+    def get_context(self) -> bytes:
+        """ """
+    def set_context(self, context: bytes) -> None:
+        """ """
+    def get_reject_hint(self) -> int:
+        """ """
+    def set_reject_hint(self, reject_hint: int) -> None:
+        """ """
+    def get_entries(self) -> list["Entry"]:
+        """ """
+    def set_entries(self, ents: list["Entry"]) -> None:
+        """ """
+    def get_msg_type(self) -> "MessageType":
+        """ """
+    def set_msg_type(self, typ: "MessageType") -> None:
+        """ """
+    def get_reject(self) -> bool:
+        """ """
+    def set_reject(self, reject: bool) -> None:
+        """ """
+    # def get_snapshot(self) -> "SnapshotRef":
+    #     """ """
+    # def set_snapshot(self, snapshot: "Snapshot" | "SnapshotRef") -> None:
+    #     """ """
+    def get_to(self) -> int:
+        """ """
+    def set_to(self, to: int) -> None:
+        """ """
+    def get_request_snapshot(self) -> int:
+        """ """
+    def set_request_snapshot(self, request_snapshot: int) -> None:
+        """ """
+    def has_snapshot(self) -> bool:
+        """ """
+    def get_deprecated_priority(self) -> int:
+        """ """
+    def set_deprecated_priority(self, v: int) -> None:
+        """ """
