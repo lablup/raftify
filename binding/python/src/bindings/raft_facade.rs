@@ -1,6 +1,4 @@
 use std::sync::Arc;
-use std::thread::{self, sleep};
-use std::time::Duration;
 
 use pyo3::{prelude::*, types::PyString};
 use raftify::raft::default_logger;
@@ -9,6 +7,7 @@ use tokio::task::JoinHandle;
 
 use super::config::PyConfig;
 use super::peers::PyPeers;
+use super::raft_node::PyRaftNode;
 use super::state_machine::{PyFSM, PyLogEntry};
 
 use lazy_static::lazy_static;
@@ -94,7 +93,6 @@ impl PyRaftFacade {
         self.proposal = Some(proposal);
     }
 
-    // 뭐가 됬든 인자를 넘기면 thread unsafe. 그래서 prepare_proposal 같은 번거로운 non async 함수 필요. 왜...?
     pub async fn propose(&mut self) -> PyResult<()> {
         self.inner
             .raft_node
@@ -105,6 +103,11 @@ impl PyRaftFacade {
 
     pub fn is_finished(&self) -> bool {
         self.raft_task.clone().unwrap().is_finished()
+    }
+
+    pub fn get_raft_node(&self) -> PyRaftNode {
+        let raft_node = self.inner.raft_node.clone();
+        PyRaftNode { inner: raft_node }
     }
 }
 

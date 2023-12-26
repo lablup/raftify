@@ -8,8 +8,6 @@ from raftify import (
     Raft,
     Config,
     RaftConfig,
-    # AbstractLogEntry,
-    # AbstractStateMachine,
     set_confchange_context_deserializer,
     set_confchangev2_context_deserializer,
     set_entry_context_deserializer,
@@ -80,6 +78,20 @@ async def get(request: web.Request) -> web.Response:
     return web.Response(text=store.get(id))
 
 
+@routes.get("/leader")
+async def leader(request: web.Request) -> web.Response:
+    raft: Raft = request.app["state"]["raft"]
+    leader_id = str(await raft.get_raft_node().get_leader_id())
+    return web.Response(text=leader_id)
+
+
+@routes.get("/size")
+async def size(request: web.Request) -> web.Response:
+    raft: Raft = request.app["state"]["raft"]
+    size = str(await raft.cluster_size())
+    return web.Response(text=size)
+
+
 @routes.get("/put/{id}/{value}")
 async def put(request: web.Request) -> web.Response:
     raft: Raft = request.app["state"]["raft"]
@@ -134,6 +146,7 @@ def register_custom_deserializer() -> None:
     set_entry_data_deserializer(pickle_deserialize)
     set_message_context_deserializer(pickle_deserialize)
     set_snapshot_data_deserializer(pickle_deserialize)
+
 
 # class HashStore(AbstractStateMachine):
 

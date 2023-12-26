@@ -115,7 +115,7 @@ impl CustomDeserializer for PythonDeserializer {
                 callback
                     .call(py, (PyBytes::new(py, data),), None)
                     .unwrap()
-                    .into_py(py)
+                    .as_ref(py)
                     .to_string()
             } else {
                 format!("{:?}", data)
