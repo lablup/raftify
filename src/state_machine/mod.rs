@@ -1,4 +1,4 @@
-use crate::error::Result;
+use crate::Result;
 
 #[async_trait]
 pub trait AbstractStateMachine {

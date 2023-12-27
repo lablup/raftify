@@ -1122,7 +1122,7 @@ impl<
 
                     chan.send(ServerResponseMsg::RequestId {
                         result: RequestIdResponseResult::Success {
-                            reserved_id: reserved_id,
+                            reserved_id,
                             leader_id: self.get_id(),
                             peers: self.peers.lock().await.clone(),
                         },

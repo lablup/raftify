@@ -1,9 +1,9 @@
-use std::net::ToSocketAddrs;
-
-use crate::RaftServiceClient;
 use bytes::Bytes;
+use std::net::ToSocketAddrs;
 use tonic::transport::Channel;
 use tonic::transport::Error as TonicError;
+
+use super::RaftServiceClient;
 
 // TODO: Support https schema
 pub async fn create_client<A: ToSocketAddrs>(

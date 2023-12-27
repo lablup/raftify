@@ -1,6 +1,6 @@
 use std::{fmt, marker::PhantomData};
 
-use crate::{AbstractLogEntry, AbstractStateMachine, Error, HeedStorage, Peers};
+use super::{AbstractLogEntry, AbstractStateMachine, Error, HeedStorage, Peers};
 
 pub enum ResponseMessage<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
     Server(ServerResponseMsg),

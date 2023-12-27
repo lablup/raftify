@@ -1,5 +1,4 @@
 use pyo3::prelude::*;
-
 use raftify::raft::Config;
 
 fn format_config<T: Into<Config>>(cfg: T) -> String {

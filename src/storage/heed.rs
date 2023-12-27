@@ -1,14 +1,10 @@
-use crate::error::Result;
-
 use bincode::{deserialize, serialize};
 use heed::types::{Bytes as HeedBytes, Str as HeedStr};
 use heed::{Database, Env};
 use heed_traits::{BoxedError, BytesDecode, BytesEncode};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use raft::{prelude::*, GetEntriesContext};
-
-use crate::config::Config;
 use prost::Message as PMessage;
+use raft::{prelude::*, GetEntriesContext};
 use std::borrow::Cow;
 use std::cmp::max;
 use std::fmt;
@@ -17,6 +13,8 @@ use std::sync::Arc;
 
 use super::constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_KEY};
 use super::utils::format_entry_key_string;
+use crate::config::Config;
+use crate::error::Result;
 
 pub trait LogStore: Storage {
     fn append(&mut self, entries: &[Entry]) -> Result<()>;

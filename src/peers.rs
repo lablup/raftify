@@ -1,8 +1,7 @@
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::ToSocketAddrs};
 
-use serde::{Deserialize, Serialize};
-
-use crate::Peer;
+use super::Peer;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Peers {

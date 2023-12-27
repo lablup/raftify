@@ -1,4 +1,4 @@
-use crate::error::Result;
+use crate::Result;
 
 pub trait AbstractLogEntry: Clone + Send + Sync {
     fn encode(&self) -> Result<Vec<u8>>;

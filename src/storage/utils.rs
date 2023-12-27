@@ -1,9 +1,11 @@
-use crate::{storage::constant::ENTRY_KEY_LENGTH, Result};
 use std::fmt::Write;
 use std::{
     fs,
     path::{Path, PathBuf},
 };
+
+use super::constant::ENTRY_KEY_LENGTH;
+use crate::Result;
 
 pub fn get_storage_path(log_dir: &str, node_id: u64) -> Result<PathBuf> {
     let log_dir_path = format!("{}/node-{}", log_dir, node_id);

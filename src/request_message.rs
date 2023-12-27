@@ -1,7 +1,7 @@
 use raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 use tokio::sync::oneshot::Sender;
 
-use crate::{
+use super::{
     response_message::{LocalResponseMsg, ServerResponseMsg},
     AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket,
 };

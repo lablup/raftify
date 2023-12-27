@@ -1,4 +1,3 @@
-use crate::{AbstractLogEntry, AbstractStateMachine};
 use bincode::deserialize;
 use prost::Message as PMessage;
 use raft::{
@@ -8,6 +7,8 @@ use raft::{
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::net::SocketAddr;
+
+use super::{AbstractLogEntry, AbstractStateMachine};
 
 pub struct MyDeserializer<
     LogEntry: AbstractLogEntry + Debug + 'static,
@@ -33,11 +34,21 @@ impl<
 impl<
         LogEntry: AbstractLogEntry + Debug,
         FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
+    > Default for MyDeserializer<LogEntry, FSM>
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<
+        LogEntry: AbstractLogEntry + Debug,
+        FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
     > CustomDeserializer for MyDeserializer<LogEntry, FSM>
 {
     fn entry_context_deserialize(&self, v: &Bytes) -> String {
         let v = match v {
-            Bytes::Prost(v) => &v[..],
+            Bytes::Prost(v) => v,
             Bytes::Protobuf(v) => v.as_ref(),
         };
 
@@ -50,17 +61,17 @@ impl<
 
     fn entry_data_deserialize(&self, v: &Bytes) -> String {
         let v = match v {
-            Bytes::Prost(v) => &v[..],
+            Bytes::Prost(v) => v,
             Bytes::Protobuf(v) => v.as_ref(),
         };
 
         // Empty byte slice is being translated to empty confchange v1 whose all values are 0,
         // but we won't need such thing anyway.
         if !v.is_empty() {
-            if let Ok(cc) = ConfChange::decode(&v[..]) {
+            if let Ok(cc) = ConfChange::decode(v) {
                 return format_confchange(&cc);
             }
-            if let Ok(cc) = ConfChangeV2::decode(&v[..]) {
+            if let Ok(cc) = ConfChangeV2::decode(v) {
                 return format_confchangev2(&cc);
             }
         }
@@ -74,11 +85,11 @@ impl<
 
     fn confchangev2_context_deserialize(&self, v: &Bytes) -> String {
         let v = match v {
-            Bytes::Prost(v) => &v[..],
+            Bytes::Prost(v) => v,
             Bytes::Protobuf(v) => v.as_ref(),
         };
 
-        if let Ok(addrs) = deserialize::<Vec<SocketAddr>>(&v[..]) {
+        if let Ok(addrs) = deserialize::<Vec<SocketAddr>>(v) {
             return format!("{:?}", addrs);
         }
 
@@ -87,11 +98,11 @@ impl<
 
     fn confchange_context_deserialize(&self, v: &Bytes) -> String {
         let v = match v {
-            Bytes::Prost(v) => &v[..],
+            Bytes::Prost(v) => v,
             Bytes::Protobuf(v) => v.as_ref(),
         };
 
-        if let Ok(addrs) = deserialize::<Vec<SocketAddr>>(&v[..]) {
+        if let Ok(addrs) = deserialize::<Vec<SocketAddr>>(v) {
             return format!("{:?}", addrs);
         }
 
@@ -100,7 +111,7 @@ impl<
 
     fn message_context_deserializer(&self, v: &Bytes) -> String {
         let v = match v {
-            Bytes::Prost(v) => &v[..],
+            Bytes::Prost(v) => v,
             Bytes::Protobuf(v) => v.as_ref(),
         };
         format!("{:?}", v)
@@ -108,7 +119,7 @@ impl<
 
     fn snapshot_data_deserializer(&self, v: &Bytes) -> String {
         let v = match v {
-            Bytes::Prost(v) => &v[..],
+            Bytes::Prost(v) => v,
             Bytes::Protobuf(v) => v.as_ref(),
         };
 
