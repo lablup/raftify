@@ -82,7 +82,6 @@ impl CustomDeserializer for PythonDeserializer {
             if let Some(callback) = &*callback_lock {
                 if data.len() != 0 {
                     let res = callback.call(py, (PyBytes::new(py, data),), None).unwrap();
-
                     let res = res.as_ref(py);
 
                     if !res.is_none() {

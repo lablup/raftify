@@ -7,6 +7,7 @@ use tokio::task::JoinHandle;
 
 use super::cluster_join_ticket::PyClusterJoinTicket;
 use super::config::PyConfig;
+use super::errors::WrongArgumentError;
 use super::peers::PyPeers;
 use super::raft_node::PyRaftNode;
 use super::state_machine::{PyFSM, PyLogEntry};
@@ -18,7 +19,7 @@ lazy_static! {
     static ref TOKIO_RT: Runtime = Runtime::new().unwrap();
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum Arguments {
     Join { ticket: ClusterJoinTicket },
     MemberBootstrapReady { leader_addr: String, node_id: u64 },
@@ -84,12 +85,13 @@ impl PyRaftFacade {
         };
     }
 
-    pub async fn join(&mut self) {
+    pub async fn join(&mut self) -> PyResult<()> {
         match self.args {
-            Arguments::Join { ref ticket } => {
-                self.raft.join(ticket.clone()).await;
-            }
-            _ => panic!("Invalid arguments"),
+            Arguments::Join { ref ticket } => Ok(self.raft.join(ticket.clone()).await),
+            _ => Err(WrongArgumentError::new_err(format!(
+                "Invalid arguments {:?}",
+                self.args
+            ))),
         }
     }
 
@@ -100,13 +102,16 @@ impl PyRaftFacade {
         };
     }
 
-    pub async fn member_bootstrap_ready(&mut self) {
+    pub async fn member_bootstrap_ready(&mut self) -> PyResult<()> {
         match self.args {
             Arguments::MemberBootstrapReady {
                 ref leader_addr,
                 node_id,
-            } => self._member_bootstrap_ready(leader_addr, node_id),
-            _ => panic!("Invalid arguments"),
+            } => Ok(self._member_bootstrap_ready(leader_addr, node_id)),
+            _ => Err(WrongArgumentError::new_err(format!(
+                "Invalid arguments {:?}",
+                self.args
+            ))),
         }
     }
 }
