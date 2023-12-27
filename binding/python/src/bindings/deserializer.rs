@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use ::once_cell::sync::Lazy;
+use once_cell::sync::Lazy;
 use prost::Message as PMessage;
 use pyo3::prelude::*;
 use pyo3::{types::PyBytes, PyObject, Python};

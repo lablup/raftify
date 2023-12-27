@@ -1,13 +1,11 @@
 use async_trait::async_trait;
+use once_cell::sync::Lazy;
 use pyo3::{prelude::*, types::PyBytes};
 use raftify::{AbstractLogEntry, AbstractStateMachine, Error};
 use std::{fmt, sync::Mutex};
 
-use ::once_cell::sync::Lazy;
-
-use crate::bindings::utils::get_python_repr;
-
 use super::errors::DecodingError;
+use super::utils::get_python_repr;
 
 pub static ENTRY_LOG_ENTRY_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> =
     Lazy::new(|| Mutex::new(None));

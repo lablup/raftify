@@ -1,11 +1,12 @@
+use pyo3::{prelude::*, types::PyString};
+use raftify::{raft::eraftpb::ConfChangeV2, RaftNode};
+
 use super::{
-    errors::{runtime_error, WrongArgumentError},
+    errors::WrongArgumentError,
     peers::PyPeers,
     raft_rs::eraftpb::conf_change_v2::PyConfChangeV2,
     state_machine::{PyFSM, PyLogEntry},
 };
-use pyo3::{prelude::*, types::PyString};
-use raftify::{raft::eraftpb::ConfChangeV2, RaftNode};
 
 #[derive(Clone, Debug)]
 enum Arguments {

@@ -1,5 +1,4 @@
 use pyo3::{exceptions::PyException, prelude::*, pyclass::CompareOp};
-
 use raftify::raft::eraftpb::ConfChangeTransition;
 
 #[derive(Clone)]

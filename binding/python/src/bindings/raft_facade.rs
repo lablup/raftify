@@ -1,8 +1,8 @@
-use std::sync::Arc;
-
+use lazy_static::lazy_static;
 use pyo3::{prelude::*, types::PyString};
-use raftify::raft::default_logger;
-use raftify::{ClusterJoinTicket, Error, Raft};
+use raftify::{raft::default_logger, ClusterJoinTicket, Error, Raft};
+use std::sync::Arc;
+use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
 
 use super::cluster_join_ticket::PyClusterJoinTicket;
@@ -11,9 +11,6 @@ use super::errors::WrongArgumentError;
 use super::peers::PyPeers;
 use super::raft_node::PyRaftNode;
 use super::state_machine::{PyFSM, PyLogEntry};
-
-use lazy_static::lazy_static;
-use tokio::runtime::Runtime;
 
 lazy_static! {
     static ref TOKIO_RT: Runtime = Runtime::new().unwrap();

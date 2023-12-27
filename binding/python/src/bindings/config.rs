@@ -1,6 +1,7 @@
-use super::raft_rs::config::PyRaftConfig;
 use pyo3::prelude::*;
 use raftify::Config;
+
+use super::raft_rs::config::PyRaftConfig;
 
 #[derive(Clone)]
 #[pyclass(name = "Config")]

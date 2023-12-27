@@ -1,9 +1,8 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use raftify::raft::eraftpb::ConfChangeSingle;
 
 use super::conf_change_type::PyConfChangeType;
-
-use raftify::raft::eraftpb::ConfChangeSingle;
 
 #[derive(Clone)]
 #[pyclass(name = "ConfChangeSingle")]

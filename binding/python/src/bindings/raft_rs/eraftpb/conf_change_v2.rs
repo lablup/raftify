@@ -3,12 +3,12 @@ use pyo3::{
     prelude::*,
     types::{PyBytes, PyList},
 };
+use raftify::raft::derializer::format_confchangev2;
 use raftify::raft::eraftpb::ConfChangeV2;
 
 use super::{
     conf_change_single::PyConfChangeSingle, conf_change_transition::PyConfChangeTransition,
 };
-use raftify::raft::derializer::format_confchangev2;
 
 #[derive(Clone)]
 #[pyclass(name = "ConfChangeV2")]

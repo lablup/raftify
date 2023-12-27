@@ -1,5 +1,4 @@
 use pyo3::{exceptions::PyRuntimeError, prelude::*, pyclass::CompareOp};
-
 use raftify::raft::eraftpb::MessageType;
 
 #[derive(Clone)]

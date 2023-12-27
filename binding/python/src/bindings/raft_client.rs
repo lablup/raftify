@@ -1,7 +1,8 @@
-use crate::bindings::raft_rs::eraftpb::conf_change_v2::PyConfChangeV2;
 use pyo3::prelude::*;
-use raftify::{create_client, raft, Channel, RaftServiceClient};
+use raftify::{create_client, Channel, RaftServiceClient};
 use tonic::Request;
+
+use super::raft_rs::eraftpb::conf_change_v2::PyConfChangeV2;
 
 #[derive(Clone)]
 #[pyclass(name = "RaftClient")]

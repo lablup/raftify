@@ -1,11 +1,10 @@
-use std::{collections::HashMap, hash::BuildHasherDefault};
-
 use fxhash::FxHasher;
 use pyo3::{
     prelude::*,
     types::{PyDict, PyString},
 };
 use raftify::Peers;
+use std::{collections::HashMap, hash::BuildHasherDefault};
 
 #[derive(Clone)]
 #[pyclass(name = "Peers")]

@@ -2,10 +2,10 @@ use pyo3::{
     prelude::*,
     types::{PyBytes, PyList},
 };
-
-use super::{entry::PyEntry, message_type::PyMessageType};
 use raftify::raft::derializer::format_message;
 use raftify::raft::eraftpb::Message;
+
+use super::{entry::PyEntry, message_type::PyMessageType};
 
 #[derive(Clone)]
 #[pyclass(name = "Message")]
