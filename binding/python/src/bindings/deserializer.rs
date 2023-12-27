@@ -2,7 +2,7 @@ use std::sync::Mutex;
 
 use ::once_cell::sync::Lazy;
 use prost::Message as PMessage;
-use pyo3::*;
+use pyo3::prelude::*;
 use pyo3::{types::PyBytes, PyObject, Python};
 use raftify::raft::derializer::{format_confchange, format_confchangev2};
 use raftify::raft::{

@@ -5,6 +5,8 @@ use std::{fmt, sync::Mutex};
 
 use ::once_cell::sync::Lazy;
 
+use crate::bindings::utils::get_python_repr;
+
 pub static ENTRY_LOG_ENTRY_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> =
     Lazy::new(|| Mutex::new(None));
 pub static ENTRY_FSM_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> = Lazy::new(|| Mutex::new(None));
@@ -28,13 +30,23 @@ pub struct PyLogEntry {
 impl fmt::Debug for PyLogEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Python::with_gil(|py| {
-            let result = self
-                .log_entry
-                .call_method(py, "__repr__", (), None)
-                .unwrap()
-                .to_string();
+            write!(
+                f,
+                "{}",
+                format!("{}", get_python_repr(self.log_entry.as_ref(py)))
+            )
+        })
+    }
+}
 
-            write!(f, "{}", format!("{}", result))
+impl fmt::Display for PyLogEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Python::with_gil(|py| {
+            write!(
+                f,
+                "{}",
+                format!("{}", get_python_repr(self.log_entry.as_ref(py)))
+            )
         })
     }
 }
@@ -80,13 +92,23 @@ impl PyFSM {
 impl fmt::Debug for PyFSM {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Python::with_gil(|py| {
-            let result = self
-                .store
-                .call_method(py, "__repr__", (), None)
-                .unwrap()
-                .to_string();
+            write!(
+                f,
+                "{}",
+                format!("{}", get_python_repr(self.store.as_ref(py)))
+            )
+        })
+    }
+}
 
-            write!(f, "{}", format!("{}", result))
+impl fmt::Display for PyFSM {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Python::with_gil(|py| {
+            write!(
+                f,
+                "{}",
+                format!("{}", get_python_repr(self.store.as_ref(py)))
+            )
         })
     }
 }

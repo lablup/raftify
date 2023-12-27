@@ -9,3 +9,4 @@ pub mod raft_facade;
 pub mod raft_node;
 pub mod raft_rs;
 pub mod state_machine;
+pub mod utils;
