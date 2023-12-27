@@ -32,21 +32,25 @@ class Raft:
         """ """
     @staticmethod
     def build(
+        node_id: int,
         raft_addr: str,
         fsm: AbstractStateMachine,
         config: "Config",
-        join_ticket: Optional["ClusterJoinTicket"] = None,
         initial_peers: Optional["Peers"] = None,
-    ) -> None:
+    ) -> "Raft":
         """ """
-    async def run(self) -> None:
-        """ """
-    # def prepare_request_id(self, peer_addr: str) -> None:
-    #     """ """
     @staticmethod
     async def request_id(self, peer_addr: str) -> "ClusterJoinTicket":
         """"""
-    async def member_bootstrap_ready(self, leader_addr: str, node_id: int) -> None:
+    def prepare_join(self, join_ticket: "ClusterJoinTicket") -> None:
+        """ """
+    async def join(self) -> None:
+        """ """
+    def prepare_member_bootstrap_ready(self, leader_addr: str, node_id: int) -> None:
+        """ """
+    async def member_bootstrap_ready(self) -> None:
+        """ """
+    async def run(self) -> None:
         """ """
     async def snapshot(self) -> None:
         """ """
@@ -92,8 +96,11 @@ class ClusterJoinTicket:
 
 class Peers:
     """ """
-
-    pass
+    def __init__(self, peers: dict) -> None: ...
+    def get(self, node_id: int) -> str: ...
+    def add_peer(self, node_id: int, addr: str) -> None: ...
+    def remove(self, node_id: int) -> None: ...
+    def get_node_id_by_addr(self, addr: str) -> int: ...
 
 class RaftConfig:
     """

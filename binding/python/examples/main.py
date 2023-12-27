@@ -100,8 +100,8 @@ async def put(request: web.Request) -> web.Response:
 
     raft_node = raft.get_raft_node()
     raft_node.prepare_proposal(message.encode())
-    result = await raft_node.propose()
-    return web.Response(text=f'"{str(result)}"')
+    await raft_node.propose()
+    return web.Response(text='OK')
 
 
 # class SetCommand(AbstractLogEntry):
@@ -200,15 +200,34 @@ async def main():
     raft_addr = args.raft_addr
     peer_addr = args.peer_addr
     web_server_addr = args.web_server
-    # ignore_static_bootstrap = args.ignore_static_bootstrap
+    ignore_static_bootstrap = args.ignore_static_bootstrap
+
+    peers = load_peers() if not ignore_static_bootstrap else None
 
     cfg = build_config()
     store = HashStore()
     tasks = []
 
-    join_ticket = await Raft.request_id(peer_addr) if peer_addr else None
-    raft = Raft.build(raft_addr, store, cfg, join_ticket)
-    await raft.run()
+    if peer_addr:
+        if not peers:
+            join_ticket = await Raft.request_id(peer_addr)
+            node_id = join_ticket.get_reserved_id()
+        else:
+            node_id = peers.get_node_id_by_addr(raft_addr)
+
+        raft = Raft.build(node_id, raft_addr, store, cfg, peers)
+        await raft.run()
+
+        if not peers:
+            raft.prepare_join(join_ticket)
+            await raft.join()
+        else:
+            leader_addr = peers.get(1)
+            raft.prepare_member_bootstrap_ready(leader_addr, node_id)
+            await raft.member_bootstrap_ready()
+    else:
+        raft = Raft.build(1, raft_addr, store, cfg, peers)
+        await raft.run()
 
     tasks.append(asyncio.create_task(wait_for_termination(raft)))
 

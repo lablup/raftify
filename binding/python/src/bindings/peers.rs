@@ -30,6 +30,10 @@ impl PyPeers {
         Self { inner }
     }
 
+    pub fn __repr__(&self) -> PyResult<String> {
+        Ok(format!("{:?}", self.inner))
+    }
+
     // TODO: Replace String with Peer
     pub fn get(&self, node_id: u64) -> Option<String> {
         self.inner
@@ -45,7 +49,7 @@ impl PyPeers {
         self.inner.remove(&node_id);
     }
 
-    pub fn get_node_id_by_addr(&mut self, addr: &PyString) {
-        self.inner.get_node_id_by_addr(addr.to_str().unwrap());
+    pub fn get_node_id_by_addr(&mut self, addr: &PyString) -> Option<u64> {
+        self.inner.get_node_id_by_addr(addr.to_str().unwrap())
     }
 }
