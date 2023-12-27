@@ -99,7 +99,7 @@ async def put(request: web.Request) -> web.Response:
     message = SetCommand(id, value)
 
     raft.prepare_proposal(message.encode())
-    result = await raft.propose()
+    result = await raft.get_raft_node().propose()
     return web.Response(text=f'"{str(result)}"')
 
 

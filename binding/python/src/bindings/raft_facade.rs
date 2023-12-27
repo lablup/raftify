@@ -23,7 +23,6 @@ pub struct PyRaftFacade {
     inner: Raft<PyLogEntry, PyFSM>,
     join_ticket: Option<ClusterJoinTicket>,
     raft_task: Option<Arc<JoinHandle<Result<(), Error>>>>,
-    proposal: Option<Vec<u8>>,
 }
 
 #[derive(Clone)]
@@ -71,7 +70,6 @@ impl PyRaftFacade {
             inner: raft,
             join_ticket: join_ticket.map(|t| t.inner),
             raft_task: None,
-            proposal: None,
         })
     }
 
@@ -89,25 +87,12 @@ impl PyRaftFacade {
         Ok(size)
     }
 
-    pub fn prepare_proposal(&mut self, proposal: Vec<u8>) {
-        self.proposal = Some(proposal);
-    }
-
-    pub async fn propose(&mut self) -> PyResult<()> {
-        self.inner
-            .raft_node
-            .propose(self.proposal.take().unwrap())
-            .await;
-        Ok(())
-    }
-
     pub fn is_finished(&self) -> bool {
         self.raft_task.clone().unwrap().is_finished()
     }
 
     pub fn get_raft_node(&self) -> PyRaftNode {
-        let raft_node = self.inner.raft_node.clone();
-        PyRaftNode { inner: raft_node }
+        PyRaftNode::new(self.inner.raft_node.clone())
     }
 }
 

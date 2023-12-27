@@ -50,10 +50,6 @@ class Raft:
         """ """
     async def cluster_size(self) -> int:
         """ """
-    def prepare_proposal(self, message: bytes) -> None:
-        """ """
-    async def propose(self) -> None:
-        """ """
     def is_finished(self) -> bool:
         """ """
     def get_raft_node(self) -> "RaftNode":
@@ -68,11 +64,17 @@ class RaftNode:
         """ """
     async def get_peers(self) -> "Peers":
         """ """
+    def prepare_add_peer(self, id: int, addr: str) -> None:
+        """ """
     async def add_peer(self) -> None:
         """ """
     async def inspect(self) -> str:
         """ """
+    def prepare_proposal(self, message: bytes) -> None:
+        """ """
     async def propose(self) -> None:
+        """ """
+    def prepare_change_config(self, conf_change: "ConfChangeV2") -> None:
         """ """
     async def change_config(self) -> None:
         """ """
