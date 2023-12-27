@@ -206,13 +206,8 @@ async def main():
     store = HashStore()
     tasks = []
 
-    raft = Raft()
-    join_ticket = None
-    if peer_addr:
-        raft.prepare_request_id(peer_addr)
-        join_ticket = await raft.request_id()
-
-    raft.build(raft_addr, store, cfg, join_ticket)
+    join_ticket = await Raft.request_id(peer_addr) if peer_addr else None
+    raft = Raft.build(raft_addr, store, cfg, join_ticket)
     await raft.run()
 
     tasks.append(asyncio.create_task(wait_for_termination(raft)))

@@ -19,14 +19,13 @@ lazy_static! {
 
 #[derive(Clone)]
 enum Arguments {
-    RequestId { peer_addr: String },
     Empty,
 }
 
 #[derive(Clone)]
 #[pyclass(name = "Raft")]
 pub struct PyRaftFacade {
-    raft: Option<Raft<PyLogEntry, PyFSM>>,
+    raft: Raft<PyLogEntry, PyFSM>,
     join_ticket: Option<ClusterJoinTicket>,
     raft_task: Option<Arc<JoinHandle<Result<(), Error>>>>,
     args: Arguments,
@@ -51,25 +50,15 @@ impl PyClusterJoinTicket {
 
 #[pymethods]
 impl PyRaftFacade {
-    #[new]
-    pub fn new() -> Self {
-        Self {
-            raft: None,
-            join_ticket: None,
-            raft_task: None,
-            args: Arguments::Empty,
-        }
-    }
-
+    #[staticmethod]
     pub fn build(
-        &mut self,
         addr: &PyString,
         fsm: PyObject,
         config: PyConfig,
         join_ticket: Option<PyClusterJoinTicket>,
         initial_peers: Option<PyPeers>,
         // logger: PyObject,
-    ) -> PyResult<()> {
+    ) -> PyResult<Self> {
         let fsm = PyFSM::new(fsm);
         let logger = default_logger();
         let addr = addr.to_string();
@@ -81,28 +70,22 @@ impl PyRaftFacade {
         };
 
         let raft = Raft::build(node_id, addr, fsm, config.into(), logger, initial_peers).unwrap();
-        self.raft = Some(raft);
-        self.join_ticket = join_ticket.map(|ticket| ticket.inner);
-        Ok(())
+
+        Ok(Self {
+            raft,
+            join_ticket: join_ticket.map(|t| t.inner),
+            raft_task: None,
+            args: Arguments::Empty,
+        })
     }
 
     pub async fn run(&mut self) -> PyResult<()> {
         self._run().await
     }
 
-    pub fn prepare_request_id(&mut self, peer_addr: &PyString) {
-        self.args = Arguments::RequestId {
-            peer_addr: peer_addr.to_string(),
-        };
-    }
-
-    pub async fn request_id(&self) -> PyClusterJoinTicket {
-        match self.args {
-            Arguments::RequestId { ref peer_addr } => {
-                Self::_request_id(&peer_addr.to_string()).await
-            }
-            _ => panic!("Invalid arguments"),
-        }
+    #[staticmethod]
+    pub async fn request_id(peer_addr: String) -> PyClusterJoinTicket {
+        Self::_request_id(&peer_addr.to_string()).await
     }
 
     pub fn is_finished(&self) -> bool {
@@ -113,13 +96,13 @@ impl PyRaftFacade {
     }
 
     pub fn get_raft_node(&self) -> PyRaftNode {
-        PyRaftNode::new(self.raft.clone().unwrap().raft_node.clone())
+        PyRaftNode::new(self.raft.clone().raft_node.clone())
     }
 }
 
 impl PyRaftFacade {
     async fn _run(&mut self) -> PyResult<()> {
-        let raft = self.raft.clone().unwrap();
+        let raft = self.raft.clone();
 
         let raft_task = TOKIO_RT.spawn(raft.clone().run());
 

@@ -30,8 +30,8 @@ class AbstractStateMachine(metaclass=abc.ABCMeta):
 class Raft:
     def __init__(self) -> None:
         """ """
+    @staticmethod
     def build(
-        self,
         raft_addr: str,
         fsm: AbstractStateMachine,
         config: "Config",
@@ -41,9 +41,10 @@ class Raft:
         """ """
     async def run(self) -> None:
         """ """
-    def prepare_request_id(self, peer_addr: str) -> None:
-        """ """
-    async def request_id(self) -> "ClusterJoinTicket":
+    # def prepare_request_id(self, peer_addr: str) -> None:
+    #     """ """
+    @staticmethod
+    async def request_id(self, peer_addr: str) -> "ClusterJoinTicket":
         """"""
     async def member_bootstrap_ready(self, leader_addr: str, node_id: int) -> None:
         """ """

@@ -7,7 +7,7 @@ use pyo3::{prelude::*, types::PyString};
 use raftify::raft::eraftpb::ConfChangeV2;
 use raftify::RaftNode;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum Arguments {
     Propose { proposal: Vec<u8> },
     AddPeer { id: u64, addr: String },
