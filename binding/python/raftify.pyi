@@ -28,27 +28,26 @@ class AbstractStateMachine(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 class Raft:
-    @staticmethod
+    def __init__(self) -> None:
+        """ """
     def build(
+        self,
         raft_addr: str,
         fsm: AbstractStateMachine,
         config: "Config",
         join_ticket: Optional["ClusterJoinTicket"] = None,
         initial_peers: Optional["Peers"] = None,
-    ) -> "Raft":
+    ) -> None:
         """ """
     async def run(self) -> None:
         """ """
-    @staticmethod
-    async def request_id(peer_addr: str) -> "ClusterJoinTicket":
+    def prepare_request_id(self, peer_addr: str) -> None:
+        """ """
+    async def request_id(self) -> "ClusterJoinTicket":
         """"""
     async def member_bootstrap_ready(self, leader_addr: str, node_id: int) -> None:
         """ """
-    async def join(self) -> None:
-        """ """
     async def snapshot(self) -> None:
-        """ """
-    async def cluster_size(self) -> int:
         """ """
     def is_finished(self) -> bool:
         """ """
@@ -82,15 +81,13 @@ class RaftNode:
         """ """
     async def quit(self) -> None:
         """ """
+    async def get_cluster_size(self) -> None:
+        """ """
 
-@dataclass
 class ClusterJoinTicket:
     """ """
-
-    reserved_id: int
-    leader_id: int
-    leader_addr: str
-    peers: "Peers"
+    def get_reserved_id(self) -> int:
+        """ """
 
 class Peers:
     """ """

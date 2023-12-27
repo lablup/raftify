@@ -11,14 +11,8 @@ use raftify::RaftNode;
 enum Arguments {
     Propose { proposal: Vec<u8> },
     AddPeer { id: u64, addr: String },
-    Empty,
     ChangeConfig { conf_change: ConfChangeV2 },
-}
-
-impl Default for Arguments {
-    fn default() -> Self {
-        Arguments::Empty
-    }
+    Empty,
 }
 
 #[derive(Clone)]
@@ -32,7 +26,7 @@ impl PyRaftNode {
     pub fn new(inner: RaftNode<PyLogEntry, PyFSM>) -> Self {
         PyRaftNode {
             inner,
-            args: Arguments::default(),
+            args: Arguments::Empty,
         }
     }
 }
@@ -83,7 +77,7 @@ impl PyRaftNode {
             Arguments::Propose { ref proposal } => {
                 self.inner.propose(proposal.clone()).await;
             }
-            _ => panic!("Invalid arguments"),
+            _ => panic!("Invalid arguments. Args: {:?}", self.args),
         }
         Ok(())
     }
@@ -109,5 +103,9 @@ impl PyRaftNode {
 
     pub async fn quit(&mut self) {
         self.inner.quit().await;
+    }
+
+    pub async fn get_cluster_size(&mut self) -> PyResult<usize> {
+        Ok(self.inner.get_cluster_size().await)
     }
 }

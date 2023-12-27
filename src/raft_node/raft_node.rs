@@ -1160,6 +1160,14 @@ impl<
             tokio::select! {
                 _ = tick_timer.tick() => {
                     self.raw_node.tick();
+
+                    // TODO: Remove this after investigating why tokio::join not failing when one of the Result is Err
+                    match self.on_ready().await {
+                        Ok(_) => {}
+                        Err(e) => {
+                            panic!("Error occurred while processing ready: {:?}", e);
+                        }
+                    }
                 }
                 msg = self.server_rcv.recv() => {
                     if let Some(message) = msg {
@@ -1170,14 +1178,6 @@ impl<
                     if let Some(message) = msg {
                         self.handle_local_request_msg(message).await?;
                     }
-                }
-            }
-
-            // TODO: Remove this after investigating why tokio::join not failing when one of the Result is Err
-            match self.on_ready().await {
-                Ok(_) => {}
-                Err(e) => {
-                    panic!("Error occurred while processing ready: {:?}", e);
                 }
             }
         }

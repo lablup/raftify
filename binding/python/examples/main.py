@@ -88,7 +88,7 @@ async def leader(request: web.Request) -> web.Response:
 @routes.get("/size")
 async def size(request: web.Request) -> web.Response:
     raft: Raft = request.app["state"]["raft"]
-    size = str(await raft.cluster_size())
+    size = str(await raft.get_raft_node().get_cluster_size())
     return web.Response(text=size)
 
 
@@ -98,8 +98,9 @@ async def put(request: web.Request) -> web.Response:
     id, value = request.match_info["id"], request.match_info["value"]
     message = SetCommand(id, value)
 
-    raft.prepare_proposal(message.encode())
-    result = await raft.get_raft_node().propose()
+    raft_node = raft.get_raft_node()
+    raft_node.prepare_proposal(message.encode())
+    result = await raft_node.propose()
     return web.Response(text=f'"{str(result)}"')
 
 
@@ -205,10 +206,15 @@ async def main():
     store = HashStore()
     tasks = []
 
-    join_ticket = await Raft.request_id(peer_addr) if peer_addr else None
+    raft = Raft()
+    join_ticket = None
+    if peer_addr:
+        raft.prepare_request_id(peer_addr)
+        join_ticket = await raft.request_id()
 
-    raft = Raft.build(raft_addr, store, cfg, join_ticket)
-    tasks.append(asyncio.create_task(raft.run()))
+    raft.build(raft_addr, store, cfg, join_ticket)
+    await raft.run()
+
     tasks.append(asyncio.create_task(wait_for_termination(raft)))
 
     async with WebServer(web_server_addr, routes, {"raft": raft, "store": store}):
