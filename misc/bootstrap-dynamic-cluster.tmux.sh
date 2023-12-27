@@ -10,7 +10,7 @@ N=$1
 PANEL_NUM=1
 
 bootstrap() {
-	tmux send-keys "./target/debug/memstore --raft-addr=127.0.0.1:6006${PANEL_NUM} --web-server=127.0.0.1:8001 --ignore-static-bootstrap" C-m
+	tmux send-keys "./target/debug/memstore --raft-addr=127.0.0.1:60061 --web-server=127.0.0.1:8001 --ignore-static-bootstrap" C-m
 }
 
 join_cluster() {
