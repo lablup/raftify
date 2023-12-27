@@ -1,3 +1,4 @@
+pub mod cli;
 pub mod cluster_join_ticket;
 pub mod config;
 pub mod deserializer;

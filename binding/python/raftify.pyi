@@ -438,3 +438,14 @@ class Message:
         """ """
     def set_deprecated_priority(self, v: int) -> None:
         """ """
+
+async def cli_main(argv: list[str]) -> None:
+    """ """
+    ...
+
+def set_fsm_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
+    """ """
+    ...
+def set_log_entry_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
+    """ """
+    ...

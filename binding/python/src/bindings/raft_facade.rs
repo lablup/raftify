@@ -20,13 +20,8 @@ lazy_static! {
 
 #[derive(Clone)]
 enum Arguments {
-    Join {
-        ticket: ClusterJoinTicket,
-    },
-    MemberBootstrapReady {
-        leader_addr: String,
-        node_id: u64,
-    },
+    Join { ticket: ClusterJoinTicket },
+    MemberBootstrapReady { leader_addr: String, node_id: u64 },
     Empty,
 }
 
@@ -110,9 +105,7 @@ impl PyRaftFacade {
             Arguments::MemberBootstrapReady {
                 ref leader_addr,
                 node_id,
-            } => {
-                self._member_bootstrap_ready(leader_addr, node_id)
-            }
+            } => self._member_bootstrap_ready(leader_addr, node_id),
             _ => panic!("Invalid arguments"),
         }
     }
@@ -137,6 +130,8 @@ impl PyRaftFacade {
     #[tokio::main]
     async fn _member_bootstrap_ready(&self, leader_addr: &str, node_id: u64) {
         let mut raft = self.raft.clone();
-        raft.member_bootstrap_ready(leader_addr, node_id).await.unwrap();
+        raft.member_bootstrap_ready(leader_addr, node_id)
+            .await
+            .unwrap();
     }
 }

@@ -13,8 +13,10 @@ mod commands;
 pub async fn cli_handler<
     LogEntry: AbstractLogEntry + Debug + Send + 'static,
     FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
->() -> Result<()> {
-    let matches = App::new("raftify")
+>(
+    custom_args: Option<Vec<String>>,
+) -> Result<()> {
+    let app = App::new("raftify")
         .version(PKG_VERSION)
         .author(PKG_AUTHORS)
         .about(PKG_DESCRIPTION)
@@ -49,9 +51,13 @@ pub async fn cli_handler<
                             .index(1),
                     ),
                 ),
-        )
-        // .subcommand(SubCommand::with_name("health").about("Check health"))
-        .get_matches();
+        );
+    // .subcommand(SubCommand::with_name("health").about("Check health"))
+
+    let matches = match custom_args {
+        Some(args) => app.get_matches_from(args),
+        None => app.get_matches(),
+    };
 
     let logger = default_logger();
     set_custom_deserializer(MyDeserializer::<LogEntry, FSM>::new());

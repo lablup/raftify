@@ -5,6 +5,6 @@ use memstore::state_machine::{HashStore, LogEntry};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    cli_handler::<LogEntry, HashStore>().await?;
+    cli_handler::<LogEntry, HashStore>(None).await?;
     Ok(())
 }

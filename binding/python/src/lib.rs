@@ -24,6 +24,18 @@ fn raftify(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<bindings::raft_rs::eraftpb::entry::PyEntry>()?;
     m.add_class::<bindings::raft_rs::eraftpb::entry_type::PyEntryType>()?;
 
+    m.add_function(wrap_pyfunction!(bindings::cli::cli_main, m)?)?;
+
+    m.add_function(wrap_pyfunction!(
+        bindings::state_machine::set_log_entry_deserializer,
+        m
+    )?)?;
+
+    m.add_function(wrap_pyfunction!(
+        bindings::state_machine::set_fsm_deserializer,
+        m
+    )?)?;
+
     m.add_function(wrap_pyfunction!(
         bindings::deserializer::set_confchange_context_deserializer,
         m

@@ -1,11 +1,42 @@
 use async_trait::async_trait;
 use pyo3::{prelude::*, types::PyBytes};
 use raftify::{AbstractLogEntry, AbstractStateMachine, Error};
+use std::{fmt, sync::Mutex};
 
-#[derive(Clone, Debug)]
+use ::once_cell::sync::Lazy;
+
+pub static ENTRY_LOG_ENTRY_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> =
+    Lazy::new(|| Mutex::new(None));
+pub static ENTRY_FSM_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> = Lazy::new(|| Mutex::new(None));
+
+#[pyfunction]
+pub fn set_log_entry_deserializer(cb: PyObject) {
+    *ENTRY_LOG_ENTRY_DESERIALIZE_CB.lock().unwrap() = Some(cb);
+}
+
+#[pyfunction]
+pub fn set_fsm_deserializer(cb: PyObject) {
+    *ENTRY_FSM_DESERIALIZE_CB.lock().unwrap() = Some(cb);
+}
+
+#[derive(Clone)]
 #[pyclass(name = "AbstractLogEntry")]
 pub struct PyLogEntry {
     pub log_entry: Py<PyAny>,
+}
+
+impl fmt::Debug for PyLogEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Python::with_gil(|py| {
+            let result = self
+                .log_entry
+                .call_method(py, "__repr__", (), None)
+                .unwrap()
+                .to_string();
+
+            write!(f, "{}", format!("{}", result))
+        })
+    }
 }
 
 impl AbstractLogEntry for PyLogEntry {
@@ -21,25 +52,20 @@ impl AbstractLogEntry for PyLogEntry {
 
     fn decode(data: &[u8]) -> Result<Self, Error> {
         Python::with_gil(|py| {
-            let log_entry_class = PyModule::import(py, "raftify")
-                .unwrap()
-                .getattr("LogEntry")
-                .unwrap();
+            let callback_lock = ENTRY_LOG_ENTRY_DESERIALIZE_CB.lock().unwrap();
 
-            let py_result = log_entry_class
-                .getattr("decode")
-                .unwrap()
-                .call1((data,))
-                .unwrap();
+            if let Some(callback) = &*callback_lock {
+                let inner = callback.call(py, (data,), None).unwrap();
 
-            py_result
-                .extract::<PyLogEntry>()
-                .map_err(|err| Error::Io(err.to_string()))
+                Ok(PyLogEntry { log_entry: inner })
+            } else {
+                unimplemented!()
+            }
         })
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 #[pyclass(name = "AbstractStateMachine")]
 pub struct PyFSM {
     pub store: Py<PyAny>,
@@ -48,6 +74,20 @@ pub struct PyFSM {
 impl PyFSM {
     pub fn new(store: Py<PyAny>) -> Self {
         Self { store }
+    }
+}
+
+impl fmt::Debug for PyFSM {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Python::with_gil(|py| {
+            let result = self
+                .store
+                .call_method(py, "__repr__", (), None)
+                .unwrap()
+                .to_string();
+
+            write!(f, "{}", format!("{}", result))
+        })
     }
 }
 
@@ -97,14 +137,15 @@ impl AbstractStateMachine for PyFSM {
 
     fn decode(data: &[u8]) -> Result<Self, Error> {
         Python::with_gil(|py| {
-            let fsm_class = PyModule::import(py, "raftify")
-                .unwrap()
-                .getattr("StateMachine")
-                .unwrap();
+            let callback_lock = ENTRY_FSM_DESERIALIZE_CB.lock().unwrap();
 
-            let py_result = fsm_class.getattr("decode").unwrap().call1((data,)).unwrap();
+            if let Some(callback) = &*callback_lock {
+                let inner = callback.call(py, (data,), None).unwrap();
 
-            py_result.extract::<PyFSM>().map_err(|_| Error::Unknown)
+                Ok(PyFSM { store: inner })
+            } else {
+                unimplemented!()
+            }
         })
     }
 }

@@ -2,3 +2,30 @@
 node-*
 
 logs
+
+dist
+*.mdb
+build
+
+# Visual Studio Code
+.vscode
+
+# python-virtualenv
+venv
+
+# egg
+*.egg-info
+
+*.pyc
+
+# cache
+.mypy_cache
+.pytest_cache
+
+kill
+exec
+.envrc
+
+tests/fixtures
+tests/tests/fixtures
+logs

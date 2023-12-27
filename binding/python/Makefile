@@ -5,6 +5,11 @@ install:
 	maturin build
 	pip install .
 
+install-cli:
+	cd cli
+	pip install .
+	cd ..
+
 install-release:
 	maturin build --release --strip
 	pip install .
@@ -20,14 +25,6 @@ fmt:
 
 lint:
 	cargo clippy 
-
-lint-fix:
-	cargo clippy --fix --lib -p bindings
-	cargo clippy --fix --lib -p external-bindings
-	cargo clippy --fix --lib -p mem-storage-bindings
-	cargo clippy --fix --lib -p py-storage-bindings
-	cargo clippy --fix --lib -p raftpb-bindings
-	cargo clippy --fix --lib -p utils
 
 lint-fix-py:
 	python -m black **/*.py
