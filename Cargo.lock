@@ -1729,6 +1729,7 @@ dependencies = [
 [[package]]
 name = "pyo3"
 version = "0.21.0-dev"
+source = "git+https://github.com/jopemachine/pyo3#0344921326cb3efc318e64d8269968221dc47d9f"
 dependencies = [
  "cfg-if",
  "indoc",
@@ -1746,6 +1747,7 @@ dependencies = [
 [[package]]
 name = "pyo3-build-config"
 version = "0.21.0-dev"
+source = "git+https://github.com/jopemachine/pyo3#0344921326cb3efc318e64d8269968221dc47d9f"
 dependencies = [
  "once_cell",
  "target-lexicon",
@@ -1754,6 +1756,7 @@ dependencies = [
 [[package]]
 name = "pyo3-ffi"
 version = "0.21.0-dev"
+source = "git+https://github.com/jopemachine/pyo3#0344921326cb3efc318e64d8269968221dc47d9f"
 dependencies = [
  "libc",
  "pyo3-build-config",
@@ -1762,6 +1765,7 @@ dependencies = [
 [[package]]
 name = "pyo3-macros"
 version = "0.21.0-dev"
+source = "git+https://github.com/jopemachine/pyo3#0344921326cb3efc318e64d8269968221dc47d9f"
 dependencies = [
  "proc-macro2",
  "pyo3-macros-backend",
@@ -1772,6 +1776,7 @@ dependencies = [
 [[package]]
 name = "pyo3-macros-backend"
 version = "0.21.0-dev"
+source = "git+https://github.com/jopemachine/pyo3#0344921326cb3efc318e64d8269968221dc47d9f"
 dependencies = [
  "heck 0.4.1",
  "proc-macro2",
@@ -1791,6 +1796,7 @@ dependencies = [
 [[package]]
 name = "raft"
 version = "0.7.0"
+source = "git+https://github.com/jopemachine/raft-rs#df2d617737d7feb84fa474262b5214316d0fdb18"
 dependencies = [
  "bytes",
  "fxhash",
@@ -1809,6 +1815,7 @@ dependencies = [
 [[package]]
 name = "raft-proto"
 version = "0.7.0"
+source = "git+https://github.com/jopemachine/raft-rs#df2d617737d7feb84fa474262b5214316d0fdb18"
 dependencies = [
  "lazy_static",
  "prost",
