@@ -7,6 +7,8 @@ use ::once_cell::sync::Lazy;
 
 use crate::bindings::utils::get_python_repr;
 
+use super::errors::DecodingError;
+
 pub static ENTRY_LOG_ENTRY_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> =
     Lazy::new(|| Mutex::new(None));
 pub static ENTRY_FSM_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> = Lazy::new(|| Mutex::new(None));
@@ -68,10 +70,11 @@ impl AbstractLogEntry for PyLogEntry {
 
             if let Some(callback) = &*callback_lock {
                 let inner = callback.call(py, (data,), None).unwrap();
-
                 Ok(PyLogEntry { log_entry: inner })
             } else {
-                unimplemented!()
+                Err(Error::Other(Box::new(DecodingError::new_err(
+                    "No deserializer for LogEntry specified".to_string(),
+                ))))
             }
         })
     }
@@ -163,10 +166,11 @@ impl AbstractStateMachine for PyFSM {
 
             if let Some(callback) = &*callback_lock {
                 let inner = callback.call(py, (data,), None).unwrap();
-
                 Ok(PyFSM { store: inner })
             } else {
-                unimplemented!()
+                Err(Error::Other(Box::new(DecodingError::new_err(
+                    "No deserializer for AbstractStateMachine specified".to_string(),
+                ))))
             }
         })
     }
