@@ -9,6 +9,7 @@ use raftify::raft::{
     derializer::{Bytes, CustomDeserializer},
     eraftpb::{ConfChange, ConfChangeV2},
 };
+
 pub struct PythonDeserializer;
 
 // TODO: Refactor below codes to reduce code redundancy.

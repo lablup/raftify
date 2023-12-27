@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use pyo3::{prelude::*, types::PyString};
-use raftify::{raft::default_logger, ClusterJoinTicket, Error, Raft};
+use raftify::{raft::default_logger, ClusterJoinTicket, Raft, Result};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
@@ -27,7 +27,7 @@ enum Arguments {
 #[pyclass(name = "Raft")]
 pub struct PyRaftFacade {
     raft: Raft<PyLogEntry, PyFSM>,
-    raft_task: Option<Arc<JoinHandle<Result<(), Error>>>>,
+    raft_task: Option<Arc<JoinHandle<Result<()>>>>,
     args: Arguments,
 }
 

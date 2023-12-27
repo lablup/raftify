@@ -1,14 +1,20 @@
 use pyo3::prelude::*;
-use raftify::{create_client, Channel, RaftServiceClient};
+use raftify::{create_client, raft::eraftpb::ConfChangeV2, Channel, RaftServiceClient};
 use tonic::Request;
 
-use super::raft_rs::eraftpb::conf_change_v2::PyConfChangeV2;
+use super::{errors::WrongArgumentError, raft_rs::eraftpb::conf_change_v2::PyConfChangeV2};
+
+#[derive(Clone, Debug)]
+enum Arguments {
+    ChangeConfig { conf_change: ConfChangeV2 },
+    Empty,
+}
 
 #[derive(Clone)]
 #[pyclass(name = "RaftClient")]
 pub struct PyRaftClient {
     inner: RaftServiceClient<Channel>,
-    conf_change: Option<PyConfChangeV2>,
+    args: Arguments,
 }
 
 #[pymethods]
@@ -19,19 +25,30 @@ impl PyRaftClient {
     }
 
     pub fn prepare_conf_change(&mut self, conf_change: PyConfChangeV2) {
-        self.conf_change = Some(conf_change);
+        self.args = Arguments::ChangeConfig {
+            conf_change: conf_change.inner,
+        };
     }
 
     // TODO: Defines the return type
     pub async fn change_config(&mut self) -> PyResult<(i32, Vec<u8>)> {
-        let result = self
-            .inner
-            .change_config(Request::new(self.conf_change.take().unwrap().inner))
-            .await
-            .unwrap()
-            .into_inner();
+        match &self.args {
+            Arguments::ChangeConfig { conf_change } => {
+                let result = self
+                    .inner
+                    .change_config(Request::new(conf_change.clone()))
+                    .await
+                    .unwrap()
+                    .into_inner();
 
-        return Ok((result.result_type, result.data));
+                return Ok((result.result_type, result.data));
+            }
+            _ => {
+                return Err(WrongArgumentError::new_err(
+                    "Wrong argument type".to_string(),
+                ))
+            }
+        }
     }
 
     // pub async fn send_message(&mut self) -> PyResult<()> {
@@ -54,7 +71,7 @@ impl PyRaftClient {
 
         Self {
             inner,
-            conf_change: None,
+            args: Arguments::Empty,
         }
     }
 }

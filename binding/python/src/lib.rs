@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 mod bindings;
 
 #[pymodule]
-fn raftify(_py: Python, m: &PyModule) -> PyResult<()> {
+fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<bindings::config::PyConfig>()?;
     m.add_class::<bindings::raft_rs::config::PyRaftConfig>()?;
     m.add_class::<bindings::state_machine::PyFSM>()?;
@@ -65,6 +65,28 @@ fn raftify(_py: Python, m: &PyModule) -> PyResult<()> {
         bindings::deserializer::set_snapshot_data_deserializer,
         m
     )?)?;
+
+    m.add("ApplyError", py.get_type::<bindings::errors::ApplyError>())?;
+    m.add(
+        "DecodingError",
+        py.get_type::<bindings::errors::DecodingError>(),
+    )?;
+    m.add(
+        "EncodingError",
+        py.get_type::<bindings::errors::EncodingError>(),
+    )?;
+    m.add(
+        "RestoreError",
+        py.get_type::<bindings::errors::RestoreError>(),
+    )?;
+    m.add(
+        "WrongArgumentError",
+        py.get_type::<bindings::errors::WrongArgumentError>(),
+    )?;
+    m.add(
+        "SnapshotError",
+        py.get_type::<bindings::errors::SnapshotError>(),
+    )?;
 
     set_custom_deserializer(PythonDeserializer);
 
