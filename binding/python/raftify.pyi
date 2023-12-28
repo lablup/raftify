@@ -209,7 +209,9 @@ class Config:
 
 class RaftServiceClient:
     """ """
-
+    @staticmethod
+    async def build(self, addr: str) -> "RaftServiceClient":
+        """ """
     def prepare_change_config(self, conf_change: "ConfChangeV2") -> None:
         """ """
     async def change_config(self) -> None:
@@ -217,6 +219,10 @@ class RaftServiceClient:
     def prepare_message(self, message: "Message") -> None:
         """ """
     async def send_message(self) -> None:
+        """ """
+    def prepare_propose(self, proposal: bytes) -> None:
+        """ """
+    async def propose(self) -> None:
         """ """
 
 def set_snapshot_data_deserializer(cb: Callable[[bytes], str | bytes]) -> None:

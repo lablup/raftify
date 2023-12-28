@@ -7,7 +7,7 @@ use super::RaftServiceClient;
 
 // TODO: Support https schema
 pub async fn create_client<A: ToSocketAddrs>(
-    addr: &A,
+    addr: A,
 ) -> Result<RaftServiceClient<Channel>, TonicError> {
     let addr = addr
         .to_socket_addrs()

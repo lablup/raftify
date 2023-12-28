@@ -88,6 +88,7 @@ class HashStore:
     def restore(self, snapshot: bytes) -> None:
         self._store = pickle.loads(snapshot)
 
+
 def main():
     register_custom_deserializer()
 

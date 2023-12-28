@@ -13,7 +13,7 @@ use super::raft_node::PyRaftNode;
 use super::state_machine::{PyFSM, PyLogEntry};
 
 lazy_static! {
-    static ref TOKIO_RT: Runtime = Runtime::new().unwrap();
+    pub static ref TOKIO_RT: Runtime = Runtime::new().unwrap();
 }
 
 #[derive(Clone, Debug)]

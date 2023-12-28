@@ -8,6 +8,7 @@ use tonic::Request;
 
 use super::{
     errors::WrongArgumentError,
+    raft_facade::TOKIO_RT,
     raft_rs::eraftpb::{conf_change_v2::PyConfChangeV2, message::PyMessage},
 };
 
@@ -15,6 +16,7 @@ use super::{
 enum Arguments {
     ChangeConfig { conf_change: ConfChangeV2 },
     SendMessage { message: Message },
+    Propose { proposal: Vec<u8> },
     Empty,
 }
 
@@ -28,9 +30,9 @@ pub struct PyRaftServiceClient {
 #[pymethods]
 impl PyRaftServiceClient {
     #[staticmethod]
-    pub async fn new(addr: String) -> Self {
+    pub async fn build(addr: String) -> Self {
         let addr = addr.to_owned();
-        let inner = create_client(&addr).await.unwrap();
+        let inner = PyRaftServiceClient::_create_client(addr).await;
 
         Self {
             inner,
@@ -87,5 +89,35 @@ impl PyRaftServiceClient {
                 ))
             }
         }
+    }
+
+    pub fn prepare_propose(&mut self, proposal: Vec<u8>) {
+        self.args = Arguments::Propose { proposal };
+    }
+
+    pub async fn propose(&mut self) -> PyResult<()> {
+        match &self.args {
+            Arguments::Propose { proposal } => {
+                self.inner
+                    .propose(Request::new(raftify::raft_service::ProposeArgs {
+                        msg: proposal.clone(),
+                    }))
+                    .await
+                    .unwrap();
+
+                return Ok(());
+            }
+            _ => {
+                return Err(WrongArgumentError::new_err(
+                    "Wrong argument type".to_string(),
+                ))
+            }
+        }
+    }
+}
+
+impl PyRaftServiceClient {
+    pub async fn _create_client(addr: String) -> RaftServiceClient<Channel> {
+        TOKIO_RT.spawn(create_client(addr)).await.unwrap().unwrap()
     }
 }

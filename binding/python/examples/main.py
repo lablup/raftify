@@ -104,7 +104,6 @@ async def put(request: web.Request) -> web.Response:
     return web.Response(text="OK")
 
 
-# class SetCommand(AbstractLogEntry):
 class SetCommand:
     """
     Represent simple key-value command.
@@ -147,9 +146,6 @@ def register_custom_deserializer() -> None:
     set_entry_data_deserializer(pickle_deserialize)
     set_message_context_deserializer(pickle_deserialize)
     set_snapshot_data_deserializer(pickle_deserialize)
-
-
-# class HashStore(AbstractStateMachine):
 
 
 class HashStore:

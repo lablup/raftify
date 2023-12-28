@@ -1,4 +1,4 @@
-#![cfg(feature = "include-python-workspace")]
+// #![cfg(feature = "include-python-workspace")]
 use ::raftify::raft::derializer::set_custom_deserializer;
 use bindings::deserializer::PythonDeserializer;
 use pyo3::prelude::*;
