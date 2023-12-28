@@ -49,7 +49,7 @@ pub async fn test_data_replication() {
     sleep(Duration::from_secs(1)).await;
 
     {
-        let mut rafts = RAFTS.lock().unwrap();
+        let rafts = RAFTS.lock().unwrap();
         let raft_1 = rafts.get(&1).unwrap();
         wait_for_until_cluster_size_increase(raft_1.clone(), 4).await;
         let raft_4 = rafts.get(&4).unwrap();
@@ -58,7 +58,33 @@ pub async fn test_data_replication() {
 
         // Data should be replicated to new joined node.
         assert_eq!(store_lk.get(&1).unwrap(), "test");
+    }
 
+    {
+        let mut rafts = RAFTS.lock().unwrap();
+        let raft_1 = rafts.get(&1).unwrap();
+
+        let new_entry = LogEntry::Insert {
+            key: 2,
+            value: "test2".to_string(),
+        }
+        .encode()
+        .unwrap();
+
+        raft_1.raft_node.propose(new_entry).await;
+
+        sleep(Duration::from_secs(1)).await;
+
+        // New entry data should be replicated to all nodes including new joined node.
+        for (_, raft) in rafts.iter_mut() {
+            let store = raft.raft_node.store().await;
+            let store_lk = store.0.read().unwrap();
+            assert_eq!(store_lk.get(&2).unwrap(), "test2");
+        }
+    }
+
+    {
+        let mut rafts = RAFTS.lock().unwrap();
         for (_, raft) in rafts.iter_mut() {
             raft.raft_node.quit().await;
         }
