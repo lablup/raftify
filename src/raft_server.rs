@@ -196,7 +196,13 @@ impl RaftService for RaftServer {
             Err(_) => self.print_send_error(function_name!()),
         }
 
-        Ok(Response::new(raft_service::Empty {}))
+        let response = rx.await.unwrap();
+        match response {
+            ServerResponseMsg::Propose { result: _result } => {
+                Ok(Response::new(raft_service::Empty {}))
+            }
+            _ => unreachable!(),
+        }
     }
 
     async fn debug_node(

@@ -8,6 +8,10 @@ edition = "2021"
 name = "raftify-cli"
 path = "src/cli/main.rs"
 
+[[bin]]
+name = "raftify-client-example"
+path = "src/client/main.rs"
+
 [dependencies]
 actix-rt = "2.0"
 actix-web = "4.0.0"

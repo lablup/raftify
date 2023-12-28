@@ -555,29 +555,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "client"
-version = "0.1.0"
-dependencies = [
- "actix-rt",
- "actix-web",
- "async-trait",
- "bincode",
- "env_logger",
- "log",
- "raftify",
- "serde",
- "slog",
- "slog-async",
- "slog-envlogger",
- "slog-scope",
- "slog-stdlog",
- "slog-term",
- "structopt",
- "tokio",
- "toml 0.8.8",
-]
-
-[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
