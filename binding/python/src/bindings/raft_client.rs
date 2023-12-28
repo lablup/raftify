@@ -1,27 +1,41 @@
 use pyo3::prelude::*;
-use raftify::{create_client, raft::eraftpb::ConfChangeV2, Channel, RaftServiceClient};
+use raftify::{
+    create_client,
+    raft::eraftpb::{ConfChangeV2, Message},
+    Channel, RaftServiceClient,
+};
 use tonic::Request;
 
-use super::{errors::WrongArgumentError, raft_rs::eraftpb::conf_change_v2::PyConfChangeV2};
+use super::{
+    errors::WrongArgumentError,
+    raft_rs::eraftpb::{conf_change_v2::PyConfChangeV2, message::PyMessage},
+};
 
 #[derive(Clone, Debug)]
 enum Arguments {
     ChangeConfig { conf_change: ConfChangeV2 },
+    SendMessage { message: Message },
     Empty,
 }
 
 #[derive(Clone)]
-#[pyclass(name = "RaftClient")]
-pub struct PyRaftClient {
+#[pyclass(name = "RaftServiceClient")]
+pub struct PyRaftServiceClient {
     inner: RaftServiceClient<Channel>,
     args: Arguments,
 }
 
 #[pymethods]
-impl PyRaftClient {
+impl PyRaftServiceClient {
     #[staticmethod]
     pub async fn new(addr: String) -> Self {
-        Self::_new(&addr)
+        let addr = addr.to_owned();
+        let inner = create_client(&addr).await.unwrap();
+
+        Self {
+            inner,
+            args: Arguments::Empty,
+        }
     }
 
     pub fn prepare_conf_change(&mut self, conf_change: PyConfChangeV2) {
@@ -51,27 +65,27 @@ impl PyRaftClient {
         }
     }
 
-    // pub async fn send_message(&mut self) -> PyResult<()> {
-    //     let result = self
-    //         .inner
-    //         .send_message()
-    //         .await
-    //         .unwrap()
-    //         .into_inner();
+    pub fn prepare_send_message(&mut self, data: PyMessage) {
+        self.args = Arguments::SendMessage {
+            message: data.inner,
+        };
+    }
 
-    //     return Ok(());
-    // }
-}
+    pub async fn send_message(&mut self) -> PyResult<()> {
+        match &self.args {
+            Arguments::SendMessage { message } => {
+                self.inner
+                    .send_message(Request::new(message.clone()))
+                    .await
+                    .unwrap();
 
-impl PyRaftClient {
-    #[tokio::main]
-    pub async fn _new(addr: &str) -> Self {
-        let addr = addr.to_owned();
-        let inner = create_client(&addr).await.unwrap();
-
-        Self {
-            inner,
-            args: Arguments::Empty,
+                return Ok(());
+            }
+            _ => {
+                return Err(WrongArgumentError::new_err(
+                    "Wrong argument type".to_string(),
+                ))
+            }
         }
     }
 }

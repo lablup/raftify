@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use crate::error::{Result, SendMessageError};
 use crate::raft_node::bootstrap::bootstrap_peers;
 use crate::raft_service::{ChangeConfigResultType, ClusterBootstrapReadyArgs, ResultCode};
-use crate::request_message::{LocalRequestMsg, ServerRequestMsg};
+use crate::request_message::{LocalRequestMsg, SelfMessage, ServerRequestMsg};
 use crate::response_message::{
     ConfChangeResponseResult, LocalResponseMsg, RequestIdResponseResult, ResponseMessage,
     ResponseResult, ServerResponseMsg,
@@ -294,6 +294,22 @@ impl<
         }
     }
 
+    pub async fn send_message(&mut self, message: RaftMessage) {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::SendMessage {
+                message: Box::new(message),
+                chan: tx,
+            })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
+            LocalResponseMsg::SendMessage {} => (),
+            _ => unreachable!(),
+        }
+    }
+
     pub async fn make_snapshot(&mut self, index: u64, term: u64) {
         let (tx, rx) = oneshot::channel();
         self.local_sender
@@ -357,6 +373,9 @@ pub struct RaftNodeCore<
     #[allow(dead_code)]
     local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
 
+    self_snd: mpsc::Sender<SelfMessage>,
+    self_rcv: mpsc::Receiver<SelfMessage>,
+
     _phantom_log_entry_typ: PhantomData<LogEntry>,
 }
 
@@ -407,6 +426,8 @@ impl<
             None
         };
 
+        let (self_snd, self_rcv) = mpsc::channel(100);
+
         Ok(RaftNodeCore {
             raw_node,
             fsm,
@@ -424,6 +445,8 @@ impl<
             server_snd,
             local_rcv,
             local_snd,
+            self_snd,
+            self_rcv,
             _phantom_log_entry_typ: PhantomData,
         })
     }
@@ -457,6 +480,8 @@ impl<
             .checked_sub(Duration::from_secs(1000))
             .unwrap();
 
+        let (self_snd, self_rcv) = mpsc::channel(100);
+
         Ok(RaftNodeCore {
             raw_node,
             fsm,
@@ -474,6 +499,8 @@ impl<
             server_snd,
             local_rcv,
             local_snd,
+            self_snd,
+            self_rcv,
             _phantom_log_entry_typ: PhantomData,
         })
     }
@@ -501,7 +528,7 @@ impl<
     async fn send_message(
         message: RaftMessage,
         peers: Arc<Mutex<Peers>>,
-        snd: mpsc::Sender<ServerRequestMsg>,
+        snd: mpsc::Sender<SelfMessage>,
         logger: slog::Logger,
     ) {
         let node_id = message.get_to();
@@ -534,7 +561,7 @@ impl<
 
         if let Err(e) = ok {
             slog::debug!(logger, "Error occurred while sending message: {}", e);
-            snd.send(ServerRequestMsg::ReportUnreachable { node_id })
+            snd.send(SelfMessage::ReportUnreachable { node_id })
                 .await
                 .unwrap();
         }
@@ -554,7 +581,7 @@ impl<
             tokio::spawn(RaftNodeCore::<LogEntry, FSM>::send_message(
                 message,
                 self.peers.clone(),
-                self.server_snd.clone(),
+                self.self_snd.clone(),
                 self.logger.clone(),
             ));
         }
@@ -941,7 +968,17 @@ impl<
                 self.handle_join(ticket).await?;
                 chan.send(LocalResponseMsg::JoinCluster {}).unwrap();
             }
-            _ => unreachable!(),
+            LocalRequestMsg::SendMessage { message, chan } => {
+                slog::debug!(
+                    self.logger,
+                    "Node {} received local Raft message, Message: {}",
+                    self.raw_node.raft.id,
+                    format_message(&message)
+                );
+                self.raw_node.step(*message)?;
+                chan.send(LocalResponseMsg::SendMessage {}).unwrap();
+            }
+            _ => unimplemented!("Message {:?} handler not implemented", message),
         }
 
         Ok(())
@@ -992,6 +1029,16 @@ impl<
 
             let response_seq = serialize(&response_seq)?;
             self.raw_node.propose(response_seq, proposal)?;
+        }
+
+        Ok(())
+    }
+
+    async fn handle_self_message(&mut self, message: SelfMessage) -> Result<()> {
+        match message {
+            SelfMessage::ReportUnreachable { node_id } => {
+                self.raw_node.report_unreachable(node_id);
+            }
         }
 
         Ok(())
@@ -1088,7 +1135,7 @@ impl<
                 self.handle_confchange_request(conf_change, ResponseSender::Server(chan))
                     .await?;
             }
-            ServerRequestMsg::RaftMessage { message } => {
+            ServerRequestMsg::SendMessage { message } => {
                 slog::debug!(
                     self.logger,
                     "Node {} received Raft message from the node {}, Message: {}",
@@ -1130,9 +1177,6 @@ impl<
                     .unwrap();
                 }
             }
-            ServerRequestMsg::ReportUnreachable { node_id } => {
-                self.raw_node.report_unreachable(node_id);
-            }
             ServerRequestMsg::DebugNode { chan } => {
                 chan.send(ServerResponseMsg::DebugNode {
                     result: self.inspect().await?,
@@ -1167,6 +1211,11 @@ impl<
                         Err(e) => {
                             panic!("Error occurred while processing ready: {:?}", e);
                         }
+                    }
+                }
+                msg = self.self_rcv.recv() => {
+                    if let Some(message) = msg {
+                        self.handle_self_message(message).await?;
                     }
                 }
                 msg = self.server_rcv.recv() => {

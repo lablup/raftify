@@ -1,4 +1,4 @@
-// #![cfg(feature = "include-python-workspace")]
+#![cfg(feature = "include-python-workspace")]
 use ::raftify::raft::derializer::set_custom_deserializer;
 use bindings::deserializer::PythonDeserializer;
 use pyo3::prelude::*;
@@ -12,7 +12,7 @@ fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<bindings::state_machine::PyFSM>()?;
     m.add_class::<bindings::raft_facade::PyRaftFacade>()?;
     m.add_class::<bindings::peers::PyPeers>()?;
-    m.add_class::<bindings::raft_client::PyRaftClient>()?;
+    m.add_class::<bindings::raft_client::PyRaftServiceClient>()?;
     m.add_class::<bindings::raft_node::PyRaftNode>()?;
 
     m.add_class::<bindings::raft_rs::eraftpb::conf_change_single::PyConfChangeSingle>()?;

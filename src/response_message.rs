@@ -62,7 +62,7 @@ pub enum ServerResponseMsg {
     RequestId { result: RequestIdResponseResult },
     ReportUnreachable { result: ResponseResult },
     DebugNode { result: String },
-    RaftMessage { result: ResponseResult },
+    SendMessage { result: ResponseResult },
 }
 
 pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
@@ -80,6 +80,7 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
     Propose {},
     DebugNode { result: String },
     JoinCluster {},
+    SendMessage {},
     _Phantom(PhantomData<LogEntry>),
 }
 

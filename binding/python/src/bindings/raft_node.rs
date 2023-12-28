@@ -1,10 +1,13 @@
 use pyo3::{prelude::*, types::PyString};
-use raftify::{raft::eraftpb::ConfChangeV2, RaftNode};
+use raftify::{
+    raft::eraftpb::{ConfChangeV2, Message as RaftMessage},
+    RaftNode,
+};
 
 use super::{
     errors::WrongArgumentError,
     peers::PyPeers,
-    raft_rs::eraftpb::conf_change_v2::PyConfChangeV2,
+    raft_rs::eraftpb::{conf_change_v2::PyConfChangeV2, message::PyMessage},
     state_machine::{PyFSM, PyLogEntry},
 };
 
@@ -12,6 +15,7 @@ use super::{
 enum Arguments {
     Propose { proposal: Vec<u8> },
     AddPeer { id: u64, addr: String },
+    SendMessage { message: RaftMessage },
     ChangeConfig { conf_change: ConfChangeV2 },
     Empty,
 }
@@ -97,6 +101,25 @@ impl PyRaftNode {
             Arguments::ChangeConfig { ref conf_change } => {
                 // TODO: Define return type and return it.
                 self.inner.change_config(conf_change.clone()).await;
+                Ok(())
+            }
+            _ => Err(WrongArgumentError::new_err(format!(
+                "Invalid arguments {:?}",
+                self.args
+            ))),
+        }
+    }
+
+    pub fn prepare_send_message(&mut self, message: &PyMessage) {
+        self.args = Arguments::SendMessage {
+            message: message.inner.clone(),
+        };
+    }
+
+    pub async fn send_message(&mut self) -> PyResult<()> {
+        match self.args {
+            Arguments::SendMessage { ref message } => {
+                self.inner.send_message(message.clone()).await;
                 Ok(())
             }
             _ => Err(WrongArgumentError::new_err(format!(

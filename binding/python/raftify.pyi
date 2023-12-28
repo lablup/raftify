@@ -82,6 +82,10 @@ class RaftNode:
         """ """
     async def change_config(self) -> None:
         """ """
+    def prepare_message(self, message: "Message") -> None:
+        """ """
+    async def send_message(self) -> None:
+        """ """
     async def leave(self) -> None:
         """ """
     async def quit(self) -> None:
@@ -91,11 +95,13 @@ class RaftNode:
 
 class ClusterJoinTicket:
     """ """
+
     def get_reserved_id(self) -> int:
         """ """
 
 class Peers:
     """ """
+
     def __init__(self, peers: dict) -> None: ...
     def get(self, node_id: int) -> str: ...
     def add_peer(self, node_id: int, addr: str) -> None: ...
@@ -186,15 +192,31 @@ class RaftConfig:
         :param max_committed_size_per_ready: Max size for committed entries in a `Ready`.
         """
 
+@dataclass
 class Config:
     """ """
 
-class RaftClient:
+    raft_config: RaftConfig
+    log_dir: str
+    compacted_log_dir: str
+    compacted_log_size_threshold: int
+    snapshot_interval: float
+    tick_interval: float
+    lmdb_map_size: int
+    cluster_id: int
+    terminate_on_remove: bool
+    conf_change_request_timeout: float
+
+class RaftServiceClient:
     """ """
 
-    async def change_config(self, conf_change) -> None:
+    def prepare_change_config(self, conf_change: "ConfChangeV2") -> None:
         """ """
-    async def send_message(self, message) -> None:
+    async def change_config(self) -> None:
+        """ """
+    def prepare_message(self, message: "Message") -> None:
+        """ """
+    async def send_message(self) -> None:
         """ """
 
 def set_snapshot_data_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
@@ -389,17 +411,13 @@ class Message:
     def set_term(self, term: int) -> None:
         """ """
     def get_log_term(self) -> int:
-        """
-        """
+        """ """
     def set_log_term(self, log_index: int) -> None:
-        """
-        """
+        """ """
     def get_priority(self) -> int:
-        """
-        """
+        """ """
     def set_priority(self, priority: int) -> None:
-        """
-        """
+        """ """
     def get_context(self) -> bytes:
         """ """
     def set_context(self, context: bytes) -> None:
@@ -446,6 +464,7 @@ async def cli_main(argv: list[str]) -> None:
 def set_fsm_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
     """ """
     ...
+
 def set_log_entry_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
     """ """
     ...

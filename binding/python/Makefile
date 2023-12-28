@@ -27,6 +27,7 @@ lint:
 	cargo clippy 
 
 lint-fix-py:
+	python -m black raftify.pyi
 	python -m black **/*.py
 
 publish:

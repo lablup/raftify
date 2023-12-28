@@ -165,7 +165,7 @@ impl RaftService for RaftServer {
         let request_args = request.into_inner();
         let sender = self.snd.clone();
         match sender
-            .send(ServerRequestMsg::RaftMessage {
+            .send(ServerRequestMsg::SendMessage {
                 message: Box::new(request_args),
             })
             .await

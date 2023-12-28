@@ -101,7 +101,7 @@ async def put(request: web.Request) -> web.Response:
     raft_node = raft.get_raft_node()
     raft_node.prepare_proposal(message.encode())
     await raft_node.propose()
-    return web.Response(text='OK')
+    return web.Response(text="OK")
 
 
 # class SetCommand(AbstractLogEntry):

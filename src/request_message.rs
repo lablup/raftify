@@ -6,12 +6,16 @@ use super::{
     AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket,
 };
 
+// Request type processed through network calls (grpc)
 pub enum ServerRequestMsg {
     MemberBootstrapReady {
         node_id: u64,
         chan: Sender<ServerResponseMsg>,
     },
     ClusterBootstrapReady {
+        chan: Sender<ServerResponseMsg>,
+    },
+    RequestId {
         chan: Sender<ServerResponseMsg>,
     },
     Propose {
@@ -22,20 +26,15 @@ pub enum ServerRequestMsg {
         conf_change: ConfChangeV2,
         chan: Sender<ServerResponseMsg>,
     },
-    RequestId {
-        chan: Sender<ServerResponseMsg>,
-    },
-    ReportUnreachable {
-        node_id: u64,
-    },
     DebugNode {
         chan: Sender<ServerResponseMsg>,
     },
-    RaftMessage {
+    SendMessage {
         message: Box<RaftMessage>,
     },
 }
 
+// Request type used for communication (method calls) between RaftFacade and RaftNode
 pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
     IsLeader {
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
@@ -85,19 +84,29 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
         conf_change: ConfChangeV2,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
+    SendMessage {
+        message: Box<RaftMessage>,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
+    },
     JoinCluster {
         ticket: ClusterJoinTicket,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
 }
 
+// Request type sent from a RaftNode to itself (RaftNode).
+// Used for accessing the RaftNode from a future created by RaftNode asynchronous methods
+pub enum SelfMessage {
+    ReportUnreachable { node_id: u64 },
+}
+
 macro_rules! impl_debug_for_enum {
-    ($($variant:ident),*) => {
-        impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> std::fmt::Debug for LocalRequestMsg<LogEntry, FSM> {
+    ($enum_name:ident, $($variant:ident),*) => {
+        impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> std::fmt::Debug for $enum_name<LogEntry, FSM> {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 match self {
                     $(
-                        LocalRequestMsg::$variant { .. } => write!(f, stringify!(LocalRequestMsg::$variant)),
+                        $enum_name::$variant { .. } => write!(f, stringify!($variant)),
                     )*
                 }
             }
@@ -106,6 +115,7 @@ macro_rules! impl_debug_for_enum {
 }
 
 impl_debug_for_enum!(
+    LocalRequestMsg,
     IsLeader,
     GetId,
     GetLeaderId,
@@ -120,5 +130,6 @@ impl_debug_for_enum!(
     MakeSnapshot,
     Propose,
     ChangeConfig,
+    SendMessage,
     JoinCluster
 );
