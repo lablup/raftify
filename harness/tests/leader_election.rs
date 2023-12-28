@@ -1,4 +1,5 @@
 use std::time::Duration;
+use tokio::time::sleep;
 
 use harness::{
     constant::THREE_NODE_EXAMPLE,
@@ -7,7 +8,6 @@ use harness::{
         load_peers, wait_for_until_cluster_size_decrease, wait_for_until_cluster_size_increase,
     },
 };
-use tokio::time::sleep;
 
 #[tokio::test]
 pub async fn test_leader_election() {

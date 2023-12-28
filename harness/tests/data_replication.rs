@@ -1,4 +1,6 @@
+use raftify::AbstractLogEntry;
 use std::time::Duration;
+use tokio::time::sleep;
 
 use harness::{
     constant::{RAFT_ADDRS, THREE_NODE_EXAMPLE},
@@ -6,8 +8,6 @@ use harness::{
     state_machine::LogEntry,
     utils::{load_peers, wait_for_until_cluster_size_increase},
 };
-use raftify::AbstractLogEntry;
-use tokio::time::sleep;
 
 #[tokio::test]
 pub async fn test_data_replication() {

@@ -48,7 +48,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
 
         let (local_tx, local_rx) = mpsc::channel(100);
         let (server_tx, server_rx) = mpsc::channel(100);
-        let bootstrap_done = initial_peers.is_empty();
+        let bootstrap_done = initial_peers.is_empty() || initial_peers.len() <= 1;
 
         let raft_node = match node_id {
             1 => RaftNode::bootstrap_cluster(

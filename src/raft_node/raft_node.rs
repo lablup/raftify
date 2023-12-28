@@ -368,11 +368,11 @@ pub struct RaftNodeCore<
     response_senders: HashMap<u64, ResponseSender<LogEntry, FSM>>,
 
     server_rcv: mpsc::Receiver<ServerRequestMsg>,
+    #[allow(dead_code)]
     server_snd: mpsc::Sender<ServerRequestMsg>,
     local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
     #[allow(dead_code)]
     local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
-
     self_snd: mpsc::Sender<SelfMessage>,
     self_rcv: mpsc::Receiver<SelfMessage>,
 
@@ -882,6 +882,113 @@ impl<
         Ok(())
     }
 
+    async fn handle_propose_request(
+        &mut self,
+        proposal: Vec<u8>,
+        chan: ResponseSender<LogEntry, FSM>,
+    ) -> Result<()> {
+        if !self.is_leader() {
+            // wrong leader send client cluster data
+            let leader_id = self.get_leader_id();
+            // leader can't be an empty node
+            let leader_addr = self
+                .peers
+                .lock()
+                .await
+                .get(&leader_id)
+                .unwrap()
+                .addr
+                .to_string();
+
+            let raft_response: ResponseMessage<LogEntry, FSM> = match chan {
+                ResponseSender::Local(_) => LocalResponseMsg::Propose {}.into(),
+                ResponseSender::Server(_) => ServerResponseMsg::Propose {
+                    result: ResponseResult::WrongLeader {
+                        leader_id,
+                        leader_addr,
+                    },
+                }
+                .into(),
+            };
+
+            chan.send(raft_response);
+        } else {
+            let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
+            match chan {
+                ResponseSender::Local(chan) => {
+                    self.response_senders
+                        .insert(response_seq, ResponseSender::Local(chan));
+                }
+                ResponseSender::Server(chan) => {
+                    self.response_senders
+                        .insert(response_seq, ResponseSender::Server(chan));
+                }
+            };
+
+            let response_seq = serialize(&response_seq)?;
+            self.raw_node.propose(response_seq, proposal)?;
+        }
+
+        Ok(())
+    }
+
+    async fn handle_confchange_request(
+        &mut self,
+        conf_change: ConfChangeV2,
+        chan: ResponseSender<LogEntry, FSM>,
+    ) -> Result<()> {
+        if self.raw_node.raft.has_pending_conf() {
+            slog::warn!(self.logger, "Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index);
+            return Ok(());
+        }
+
+        if !self.is_leader() {
+            // wrong leader send client cluster data
+            // TODO: retry strategy in case of failure
+            let leader_id = self.get_leader_id();
+            let peers = self.peers.lock().await;
+            let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
+
+            let result = ConfChangeResponseResult::WrongLeader {
+                leader_id,
+                leader_addr,
+            };
+
+            match chan {
+                ResponseSender::Local(chan) => chan
+                    .send(LocalResponseMsg::ChangeConfig { result })
+                    .unwrap(),
+                ResponseSender::Server(chan) => chan
+                    .send(ServerResponseMsg::ConfigChange { result })
+                    .unwrap(),
+            }
+        } else {
+            let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
+
+            match chan {
+                ResponseSender::Local(chan) => {
+                    self.response_senders
+                        .insert(response_seq, ResponseSender::Local(chan));
+                }
+                ResponseSender::Server(chan) => {
+                    self.response_senders
+                        .insert(response_seq, ResponseSender::Server(chan));
+                }
+            };
+
+            slog::debug!(
+                self.logger,
+                "Proposed new config change..., seq={response_seq:}, conf_change_v2={}",
+                format_confchangev2(&conf_change)
+            );
+
+            self.raw_node
+                .propose_conf_change(serialize(&response_seq).unwrap(), conf_change)?;
+        }
+
+        Ok(())
+    }
+
     pub async fn handle_local_request_msg(
         &mut self,
         message: LocalRequestMsg<LogEntry, FSM>,
@@ -984,118 +1091,11 @@ impl<
         Ok(())
     }
 
-    async fn handle_propose_request(
-        &mut self,
-        proposal: Vec<u8>,
-        chan: ResponseSender<LogEntry, FSM>,
-    ) -> Result<()> {
-        if !self.is_leader() {
-            // wrong leader send client cluster data
-            let leader_id = self.get_leader_id();
-            // leader can't be an empty node
-            let leader_addr = self
-                .peers
-                .lock()
-                .await
-                .get(&leader_id)
-                .unwrap()
-                .addr
-                .to_string();
-
-            let raft_response: ResponseMessage<LogEntry, FSM> = match chan {
-                ResponseSender::Local(_) => LocalResponseMsg::Propose {}.into(),
-                ResponseSender::Server(_) => ServerResponseMsg::Propose {
-                    result: ResponseResult::WrongLeader {
-                        leader_id,
-                        leader_addr,
-                    },
-                }
-                .into(),
-            };
-
-            chan.send(raft_response);
-        } else {
-            let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
-            match chan {
-                ResponseSender::Local(chan) => {
-                    self.response_senders
-                        .insert(response_seq, ResponseSender::Local(chan));
-                }
-                ResponseSender::Server(chan) => {
-                    self.response_senders
-                        .insert(response_seq, ResponseSender::Server(chan));
-                }
-            };
-
-            let response_seq = serialize(&response_seq)?;
-            self.raw_node.propose(response_seq, proposal)?;
-        }
-
-        Ok(())
-    }
-
     async fn handle_self_message(&mut self, message: SelfMessage) -> Result<()> {
         match message {
             SelfMessage::ReportUnreachable { node_id } => {
                 self.raw_node.report_unreachable(node_id);
             }
-        }
-
-        Ok(())
-    }
-
-    async fn handle_confchange_request(
-        &mut self,
-        conf_change: ConfChangeV2,
-        chan: ResponseSender<LogEntry, FSM>,
-    ) -> Result<()> {
-        if self.raw_node.raft.has_pending_conf() {
-            slog::warn!(self.logger, "Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index);
-            return Ok(());
-        }
-
-        if !self.is_leader() {
-            // wrong leader send client cluster data
-            // TODO: retry strategy in case of failure
-            let leader_id = self.get_leader_id();
-            let peers = self.peers.lock().await;
-            let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
-
-            let result = ConfChangeResponseResult::WrongLeader {
-                leader_id,
-                leader_addr,
-            };
-
-            match chan {
-                ResponseSender::Local(chan) => chan
-                    .send(LocalResponseMsg::ChangeConfig { result })
-                    .unwrap(),
-                ResponseSender::Server(chan) => chan
-                    .send(ServerResponseMsg::ConfigChange { result })
-                    .unwrap(),
-            }
-        } else {
-            let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
-
-            match chan {
-                ResponseSender::Local(chan) => {
-                    self.response_senders
-                        .insert(response_seq, ResponseSender::Local(chan));
-                }
-                ResponseSender::Server(chan) => {
-                    self.response_senders
-                        .insert(response_seq, ResponseSender::Server(chan));
-                }
-            };
-
-            slog::debug!(
-                self.logger,
-                "Proposed new config change..., seq={response_seq:}, conf_change_v2={}",
-                format_confchangev2(&conf_change)
-            );
-
-            self.raw_node
-                .propose_conf_change(serialize(&response_seq).unwrap(), conf_change)?;
         }
 
         Ok(())
@@ -1202,17 +1202,6 @@ impl<
             }
 
             tokio::select! {
-                _ = tick_timer.tick() => {
-                    self.raw_node.tick();
-
-                    // TODO: Remove this after investigating why tokio::join not failing when one of the Result is Err
-                    match self.on_ready().await {
-                        Ok(_) => {}
-                        Err(e) => {
-                            panic!("Error occurred while processing ready: {:?}", e);
-                        }
-                    }
-                }
                 msg = self.self_rcv.recv() => {
                     if let Some(message) = msg {
                         self.handle_self_message(message).await?;
@@ -1226,6 +1215,17 @@ impl<
                 msg = self.local_rcv.recv() => {
                     if let Some(message) = msg {
                         self.handle_local_request_msg(message).await?;
+                    }
+                }
+                _ = tick_timer.tick() => {
+                    self.raw_node.tick();
+
+                    // TODO: Remove this after investigating why tokio::join not failing when one of the Result is Err
+                    match self.on_ready().await {
+                        Ok(_) => {}
+                        Err(e) => {
+                            panic!("Error occurred while processing ready: {:?}", e);
+                        }
                     }
                 }
             }

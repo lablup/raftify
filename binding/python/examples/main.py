@@ -24,7 +24,7 @@ from aiohttp.web import RouteTableDef, AbstractRouteDef
 
 
 def load_peers() -> Peers:
-    path = Path(__file__).parent / "config.toml"
+    path = Path(__file__).parent / "cluster_config.toml"
     cfg = tomli.loads(path.read_text())["raft"]["peers"]
 
     return Peers(
