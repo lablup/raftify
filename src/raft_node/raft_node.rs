@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use crate::error::{Result, SendMessageError};
 use crate::raft_node::bootstrap::bootstrap_peers;
-use crate::raft_service::{ChangeConfigResultType, ClusterBootstrapReadyArgs, ResultCode};
+use crate::raft_service::{self, ChangeConfigResultType, ResultCode};
 use crate::request_message::{LocalRequestMsg, SelfMessage, ServerRequestMsg};
 use crate::response_message::{
     ConfChangeResponseResult, LocalResponseMsg, RequestIdResponseResult, ResponseMessage,
@@ -770,8 +770,8 @@ impl<
             {
                 response = ConfChangeResponseResult::RemoveSuccess;
             } else {
-                // TODO: Handle other cases
-                unreachable!();
+                // TODO: Handle mixed cases
+                unimplemented!();
             }
 
             match sender {
@@ -848,7 +848,7 @@ impl<
                 .client
                 .as_mut()
                 .unwrap()
-                .cluster_bootstrap_ready(Request::new(ClusterBootstrapReadyArgs {}))
+                .cluster_bootstrap_ready(Request::new(raft_service::Empty {}))
                 .await?
                 .into_inner();
 

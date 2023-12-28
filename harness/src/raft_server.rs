@@ -102,7 +102,7 @@ pub async fn spawn_extra_node(peer_addr: &str, raft_addr: &str) -> Result<JoinHa
     let store = HashStore::new();
     let logger = build_logger(node_id);
 
-    let mut raft = Raft::build(node_id, raft_addr, store, cfg, logger.clone(), None)
+    let raft = Raft::build(node_id, raft_addr, store, cfg, logger.clone(), None)
         .expect("Raft build failed!");
 
     RAFTS.lock().unwrap().insert(node_id, raft.clone());

@@ -5,9 +5,10 @@ import "eraftpb.proto";
 
 service RaftService {
   rpc MemberBootstrapReady(MemberBootstrapReadyArgs) returns (MemberBootstrapReadyResponse) {}
-  rpc ClusterBootstrapReady(ClusterBootstrapReadyArgs) returns (ClusterBootstrapReadyResponse) {}
+  rpc ClusterBootstrapReady(Empty) returns (ClusterBootstrapReadyResponse) {}
   rpc RequestId(Empty) returns (RequestIdResponse) {}
   rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
+  rpc Propose(ProposeArgs) returns (Empty) {}
   rpc SendMessage(eraftpb.Message) returns (Empty) {}
   rpc DebugNode(Empty) returns (DebugNodeResponse) {}
 }
@@ -18,8 +19,10 @@ enum ResultCode {
   WrongLeader   = 2;
 }
 
-message Proposal {
-  bytes inner = 1;
+// Used in Propose
+
+message ProposeArgs {
+  bytes msg     = 1;
 }
 
 // Used in Static Member's Bootstrap
@@ -28,8 +31,6 @@ message MemberBootstrapReadyArgs {
 }
 message MemberBootstrapReadyResponse {
   ResultCode code                = 1;
-}
-message ClusterBootstrapReadyArgs {
 }
 message ClusterBootstrapReadyResponse {
   ResultCode code                = 1;
@@ -51,7 +52,6 @@ message Entry {
   uint64 key    = 1; 
   string value  = 2;
 }
-
 
 // Config Change
 

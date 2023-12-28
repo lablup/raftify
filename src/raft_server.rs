@@ -177,6 +177,28 @@ impl RaftService for RaftServer {
         Ok(Response::new(raft_service::Empty {}))
     }
 
+    async fn propose(
+        &self,
+        request: Request<raft_service::ProposeArgs>,
+    ) -> Result<Response<raft_service::Empty>, Status> {
+        let request_args = request.into_inner();
+        let sender = self.snd.clone();
+
+        let (tx, rx) = oneshot::channel();
+        match sender
+            .send(ServerRequestMsg::Propose {
+                proposal: request_args.msg,
+                chan: tx,
+            })
+            .await
+        {
+            Ok(_) => (),
+            Err(_) => self.print_send_error(function_name!()),
+        }
+
+        Ok(Response::new(raft_service::Empty {}))
+    }
+
     async fn debug_node(
         &self,
         request: Request<Empty>,
@@ -224,7 +246,7 @@ impl RaftService for RaftServer {
 
     async fn cluster_bootstrap_ready(
         &self,
-        request: Request<raft_service::ClusterBootstrapReadyArgs>,
+        request: Request<raft_service::Empty>,
     ) -> Result<Response<raft_service::ClusterBootstrapReadyResponse>, Status> {
         let _request_args = request.into_inner();
         let (tx, rx) = oneshot::channel();
