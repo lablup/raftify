@@ -16,6 +16,7 @@ pub struct Config {
 }
 
 impl Config {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         log_dir: String,
         compacted_log_dir: String,

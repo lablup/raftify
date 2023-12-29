@@ -7,6 +7,9 @@ clean:
 fmt:
 	cargo fmt
 
+lint:
+	cargo clippy
+
 open-doc:
 	make build
 	cargo doc --no-deps --open

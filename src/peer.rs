@@ -15,7 +15,7 @@ pub struct Peer {
 impl Peer {
     pub fn new<A: ToSocketAddrs>(addr: A) -> Self {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
-        return Peer { addr, client: None };
+        Peer { addr, client: None }
     }
 
     pub async fn connect(&mut self) -> Result<()> {

@@ -35,7 +35,7 @@ pub use crate::peer::Peer;
 pub use crate::peers::Peers;
 pub use crate::raft_client::create_client;
 pub use crate::raft_facade::Raft;
-pub use crate::raft_node::raft_node::RaftNode;
+pub use crate::raft_node::RaftNode;
 pub use crate::raft_service::raft_service_client::RaftServiceClient;
 pub use crate::state_machine::AbstractStateMachine;
 pub use crate::storage::heed::HeedStorage;

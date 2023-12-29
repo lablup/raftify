@@ -10,7 +10,7 @@ use tokio::{
 use tonic::Request;
 
 use super::error::{Error, Result};
-use super::raft_node::raft_node::RaftNode;
+use super::raft_node::RaftNode;
 use super::raft_server::RaftServer;
 use super::raft_service::{self, MemberBootstrapReadyArgs, ResultCode};
 use super::request_message::ServerRequestMsg;
@@ -46,7 +46,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         initial_peers: Option<Peers>,
     ) -> Result<Self> {
         let raft_addr = raft_addr.to_socket_addrs()?.next().unwrap();
-        let initial_peers = initial_peers.unwrap_or(Peers::new(node_id, raft_addr.clone()));
+        let initial_peers = initial_peers.unwrap_or(Peers::new(node_id, raft_addr));
 
         let (local_tx, local_rx) = mpsc::channel(100);
         let (server_tx, server_rx) = mpsc::channel(100);
@@ -57,7 +57,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
                 fsm,
                 config.clone(),
                 initial_peers,
-                raft_addr.clone(),
+                raft_addr,
                 logger.clone(),
                 bootstrap_done,
                 server_rx,
@@ -70,7 +70,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
                 fsm,
                 config.clone(),
                 initial_peers,
-                raft_addr.clone(),
+                raft_addr,
                 logger.clone(),
                 bootstrap_done,
                 server_rx,
@@ -80,12 +80,8 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
             ),
         }?;
 
-        let raft_server = RaftServer::new(
-            server_tx.clone(),
-            raft_addr.clone(),
-            config.clone(),
-            logger.clone(),
-        );
+        let raft_server =
+            RaftServer::new(server_tx.clone(), raft_addr, config.clone(), logger.clone());
 
         Ok(Self {
             raft_addr,

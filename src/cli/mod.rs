@@ -2,10 +2,8 @@ include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
 use crate::{AbstractLogEntry, AbstractStateMachine, MyDeserializer, Result};
 use clap::{App, Arg, SubCommand};
-use commands::debug::debug_node;
-use commands::debug::debug_persisted;
-use raft::default_logger;
-use raft::derializer::set_custom_deserializer;
+use commands::debug::{debug_entries, debug_node, debug_persisted};
+use raft::{default_logger, derializer::set_custom_deserializer};
 use std::fmt::Debug;
 
 mod commands;
@@ -66,7 +64,7 @@ pub async fn cli_handler<
         match debug_matches.subcommand() {
             Some(("entries", entries_matches)) => {
                 if let Some(address) = entries_matches.value_of("address") {
-                    debug_node(address).await?;
+                    debug_entries(address).await?;
                 }
             }
             Some(("node", node_matches)) => {

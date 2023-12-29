@@ -13,7 +13,7 @@ pub async fn create_client<A: ToSocketAddrs>(
         .expect("Invalid socket address format")
         .next()
         .unwrap();
-    let addr = format!("http://{}", addr.to_string());
+    let addr = format!("http://{}", addr);
     let addr = Bytes::copy_from_slice(addr.as_bytes());
 
     let channel = Channel::from_shared(addr).unwrap().connect().await?;

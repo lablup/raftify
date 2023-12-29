@@ -87,6 +87,7 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
 impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> fmt::Debug
     for LocalResponseMsg<LogEntry, FSM>
 {
+    #[allow(clippy::recursive_format_impl)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LocalResponseMsg::Store { store: _store } => {

@@ -47,15 +47,15 @@ impl Peers {
     }
 
     pub fn get(&self, id: &u64) -> Option<&Peer> {
-        self.inner.get(&id)
+        self.inner.get(id)
     }
 
     pub fn get_mut(&mut self, id: &u64) -> Option<&mut Peer> {
-        self.inner.get_mut(&id)
+        self.inner.get_mut(id)
     }
 
     pub fn remove(&mut self, id: &u64) -> Option<Peer> {
-        self.inner.remove(&id)
+        self.inner.remove(id)
     }
 
     pub fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {

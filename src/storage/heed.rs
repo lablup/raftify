@@ -115,7 +115,7 @@ impl HeedStorageCore {
     fn set_hard_state(&self, writer: &mut heed::RwTxn, hard_state: &HardState) -> Result<()> {
         self.metadata_db.put(
             writer,
-            &HARD_STATE_KEY,
+            HARD_STATE_KEY,
             hard_state.encode_to_vec().as_slice(),
         )?;
 
@@ -123,7 +123,7 @@ impl HeedStorageCore {
     }
 
     fn hard_state(&self, reader: &heed::RoTxn) -> Result<HardState> {
-        let hard_state = self.metadata_db.get(reader, &HARD_STATE_KEY)?;
+        let hard_state = self.metadata_db.get(reader, HARD_STATE_KEY)?;
 
         match hard_state {
             Some(hard_state) => {
@@ -137,14 +137,14 @@ impl HeedStorageCore {
     pub fn set_conf_state(&self, writer: &mut heed::RwTxn, conf_state: &ConfState) -> Result<()> {
         self.metadata_db.put(
             writer,
-            &CONF_STATE_KEY,
+            CONF_STATE_KEY,
             conf_state.encode_to_vec().as_slice(),
         )?;
         Ok(())
     }
 
     pub fn conf_state(&self, reader: &heed::RoTxn) -> Result<ConfState> {
-        let conf_state = self.metadata_db.get(reader, &CONF_STATE_KEY)?;
+        let conf_state = self.metadata_db.get(reader, CONF_STATE_KEY)?;
 
         match conf_state {
             Some(conf_state) => {
@@ -157,7 +157,7 @@ impl HeedStorageCore {
 
     fn set_snapshot(&self, writer: &mut heed::RwTxn, snapshot: &Snapshot) -> Result<()> {
         self.metadata_db
-            .put(writer, &SNAPSHOT_KEY, snapshot.encode_to_vec().as_slice())?;
+            .put(writer, SNAPSHOT_KEY, snapshot.encode_to_vec().as_slice())?;
         Ok(())
     }
 
@@ -167,7 +167,7 @@ impl HeedStorageCore {
         _request_index: u64,
         _to: u64,
     ) -> Result<Snapshot> {
-        let snapshot = self.metadata_db.get(reader, &SNAPSHOT_KEY)?;
+        let snapshot = self.metadata_db.get(reader, SNAPSHOT_KEY)?;
 
         Ok(match snapshot {
             Some(snapshot) => Snapshot::decode(snapshot)?,
@@ -176,7 +176,7 @@ impl HeedStorageCore {
     }
 
     fn last_index(&self, reader: &heed::RoTxn) -> Result<u64> {
-        let last_index = self.metadata_db.get(reader, &LAST_INDEX_KEY)?;
+        let last_index = self.metadata_db.get(reader, LAST_INDEX_KEY)?;
 
         match last_index {
             Some(last_index) => {
@@ -189,7 +189,7 @@ impl HeedStorageCore {
 
     fn set_last_index(&self, writer: &mut heed::RwTxn, index: u64) -> Result<()> {
         self.metadata_db
-            .put(writer, &LAST_INDEX_KEY, serialize(&index)?.as_slice())?;
+            .put(writer, LAST_INDEX_KEY, serialize(&index)?.as_slice())?;
         Ok(())
     }
 
