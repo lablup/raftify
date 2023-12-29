@@ -2,9 +2,11 @@ use bincode::deserialize;
 use std::collections::HashMap;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
-use tokio::signal;
-use tokio::sync::{mpsc, oneshot};
-use tokio::time::sleep;
+use tokio::{
+    signal,
+    sync::{mpsc, oneshot},
+    time::sleep,
+};
 use tonic::Request;
 
 use super::error::{Error, Result};
@@ -44,7 +46,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         initial_peers: Option<Peers>,
     ) -> Result<Self> {
         let raft_addr = raft_addr.to_socket_addrs()?.next().unwrap();
-        let initial_peers = initial_peers.unwrap_or_default();
+        let initial_peers = initial_peers.unwrap_or(Peers::new(node_id, raft_addr.clone()));
 
         let (local_tx, local_rx) = mpsc::channel(100);
         let (server_tx, server_rx) = mpsc::channel(100);
@@ -116,8 +118,10 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
                 Ok(())
             }
             _ = raft_server_handle => {
-                slog::crit!(self.logger, "RaftNode not quitted, but RaftServer quitted.");
-                Ok(())
+                // TODO: Handle more proper exit.
+                // slog::crit!(self.logger, "RaftNode not quitted, but RaftServer quitted.");
+                // Ok(())
+                panic!("RaftNode not quitted, but RaftServer quitted.");
             }
         }
     }

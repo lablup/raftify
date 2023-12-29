@@ -20,7 +20,7 @@ impl PyPeers {
             .extract::<HashMap<u64, String, BuildHasherDefault<FxHasher>>>()
             .unwrap();
 
-        let mut inner = Peers::new();
+        let mut inner = Peers::with_empty();
 
         for (node_id, addr) in peers.iter() {
             inner.add_peer(*node_id, addr);

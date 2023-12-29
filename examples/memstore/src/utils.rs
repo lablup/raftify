@@ -47,7 +47,7 @@ pub async fn load_peers() -> Result<Peers, Box<dyn std::error::Error>> {
 
     let raft_config: TomlRaftConfig = toml::from_str(&config_str)?;
 
-    let mut peers = Peers::new();
+    let mut peers = Peers::with_empty();
 
     for peer_info in raft_config.raft.peers {
         let addr = SocketAddr::new(peer_info.ip.parse().unwrap(), peer_info.port);

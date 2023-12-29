@@ -1,7 +1,9 @@
 use bincode::serialize;
 use prost::Message as PMessage;
-use raft::eraftpb::{ConfChange, ConfChangeType, Entry, EntryType};
-use raft::raw_node::RawNode;
+use raft::{
+    eraftpb::{ConfChange, ConfChangeType, Entry, EntryType},
+    raw_node::RawNode,
+};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

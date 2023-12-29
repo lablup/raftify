@@ -1,7 +1,6 @@
 use bytes::Bytes;
 use std::net::ToSocketAddrs;
-use tonic::transport::Channel;
-use tonic::transport::Error as TonicError;
+use tonic::transport::{Channel, Error as TonicError};
 
 use super::RaftServiceClient;
 

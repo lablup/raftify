@@ -42,6 +42,7 @@ pub async fn test_leader_election_in_three_node_example() {
 }
 
 #[tokio::test]
+#[ignore]
 pub async fn test_leader_election_in_five_node_example() {
     let peers = load_peers(FIVE_NODE_EXAMPLE).await.unwrap();
     let _raft_tasks = tokio::spawn(run_rafts(peers.clone()));

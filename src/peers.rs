@@ -10,12 +10,18 @@ pub struct Peers {
 
 impl Default for Peers {
     fn default() -> Self {
-        Self::new()
+        Self::with_empty()
     }
 }
 
 impl Peers {
-    pub fn new() -> Self {
+    pub fn new<A: ToSocketAddrs>(self_id: u64, self_addr: A) -> Self {
+        let mut inner = HashMap::new();
+        inner.insert(self_id, Peer::new(self_addr));
+        Self { inner }
+    }
+
+    pub fn with_empty() -> Self {
         Self {
             inner: HashMap::new(),
         }
@@ -24,6 +30,7 @@ impl Peers {
     pub fn iter(&self) -> SortedPeersIter {
         let mut keys: Vec<_> = self.inner.keys().cloned().collect();
         keys.sort();
+
         SortedPeersIter {
             keys,
             peers: &self.inner,
@@ -57,10 +64,11 @@ impl Peers {
         self.inner.insert(id, peer);
     }
 
-    pub fn reserve_peer(&mut self, self_id: u64) -> u64 {
-        let next_id = self.inner.keys().max().cloned().unwrap_or(1);
-        let next_id = std::cmp::max(next_id + 1, self_id);
-        next_id
+    pub fn reserve_id(&mut self) -> u64 {
+        match self.inner.keys().max() {
+            Some(id) => id + 1,
+            None => 1,
+        }
     }
 
     pub fn get_node_id_by_addr<A: ToSocketAddrs>(&self, addr: A) -> Option<u64> {
@@ -90,4 +98,38 @@ pub struct SortedPeersIter<'a> {
     keys: Vec<u64>,
     peers: &'a HashMap<u64, Peer>,
     index: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "invalid socket address")]
+    fn test_add_wrong_peer_addr() {
+        let mut peers = Peers::with_empty();
+        peers.add_peer(1, "wrong peer addr");
+    }
+
+    #[test]
+    fn test_peers_serial_reserve_peer() {
+        let mut peers = Peers::new(1, "127.0.0.1:8081");
+        let next_id = peers.reserve_id();
+        peers.add_peer(next_id, "127.0.0.1:8082");
+        assert_eq!(next_id, 2);
+
+        let next_id = peers.reserve_id();
+        peers.add_peer(next_id, "127.0.0.1:8083");
+        assert_eq!(next_id, 3);
+
+        let next_id = peers.reserve_id();
+        peers.add_peer(next_id, "127.0.0.1:8084");
+        assert_eq!(next_id, 4);
+
+        peers.remove(&2);
+
+        let next_id = peers.reserve_id();
+        peers.add_peer(next_id, "127.0.0.1:8085");
+        assert_eq!(next_id, 5);
+    }
 }

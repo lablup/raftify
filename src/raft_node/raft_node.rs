@@ -1164,7 +1164,7 @@ impl<
                     })
                     .unwrap();
                 } else {
-                    let reserved_id = self.peers.lock().await.reserve_peer(self.get_id());
+                    let reserved_id = self.peers.lock().await.reserve_id();
                     slog::info!(self.logger, "Reserved node id, {}", reserved_id);
 
                     chan.send(ServerResponseMsg::RequestId {

@@ -2,11 +2,12 @@ use bincode::serialize;
 use raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
-use tokio::sync::mpsc;
-use tokio::sync::oneshot::{self, Receiver};
+use tokio::sync::{
+    mpsc,
+    oneshot::{self, Receiver},
+};
 use tokio::time::timeout;
-use tonic::transport::Server;
-use tonic::{Request, Response, Status};
+use tonic::{transport::Server, Request, Response, Status};
 
 use super::raft_service::raft_service_server::{RaftService, RaftServiceServer};
 use super::raft_service::{self, Empty};
