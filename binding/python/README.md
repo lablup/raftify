@@ -8,6 +8,8 @@ I strongly recommend to read the basic [memstore example code](https://github.co
 
 ### Define your own log entry
 
+Define the data to be stored in LogEntry and how to serialize and de-serialize it.
+
 ```py
 class SetCommand:
     def __init__(self, key: str, value: str) -> None:
@@ -24,6 +26,12 @@ class SetCommand:
 ```
 
 ### Define your application Raft FSM
+
+Only 3 methods need to be implemented for the Store.
+
+- `apply`: applies a commited entry to the store.
+- `snapshot`: returns snapshot data for the store.
+- `restore`: applies the snapshot passed as argument.
 
 ```py
 class HashStore:
@@ -48,6 +56,8 @@ class HashStore:
 
 ### Bootstrap a raft cluster
 
+First bootstrap the cluster that contains the leader node.
+
 ```py
 logger.info("Bootstrap new Raft Cluster")
 node_id = 1
@@ -57,6 +67,10 @@ await wait_for_termination(raft)
 ```
 
 ### Join follower nodes to the cluster
+
+Then join the follower nodes.
+
+If peer specifies the configuration of the initial members, the cluster will operate after all member nodes are bootstrapped.
 
 ```py
 join_ticket = await Raft.request_id(peer_addr)
@@ -72,6 +86,8 @@ await wait_for_termination(raft)
 
 ### Manipulate FSM by RaftServiceClient
 
+If you want to operate the FSM remotely, use the `RaftServiceClient`.
+
 ```py
 client = await RaftServiceClient.build("127.0.0.1:60061")
 client.prepare_propose(SetCommand("1", "A").encode())
@@ -79,6 +95,8 @@ await client.propose()
 ```
 
 ### Manipulate FSM by RaftNode
+
+If you want to operate FSM locally, use the RaftNode interface of the Raft object
 
 ```py
 raft_node = raft.get_raft_node()
