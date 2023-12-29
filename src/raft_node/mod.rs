@@ -4,12 +4,14 @@ mod utils;
 
 use bincode::{deserialize, serialize};
 use prost::Message as PMessage;
-use raft::derializer::{format_confchangev2, format_message};
 use raft::eraftpb::{
     ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2, Entry, EntryType,
     Message as RaftMessage, Snapshot,
 };
-use raft::raw_node::RawNode;
+use raft::{
+    derializer::{format_confchangev2, format_message},
+    raw_node::RawNode,
+};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -18,9 +20,10 @@ use std::sync::{
     Arc,
 };
 use std::time::{Duration, Instant};
-use tokio::sync::oneshot;
-use tokio::sync::{mpsc, Mutex};
-use tokio::time::interval;
+use tokio::{
+    sync::{mpsc, oneshot, Mutex},
+    time::interval,
+};
 use tonic::Request;
 
 use response_sender::ResponseSender;
@@ -39,8 +42,10 @@ use crate::storage::{
     utils::get_storage_path,
 };
 use crate::utils::{to_confchange_v2, OneShotMutex};
-use crate::{AbstractLogEntry, ClusterJoinTicket, Error, Peers, RaftServiceClient};
-use crate::{AbstractStateMachine, Config};
+use crate::{
+    AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket, Config, Error, Peers,
+    RaftServiceClient,
+};
 
 #[derive(Clone)]
 pub struct RaftNode<

@@ -1,6 +1,6 @@
 use raft::{derializer::format_snapshot, RawNode};
 
-use crate::{error::Result, LogStore};
+use crate::{LogStore, Result};
 
 pub fn inspect_raftnode<T: LogStore>(raw_node: &RawNode<T>) -> Result<String> {
     let id = raw_node.raft.id;
