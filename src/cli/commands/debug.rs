@@ -10,8 +10,10 @@ use raft::derializer::format_entry;
 use raft::derializer::format_snapshot;
 
 pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
-    let mut config = Config::default();
-    config.log_dir = path.to_string();
+    let config = Config {
+        log_dir: path.to_string(),
+        ..Default::default()
+    };
 
     let path = PathBuf::from(&config.log_dir);
     let storage = HeedStorage::create(path, &config, logger.clone()).unwrap();

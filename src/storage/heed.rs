@@ -115,7 +115,7 @@ impl HeedStorageCore {
     fn set_hard_state(&self, writer: &mut heed::RwTxn, hard_state: &HardState) -> Result<()> {
         self.metadata_db.put(
             writer,
-            &HARD_STATE_KEY.to_owned(),
+            &HARD_STATE_KEY,
             hard_state.encode_to_vec().as_slice(),
         )?;
 
@@ -123,7 +123,7 @@ impl HeedStorageCore {
     }
 
     fn hard_state(&self, reader: &heed::RoTxn) -> Result<HardState> {
-        let hard_state = self.metadata_db.get(reader, &HARD_STATE_KEY.to_owned())?;
+        let hard_state = self.metadata_db.get(reader, &HARD_STATE_KEY)?;
 
         match hard_state {
             Some(hard_state) => {
@@ -137,14 +137,14 @@ impl HeedStorageCore {
     pub fn set_conf_state(&self, writer: &mut heed::RwTxn, conf_state: &ConfState) -> Result<()> {
         self.metadata_db.put(
             writer,
-            &CONF_STATE_KEY.to_owned(),
-            &conf_state.encode_to_vec().as_slice(),
+            &CONF_STATE_KEY,
+            conf_state.encode_to_vec().as_slice(),
         )?;
         Ok(())
     }
 
     pub fn conf_state(&self, reader: &heed::RoTxn) -> Result<ConfState> {
-        let conf_state = self.metadata_db.get(reader, &CONF_STATE_KEY.to_owned())?;
+        let conf_state = self.metadata_db.get(reader, &CONF_STATE_KEY)?;
 
         match conf_state {
             Some(conf_state) => {
@@ -156,11 +156,8 @@ impl HeedStorageCore {
     }
 
     fn set_snapshot(&self, writer: &mut heed::RwTxn, snapshot: &Snapshot) -> Result<()> {
-        self.metadata_db.put(
-            writer,
-            &SNAPSHOT_KEY.to_owned(),
-            snapshot.encode_to_vec().as_slice(),
-        )?;
+        self.metadata_db
+            .put(writer, &SNAPSHOT_KEY, snapshot.encode_to_vec().as_slice())?;
         Ok(())
     }
 
@@ -170,19 +167,16 @@ impl HeedStorageCore {
         _request_index: u64,
         _to: u64,
     ) -> Result<Snapshot> {
-        let snapshot = self.metadata_db.get(reader, &SNAPSHOT_KEY.to_owned())?;
+        let snapshot = self.metadata_db.get(reader, &SNAPSHOT_KEY)?;
 
         Ok(match snapshot {
-            Some(snapshot) => {
-                let snapshot = Snapshot::decode(snapshot)?;
-                snapshot
-            }
+            Some(snapshot) => Snapshot::decode(snapshot)?,
             None => Snapshot::default(),
         })
     }
 
     fn last_index(&self, reader: &heed::RoTxn) -> Result<u64> {
-        let last_index = self.metadata_db.get(reader, &LAST_INDEX_KEY.to_owned())?;
+        let last_index = self.metadata_db.get(reader, &LAST_INDEX_KEY)?;
 
         match last_index {
             Some(last_index) => {
@@ -194,11 +188,8 @@ impl HeedStorageCore {
     }
 
     fn set_last_index(&self, writer: &mut heed::RwTxn, index: u64) -> Result<()> {
-        self.metadata_db.put(
-            writer,
-            &LAST_INDEX_KEY.to_owned(),
-            serialize(&index)?.as_slice(),
-        )?;
+        self.metadata_db
+            .put(writer, &LAST_INDEX_KEY, serialize(&index)?.as_slice())?;
         Ok(())
     }
 
@@ -229,7 +220,7 @@ impl HeedStorageCore {
         let low_str = format_entry_key_string(low.to_string().as_str());
         let high_str = format_entry_key_string(high.to_string().as_str());
 
-        let iter = self.entries_db.range(&reader, &(low_str..high_str))?;
+        let iter = self.entries_db.range(reader, &(low_str..high_str))?;
         let max_size: Option<u64> = max_size.into();
         let mut size_count = 0;
         let mut buf = vec![];
@@ -261,7 +252,7 @@ impl HeedStorageCore {
     }
 
     fn all_entries(&self, reader: &heed::RoTxn) -> Result<Vec<Entry>> {
-        let iter = self.entries_db.iter(&reader)?;
+        let iter = self.entries_db.iter(reader)?;
         let entries = iter
             .filter_map(|e| match e {
                 Ok((_, e)) => Some(e),
@@ -272,7 +263,7 @@ impl HeedStorageCore {
     }
 
     fn append(&self, writer: &mut heed::RwTxn, entries: &[Entry]) -> Result<()> {
-        let mut last_index = self.last_index(&writer)?;
+        let mut last_index = self.last_index(writer)?;
         // TODO: ensure entry arrive in the right order
         for entry in entries {
             //assert_eq!(entry.get_index(), last_index + 1);

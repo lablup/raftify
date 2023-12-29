@@ -1,4 +1,4 @@
-name: Build, Lint, and Check all harness tests pass
+name: Build, Lint, and Test
 
 on:
   pull_request:

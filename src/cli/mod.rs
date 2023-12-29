@@ -62,8 +62,8 @@ pub async fn cli_handler<
     let logger = default_logger();
     set_custom_deserializer(MyDeserializer::<LogEntry, FSM>::new());
 
-    match matches.subcommand() {
-        Some(("debug", debug_matches)) => match debug_matches.subcommand() {
+    if let Some(("debug", debug_matches)) = matches.subcommand() {
+        match debug_matches.subcommand() {
             Some(("entries", entries_matches)) => {
                 if let Some(address) = entries_matches.value_of("address") {
                     debug_node(address).await?;
@@ -80,8 +80,7 @@ pub async fn cli_handler<
                 }
             }
             _ => {}
-        },
-        _ => {}
+        }
     };
 
     Ok(())

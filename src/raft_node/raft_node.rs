@@ -802,20 +802,18 @@ impl<
 
         let peers_bootstrap_ready = self.peers_bootstrap_ready.clone().unwrap();
 
-        loop {
+        {
+            let peers = self.peers.lock().await;
+            if !(peers.len() == peers_bootstrap_ready.len()
+                && peers_bootstrap_ready.iter().all(|v| *v.1))
             {
-                let peers = self.peers.lock().await;
-                if peers.len() == peers_bootstrap_ready.len()
-                    && peers_bootstrap_ready.iter().all(|v| *v.1 == true)
-                {
-                    break;
-                }
                 slog::trace!(
                     self.logger,
                     "Waiting for all follower nodes to be ready to join the cluster..."
                 );
+
+                return Ok(());
             }
-            return Ok(());
         }
 
         slog::info!(
