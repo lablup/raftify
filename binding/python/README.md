@@ -4,7 +4,7 @@ Python binding of *raftify*.
 
 ## Quick guide
 
-I strongly recommend to read the basic [memstore example code](https://github.com/lablup/raftify/blob/main/examples/basic/main.py) to get how to use this library for starters, but here's a quick guide.
+I strongly recommend to read the basic [memstore example code]() to get how to use this library for starters, but here's a quick guide.
 
 ### Define your own log entry
 
