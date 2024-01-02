@@ -9,6 +9,8 @@ create_exception!(raftify, SnapshotError, PyException);
 create_exception!(raftify, RestoreError, PyException);
 
 #[inline]
+#[allow(dead_code)]
+// Use it just for testing purposes
 pub fn runtime_error(msg: &str) -> PyErr {
     PyException::new_err(msg.to_string())
 }
