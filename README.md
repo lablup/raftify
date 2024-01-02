@@ -165,17 +165,18 @@ If you want to operate FSM locally, use the RaftNode interface of the Raft objec
 
 ```rust
 let mut raft_node = raft.get_raft_node();
-await raft_node.propose(LogEntry::Insert {
+
+raft_node.propose(LogEntry::Insert {
     key: 1,
     value: "test".to_string(),
-}
-.encode()
-.unwrap());
+}.encode().unwrap()).await;
 ```
 
 It also provides a variety of other very useful APIs. Take a look at [the document]()
 
 ### Debugging
+
+Raftify also provides a collection of CLI commands that let you check the data persisted in lmdb and the status of Raft Server.
 
 ```
 $ raftify-cli debug persisted ./logs/node-1
