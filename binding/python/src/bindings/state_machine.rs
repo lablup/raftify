@@ -4,7 +4,7 @@ use pyo3::{prelude::*, types::PyBytes};
 use raftify::{AbstractLogEntry, AbstractStateMachine, Error, Result};
 use std::{fmt, sync::Mutex};
 
-use super::errors::{ApplyError, DecodingError, EncodingError, RestoreError, SnapshotError};
+use super::errors::{ApplyError, DecodingError, RestoreError, SnapshotError};
 use super::utils::get_python_repr;
 
 pub static ENTRY_LOG_ENTRY_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> =
@@ -58,7 +58,7 @@ impl AbstractLogEntry for PyLogEntry {
                 .as_ref(py)
                 .call_method("encode", (), None)
                 .and_then(|py_result| py_result.extract::<Vec<u8>>().map(|res| res))
-                .map_err(|err| Error::Io(err.to_string()))
+                .map_err(|err| Error::EncodingError(err.to_string()))
         })
     }
 
@@ -70,9 +70,9 @@ impl AbstractLogEntry for PyLogEntry {
                 let inner = callback.call(py, (data,), None).unwrap();
                 Ok(PyLogEntry { log_entry: inner })
             } else {
-                Err(Error::Other(Box::new(DecodingError::new_err(
+                Err(Error::DecodingError(
                     "No deserializer for LogEntry specified".to_string(),
-                ))))
+                ))
             }
         })
     }
@@ -153,7 +153,7 @@ impl AbstractStateMachine for PyFSM {
                 .as_ref(py)
                 .call_method("encode", (), None)
                 .and_then(|py_result| py_result.extract::<Vec<u8>>().map(|res| res))
-                .map_err(|err| Error::Other(Box::new(EncodingError::new_err(err.to_string()))))
+                .map_err(|err| Error::EncodingError(err.to_string()))
         })
     }
 

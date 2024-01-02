@@ -12,15 +12,17 @@ pub struct PyConfig {
     #[pyo3(get, set)]
     pub log_dir: String,
     #[pyo3(get, set)]
+    pub save_compacted_logs: bool,
+    #[pyo3(get, set)]
     pub compacted_log_dir: String,
     #[pyo3(get, set)]
-    pub compacted_log_size_threshold: i32,
+    pub compacted_log_size_threshold: u64,
     #[pyo3(get, set)]
     pub snapshot_interval: f32,
     #[pyo3(get, set)]
     pub tick_interval: f32,
     #[pyo3(get, set)]
-    pub lmdb_map_size: i32,
+    pub lmdb_map_size: u64,
     #[pyo3(get, set)]
     pub cluster_id: String,
     #[pyo3(get, set)]
@@ -35,11 +37,12 @@ impl PyConfig {
     pub fn new(
         raft_config: PyRaftConfig,
         log_dir: Option<String>,
+        save_compacted_logs: Option<bool>,
         compacted_log_dir: Option<String>,
-        compacted_log_size_threshold: Option<i32>,
+        compacted_log_size_threshold: Option<u64>,
         snapshot_interval: Option<f32>,
         tick_interval: Option<f32>,
-        lmdb_map_size: Option<i32>,
+        lmdb_map_size: Option<u64>,
         cluster_id: Option<String>,
         terminate_on_remove: Option<bool>,
         conf_change_request_timeout: Option<f32>,
@@ -47,6 +50,7 @@ impl PyConfig {
         let cfg = Config::default();
 
         let log_dir = log_dir.unwrap_or(cfg.log_dir);
+        let save_compacted_logs = save_compacted_logs.unwrap_or(cfg.save_compacted_logs);
         let compacted_log_dir = compacted_log_dir.unwrap_or(cfg.compacted_log_dir);
         let compacted_log_size_threshold =
             compacted_log_size_threshold.unwrap_or(cfg.compacted_log_size_threshold);
@@ -61,6 +65,7 @@ impl PyConfig {
         Self {
             raft_config,
             log_dir,
+            save_compacted_logs,
             compacted_log_dir,
             compacted_log_size_threshold,
             snapshot_interval,
@@ -77,6 +82,7 @@ impl From<PyConfig> for Config {
     fn from(config: PyConfig) -> Self {
         Self {
             log_dir: config.log_dir,
+            save_compacted_logs: config.save_compacted_logs,
             compacted_log_dir: config.compacted_log_dir,
             compacted_log_size_threshold: config.compacted_log_size_threshold,
             snapshot_interval: config.snapshot_interval,

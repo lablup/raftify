@@ -5,11 +5,14 @@ use std::fmt;
 pub struct Config {
     pub raft_config: RaftConfig,
     pub log_dir: String,
+
+    pub save_compacted_logs: bool,
     pub compacted_log_dir: String,
-    pub compacted_log_size_threshold: i32,
-    pub snapshot_interval: f32,
+    pub compacted_log_size_threshold: u64,
+
     pub tick_interval: f32,
-    pub lmdb_map_size: i32,
+    pub snapshot_interval: f32,
+    pub lmdb_map_size: u64,
     pub cluster_id: String,
     pub terminate_on_remove: bool,
     pub conf_change_request_timeout: f32,
@@ -19,12 +22,13 @@ impl Config {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         log_dir: String,
+        save_compacted_logs: bool,
         compacted_log_dir: String,
-        compacted_log_size_threshold: i32,
+        compacted_log_size_threshold: u64,
         raft_config: RaftConfig,
         snapshot_interval: f32,
         tick_interval: f32,
-        lmdb_map_size: i32,
+        lmdb_map_size: u64,
         cluster_id: String,
         terminate_on_remove: bool,
         conf_change_request_timeout: f32,
@@ -32,6 +36,7 @@ impl Config {
         Self {
             raft_config,
             log_dir,
+            save_compacted_logs,
             compacted_log_dir,
             compacted_log_size_threshold,
             snapshot_interval,
@@ -49,6 +54,7 @@ impl Default for Config {
         Self {
             raft_config: RaftConfig::default(),
             log_dir: String::from("./"),
+            save_compacted_logs: false,
             compacted_log_dir: String::from("./"),
             compacted_log_size_threshold: 1024 * 1024 * 1024,
             snapshot_interval: 0.0,
@@ -85,6 +91,7 @@ impl fmt::Debug for Config {
                     max_committed_size_per_ready: {max_committed_size_per_ready}, \
                 }}, \
                 log_dir: {log_dir}, \
+                save_compacted_logs: {save_compacted_logs}, \
                 compacted_log_dir: {compacted_log_dir}, \
                 compacted_log_size_threshold: {compacted_log_size_threshold}, \
                 snapshot_interval: {snapshot_interval}, \
@@ -111,6 +118,7 @@ impl fmt::Debug for Config {
             max_uncommitted_size = self.raft_config.max_uncommitted_size,
             max_committed_size_per_ready = self.raft_config.max_committed_size_per_ready,
             log_dir = self.log_dir,
+            save_compacted_logs = self.save_compacted_logs,
             compacted_log_dir = self.compacted_log_dir,
             compacted_log_size_threshold = self.compacted_log_size_threshold,
             snapshot_interval = self.snapshot_interval,

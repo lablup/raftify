@@ -1,6 +1,9 @@
+use raft::{derializer::format_entry, eraftpb::Entry};
+use serde_json::{json, Value};
 use std::{
-    fmt::Write,
-    fs,
+    fmt::Write as StdWrite,
+    fs::{self, File, OpenOptions},
+    io::{self, Read, Seek, Write as StdIoWrite},
     path::{Path, PathBuf},
 };
 
@@ -26,4 +29,31 @@ pub fn format_entry_key_string(entry_key: &str) -> String {
     let mut result = String::new();
     write!(result, "{:0width$}", entry_key, width = ENTRY_KEY_LENGTH).unwrap();
     result
+}
+
+pub fn append_to_json_file(dest_path: &Path, new_data: &[Entry]) -> io::Result<()> {
+    if !dest_path.exists() {
+        File::create(dest_path)?;
+    }
+
+    let mut file = OpenOptions::new().read(true).write(true).open(dest_path)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+
+    let mut data: Vec<Value> = if contents.is_empty() {
+        Vec::new()
+    } else {
+        serde_json::from_str(&contents)?
+    };
+
+    for entry in new_data {
+        let entry_str = format_entry(entry);
+        data.push(json!(entry_str));
+    }
+
+    file.set_len(0)?;
+    file.seek(io::SeekFrom::Start(0))?;
+    write!(file, "{}", serde_json::to_string_pretty(&data)?)?;
+
+    Ok(())
 }

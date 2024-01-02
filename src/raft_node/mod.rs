@@ -401,7 +401,7 @@ impl<
     #[allow(clippy::too_many_arguments)]
     pub fn bootstrap_cluster(
         fsm: FSM,
-        config: Config,
+        mut config: Config,
         initial_peers: Peers,
         raft_addr: SocketAddr,
         logger: slog::Logger,
@@ -411,10 +411,8 @@ impl<
         local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
         local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
-        let mut raft_config = config.raft_config.clone();
-
-        raft_config.id = 1;
-        raft_config.validate()?;
+        config.raft_config.id = 1;
+        config.raft_config.validate()?;
 
         let mut storage = HeedStorage::create(
             get_storage_path(config.log_dir.as_str(), 1)?,
@@ -428,7 +426,7 @@ impl<
         snapshot.mut_metadata().mut_conf_state().voters = vec![1];
         storage.apply_snapshot(snapshot).unwrap();
 
-        let mut raw_node = RawNode::new(&raft_config, storage, &logger)?;
+        let mut raw_node = RawNode::new(&config.raft_config, storage, &logger)?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now();
 
@@ -470,7 +468,7 @@ impl<
     pub fn new_follower(
         node_id: u64,
         fsm: FSM,
-        config: Config,
+        mut config: Config,
         peers: Peers,
         raft_addr: SocketAddr,
         logger: slog::Logger,
@@ -480,17 +478,15 @@ impl<
         local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
         local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
-        let mut raft_config = config.raft_config.clone();
-
-        raft_config.id = node_id;
-        raft_config.validate()?;
+        config.raft_config.id = node_id;
+        config.raft_config.validate()?;
 
         let storage = HeedStorage::create(
             get_storage_path(config.log_dir.as_str(), node_id)?,
             &config,
             logger.clone(),
         )?;
-        let raw_node = RawNode::new(&raft_config, storage, &logger)?;
+        let raw_node = RawNode::new(&config.raft_config, storage, &logger)?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now()
             .checked_sub(Duration::from_secs(1000))

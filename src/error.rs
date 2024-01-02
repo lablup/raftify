@@ -10,12 +10,14 @@ pub enum Error {
     JoinError,
     #[error("Request rejected, cause: `{0}`")]
     Rejected(String),
+
     #[error("Request timeout")]
     Timeout,
     #[error("gRPC error: `{0}`")]
     Grpc(#[from] tonic::transport::Error),
     #[error("Error calling remote procedure: `{0}`")]
     RemoteCall(#[from] tonic::Status),
+
     #[error("IO error: {0}")]
     Io(#[from] tokio::io::Error),
     #[error("Storage error: `{0}`")]
@@ -24,6 +26,11 @@ pub enum Error {
     Other(#[source] Box<dyn std::error::Error + Sync + Send + 'static>),
     #[error("Unknown error")]
     Unknown,
+
+    #[error("Encoding error")]
+    EncodingError(String),
+    #[error("Decoding error")]
+    DecodingError(String),
 }
 
 #[derive(Debug, ThisError)]

@@ -4,14 +4,18 @@ extern crate slog_async;
 extern crate slog_scope;
 extern crate slog_term;
 
-use memstore::state_machine::{HashStore, LogEntry};
-use memstore::utils::{build_config, load_peers};
-use raftify::raft::derializer::set_custom_deserializer;
-use raftify::{AbstractLogEntry, ClusterJoinTicket};
+use memstore::{
+    config::build_config,
+    state_machine::{HashStore, LogEntry},
+    utils::load_peers,
+};
+use raftify::{
+    raft::derializer::set_custom_deserializer, AbstractLogEntry, ClusterJoinTicket, MyDeserializer,
+    Raft,
+};
 use slog::Drain;
 
 use actix_web::{get, web, App, HttpServer, Responder};
-use raftify::{MyDeserializer, Raft};
 use slog_envlogger::LogBuilder;
 use structopt::StructOpt;
 // use slog_envlogger::LogBuilder;

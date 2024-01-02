@@ -7,8 +7,8 @@ use std::{collections::HashMap, sync::Mutex};
 use tokio::task::JoinHandle;
 
 use crate::{
+    config::build_config,
     state_machine::{HashStore, LogEntry},
-    utils::build_config,
 };
 
 pub type Raft = Raft_<LogEntry, HashStore>;
