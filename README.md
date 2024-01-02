@@ -174,7 +174,7 @@ raft_node.propose(LogEntry::Insert {
 
 It also provides a variety of other very useful APIs. Take a look at [the document]().
 
-### Debugging
+## Debugging
 
 Raftify also provides a collection of CLI commands that let you check the data persisted in lmdb and the status of Raft Server.
 
@@ -186,7 +186,7 @@ $ raftify-cli debug persisted ./logs/node-1
 $ raftify-cli debug node 127.0.0.1:60061
 ```
 
-### Support for other language
+## Support for other language
 
 Raftify provides bindings for the following languages.
 
