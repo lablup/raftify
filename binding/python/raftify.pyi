@@ -92,6 +92,8 @@ class RaftNode:
         """ """
     async def get_cluster_size(self) -> None:
         """ """
+    async def store(self) -> AbstractStateMachine:
+        """ """
 
 class ClusterJoinTicket:
     """ """
@@ -199,6 +201,7 @@ class Config:
 
     raft_config: RaftConfig
     log_dir: str
+    save_compacted_logs: bool
     compacted_log_dir: str
     compacted_log_size_threshold: int
     snapshot_interval: float
@@ -210,6 +213,7 @@ class Config:
 
 class RaftServiceClient:
     """ """
+
     @staticmethod
     async def build(self, addr: str) -> "RaftServiceClient":
         """ """

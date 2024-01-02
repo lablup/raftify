@@ -40,7 +40,7 @@ impl PyPeers {
             .inner
             .iter()
             .map(|(id, peer)| (id, peer.addr.to_string()))
-            .collect::<Vec<(u64, String)>>();
+            .collect::<Vec<_>>();
 
         Ok(new_py_list::<(u64, String), _>(py, peer_items)?.to_object(py))
     }

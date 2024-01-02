@@ -140,4 +140,8 @@ impl PyRaftNode {
     pub async fn get_cluster_size(&mut self) -> PyResult<usize> {
         Ok(self.inner.get_cluster_size().await)
     }
+
+    pub async fn store(&self) -> PyResult<PyFSM> {
+        Ok(self.inner.store().await)
+    }
 }
