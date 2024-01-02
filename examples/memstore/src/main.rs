@@ -67,13 +67,12 @@ async fn leader_id(data: web::Data<(HashStore, Raft<LogEntry, HashStore>)>) -> i
     format!("{:?}", leader_id)
 }
 
-// #[get("/leave")]
-// async fn leave(
-//     data: web::Data<(HashStore, Raft<LogEntry, HashStore>)>,
-// ) -> impl Responder {
-//     data.leave().await.unwrap();
-//     "OK".to_string()
-// }
+#[get("/leave")]
+async fn leave(data: web::Data<(HashStore, Raft<LogEntry, HashStore>)>) -> impl Responder {
+    let raft = data.clone();
+    raft.1.raft_node.clone().leave().await;
+    "OK".to_string()
+}
 
 #[actix_rt::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
