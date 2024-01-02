@@ -39,7 +39,7 @@ jobs:
 
     - name: Build and Check Python harness tests all pass
       run: |
-        cd bindings/python
+        cd binding/python
         make install
         cd ./tests
         make test
