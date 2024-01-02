@@ -98,15 +98,18 @@ impl AbstractStateMachine for HashStore {
 First bootstrap the cluster that contains the leader node.
 
 ```rust
+let raft_addr = "127.0.0.1:60062".to_owned();
+let node_id = 1;
+
 let raft = Raft::build(
     node_id,
-    options.raft_addr,
+    raft_addr,
     store.clone(),
     cfg,
     logger.clone(),
     peers.clone(),
 )?;
-let node_id = 1;
+
 tokio::spawn(raft.clone().run());
 
 // ...
@@ -120,12 +123,13 @@ Then join the follower nodes.
 If peer specifies the configuration of the initial members, the cluster will operate after all member nodes are bootstrapped.
 
 ```rust
+let raft_addr = "127.0.0.1:60062".to_owned();
 let peer_addr = "127.0.0.1:60061".to_owned();
 let join_ticket = await Raft.request_id(peer_addr);
 
 let raft = Raft::build(
-    node_id,
-    options.raft_addr,
+    join_ticket.reserved_id,
+    raft_addr,
     store.clone(),
     cfg,
     logger.clone(),
@@ -199,5 +203,4 @@ This library was inspired by a wide variety of previous Raft implementations.
 Great thanks to all the relevant developers.
 
 - [tikv/raft-rs](https://github.com/tikv/raft-rs) - Raft distributed consensus algorithm implemented using in this lib under the hood.
-- [ritelabs/riteraft](https://github.com/ritelabs/riteraft) - A raft framework, for regular people.
-- [lablup/rraft-py](https://github.com/lablup/rraft-py) - Unofficial Python Binding of the *tikv/raft-rs*.
+- [ritelabs/riteraft](https://github.com/ritelabs/riteraft) - A raft framework, for regular people. raftify was forked from this lib.
