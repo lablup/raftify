@@ -36,20 +36,8 @@ pub enum SendMessageError {
     TransmissionError(String),
 }
 
-impl Error {
-    pub fn boxed(self) -> Box<Self> {
-        Box::new(self)
-    }
-}
-
 impl From<prost::DecodeError> for Error {
     fn from(e: prost::DecodeError) -> Self {
-        Self::Other(Box::new(e))
-    }
-}
-
-impl From<prost::EncodeError> for Error {
-    fn from(e: prost::EncodeError) -> Self {
         Self::Other(Box::new(e))
     }
 }
@@ -57,11 +45,5 @@ impl From<prost::EncodeError> for Error {
 impl From<bincode::Error> for Error {
     fn from(e: bincode::Error) -> Self {
         Self::Other(e)
-    }
-}
-
-impl From<std::string::FromUtf8Error> for Error {
-    fn from(e: std::string::FromUtf8Error) -> Self {
-        Self::Other(Box::new(e))
     }
 }
