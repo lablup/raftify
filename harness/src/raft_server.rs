@@ -85,9 +85,7 @@ pub async fn handle_bootstrap(peers: Peers) -> Result<()> {
 
     for (node_id, _) in peers.iter() {
         if node_id != 1 {
-            let mut raft_lk = RAFTS.lock().unwrap();
-            let raft = raft_lk.get_mut(&node_id).unwrap();
-            raft.member_bootstrap_ready(leader_addr, node_id).await?;
+            Raft::member_bootstrap_ready(leader_addr, node_id).await?;
         }
     }
 

@@ -187,7 +187,6 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
     }
 
     pub async fn member_bootstrap_ready<A: ToSocketAddrs>(
-        &mut self,
         leader_addr: A,
         node_id: u64,
     ) -> Result<()> {
@@ -195,7 +194,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
             match create_client(&leader_addr).await {
                 Ok(client) => break client,
                 Err(e) => {
-                    slog::info!(self.logger, "Leader connection failed. Cause: {}", e);
+                    eprintln!("Leader connection failed. Cause: {}", e);
                     sleep(Duration::from_secs(1)).await;
                     tokio::task::yield_now().await;
                     continue;
@@ -210,16 +209,13 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
 
         match response.code() {
             ResultCode::Ok => {
-                slog::info!(
-                    self.logger,
-                    "Member send the bootstrap ready request successfully."
-                );
+                println!("Member send the bootstrap ready request successfully.");
             }
             ResultCode::Error => {
-                slog::error!(self.logger, "Failed to send the bootstrap ready request.");
+                eprintln!("Failed to send the bootstrap ready request.");
             }
             ResultCode::WrongLeader => {
-                slog::error!(self.logger, "Wrong leader address. Check leader changes while sending bootstrap ready request.");
+                eprintln!("Wrong leader address. Check leader changes while sending bootstrap ready request.");
             }
         }
 

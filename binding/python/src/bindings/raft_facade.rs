@@ -104,7 +104,7 @@ impl PyRaftFacade {
             Arguments::MemberBootstrapReady {
                 ref leader_addr,
                 node_id,
-            } => Ok(self._member_bootstrap_ready(leader_addr, node_id)),
+            } => Ok(self._member_bootstrap_ready(leader_addr, node_id).await),
             _ => Err(WrongArgumentError::new_err(format!(
                 "Invalid arguments {:?}",
                 self.args
@@ -129,11 +129,11 @@ impl PyRaftFacade {
         PyClusterJoinTicket { inner: ticket }
     }
 
-    #[tokio::main]
     async fn _member_bootstrap_ready(&self, leader_addr: &str, node_id: u64) {
-        let mut raft = self.raft.clone();
-        raft.member_bootstrap_ready(leader_addr, node_id)
-            .await
-            .unwrap();
+        let leader_addr = leader_addr.to_owned();
+        TOKIO_RT.spawn(Raft::<PyLogEntry, PyFSM>::member_bootstrap_ready(
+            leader_addr,
+            node_id,
+        ));
     }
 }

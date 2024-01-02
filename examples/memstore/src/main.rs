@@ -11,7 +11,7 @@ use memstore::{
 };
 use raftify::{
     raft::derializer::set_custom_deserializer, AbstractLogEntry, ClusterJoinTicket, MyDeserializer,
-    Raft,
+    Raft as Raft_,
 };
 use slog::Drain;
 
@@ -19,6 +19,8 @@ use actix_web::{get, web, App, HttpServer, Responder};
 use slog_envlogger::LogBuilder;
 use structopt::StructOpt;
 // use slog_envlogger::LogBuilder;
+
+type Raft = Raft_<LogEntry, HashStore>;
 
 #[derive(Debug, StructOpt)]
 struct Options {
@@ -36,10 +38,7 @@ struct Options {
 }
 
 #[get("/put/{id}/{name}")]
-async fn put(
-    data: web::Data<(HashStore, Raft<LogEntry, HashStore>)>,
-    path: web::Path<(u64, String)>,
-) -> impl Responder {
+async fn put(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, String)>) -> impl Responder {
     let log_entry = LogEntry::Insert {
         key: path.0,
         value: path.1.clone(),
@@ -50,10 +49,7 @@ async fn put(
 }
 
 #[get("/get/{id}")]
-async fn get(
-    data: web::Data<(HashStore, Raft<LogEntry, HashStore>)>,
-    path: web::Path<u64>,
-) -> impl Responder {
+async fn get(data: web::Data<(HashStore, Raft)>, path: web::Path<u64>) -> impl Responder {
     let id = path.into_inner();
 
     let response = data.0.get(id);
@@ -61,14 +57,14 @@ async fn get(
 }
 
 #[get("/leader")]
-async fn leader_id(data: web::Data<(HashStore, Raft<LogEntry, HashStore>)>) -> impl Responder {
+async fn leader_id(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
     let leader_id = raft.1.raft_node.get_leader_id().await.to_string();
     format!("{:?}", leader_id)
 }
 
 #[get("/leave")]
-async fn leave(data: web::Data<(HashStore, Raft<LogEntry, HashStore>)>) -> impl Responder {
+async fn leave(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
     raft.1.raft_node.clone().leave().await;
     "OK".to_string()
@@ -120,14 +116,12 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .get_node_id_by_addr(options.raft_addr.clone())
                     .unwrap(),
                 None => {
-                    request_id_resp = Raft::<LogEntry, HashStore>::request_id(peer_addr.clone())
-                        .await
-                        .ok();
+                    request_id_resp = Raft::request_id(peer_addr.clone()).await.ok();
                     request_id_resp.to_owned().unwrap().reserved_id
                 }
             };
 
-            let mut raft = Raft::<LogEntry, HashStore>::build(
+            let raft = Raft::build(
                 node_id,
                 options.raft_addr,
                 store.clone(),
@@ -142,7 +136,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 raft.join(request_id_resp).await;
             } else if let Some(peers) = peers {
                 let leader_addr = peers.get(&1).unwrap().addr;
-                raft.member_bootstrap_ready(leader_addr, node_id).await?;
+                Raft::member_bootstrap_ready(leader_addr, node_id).await?;
             } else {
                 unreachable!()
             }
