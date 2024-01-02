@@ -114,6 +114,15 @@ impl fmt::Display for PyFSM {
     }
 }
 
+#[pymethods] 
+impl PyFSM {
+    fn __getattr__(&self, py: Python, attr: &str) -> PyResult<PyObject> {
+        let store: &PyAny = self.store.as_ref(py);
+        let attr_value = store.getattr(attr)?;
+        Ok(Py::from(attr_value))
+    }
+}
+
 #[async_trait]
 impl AbstractStateMachine for PyFSM {
     async fn apply(&mut self, log_entry: Vec<u8>) -> Result<Vec<u8>> {
@@ -166,9 +175,9 @@ impl AbstractStateMachine for PyFSM {
                     let inner = callback.call(py, (data,), None).unwrap();
                     Ok(PyFSM { store: inner })
                 }
-                None => Err(Error::Other(Box::new(DecodingError::new_err(
+                None => Err(Error::DecodingError(
                     "No deserializer for AbstractStateMachine specified".to_string(),
-                )))),
+                )),
             }
         })
     }
