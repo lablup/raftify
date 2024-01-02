@@ -43,5 +43,6 @@ jobs:
         pip3 install -r requirements.txt
         make install
         cd ./tests
+        pip3 install -r requirements.txt
         make test
         cd ../../

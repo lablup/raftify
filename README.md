@@ -34,9 +34,11 @@ impl AbstractLogEntry for LogEntry {
 
 ### Define your application Raft FSM
 
-Basically, below 3 methods need to be implemented for the Store.
+Essentially, the following three methods need to be implemented for the `Store`.
 
-- `apply`: applies a commited entry to the store.
+And similarly to `LogEntry`, you need to implement `encode` and `decode`.
+
+- `apply`: applies a committed entry to the store.
 - `snapshot`: returns snapshot data for the store.
 - `restore`: applies the snapshot passed as argument.
 
@@ -89,7 +91,6 @@ impl AbstractStateMachine for HashStore {
         Ok(Self(Arc::new(RwLock::new(db))))
     }
 }
-
 ```
 
 ### Bootstrap a raft cluster
