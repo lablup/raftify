@@ -108,6 +108,7 @@ let raft = Raft::build(
 )?;
 let node_id = 1;
 tokio::spawn(raft.clone().run());
+
 // ...
 tokio::try_join!(raft_handle)?;
 ```
@@ -119,8 +120,8 @@ Then join the follower nodes.
 If peer specifies the configuration of the initial members, the cluster will operate after all member nodes are bootstrapped.
 
 ```rust
-peer_addr = ... "(Some Raft server address)"
-join_ticket = await Raft.request_id(peer_addr)
+let peer_addr = "127.0.0.1:60061".to_owned();
+let join_ticket = await Raft.request_id(peer_addr);
 
 let raft = Raft::build(
     node_id,
@@ -164,8 +165,15 @@ If you want to operate FSM locally, use the RaftNode interface of the Raft objec
 
 ```rust
 let mut raft_node = raft.get_raft_node();
-await raft_node.propose();
+await raft_node.propose(LogEntry::Insert {
+    key: 1,
+    value: "test".to_string(),
+}
+.encode()
+.unwrap());
 ```
+
+It also provides a variety of other very useful APIs. Take a look at [the document]()
 
 ### Debugging
 
