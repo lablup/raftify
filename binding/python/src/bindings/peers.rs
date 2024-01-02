@@ -1,10 +1,12 @@
 use fxhash::FxHasher;
 use pyo3::{
     prelude::*,
-    types::{PyDict, PyString},
+    types::{PyDict, PyString, PyTuple},
 };
 use raftify::Peers;
 use std::{collections::HashMap, hash::BuildHasherDefault};
+
+use super::utils::new_py_list;
 
 #[derive(Clone)]
 #[pyclass(name = "Peers")]
@@ -31,6 +33,16 @@ impl PyPeers {
 
     pub fn __repr__(&self) -> PyResult<String> {
         Ok(format!("{:?}", self.inner))
+    }
+
+    pub fn items(&self, py: Python) -> PyResult<PyObject> {
+        let peer_items = self
+            .inner
+            .iter()
+            .map(|(id, peer)| (id, peer.addr.to_string()))
+            .collect::<Vec<(u64, String)>>();
+
+        Ok(new_py_list::<(u64, String), _>(py, peer_items)?.to_object(py))
     }
 
     // TODO: Replace String with Peer
