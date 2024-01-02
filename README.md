@@ -2,7 +2,7 @@
 
 ⚠️ This library is in a very experimental stage. The API could be broken.
 
-raftify is a high-level implementation of Raft, developed with the goal of making it easy and straightforward to integrate the Raft algorithm.
+raftify is a *high-level* implementation of [Raft](https://raft.github.io/), developed with the goal of making it easy and straightforward to integrate the Raft algorithm.
 
 It uses [tikv/raft-rs](https://github.com/tikv/raft-rs) and gRPC for the network layer and [heed](https://github.com/meilisearch/heed) (LMDB wrapper) for the storage layer.
 
@@ -12,7 +12,7 @@ I strongly recommend to read the basic [memstore example code](https://github.co
 
 ### Define your own log entry
 
-Define the data to be stored in LogEntry and how to serialize and de-serialize it.
+Define the data to be stored in `LogEntry` and how to *serialize* and *deserialize* it.
 
 ```rust
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -141,7 +141,7 @@ tokio::try_join!(raft_handle)?;
 
 ### Manipulate FSM by RaftServiceClient
 
-If you want to operate the FSM remotely, use the `RaftServiceClient`.
+If you want to operate the FSM remotely, use `RaftServiceClient`.
 
 ```rust
 let mut leader_client = create_client(&"127.0.0.1:60061").await.unwrap();
@@ -161,7 +161,7 @@ leader_client
 
 ### Manipulate FSM by RaftNode
 
-If you want to operate FSM locally, use the RaftNode interface of the Raft object
+If you want to operate FSM locally, use the RaftNode interface of the Raft object.
 
 ```rust
 let mut raft_node = raft.get_raft_node();
@@ -172,7 +172,7 @@ raft_node.propose(LogEntry::Insert {
 }.encode().unwrap()).await;
 ```
 
-It also provides a variety of other very useful APIs. Take a look at [the document]()
+It also provides a variety of other very useful APIs. Take a look at [the document]().
 
 ### Debugging
 
@@ -181,6 +181,16 @@ Raftify also provides a collection of CLI commands that let you check the data p
 ```
 $ raftify-cli debug persisted ./logs/node-1
 ```
+
+```
+$ raftify-cli debug node 127.0.0.1:60061
+```
+
+### Support for other language
+
+Raftify provides bindings for the following languages.
+
+- [Python](https://github.com/lablup/raftify/tree/main/binding/python)
 
 ## References
 
