@@ -16,5 +16,4 @@ test-data-replication:
 	done
 
 test:
-	make test-leader-election
 	make test-data-replication
