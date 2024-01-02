@@ -53,7 +53,7 @@ pub async fn wait_for_until_cluster_size_increase(raft: Raft, target: usize) {
     }
 
     // Wait for the conf_change reflected to the cluster
-    sleep(Duration::from_secs_f32(0.1)).await;
+    sleep(Duration::from_secs_f32(1.0)).await;
 }
 
 pub async fn wait_for_until_cluster_size_decrease(raft: Raft, target: usize) {
@@ -68,5 +68,5 @@ pub async fn wait_for_until_cluster_size_decrease(raft: Raft, target: usize) {
     }
 
     // Wait for the conf_change reflected to the cluster
-    sleep(Duration::from_secs_f32(0.1)).await;
+    sleep(Duration::from_secs_f32(1.0)).await;
 }
