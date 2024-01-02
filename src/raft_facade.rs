@@ -108,16 +108,47 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
                 slog::info!(self.logger, "Ctrl+C signal detected. Shutting down...");
                 Ok(())
             }
-            _ = raft_node_handle => {
+            result = raft_node_handle => {
                 quit_signal_tx.send(()).unwrap();
-                slog::info!(self.logger, "RaftNode quitted. Shutting down...");
-                Ok(())
+
+                match result {
+                    Ok(raft_node_result) => {
+                        match raft_node_result {
+                            Ok(_) => {
+                                slog::info!(self.logger, "RaftNode quitted. Shutting down...");
+                                Ok(())
+                            },
+                            Err(err) => {
+                                slog::error!(self.logger, "RaftNode quitted with error. Shutting down... {:?}", err);
+                                Err(Error::Other(Box::new(err)))
+                            }
+                        }
+                    },
+                    Err(err) => {
+                        slog::error!(self.logger, "RaftNode quitted with join error. Shutting down... {:?}", err);
+                        Err(Error::Unknown)
+                    }
+                }
             }
-            _ = raft_server_handle => {
-                // TODO: Handle more proper exit.
-                // slog::crit!(self.logger, "RaftNode not quitted, but RaftServer quitted.");
-                // Ok(())
-                panic!("RaftNode not quitted, but RaftServer quitted.");
+            result = raft_server_handle => {
+                match result {
+                    Ok(raft_server_result) => {
+                        match raft_server_result {
+                            Ok(_) => {
+                                slog::info!(self.logger, "RaftServer quitted. Shutting down...");
+                                Ok(())
+                            },
+                            Err(err) => {
+                                slog::error!(self.logger, "RaftServer quitted with error. Shutting down... {:?}", err);
+                                Err(Error::Other(Box::new(err)))
+                            }
+                        }
+                    },
+                    Err(err) => {
+                        slog::error!(self.logger, "RaftServer quitted with join error. Shutting down... {:?}", err);
+                        Err(Error::Unknown)
+                    }
+                }
             }
         }
     }

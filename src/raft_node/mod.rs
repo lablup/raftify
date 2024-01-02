@@ -1234,14 +1234,7 @@ impl<
                 }
                 _ = tick_timer.tick() => {
                     self.raw_node.tick();
-
-                    // TODO: Remove this after investigating why tokio::join not failing when one of the Result is Err
-                    match self.on_ready().await {
-                        Ok(_) => {}
-                        Err(e) => {
-                            panic!("Error occurred while processing ready: {:?}", e);
-                        }
-                    }
+                    self.on_ready().await?
                 }
             }
         }
