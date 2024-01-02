@@ -14,8 +14,10 @@ open-doc:
 	make build
 	cargo doc --no-deps --open
 
-test:
+unit-test:
 	cargo test
+
+test:
 	cd harness && make test && cd ../
 
 install-cli:

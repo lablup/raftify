@@ -1,4 +1,4 @@
-name: Build, Lint, and Test
+name: Test
 
 on:
   push:
@@ -26,7 +26,21 @@ jobs:
         toolchain: stable
         override: true
 
-    - name: Build and Test
+    - name: Build and Check Rust unit tests and harness tests all pass
       run: |
         make build
+        make unit-test
         make test
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.11.4"
+
+    - name: Build and Check Python harness tests all pass
+      run: |
+        cd bindings/python
+        make install
+        cd ./tests
+        make test
+        cd ../../
