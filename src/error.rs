@@ -17,7 +17,7 @@ pub enum Error {
     #[error("Error calling remote procedure: `{0}`")]
     RemoteCall(#[from] tonic::Status),
     #[error("IO error: {0}")]
-    Io(String),
+    Io(#[from] tokio::io::Error),
     #[error("Storage error: `{0}`")]
     Database(#[from] heed::Error),
     #[error("Unexpected error")]
@@ -51,12 +51,6 @@ impl From<prost::DecodeError> for Error {
 impl From<prost::EncodeError> for Error {
     fn from(e: prost::EncodeError) -> Self {
         Self::Other(Box::new(e))
-    }
-}
-
-impl From<tokio::io::Error> for Error {
-    fn from(e: tokio::io::Error) -> Self {
-        Self::Io(e.to_string())
     }
 }
 
