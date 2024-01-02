@@ -40,6 +40,7 @@ jobs:
     - name: Build and Check Python harness tests all pass
       run: |
         cd binding/python
+        pip3 install -r requirements.txt
         make install
         cd ./tests
         make test
