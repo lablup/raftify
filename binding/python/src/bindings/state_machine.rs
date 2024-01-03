@@ -78,6 +78,15 @@ impl AbstractLogEntry for PyLogEntry {
     }
 }
 
+#[pymethods]
+impl PyLogEntry {
+    fn __getattr__(&self, py: Python, attr: &str) -> PyResult<PyObject> {
+        let log_entry: &PyAny = self.log_entry.as_ref(py);
+        let attr_value = log_entry.getattr(attr)?;
+        Ok(Py::from(attr_value))
+    }
+}
+
 #[derive(Clone)]
 #[pyclass(name = "AbstractStateMachine")]
 pub struct PyFSM {
@@ -114,7 +123,7 @@ impl fmt::Display for PyFSM {
     }
 }
 
-#[pymethods] 
+#[pymethods]
 impl PyFSM {
     fn __getattr__(&self, py: Python, attr: &str) -> PyResult<PyObject> {
         let store: &PyAny = self.store.as_ref(py);

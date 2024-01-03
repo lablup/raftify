@@ -73,7 +73,7 @@ APIs of the web servers to interact with the RaftServers.
 
 @routes.get("/get/{id}")
 async def get(request: web.Request) -> web.Response:
-    store = request.app["state"]["store"]
+    store: HashStore = request.app["state"]["store"]
     id = request.match_info["id"]
     return web.Response(text=store.get(id))
 
