@@ -2,7 +2,7 @@ build:
 	cargo build --workspace
 
 clean:
-	rm -rf node-*
+	rm -rf ./logs/node-*
 
 fmt:
 	cargo fmt
@@ -19,6 +19,3 @@ unit-test:
 
 integration-test:
 	cd harness && make test && cd ../
-
-install-cli:
-	cd examples/memstore && make install-cli && cd ../../
