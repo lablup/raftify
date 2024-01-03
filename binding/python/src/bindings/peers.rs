@@ -1,7 +1,7 @@
 use fxhash::FxHasher;
 use pyo3::{
     prelude::*,
-    types::{PyDict, PyString, PyTuple},
+    types::{PyDict, PyString},
 };
 use raftify::Peers;
 use std::{collections::HashMap, hash::BuildHasherDefault};
