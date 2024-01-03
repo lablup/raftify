@@ -56,7 +56,6 @@ impl HashStore {
     }
 }
 
-
 #[async_trait]
 impl AbstractStateMachine for HashStore {
     async fn apply(&mut self, data: Vec<u8>) -> Result<Vec<u8>> {

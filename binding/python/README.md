@@ -1,6 +1,8 @@
 # raftify-py
 
-Python binding of *raftify*.
+⚠️ This library is in a very experimental stage. The API could be broken.
+
+Python binding of [*raftify*](https://github.com/lablup/raftify).
 
 ## Quick guide
 
@@ -27,7 +29,9 @@ class SetCommand:
 
 ### Define your application Raft FSM
 
-Only 3 methods need to be implemented for the Store.
+Essentially, the following three methods need to be implemented for the `Store`.
+
+And similarly to `LogEntry`, you need to implement `encode` and `decode`.
 
 - `apply`: applies a commited entry to the store.
 - `snapshot`: returns snapshot data for the store.
@@ -106,6 +110,12 @@ await raft_node.propose()
 
 ### Debugging
 
+Raftify also provides a collection of CLI commands that let you check the data persisted in lmdb and the status of Raft Server.
+
 ```
 $ raftify_cli debug persisted ./logs/node-1
+```
+
+```
+$ raftify_cli debug node 127.0.0.1:60061
 ```
