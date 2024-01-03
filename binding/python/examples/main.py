@@ -1,12 +1,17 @@
 import argparse
 import asyncio
-from contextlib import suppress
 import pickle
-from typing import Optional
+from contextlib import suppress
+from pathlib import Path
+from typing import Any, Iterable, Optional
+
+import tomli
+from aiohttp import web
+from aiohttp.web import AbstractRouteDef, RouteTableDef
 from raftify import (
+    Config,
     Peers,
     Raft,
-    Config,
     RaftConfig,
     set_confchange_context_deserializer,
     set_confchangev2_context_deserializer,
@@ -15,12 +20,6 @@ from raftify import (
     set_message_context_deserializer,
     set_snapshot_data_deserializer,
 )
-import tomli
-from pathlib import Path
-from typing import Any, Iterable
-
-from aiohttp import web
-from aiohttp.web import RouteTableDef, AbstractRouteDef
 
 
 def load_peers() -> Peers:
