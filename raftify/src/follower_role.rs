@@ -1,4 +1,4 @@
-use raft::eraftpb::ConfChangeType;
+use crate::raft::eraftpb::ConfChangeType;
 
 pub enum FollowerRole {
     Voter,

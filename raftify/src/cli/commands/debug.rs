@@ -1,13 +1,12 @@
 use std::path::PathBuf;
 
 use crate::create_client;
+use crate::raft::derializer::{format_entry, format_snapshot};
 use crate::raft_service;
 use crate::Config;
 use crate::HeedStorage;
 use crate::LogStore;
 use crate::Result;
-use raft::derializer::format_entry;
-use raft::derializer::format_snapshot;
 
 pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
     let config = Config {

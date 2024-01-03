@@ -1,5 +1,4 @@
 use bincode::serialize;
-use raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
 use tokio::sync::{
@@ -9,11 +8,15 @@ use tokio::sync::{
 use tokio::time::timeout;
 use tonic::{transport::Server, Request, Response, Status};
 
-use super::raft_service::raft_service_server::{RaftService, RaftServiceServer};
-use super::raft_service::{self, Empty};
+use super::raft_service::{
+    self,
+    raft_service_server::{RaftService, RaftServiceServer},
+    Empty,
+};
 use super::request_message::ServerRequestMsg;
 use super::response_message::{RequestIdResponseResult, ServerResponseMsg};
 use super::{function_name, Config, Error};
+use crate::raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 
 #[derive(Clone)]
 pub struct RaftServer {

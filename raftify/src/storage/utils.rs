@@ -1,4 +1,4 @@
-use raft::{derializer::format_entry, eraftpb::Entry};
+use crate::raft::{derializer::format_entry, eraftpb::Entry};
 use serde_json::{json, Value};
 use std::{
     fmt::Write as StdWrite,

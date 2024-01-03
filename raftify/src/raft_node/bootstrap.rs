@@ -1,9 +1,9 @@
-use bincode::serialize;
-use prost::Message as PMessage;
-use raft::{
+use crate::raft::{
     eraftpb::{ConfChange, ConfChangeType, Entry, EntryType},
     raw_node::RawNode,
 };
+use bincode::serialize;
+use prost::Message as PMessage;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

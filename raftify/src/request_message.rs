@@ -1,4 +1,4 @@
-use raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
+use crate::raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 use tokio::sync::oneshot::Sender;
 
 use super::{

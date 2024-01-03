@@ -4,7 +4,6 @@ use heed::{Database, Env};
 use heed_traits::{BoxedError, BytesDecode, BytesEncode};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use prost::Message as PMessage;
-use raft::{prelude::*, GetEntriesContext};
 use std::borrow::Cow;
 use std::cmp::max;
 use std::path::{Path, PathBuf};
@@ -15,6 +14,8 @@ use super::constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_K
 use super::utils::{append_to_json_file, format_entry_key_string};
 use crate::config::Config;
 use crate::error::Result;
+use crate::raft;
+use crate::raft::{prelude::*, GetEntriesContext};
 
 pub trait LogStore: Storage {
     fn append(&mut self, entries: &[Entry]) -> Result<()>;

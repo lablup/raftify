@@ -21,7 +21,7 @@ mod utils;
 pub mod cli;
 pub mod raft_service;
 pub use deserializer::MyDeserializer;
-pub use raft;
+pub use jopemachine_raft as raft;
 pub use tonic;
 
 pub use crate::raft_facade::ClusterJoinTicket;

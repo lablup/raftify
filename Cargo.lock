@@ -284,15 +284,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
-name = "autotools"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aef8da1805e028a172334c3b680f93e71126f2327622faef2ec3d893c0a4ad77"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "axum"
 version = "0.6.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -884,7 +875,7 @@ dependencies = [
 
 [[package]]
 name = "harness"
-version = "0.1.5"
+version = "0.1.10"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1122,6 +1113,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "jopemachine-raft"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1df68e61855bb075ff1b12538c52a8c08331777e963b5877250fb57845d6ea3e"
+dependencies = [
+ "bytes",
+ "fxhash",
+ "getset",
+ "lazy_static",
+ "protobuf",
+ "raft-proto",
+ "rand",
+ "slog",
+ "slog-envlogger",
+ "slog-stdlog",
+ "slog-term",
+ "thiserror",
+]
+
+[[package]]
 name = "language-tags"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1215,7 +1226,7 @@ checksum = "f665ee40bc4a3c5590afb1e9677db74a508659dfd71e126420da8274909a0167"
 
 [[package]]
 name = "memstore"
-version = "0.1.5"
+version = "0.1.10"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1561,26 +1572,15 @@ checksum = "1b7f4a129bb3754c25a4e04032a90173c68f85168f77118ac4cb4936e7f06f92"
 
 [[package]]
 name = "protobuf-build"
-version = "0.15.1"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c852d9625b912c3e50480cdc701f60f49890b5d7ad46198dd583600f15e7c6ec"
+checksum = "2df9942df2981178a930a72d442de47e2f0df18ad68e50a30f816f1848215ad0"
 dependencies = [
  "bitflags 1.2.1",
  "proc-macro2",
  "prost-build",
- "protobuf-src",
  "quote",
- "regex",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "protobuf-src"
-version = "1.1.0+21.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7ac8852baeb3cc6fb83b93646fb93c0ffe5d14bf138c945ceb4b9948ee0e3c1"
-dependencies = [
- "autotools",
 ]
 
 [[package]]
@@ -1593,28 +1593,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "raft"
-version = "0.7.0"
-source = "git+https://github.com/jopemachine/raft-rs#df2d617737d7feb84fa474262b5214316d0fdb18"
-dependencies = [
- "bytes",
- "fxhash",
- "getset",
- "lazy_static",
- "protobuf",
- "raft-proto",
- "rand",
- "slog",
- "slog-envlogger",
- "slog-stdlog",
- "slog-term",
- "thiserror",
-]
-
-[[package]]
 name = "raft-proto"
 version = "0.7.0"
-source = "git+https://github.com/jopemachine/raft-rs#df2d617737d7feb84fa474262b5214316d0fdb18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb6884896294f553e8d5cfbdb55080b9f5f2f43394afff59c9f077e0f4b46d6b"
 dependencies = [
  "lazy_static",
  "prost",
@@ -1624,7 +1606,7 @@ dependencies = [
 
 [[package]]
 name = "raftify"
-version = "0.1.5"
+version = "0.1.10"
 dependencies = [
  "async-trait",
  "bincode",
@@ -1633,10 +1615,10 @@ dependencies = [
  "clap 3.2.25",
  "heed",
  "heed-traits",
+ "jopemachine-raft",
  "log",
  "parking_lot",
  "prost",
- "raft",
  "serde",
  "serde_json",
  "slog",

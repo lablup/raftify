@@ -1,9 +1,10 @@
-use raft::eraftpb::{ConfChange, ConfChangeSingle, ConfChangeV2};
 use serde_json::json;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
 use tokio::sync::Mutex;
+
+use crate::raft::eraftpb::{ConfChange, ConfChangeSingle, ConfChangeV2};
 
 pub fn to_confchange_v2(conf_change: ConfChange) -> ConfChangeV2 {
     let mut cc_v2 = ConfChangeV2::default();

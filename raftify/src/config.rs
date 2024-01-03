@@ -1,4 +1,4 @@
-use raft::Config as RaftConfig;
+use crate::raft::Config as RaftConfig;
 use std::fmt;
 
 #[derive(Clone)]

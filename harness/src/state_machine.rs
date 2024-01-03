@@ -2,7 +2,10 @@ use async_trait::async_trait;
 use bincode::{deserialize, serialize};
 use raftify::{AbstractLogEntry, AbstractStateMachine, Result};
 use serde::{Deserialize, Serialize};
-use std::{sync::{Arc, RwLock}, collections::HashMap};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum LogEntry {

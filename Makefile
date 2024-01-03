@@ -19,3 +19,6 @@ unit-test:
 
 integration-test:
 	cd harness && make test && cd ../
+
+publish:
+	cargo publish -p raftify --allow-dirty --no-verify

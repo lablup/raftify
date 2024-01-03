@@ -1,5 +1,5 @@
 syntax = "proto3";
-package raftservice;
+package raft_service;
 
 import "eraftpb.proto";
 

@@ -4,14 +4,6 @@ mod utils;
 
 use bincode::{deserialize, serialize};
 use prost::Message as PMessage;
-use raft::eraftpb::{
-    ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2, Entry, EntryType,
-    Message as RaftMessage, Snapshot,
-};
-use raft::{
-    derializer::{format_confchangev2, format_message},
-    raw_node::RawNode,
-};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -30,6 +22,14 @@ use response_sender::ResponseSender;
 use utils::inspect_raftnode;
 
 use crate::error::{Result, SendMessageError};
+use crate::raft::{
+    derializer::{format_confchangev2, format_message},
+    eraftpb::{
+        ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2, Entry, EntryType,
+        Message as RaftMessage, Snapshot,
+    },
+    raw_node::RawNode,
+};
 use crate::raft_node::bootstrap::bootstrap_peers;
 use crate::raft_service::{self, ChangeConfigResultType, ResultCode};
 use crate::request_message::{LocalRequestMsg, SelfMessage, ServerRequestMsg};

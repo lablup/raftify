@@ -1,1 +1,1 @@
-tonic::include_proto!("raftservice");
+tonic::include_proto!("raft_service");
