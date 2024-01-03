@@ -230,23 +230,35 @@ class RaftServiceClient:
     async def propose(self) -> None:
         """ """
 
-def set_snapshot_data_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
+def set_snapshot_data_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
     """ """
 
-def set_message_context_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
+def set_message_context_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
     """ """
 
-def set_confchange_context_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
+def set_confchange_context_deserializer(
+    cb: Callable[[bytes], str | bytes | None]
+) -> None:
     """ """
 
-def set_confchangev2_context_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
+def set_confchangev2_context_deserializer(
+    cb: Callable[[bytes], str | bytes | None]
+) -> None:
     """ """
 
-def set_entry_data_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
+def set_entry_data_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
     """ """
 
-def set_entry_context_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
+def set_entry_context_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
     """ """
+
+def set_fsm_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
+    """ """
+    ...
+
+def set_log_entry_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
+    """ """
+    ...
 
 class ConfChangeTransition:
     """ """
@@ -469,13 +481,5 @@ class Message:
         """ """
 
 async def cli_main(argv: list[str]) -> None:
-    """ """
-    ...
-
-def set_fsm_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
-    """ """
-    ...
-
-def set_log_entry_deserializer(cb: Callable[[bytes], str | bytes]) -> None:
     """ """
     ...
