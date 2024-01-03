@@ -26,7 +26,7 @@ setup(
     long_description_content_type='text/markdown',
     author="Lablup Inc.",
     maintainer="jopemachine",
-    maintainer_email="gbl@lablup.com",
+    maintainer_email="jopemachine@naver.com",
     url="https://github.com/lablup/raftify",
     license="Apache License 2.0",
     package_dir={"raftify_cli": "raftify_cli"},
