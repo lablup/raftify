@@ -9,7 +9,7 @@ features = ["include-python-workspace"]
 [project]
 name = "raftify"
 requires-python = ">=3.10"
-description = "Experimental Async Raft framework for Python application"
+description = "Experimental High level Raft framework"
 readme = "README.md"
 license = { file = "LICENSE" }
 classifiers = [
