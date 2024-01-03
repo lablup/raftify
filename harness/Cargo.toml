@@ -1,7 +1,7 @@
 [package]
 name = "harness"
 version = "0.1.0"
-authors = ["jopemachine <gbl@lablup.com>"]
+authors = ["Lablup Inc.", "jopemachine <gbl@lablup.com>"]
 description = "Testing harness for raftify."
 edition = "2021"
 

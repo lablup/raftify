@@ -1,11 +1,11 @@
 [package]
 name = "raftify"
 version = "0.1.0"
-authors = ["jopemachine <gbl@lablup.com>"]
+authors = ["Lablup Inc.", "jopemachine <gbl@lablup.com>"]
 edition = "2021"
 license = "MIT/Apache-2.0"
 repository = "https://github.com/lablup/raftify"
-description = ""
+description = "Experimental High level Raft framework"
 keywords = ["raft", "distributed-systems", "ha"]
 
 [dependencies]

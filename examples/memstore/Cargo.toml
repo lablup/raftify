@@ -1,8 +1,9 @@
 [package]
 name = "memstore"
 version = "0.1.0"
-authors = ["jopemachine <gbl@lablup.com>"]
+authors = ["Lablup Inc.", "jopemachine <gbl@lablup.com>"]
 edition = "2021"
+description = "raftify memstore example"
 
 [[bin]]
 name = "raftify-cli"
