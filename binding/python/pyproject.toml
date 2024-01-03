@@ -4,7 +4,6 @@ build-backend = "maturin"
 
 [tool.maturin]
 bindings = "pyo3"
-features = ["include-python-workspace"]
 
 [project]
 name = "raftify"

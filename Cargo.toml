@@ -2,19 +2,17 @@
 resolver = "2"
 members = [
     "raftify",
-    "binding/python",
     "examples/memstore",
     "harness"
 ]
 default-members = [
     "raftify",
-    "binding/python",
     "examples/memstore",
     "harness"
 ]
 
 [workspace.package]
-version = "0.1.2"
+version = "0.1.5"
 authors = ["Lablup Inc."]
 edition = "2021"
 description = """

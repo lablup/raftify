@@ -1,4 +1,3 @@
-#![cfg(feature = "include-python-workspace")]
 #![allow(non_snake_case)]
 use ::raftify::raft::derializer::set_custom_deserializer;
 use bindings::deserializer::PythonDeserializer;
