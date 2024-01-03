@@ -4,7 +4,7 @@ use pyo3::{prelude::*, types::PyBytes};
 use raftify::{AbstractLogEntry, AbstractStateMachine, Error, Result};
 use std::{fmt, sync::Mutex};
 
-use super::errors::{ApplyError, DecodingError, RestoreError, SnapshotError};
+use super::errors::{ApplyError, RestoreError, SnapshotError};
 use super::utils::get_python_repr;
 
 pub static ENTRY_LOG_ENTRY_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> =
@@ -22,7 +22,7 @@ pub fn set_fsm_deserializer(cb: PyObject) {
 }
 
 #[derive(Clone)]
-#[pyclass(name = "AbstractLogEntry")]
+#[pyclass]
 pub struct PyLogEntry {
     pub log_entry: Py<PyAny>,
 }
@@ -88,15 +88,9 @@ impl PyLogEntry {
 }
 
 #[derive(Clone)]
-#[pyclass(name = "AbstractStateMachine")]
+#[pyclass]
 pub struct PyFSM {
     pub store: Py<PyAny>,
-}
-
-impl PyFSM {
-    pub fn new(store: Py<PyAny>) -> Self {
-        Self { store }
-    }
 }
 
 impl fmt::Debug for PyFSM {
@@ -125,6 +119,11 @@ impl fmt::Display for PyFSM {
 
 #[pymethods]
 impl PyFSM {
+    #[new]
+    pub fn new(store: Py<PyAny>) -> Self {
+        Self { store }
+    }
+
     fn __getattr__(&self, py: Python, attr: &str) -> PyResult<PyObject> {
         let store: &PyAny = self.store.as_ref(py);
         let attr_value = store.getattr(attr)?;

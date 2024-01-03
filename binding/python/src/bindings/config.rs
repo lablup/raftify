@@ -4,30 +4,18 @@ use raftify::Config;
 use super::raft_rs::config::PyRaftConfig;
 
 #[derive(Clone)]
-#[pyclass(name = "Config")]
+#[pyclass(get_all, set_all, name = "Config")]
 pub struct PyConfig {
-    #[pyo3(get, set)]
     pub raft_config: PyRaftConfig,
-
-    #[pyo3(get, set)]
     pub log_dir: String,
-    #[pyo3(get, set)]
     pub save_compacted_logs: bool,
-    #[pyo3(get, set)]
     pub compacted_log_dir: String,
-    #[pyo3(get, set)]
     pub compacted_log_size_threshold: u64,
-    #[pyo3(get, set)]
     pub snapshot_interval: f32,
-    #[pyo3(get, set)]
     pub tick_interval: f32,
-    #[pyo3(get, set)]
     pub lmdb_map_size: u64,
-    #[pyo3(get, set)]
     pub cluster_id: String,
-    #[pyo3(get, set)]
     pub terminate_on_remove: bool,
-    #[pyo3(get, set)]
     pub conf_change_request_timeout: f32,
 }
 

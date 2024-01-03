@@ -2,6 +2,7 @@ import abc
 from dataclasses import dataclass
 from typing import Any, Callable, Final, Optional
 
+# TODO: Make these abstract types available in the Python side.
 class AbstractLogEntry(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def encode(self) -> bytes:
@@ -18,13 +19,19 @@ class AbstractStateMachine(metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    async def apply(self, message: bytes) -> bytes:
+    def apply(self, message: bytes) -> bytes:
         raise NotImplementedError
     @abc.abstractmethod
-    async def snapshot(self) -> bytes:
+    def snapshot(self) -> bytes:
         raise NotImplementedError
     @abc.abstractmethod
-    async def restore(self, snapshot: bytes) -> None:
+    def restore(self, snapshot: bytes) -> None:
+        raise NotImplementedError
+    @abc.abstractmethod
+    def encode(self) -> bytes:
+        raise NotImplementedError
+    @classmethod
+    def decode(cls, packed: bytes) -> "AbstractStateMachine":
         raise NotImplementedError
 
 class Raft:

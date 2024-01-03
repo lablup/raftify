@@ -10,7 +10,6 @@ mod bindings;
 fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<bindings::config::PyConfig>()?;
     m.add_class::<bindings::raft_rs::config::PyRaftConfig>()?;
-    m.add_class::<bindings::state_machine::PyFSM>()?;
     m.add_class::<bindings::raft_facade::PyRaftFacade>()?;
     m.add_class::<bindings::peers::PyPeers>()?;
     m.add_class::<bindings::raft_client::PyRaftServiceClient>()?;
