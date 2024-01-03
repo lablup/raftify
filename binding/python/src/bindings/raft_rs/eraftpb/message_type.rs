@@ -2,7 +2,7 @@ use pyo3::{exceptions::PyRuntimeError, prelude::*, pyclass::CompareOp};
 use raftify::raft::eraftpb::MessageType;
 
 #[derive(Clone)]
-#[pyclass(name = "MessageType")]
+#[pyclass(frozen, name = "MessageType")]
 pub struct PyMessageType(pub MessageType);
 
 impl From<PyMessageType> for MessageType {

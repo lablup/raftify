@@ -1,10 +1,9 @@
-use pyo3::types::PyDict;
 use pyo3::{
     prelude::*,
     types::{PyBytes, PyList},
+    types::PyDict,
 };
-use raftify::raft::derializer::format_confchangev2;
-use raftify::raft::eraftpb::ConfChangeV2;
+use raftify::raft::{derializer::format_confchangev2, eraftpb::ConfChangeV2};
 
 use super::{
     conf_change_single::PyConfChangeSingle, conf_change_transition::PyConfChangeTransition,

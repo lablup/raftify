@@ -9,7 +9,7 @@ use std::{collections::HashMap, hash::BuildHasherDefault};
 use super::utils::new_py_list;
 
 #[derive(Clone)]
-#[pyclass(name = "Peers")]
+#[pyclass(dict, name = "Peers")]
 pub struct PyPeers {
     pub inner: Peers,
 }

@@ -1,5 +1,4 @@
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::{prelude::*, types::PyDict};
 use raftify::raft::eraftpb::ConfChangeSingle;
 
 use super::conf_change_type::PyConfChangeType;

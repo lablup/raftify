@@ -2,7 +2,7 @@ use pyo3::{exceptions::PyRuntimeError, prelude::*, pyclass::CompareOp};
 use raftify::raft::eraftpb::EntryType;
 
 #[derive(Clone)]
-#[pyclass(name = "EntryType")]
+#[pyclass(frozen, name = "EntryType")]
 pub struct PyEntryType(pub EntryType);
 
 impl From<PyEntryType> for EntryType {

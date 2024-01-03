@@ -17,9 +17,6 @@ install-release:
 clean:
 	cargo clean
 
-test:
-	python -m pytest
-
 fmt:
 	cargo fmt
 

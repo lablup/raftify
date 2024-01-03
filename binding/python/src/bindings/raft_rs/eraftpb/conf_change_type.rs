@@ -2,7 +2,7 @@ use pyo3::{exceptions::PyException, prelude::*, pyclass::CompareOp};
 use raftify::raft::eraftpb::ConfChangeType;
 
 #[derive(Clone)]
-#[pyclass(name = "ConfChangeType")]
+#[pyclass(frozen, name = "ConfChangeType")]
 pub struct PyConfChangeType(pub ConfChangeType);
 
 impl From<PyConfChangeType> for ConfChangeType {
