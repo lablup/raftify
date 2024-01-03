@@ -15,9 +15,9 @@ open-doc:
 	cargo doc --no-deps --open
 
 unit-test:
-	cargo test
+	cd raftify && cargo test && cd ../
 
-test:
+integration-test:
 	cd harness && make test && cd ../
 
 install-cli:

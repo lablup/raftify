@@ -30,7 +30,7 @@ jobs:
       run: |
         make build
         make unit-test
-        make test
+        make integration-test
 
     - name: Set up Python
       uses: actions/setup-python@v3

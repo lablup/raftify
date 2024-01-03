@@ -1,5 +1,4 @@
-use raftify::cli::cli_handler;
-use raftify::Result;
+use raftify::{Result, cli::cli_handler};
 
 use memstore::state_machine::{HashStore, LogEntry};
 
