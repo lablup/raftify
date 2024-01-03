@@ -939,7 +939,7 @@ dependencies = [
 
 [[package]]
 name = "harness"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1343,7 +1343,7 @@ dependencies = [
 
 [[package]]
 name = "memstore"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1825,7 +1825,7 @@ dependencies = [
 
 [[package]]
 name = "raftify"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "async-trait",
  "bincode",
@@ -1850,7 +1850,7 @@ dependencies = [
 
 [[package]]
 name = "raftify-py"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "async-trait",
  "bincode",

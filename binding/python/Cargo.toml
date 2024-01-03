@@ -1,27 +1,27 @@
 [package]
 name = "raftify-py"
-version = "0.1.0"
-authors = ["Lablup Inc."]
-license = "Apache-2.0"
-repository = "https://github.com/lablup/raftify"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+description.workspace = true
 readme = "./README.md"
-homepage = "https://github.com/lablup/raftify"
-description = """
-Experimental Async Raft framework for Python application
-"""
-keywords = ["raft", "distributed-systems", "consensus-algorithm", "replication", "distributed-database"]
-categories = ["distributed-systems", "database-implementations"]
-edition = "2021"
 
 [features]
 default = []
 include-python-workspace = []
 
 [dependencies]
+raftify.workspace = true
+
 pyo3 = { git = "https://github.com/jopemachine/pyo3", features = ["extension-module", "multiple-pymethods"] }
 tokio = { version = "1.4", features = ["full"] }
 async-trait = "0.1.48"
-raftify = { path = "../../", default-features = false }
 slog = { version = "2.2", features = ["max_level_trace", "release_max_level_trace"] }
 slog-envlogger = "2.1.0"
 slog-term = "2.9.0"

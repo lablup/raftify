@@ -1,5 +1,5 @@
 [package]
-name = "memstore"
+name = "raftify"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -8,30 +8,26 @@ repository.workspace = true
 description.workspace = true
 keywords.workspace = true
 
-[[bin]]
-name = "raftify-cli"
-path = "src/cli/main.rs"
-
-[[bin]]
-name = "raftify-client-example"
-path = "src/client/main.rs"
-
 [dependencies]
-raftify.workspace = true
-
-actix-rt = "2.0"
-actix-web = "4.0.0"
 async-trait = "0.1.48"
 bincode = "1.3"
+bytes = "1.5.0"
+heed = "0.20.0-alpha.9"
+heed-traits = "0.20.0-alpha.9"
 log = { version = "0.4", features = ["std"] }
+parking_lot = "0.12.1"
+prost = "0.11"
+raft = { git = "https://github.com/jopemachine/raft-rs", features = ["prost-codec", "default-logger"], default-features = false }
 serde = { version = "1.0", features = ["derive"] }
-slog-async = "2"
-slog-term = "2"
+serde_json = "1.0"
 slog = "2"
 slog-stdlog = "4"
-slog-scope = "4.4"
-slog-envlogger = "2.2"
-env_logger = "0.8"
-structopt = "0.3"
+thiserror = "1.0"
 tokio = { version = "1.4", features = ["full"] }
-toml = "0.8.8"
+tonic = "0.9.2"
+built = "0.5"
+clap = "3.0"
+
+[build-dependencies]
+tonic-build = "0.9.2"
+built = "0.5"
