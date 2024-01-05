@@ -1,4 +1,7 @@
-use pyo3::{prelude::*, types::{PyBytes, PyDict}};
+use pyo3::{
+    prelude::*,
+    types::{PyBytes, PyDict},
+};
 use raftify::raft::{derializer::format_entry, eraftpb::Entry};
 
 use super::entry_type::PyEntryType;

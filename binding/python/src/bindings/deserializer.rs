@@ -4,9 +4,9 @@ use once_cell::sync::Lazy;
 use prost::Message as PMessage;
 use pyo3::{prelude::*, types::PyBytes, PyObject, Python};
 use raftify::raft::{
+    derializer::{format_confchange, format_confchangev2},
     derializer::{Bytes, CustomDeserializer},
     eraftpb::{ConfChange, ConfChangeV2},
-    derializer::{format_confchange, format_confchangev2},
 };
 
 pub struct PythonDeserializer;

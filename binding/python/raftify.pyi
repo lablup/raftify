@@ -104,7 +104,7 @@ class RaftNode:
 
 class ClusterJoinTicket:
     """ """
-
+    def __init__(self, reserved_id: int, leader_id: int, leader_addr: str, peers: "Peers") -> None: ...
     def get_reserved_id(self) -> int:
         """ """
 
