@@ -13,6 +13,7 @@ fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<bindings::peers::PyPeers>()?;
     m.add_class::<bindings::raft_client::PyRaftServiceClient>()?;
     m.add_class::<bindings::raft_node::PyRaftNode>()?;
+    m.add_class::<bindings::cluster_join_ticket::PyClusterJoinTicket>()?;
 
     m.add_class::<bindings::raft_rs::eraftpb::conf_change_single::PyConfChangeSingle>()?;
     m.add_class::<bindings::raft_rs::eraftpb::conf_change_transition::PyConfChangeTransition>()?;
