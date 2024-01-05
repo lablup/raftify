@@ -157,7 +157,7 @@ class RaftNode:
         """ """
     async def quit(self) -> None:
         """ """
-    async def get_cluster_size(self) -> None:
+    async def get_cluster_size(self) -> int:
         """ """
     async def store(self) -> AbstractStateMachine:
         """ """
@@ -266,21 +266,24 @@ class RaftConfig:
         :param max_committed_size_per_ready: Max size for committed entries in a `Ready`.
         """
 
-@dataclass
 class Config:
     """ """
-
-    raft_config: RaftConfig
-    log_dir: str
-    save_compacted_logs: bool
-    compacted_log_dir: str
-    compacted_log_size_threshold: int
-    snapshot_interval: float
-    tick_interval: float
-    lmdb_map_size: int
-    cluster_id: int
-    terminate_on_remove: bool
-    conf_change_request_timeout: float
+    def __init__(
+        self,
+        *,
+        raft_config: Optional[RaftConfig] = None,
+        log_dir: Optional[str] = None,
+        save_compacted_logs: Optional[bool] = None,
+        compacted_log_dir: Optional[str] = None,
+        compacted_log_size_threshold: Optional[int] = None,
+        snapshot_interval: Optional[float] = None,
+        tick_interval: Optional[float] = None,
+        lmdb_map_size: Optional[int] = None,
+        cluster_id: Optional[int] = None,
+        terminate_on_remove: Optional[bool] = None,
+        conf_change_request_timeout: Optional[float] = None,
+    ) -> None:
+        """ """
 
 class RaftServiceClient:
     """ """

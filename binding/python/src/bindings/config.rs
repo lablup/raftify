@@ -23,7 +23,7 @@ pub struct PyConfig {
 impl PyConfig {
     #[new]
     pub fn new(
-        raft_config: PyRaftConfig,
+        raft_config: Option<PyRaftConfig>,
         log_dir: Option<String>,
         save_compacted_logs: Option<bool>,
         compacted_log_dir: Option<String>,
@@ -37,6 +37,7 @@ impl PyConfig {
     ) -> Self {
         let cfg = Config::default();
 
+        let raft_config = raft_config.unwrap_or(PyRaftConfig { inner: cfg.raft_config });
         let log_dir = log_dir.unwrap_or(cfg.log_dir);
         let save_compacted_logs = save_compacted_logs.unwrap_or(cfg.save_compacted_logs);
         let compacted_log_dir = compacted_log_dir.unwrap_or(cfg.compacted_log_dir);
