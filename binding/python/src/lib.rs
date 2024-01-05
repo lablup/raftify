@@ -16,6 +16,7 @@ fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<bindings::logger::PyLogger>()?;
     m.add_class::<bindings::logger::PyOverflowStrategy>()?;
     m.add_class::<bindings::cluster_join_ticket::PyClusterJoinTicket>()?;
+    m.add_class::<bindings::raft_rs::readonly_option::PyReadOnlyOption>()?;
 
     m.add_class::<bindings::raft_rs::eraftpb::conf_change_single::PyConfChangeSingle>()?;
     m.add_class::<bindings::raft_rs::eraftpb::conf_change_transition::PyConfChangeTransition>()?;

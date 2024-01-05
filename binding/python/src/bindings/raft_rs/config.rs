@@ -1,6 +1,8 @@
 use pyo3::prelude::*;
 use raftify::raft::Config;
 
+use super::readonly_option::PyReadOnlyOption;
+
 fn format_config<T: Into<Config>>(cfg: T) -> String {
     let cfg: Config = cfg.into();
 
@@ -63,7 +65,7 @@ impl PyRaftConfig {
         pre_vote: Option<bool>,
         min_election_tick: Option<usize>,
         max_election_tick: Option<usize>,
-        // read_only_option: Option<&PyReadOnlyOption>,
+        read_only_option: Option<&PyReadOnlyOption>,
         skip_bcast_commit: Option<bool>,
         batch_append: Option<bool>,
         priority: Option<i64>,
@@ -88,7 +90,7 @@ impl PyRaftConfig {
         config.pre_vote = pre_vote.unwrap_or(config.pre_vote);
         config.priority = priority.unwrap_or(config.priority);
         config.skip_bcast_commit = skip_bcast_commit.unwrap_or(config.skip_bcast_commit);
-        // config.read_only_option = read_only_option.map_or(config.read_only_option, |opt| opt.0);
+        config.read_only_option = read_only_option.map_or(config.read_only_option, |opt| opt.0);
 
         PyRaftConfig { inner: config }
     }
@@ -181,13 +183,13 @@ impl PyRaftConfig {
         self.inner.pre_vote = pre_vote;
     }
 
-    // pub fn get_read_only_option(&self) -> bool {
-    //     self.inner.read_only_option
-    // }
+    pub fn get_read_only_option(&self) -> PyReadOnlyOption {
+        self.inner.read_only_option.into()
+    }
 
-    // pub fn set_read_only_option(&mut self, read_only_option: bool) {
-    //     self.inner.read_only_option = read_only_option;
-    // }
+    pub fn set_read_only_option(&mut self, read_only_option: PyReadOnlyOption) {
+        self.inner.read_only_option = read_only_option.into();
+    }
 
     pub fn get_skip_bcast_commit(&self) -> bool {
         self.inner.skip_bcast_commit

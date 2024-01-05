@@ -4,10 +4,11 @@ use pyo3::{prelude::*, types::PyString};
 use raftify::raft::default_logger;
 use slog::*;
 use slog_async::OverflowStrategy;
-
-use sloggers::file::FileLoggerBuilder;
-use sloggers::types::{Severity, SourceLocation};
-use sloggers::Build;
+use sloggers::{
+    file::FileLoggerBuilder,
+    types::{Severity, SourceLocation},
+    Build,
+};
 
 #[pyclass(name = "OverflowStrategy")]
 pub struct PyOverflowStrategy(pub OverflowStrategy);
@@ -123,9 +124,7 @@ impl PyLogger {
     }
 
     pub fn info(&mut self, s: &PyString) {
-        let print = || {
-            info!(self.inner, "{}", format!("{}", s))
-        };
+        let print = || info!(self.inner, "{}", format!("{}", s));
 
         match self.mode {
             LoggerMode::Stdout => {
@@ -137,9 +136,7 @@ impl PyLogger {
     }
 
     pub fn debug(&mut self, s: &PyString) {
-        let print = || {
-            debug!(self.inner, "{}", format!("{}", s))
-        };
+        let print = || debug!(self.inner, "{}", format!("{}", s));
 
         match self.mode {
             LoggerMode::Stdout => {
@@ -151,9 +148,7 @@ impl PyLogger {
     }
 
     pub fn trace(&mut self, s: &PyString) {
-        let print = || {
-            trace!(self.inner, "{}", format!("{}", s))
-        };
+        let print = || trace!(self.inner, "{}", format!("{}", s));
 
         match self.mode {
             LoggerMode::Stdout => {
@@ -165,9 +160,7 @@ impl PyLogger {
     }
 
     pub fn error(&mut self, s: &PyString) {
-        let print = || {
-            error!(self.inner, "{}", format!("{}", s))
-        };
+        let print = || error!(self.inner, "{}", format!("{}", s));
 
         match self.mode {
             LoggerMode::Stdout => {
@@ -179,9 +172,7 @@ impl PyLogger {
     }
 
     pub fn crit(&mut self, s: &PyString) {
-        let print = || {
-            crit!(self.inner, "{}", format!("{}", s))
-        };
+        let print = || crit!(self.inner, "{}", format!("{}", s));
 
         match self.mode {
             LoggerMode::Stdout => {

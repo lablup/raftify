@@ -34,6 +34,24 @@ class AbstractStateMachine(metaclass=abc.ABCMeta):
     def decode(cls, packed: bytes) -> "AbstractStateMachine":
         raise NotImplementedError
 
+class ReadOnlyOption:
+    """Determines the relative safety of and consistency of read only requests."""
+
+    Safe: Final[Any]
+    """
+    Safe guarantees the linearizability of the read only request by
+    communicating with the quorum. It is the default and suggested option.
+    """
+
+    LeaseBased: Final[Any]
+    """
+    LeaseBased ensures linearizability of the read only request by
+    relying on the leader lease. It can be affected by clock drift.
+    If the clock drift is unbounded, leader might keep the lease longer than it
+    should (clock can move backward/pause without any bound). ReadIndex is not safe
+    in that case.
+    """
+
 class Logger:
     """ """
 
@@ -182,7 +200,7 @@ class RaftConfig:
         pre_vote: Optional[bool] = None,
         min_election_tick: Optional[int] = None,
         max_election_tick: Optional[int] = None,
-        # read_only_option: Optional["ReadOnlyOption"] = None,
+        read_only_option: Optional["ReadOnlyOption"] = None,
         skip_bcast_commit: Optional[bool] = None,
         batch_append: Optional[bool] = None,
         priority: Optional[int] = None,
