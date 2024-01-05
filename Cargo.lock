@@ -875,7 +875,7 @@ dependencies = [
 
 [[package]]
 name = "harness"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1226,7 +1226,7 @@ checksum = "f665ee40bc4a3c5590afb1e9677db74a508659dfd71e126420da8274909a0167"
 
 [[package]]
 name = "memstore"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1606,7 +1606,7 @@ dependencies = [
 
 [[package]]
 name = "raftify"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "async-trait",
  "bincode",

@@ -20,5 +20,8 @@ unit-test:
 integration-test:
 	cd harness && make test && cd ../
 
-publish:
+publish-rs:
 	cargo publish -p raftify --allow-dirty --no-verify
+
+publish-py:
+	cd bindings/python && make publish && cd ../../
