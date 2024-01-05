@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use pyo3::{prelude::*, types::PyString};
-use raftify::{raft::default_logger, ClusterJoinTicket, Raft, Result};
+use raftify::{ClusterJoinTicket, Raft, Result};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
@@ -10,6 +10,7 @@ use super::config::PyConfig;
 use super::errors::WrongArgumentError;
 use super::peers::PyPeers;
 use super::raft_node::PyRaftNode;
+use super::logger::PyLogger;
 use super::state_machine::{PyFSM, PyLogEntry};
 
 lazy_static! {
@@ -39,15 +40,14 @@ impl PyRaftFacade {
         addr: &PyString,
         fsm: PyObject,
         config: PyConfig,
+        logger: PyLogger,
         initial_peers: Option<PyPeers>,
-        // logger: PyObject,
     ) -> PyResult<Self> {
         let fsm = PyFSM::new(fsm);
-        let logger = default_logger();
         let addr = addr.to_string();
         let initial_peers = initial_peers.map(|peers| peers.inner);
 
-        let raft = Raft::build(node_id, addr, fsm, config.into(), logger, initial_peers).unwrap();
+        let raft = Raft::build(node_id, addr, fsm, config.into(), logger.inner, initial_peers).unwrap();
 
         Ok(Self {
             raft,

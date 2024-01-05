@@ -13,6 +13,8 @@ from raftify import (
     Peers,
     Raft,
     RaftConfig,
+    Logger,
+    OverflowStrategy,
     set_confchange_context_deserializer,
     set_confchangev2_context_deserializer,
     set_entry_context_deserializer,
@@ -200,6 +202,7 @@ async def main():
     peers = load_peers() if not ignore_static_bootstrap else None
 
     cfg = build_config()
+    logger = Logger.default()
     store = HashStore()
     tasks = []
 
@@ -210,7 +213,7 @@ async def main():
         else:
             node_id = peers.get_node_id_by_addr(raft_addr)
 
-        raft = Raft.build(node_id, raft_addr, store, cfg, peers)
+        raft = Raft.build(node_id, raft_addr, store, cfg, logger, peers)
         await raft.run()
 
         if not peers:
@@ -221,7 +224,7 @@ async def main():
             raft.prepare_member_bootstrap_ready(leader_addr, node_id)
             await raft.member_bootstrap_ready()
     else:
-        raft = Raft.build(1, raft_addr, store, cfg, peers)
+        raft = Raft.build(1, raft_addr, store, cfg, logger, peers)
         await raft.run()
 
     tasks.append(asyncio.create_task(wait_for_termination(raft)))

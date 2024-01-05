@@ -34,6 +34,73 @@ class AbstractStateMachine(metaclass=abc.ABCMeta):
     def decode(cls, packed: bytes) -> "AbstractStateMachine":
         raise NotImplementedError
 
+class OverflowStrategy:
+    """ """
+
+    Block: Final[Any]
+    """
+    The caller is blocked until there's enough space.
+    """
+
+    Drop: Final[Any]
+    """
+    The message gets dropped silently.
+    """
+
+    DropAndReport: Final[Any]
+    """
+    The message gets dropped and a message with number of dropped is produced once there's
+    space.
+
+    This is the default.
+
+    Note that the message with number of dropped messages takes one slot in the channel as
+    well.
+    """
+
+class Logger:
+    """ """
+
+    def __init__(
+        self, chan_size: int, overflow_strategy: "OverflowStrategy"
+    ) -> None: ...
+    @staticmethod
+    def default() -> "Logger": ...
+    @staticmethod
+    def new_file_logger(
+        log_path: str, chan_size: int, rotate_size: int, rotate_keep: int
+    ): ...
+    def info(self, s: str) -> None:
+        """
+        Log info level record
+
+        See `slog_log` for documentation.
+        """
+    def debug(self, s: str) -> None:
+        """
+        Log debug level record
+
+        See `slog_debug` for documentation.
+        """
+    def trace(self, s: str) -> None:
+        """
+        Log trace level record
+
+        See `slog_trace` for documentation.
+        """
+    def crit(self, s: str) -> None:
+        """
+        Log crit level record
+
+        See `slog_crit` for documentation.
+        """
+    def error(self, s: str) -> None:
+        """
+        Log error level record
+
+        See `slog_error` for documentation.
+        """
+
 class Raft:
     def __init__(self) -> None:
         """ """
@@ -43,6 +110,7 @@ class Raft:
         raft_addr: str,
         fsm: AbstractStateMachine,
         config: "Config",
+        logger: "Logger",
         initial_peers: Optional["Peers"] = None,
     ) -> "Raft":
         """ """
@@ -104,7 +172,10 @@ class RaftNode:
 
 class ClusterJoinTicket:
     """ """
-    def __init__(self, reserved_id: int, leader_id: int, leader_addr: str, peers: "Peers") -> None: ...
+
+    def __init__(
+        self, reserved_id: int, leader_id: int, leader_addr: str, peers: "Peers"
+    ) -> None: ...
     def get_reserved_id(self) -> int:
         """ """
 
