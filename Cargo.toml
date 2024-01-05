@@ -12,12 +12,10 @@ default-members = [
 ]
 
 [workspace.package]
-version = "0.1.12"
+version = "0.1.13"
 authors = ["Lablup Inc."]
 edition = "2021"
-description = """
-Experimental High level Raft framework
-"""
+description = "Experimental High level Raft framework"
 license = "MIT/Apache-2.0"
 repository = "https://github.com/lablup/raftify"
 keywords = ["raft", "distributed-systems", "ha"]
