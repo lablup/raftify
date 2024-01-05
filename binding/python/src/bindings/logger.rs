@@ -71,15 +71,10 @@ pub struct PyLogger {
 #[pymethods]
 impl PyLogger {
     #[new]
-    pub fn new(chan_size: usize, overflow_strategy: &PyOverflowStrategy) -> Self {
+    pub fn new() -> Self {
         let decorator = slog_term::TermDecorator::new().build();
-        let drain = slog_term::FullFormat::new(decorator).build().fuse();
-
-        let drain = slog_async::Async::new(drain)
-            .chan_size(chan_size)
-            .overflow_strategy(overflow_strategy.0)
-            .build()
-            .fuse();
+        let drain = slog_term::CompactFormat::new(decorator).build();
+        let drain = std::sync::Mutex::new(drain).fuse();
 
         let logger = slog::Logger::root(drain, o!());
 

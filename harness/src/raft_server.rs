@@ -17,8 +17,8 @@ pub static RAFTS: Lazy<Mutex<HashMap<u64, Raft>>> = Lazy::new(|| Mutex::new(Hash
 
 fn build_logger(node_id: u64) -> slog::Logger {
     let decorator = slog_term::TermDecorator::new().build();
-    let drain = slog_term::FullFormat::new(decorator).build().fuse();
-    let drain = slog_async::Async::new(drain).build().fuse();
+    let drain = slog_term::CompactFormat::new(decorator).build();
+    let drain = std::sync::Mutex::new(drain).fuse();
 
     let mut builder = LogBuilder::new(drain);
     builder = builder.filter(None, slog::FilterLevel::Debug);

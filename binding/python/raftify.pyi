@@ -34,36 +34,10 @@ class AbstractStateMachine(metaclass=abc.ABCMeta):
     def decode(cls, packed: bytes) -> "AbstractStateMachine":
         raise NotImplementedError
 
-class OverflowStrategy:
-    """ """
-
-    Block: Final[Any]
-    """
-    The caller is blocked until there's enough space.
-    """
-
-    Drop: Final[Any]
-    """
-    The message gets dropped silently.
-    """
-
-    DropAndReport: Final[Any]
-    """
-    The message gets dropped and a message with number of dropped is produced once there's
-    space.
-
-    This is the default.
-
-    Note that the message with number of dropped messages takes one slot in the channel as
-    well.
-    """
-
 class Logger:
     """ """
 
-    def __init__(
-        self, chan_size: int, overflow_strategy: "OverflowStrategy"
-    ) -> None: ...
+    def __init__(self) -> None: ...
     @staticmethod
     def default() -> "Logger": ...
     @staticmethod
