@@ -24,4 +24,4 @@ publish-rs:
 	cargo publish -p raftify --allow-dirty --no-verify
 
 publish-py:
-	cd bindings/python && make publish && cd ../../
+	cd binding/python && make publish && cd ../../
