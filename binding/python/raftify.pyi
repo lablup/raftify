@@ -1,5 +1,4 @@
 import abc
-from dataclasses import dataclass
 from typing import Any, Callable, Final, Optional
 
 # TODO: Make these abstract types available in the Python side.
