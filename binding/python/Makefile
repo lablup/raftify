@@ -6,9 +6,9 @@ install:
 	pip install .
 
 install-cli:
-	cd cli
+	cd examples/cli
 	pip install .
-	cd ..
+	cd ../../
 
 install-release:
 	maturin build --release --strip

@@ -36,7 +36,7 @@ impl PyPeers {
     }
 
     pub fn to_dict(&self, py: Python) -> PyResult<PyObject> {
-        let mut dict = PyDict::new(py);
+        let dict = PyDict::new(py);
 
         for (node_id, peer) in self.inner.iter() {
             dict.set_item(node_id, peer.addr.to_string())?;
