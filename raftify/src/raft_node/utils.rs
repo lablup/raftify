@@ -115,8 +115,8 @@ pub fn inspect_raftnode<T: LogStore>(raw_node: &RawNode<T>) -> Result<String> {
                         "recent_active": pr.recent_active,
                         "commit_group_id": pr.commit_group_id,
                         "committed_index": pr.committed_index,
-                        // "ins": pr.ins,
-                        // "state": pr.state,
+                        "ins": format!("{:?}", pr.ins),
+                        "state": format!("{}", pr.state),
                     }),
                 );
             })
