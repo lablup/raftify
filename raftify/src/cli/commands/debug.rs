@@ -1,6 +1,5 @@
 use serde_json::Value;
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use crate::create_client;
 use crate::raft::derializer::{format_entry, format_snapshot};

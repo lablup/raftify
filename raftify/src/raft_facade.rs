@@ -1,7 +1,9 @@
 use bincode::deserialize;
-use std::collections::HashMap;
-use std::net::{SocketAddr, ToSocketAddrs};
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    net::{SocketAddr, ToSocketAddrs},
+    time::Duration,
+};
 use tokio::{
     signal,
     sync::{mpsc, oneshot},

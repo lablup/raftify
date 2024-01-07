@@ -1,11 +1,15 @@
 use bincode::serialize;
-use std::net::{SocketAddr, ToSocketAddrs};
-use std::time::Duration;
-use tokio::sync::{
-    mpsc,
-    oneshot::{self, Receiver},
+use std::{
+    net::{SocketAddr, ToSocketAddrs},
+    time::Duration,
 };
-use tokio::time::timeout;
+use tokio::{
+    sync::{
+        mpsc,
+        oneshot::{self, Receiver},
+    },
+    time::timeout,
+};
 use tonic::{transport::Server, Request, Response, Status};
 
 use super::raft_service::{

@@ -1,14 +1,18 @@
 use bincode::{deserialize, serialize};
-use heed::types::{Bytes as HeedBytes, Str as HeedStr};
-use heed::{Database, Env};
+use heed::{
+    types::{Bytes as HeedBytes, Str as HeedStr},
+    Database, Env,
+};
 use heed_traits::{BoxedError, BytesDecode, BytesEncode};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use prost::Message as PMessage;
-use std::borrow::Cow;
-use std::cmp::max;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::{fmt, fs};
+use std::{
+    borrow::Cow,
+    cmp::max,
+    fmt, fs,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use super::constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_KEY};
 use super::utils::{append_to_json_file, format_entry_key_string};
