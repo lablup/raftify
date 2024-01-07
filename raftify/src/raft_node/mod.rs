@@ -4,14 +4,16 @@ pub mod utils;
 
 use bincode::{deserialize, serialize};
 use prost::Message as PMessage;
-use std::collections::HashMap;
-use std::marker::PhantomData;
-use std::net::{SocketAddr, ToSocketAddrs};
-use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    Arc,
+use std::{
+    collections::HashMap,
+    marker::PhantomData,
+    net::{SocketAddr, ToSocketAddrs},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::{Duration, Instant},
 };
-use std::time::{Duration, Instant};
 use tokio::{
     sync::{mpsc, oneshot, Mutex},
     time::interval,
