@@ -4,13 +4,14 @@ use tokio::time::sleep;
 
 use harness::{
     constant::{RAFT_ADDRS, THREE_NODE_EXAMPLE},
-    raft_server::{handle_bootstrap, run_rafts, spawn_extra_node, RAFTS},
+    raft_server::{handle_bootstrap, run_rafts, setup_test, spawn_extra_node, RAFTS},
     state_machine::LogEntry,
     utils::{load_peers, wait_for_until_cluster_size_increase},
 };
 
 #[tokio::test]
 pub async fn test_data_replication() {
+    setup_test();
     {
         let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
         let _raft_tasks = tokio::spawn(run_rafts(peers.clone()));

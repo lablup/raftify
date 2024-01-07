@@ -3,7 +3,7 @@ use tokio::time::sleep;
 
 use harness::{
     constant::{FIVE_NODE_EXAMPLE, THREE_NODE_EXAMPLE},
-    raft_server::{handle_bootstrap, run_rafts, RAFTS},
+    raft_server::{handle_bootstrap, run_rafts, setup_test, RAFTS},
     utils::{
         load_peers, wait_for_until_cluster_size_decrease, wait_for_until_cluster_size_increase,
     },
@@ -11,6 +11,7 @@ use harness::{
 
 #[tokio::test]
 pub async fn test_leader_election_in_three_node_example() {
+    setup_test();
     let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
     let _raft_tasks = tokio::spawn(run_rafts(peers.clone()));
 
@@ -44,6 +45,7 @@ pub async fn test_leader_election_in_three_node_example() {
 #[tokio::test]
 #[ignore]
 pub async fn test_leader_election_in_five_node_example() {
+    setup_test();
     let peers = load_peers(FIVE_NODE_EXAMPLE).await.unwrap();
     let _raft_tasks = tokio::spawn(run_rafts(peers.clone()));
 
