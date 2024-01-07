@@ -1,5 +1,6 @@
-use memstore::state_machine::LogEntry;
 use raftify::{create_client, raft_service, AbstractLogEntry};
+
+use memstore_example_harness::state_machine::LogEntry;
 
 // A simple set of commands to test and show usage of RaftServiceClient.
 // Please bootstrap the Raft cluster before call this function.

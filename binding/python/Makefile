@@ -6,9 +6,9 @@ install:
 	pip install .
 
 install-cli:
-	cd examples/cli
+	cd cli
 	pip install .
-	cd ../../
+	cd ..
 
 install-release:
 	maturin build --release --strip
@@ -28,5 +28,5 @@ lint-fix-py:
 	python -m black **/*.py
 
 publish:
-	maturin build --release --strip
+	maturin build
 	maturin publish

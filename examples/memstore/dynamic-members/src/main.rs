@@ -4,18 +4,15 @@ extern crate slog_async;
 extern crate slog_scope;
 extern crate slog_term;
 
-use memstore::{
-    config::build_config,
+use example_harness::config::build_config;
+use memstore_example_harness::{
     state_machine::{HashStore, LogEntry},
-    utils::load_peers,
+    web_server_api::{get, leader_id, put},
 };
-use raftify::{
-    raft::derializer::set_custom_deserializer, AbstractLogEntry, ClusterJoinTicket, MyDeserializer,
-    Raft as Raft_,
-};
+use raftify::{raft::derializer::set_custom_deserializer, MyDeserializer, Raft as Raft_};
 use slog::Drain;
 
-use actix_web::{get, web, App, HttpServer, Responder};
+use actix_web::{web, App, HttpServer};
 use slog_envlogger::LogBuilder;
 use structopt::StructOpt;
 // use slog_envlogger::LogBuilder;
@@ -30,44 +27,6 @@ struct Options {
     peer_addr: Option<String>,
     #[structopt(long)]
     web_server: Option<String>,
-    #[structopt(
-        long,
-        help = "Ignore cluster_config.toml's peers and bootstrap a new cluster"
-    )]
-    ignore_static_bootstrap: bool,
-}
-
-#[get("/put/{id}/{name}")]
-async fn put(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, String)>) -> impl Responder {
-    let log_entry = LogEntry::Insert {
-        key: path.0,
-        value: path.1.clone(),
-    };
-    data.1.raft_node.propose(log_entry.encode().unwrap()).await;
-
-    "OK".to_string()
-}
-
-#[get("/get/{id}")]
-async fn get(data: web::Data<(HashStore, Raft)>, path: web::Path<u64>) -> impl Responder {
-    let id = path.into_inner();
-
-    let response = data.0.get(id);
-    format!("{:?}", response)
-}
-
-#[get("/leader")]
-async fn leader_id(data: web::Data<(HashStore, Raft)>) -> impl Responder {
-    let raft = data.clone();
-    let leader_id = raft.1.raft_node.get_leader_id().await.to_string();
-    format!("{:?}", leader_id)
-}
-
-#[get("/leave")]
-async fn leave(data: web::Data<(HashStore, Raft)>) -> impl Responder {
-    let raft = data.clone();
-    raft.1.raft_node.clone().leave().await;
-    "OK".to_string()
 }
 
 #[actix_rt::main]
@@ -95,31 +54,14 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let options = Options::from_args();
     let store = HashStore::new();
 
-    let peers = match options.ignore_static_bootstrap {
-        true => None,
-        false => {
-            let peers = load_peers().await?;
-            Some(peers)
-        }
-    };
-
     let cfg = build_config();
 
     let (raft, raft_handle) = match options.peer_addr {
         Some(peer_addr) => {
             log::info!("Running in Follower mode");
 
-            let mut request_id_resp: Option<ClusterJoinTicket> = None;
-
-            let node_id = match peers {
-                Some(ref peers) => peers
-                    .get_node_id_by_addr(options.raft_addr.clone())
-                    .unwrap(),
-                None => {
-                    request_id_resp = Raft::request_id(peer_addr.clone()).await.ok();
-                    request_id_resp.to_owned().unwrap().reserved_id
-                }
-            };
+            let ticket = Raft::request_id(peer_addr.clone()).await.unwrap();
+            let node_id = ticket.reserved_id;
 
             let raft = Raft::build(
                 node_id,
@@ -127,20 +69,11 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 store.clone(),
                 cfg,
                 logger.clone(),
-                peers.clone(),
+                None,
             )?;
 
             let handle = tokio::spawn(raft.clone().run());
-
-            if let Some(request_id_resp) = request_id_resp {
-                raft.join(request_id_resp).await;
-            } else if let Some(peers) = peers {
-                let leader_addr = peers.get(&1).unwrap().addr;
-                Raft::member_bootstrap_ready(leader_addr, node_id).await?;
-            } else {
-                unreachable!()
-            }
-
+            raft.join(ticket).await;
             (raft, handle)
         }
         None => {
@@ -152,7 +85,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 store.clone(),
                 cfg,
                 logger.clone(),
-                peers,
+                None,
             )?;
             let handle = tokio::spawn(raft.clone().run());
             (raft, handle)

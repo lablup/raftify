@@ -1,6 +1,6 @@
 use raftify::{cli::cli_handler, Result};
 
-use memstore::state_machine::{HashStore, LogEntry};
+use memstore_example_harness::state_machine::{HashStore, LogEntry};
 
 #[tokio::main]
 async fn main() -> Result<()> {

@@ -2,12 +2,18 @@
 resolver = "2"
 members = [
     "raftify",
+    "examples",
     "examples/memstore",
+    "examples/memstore/dynamic-members",
+    "examples/memstore/static-members",
     "harness"
 ]
 default-members = [
     "raftify",
+    "examples",
     "examples/memstore",
+    "examples/memstore/dynamic-members",
+    "examples/memstore/static-members",
     "harness"
 ]
 
@@ -24,3 +30,5 @@ homepage = "https://github.com/lablup/raftify"
 
 [workspace.dependencies]
 raftify = { path = "raftify" }
+example-harness = { path = "examples" }
+memstore-example-harness = { path = "examples/memstore" }

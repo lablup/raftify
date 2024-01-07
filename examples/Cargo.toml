@@ -1,5 +1,5 @@
 [package]
-name = "memstore-example-harness"
+name = "example-harness"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -10,10 +10,3 @@ keywords.workspace = true
 
 [dependencies]
 raftify.workspace = true
-
-actix-rt = "2.0"
-actix-web = "4.0.0"
-async-trait = "0.1.48"
-bincode = "1.3"
-log = { version = "0.4", features = ["std"] }
-serde = { version = "1.0", features = ["derive"] }

@@ -1,0 +1,39 @@
+[package]
+name = "memstore-dynamic-members"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description.workspace = true
+keywords.workspace = true
+
+[[bin]]
+name = "raftify-cli"
+path = "src/cli/main.rs"
+
+[[bin]]
+name = "raftify-client-example"
+path = "src/client/main.rs"
+
+[dependencies]
+raftify.workspace = true
+example-harness.workspace = true
+memstore-example-harness.workspace = true
+
+actix-rt = "2.0"
+actix-web = "4.0.0"
+async-trait = "0.1.48"
+bincode = "1.3"
+log = { version = "0.4", features = ["std"] }
+serde = { version = "1.0", features = ["derive"] }
+slog-async = "2"
+slog-term = "2"
+slog = "2"
+slog-stdlog = "4"
+slog-scope = "4.4"
+slog-envlogger = "2.2"
+env_logger = "0.8"
+structopt = "0.3"
+tokio = { version = "1.4", features = ["full"] }
+toml = "0.8.8"

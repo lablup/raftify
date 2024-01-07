@@ -687,6 +687,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "example-harness"
+version = "0.1.14"
+dependencies = [
+ "raftify",
+]
+
+[[package]]
 name = "fixedbitset"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1225,7 +1232,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f665ee40bc4a3c5590afb1e9677db74a508659dfd71e126420da8274909a0167"
 
 [[package]]
-name = "memstore"
+name = "memstore-dynamic-members"
 version = "0.1.14"
 dependencies = [
  "actix-rt",
@@ -1233,7 +1240,47 @@ dependencies = [
  "async-trait",
  "bincode",
  "env_logger",
+ "example-harness",
  "log",
+ "memstore-example-harness",
+ "raftify",
+ "serde",
+ "slog",
+ "slog-async",
+ "slog-envlogger",
+ "slog-scope",
+ "slog-stdlog",
+ "slog-term",
+ "structopt",
+ "tokio",
+ "toml 0.8.8",
+]
+
+[[package]]
+name = "memstore-example-harness"
+version = "0.1.14"
+dependencies = [
+ "actix-rt",
+ "actix-web",
+ "async-trait",
+ "bincode",
+ "log",
+ "raftify",
+ "serde",
+]
+
+[[package]]
+name = "memstore-static-members"
+version = "0.1.14"
+dependencies = [
+ "actix-rt",
+ "actix-web",
+ "async-trait",
+ "bincode",
+ "env_logger",
+ "example-harness",
+ "log",
+ "memstore-example-harness",
  "raftify",
  "serde",
  "slog",
