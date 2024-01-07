@@ -1,7 +1,3 @@
-use crate::raft::{
-    derializer::{format_confchange, format_confchangev2, Bytes, CustomDeserializer},
-    eraftpb::{ConfChange, ConfChangeV2},
-};
 use bincode::deserialize;
 use prost::Message as PMessage;
 use std::fmt::Debug;
@@ -9,6 +5,10 @@ use std::marker::PhantomData;
 use std::net::SocketAddr;
 
 use super::{AbstractLogEntry, AbstractStateMachine};
+use crate::raft::{
+    derializer::{format_confchange, format_confchangev2, Bytes, CustomDeserializer},
+    eraftpb::{ConfChange, ConfChangeV2},
+};
 
 pub struct MyDeserializer<
     LogEntry: AbstractLogEntry + Debug + 'static,

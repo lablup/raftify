@@ -1,11 +1,14 @@
+use std::collections::HashMap;
+
 use actix_web::{get, web, Responder};
 use raftify::{AbstractLogEntry, Raft as Raft_};
+use serde_json::Value;
 
 use super::state_machine::{HashStore, LogEntry};
 
 type Raft = Raft_<LogEntry, HashStore>;
 
-#[get("/put/{id}/{name}")]
+#[get("/put/{id}/{value}")]
 async fn put(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, String)>) -> impl Responder {
     let log_entry = LogEntry::Insert {
         key: path.0,
@@ -36,4 +39,12 @@ async fn leave(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
     raft.1.raft_node.clone().leave().await;
     "OK".to_string()
+}
+
+#[get("/debug")]
+async fn debug(data: web::Data<(HashStore, Raft)>) -> impl Responder {
+    let raft = data.clone();
+    let json = raft.1.raft_node.clone().inspect().await.unwrap();
+    let parsed: HashMap<String, Value> = serde_json::from_str(&json).unwrap();
+    format!("{:?}", parsed)
 }

@@ -1267,6 +1267,8 @@ dependencies = [
  "log",
  "raftify",
  "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

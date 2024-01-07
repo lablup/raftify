@@ -8,14 +8,6 @@ repository.workspace = true
 description.workspace = true
 keywords.workspace = true
 
-[[bin]]
-name = "raftify-cli"
-path = "src/cli/main.rs"
-
-[[bin]]
-name = "raftify-client-example"
-path = "src/client/main.rs"
-
 [dependencies]
 raftify.workspace = true
 example-harness.workspace = true

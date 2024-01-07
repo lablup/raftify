@@ -1,10 +1,10 @@
-use crate::raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 use tokio::sync::oneshot::Sender;
 
 use super::{
     response_message::{LocalResponseMsg, ServerResponseMsg},
     AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket,
 };
+use crate::raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 
 // Request type processed through network calls (grpc)
 pub enum ServerRequestMsg {

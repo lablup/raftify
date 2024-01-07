@@ -7,7 +7,7 @@ extern crate slog_term;
 use example_harness::config::build_config;
 use memstore_example_harness::{
     state_machine::{HashStore, LogEntry},
-    web_server_api::{get, leader_id, put},
+    web_server_api::{debug, get, leader_id, leave, put},
 };
 use raftify::{raft::derializer::set_custom_deserializer, MyDeserializer, Raft as Raft_};
 use slog::Drain;
@@ -99,7 +99,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .app_data(web::Data::new((store.clone(), raft.clone())))
                     .service(put)
                     .service(get)
-                    // .service(leave)
+                    .service(leave)
+                    .service(debug)
                     .service(leader_id)
             })
             .bind(addr)

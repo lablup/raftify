@@ -1,5 +1,6 @@
-use crate::raft::Config as RaftConfig;
 use std::fmt;
+
+use crate::raft::Config as RaftConfig;
 
 #[derive(Clone)]
 pub struct Config {

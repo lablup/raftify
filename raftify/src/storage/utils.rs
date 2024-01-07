@@ -1,4 +1,3 @@
-use crate::raft::{derializer::format_entry, eraftpb::Entry};
 use serde_json::{json, Value};
 use std::{
     fmt::Write as StdWrite,
@@ -8,6 +7,7 @@ use std::{
 };
 
 use super::constant::ENTRY_KEY_LENGTH;
+use crate::raft::{derializer::format_entry, eraftpb::Entry};
 use crate::Result;
 
 pub fn get_storage_path(log_dir: &str, node_id: u64) -> Result<PathBuf> {

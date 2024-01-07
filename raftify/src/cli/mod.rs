@@ -1,12 +1,13 @@
 include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
-use crate::raft::{default_logger, derializer::set_custom_deserializer};
-use crate::{AbstractLogEntry, AbstractStateMachine, MyDeserializer, Result};
+mod commands;
+
 use clap::{App, Arg, SubCommand};
 use commands::debug::{debug_entries, debug_node, debug_persisted};
 use std::fmt::Debug;
 
-mod commands;
+use crate::raft::{default_logger, derializer::set_custom_deserializer};
+use crate::{AbstractLogEntry, AbstractStateMachine, MyDeserializer, Result};
 
 pub async fn cli_handler<
     LogEntry: AbstractLogEntry + Debug + Send + 'static,

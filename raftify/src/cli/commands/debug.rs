@@ -1,7 +1,10 @@
+use serde_json::Value;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::create_client;
 use crate::raft::derializer::{format_entry, format_snapshot};
+use crate::raft_node::utils::format_debugging_info;
 use crate::raft_service;
 use crate::Config;
 use crate::HeedStorage;
@@ -37,7 +40,10 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
 pub async fn debug_node(addr: &str) -> Result<()> {
     let mut client = create_client(&addr).await.unwrap();
     let response = client.debug_node(raft_service::Empty {}).await.unwrap();
-    println!("{}", response.into_inner().result);
+    let json = response.into_inner().result;
+    let parsed: HashMap<String, Value> = serde_json::from_str(&json).unwrap();
+
+    println!("{}", format_debugging_info(&parsed));
     Ok(())
 }
 

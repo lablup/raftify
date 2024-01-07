@@ -1,6 +1,6 @@
 mod bootstrap;
 mod response_sender;
-mod utils;
+pub mod utils;
 
 use bincode::{deserialize, serialize};
 use prost::Message as PMessage;
