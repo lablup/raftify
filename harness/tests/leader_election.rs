@@ -1,17 +1,16 @@
 use std::time::Duration;
-use tokio::time::sleep;
+use tokio::time::{sleep, timeout};
 
 use harness::{
     constant::{FIVE_NODE_EXAMPLE, THREE_NODE_EXAMPLE},
     raft_server::{handle_bootstrap, run_rafts, RAFTS},
     utils::{
-        load_peers, wait_for_until_cluster_size_decrease, wait_for_until_cluster_size_increase, setup_test,
+        load_peers, wait_for_until_cluster_size_decrease, wait_for_until_cluster_size_increase,
     },
 };
 
 #[tokio::test]
 pub async fn test_leader_election_in_three_node_example() {
-    setup_test();
     let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
     let _raft_tasks = tokio::spawn(run_rafts(peers.clone()));
 
@@ -35,7 +34,21 @@ pub async fn test_leader_election_in_three_node_example() {
     wait_for_until_cluster_size_decrease(raft_2.clone(), 2).await;
 
     let leader_id = raft_2.raft_node.get_leader_id().await;
-    assert!([2, 3].contains(&leader_id), "Actual leader_id: {}", leader_id);
+
+    let timer = timeout(Duration::from_secs(3), async {
+        while leader_id == 0 {
+            sleep(Duration::from_secs(1)).await;
+        }
+    })
+    .await;
+
+    assert!(timer.is_ok());
+
+    assert!(
+        [2, 3].contains(&leader_id),
+        "Actual leader_id: {}",
+        leader_id
+    );
 
     raft_2.raft_node.quit().await;
     let raft_3 = rafts.get_mut(&3).unwrap();
@@ -45,7 +58,6 @@ pub async fn test_leader_election_in_three_node_example() {
 #[tokio::test]
 #[ignore]
 pub async fn test_leader_election_in_five_node_example() {
-    setup_test();
     let peers = load_peers(FIVE_NODE_EXAMPLE).await.unwrap();
     let _raft_tasks = tokio::spawn(run_rafts(peers.clone()));
 
@@ -70,7 +82,11 @@ pub async fn test_leader_election_in_five_node_example() {
 
     let leader_id = raft_2.raft_node.get_leader_id().await;
 
-    assert!([2, 3, 4, 5].contains(&leader_id), "Actual leader_id: {}", leader_id);
+    assert!(
+        [2, 3, 4, 5].contains(&leader_id),
+        "Actual leader_id: {}",
+        leader_id
+    );
 
     let leader_raft = rafts.get_mut(&leader_id).unwrap();
     leader_raft.raft_node.leave().await;

@@ -21,11 +21,11 @@ mod utils;
 pub mod cli;
 pub mod raft_service;
 
+pub use async_trait::async_trait;
 pub use deserializer::CustomDeserializer;
 pub use jopemachine_raft as raft;
 pub use raft::Config as RaftConfig;
 pub use tonic;
-pub use async_trait::async_trait;
 pub use tonic::transport::Channel;
 
 pub use crate::config::Config;

@@ -57,6 +57,8 @@ fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
 }
 
 pub async fn run_rafts(peers: Peers) -> Result<()> {
+    set_custom_deserializer(CustomDeserializer::<LogEntry, HashStore>::new());
+
     let mut raft_handles = vec![];
 
     for (node_id, _) in peers.iter() {
