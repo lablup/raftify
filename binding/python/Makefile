@@ -1,6 +1,9 @@
 build:
 	maturin build
 
+build-release:
+	maturin build --release --strip
+
 install:
 	maturin build
 	pip install .
@@ -11,7 +14,7 @@ install-cli:
 	cd ..
 
 install-release:
-	maturin build --release --strip
+	make build-release
 	pip install .
 
 clean:
@@ -28,5 +31,5 @@ lint-fix-py:
 	python -m black **/*.py
 
 publish:
-	maturin build
+	maturin build-release
 	maturin publish
