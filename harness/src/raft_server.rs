@@ -17,7 +17,7 @@ pub type Raft = Raft_<LogEntry, HashStore>;
 
 pub static RAFTS: Lazy<Mutex<HashMap<u64, Raft>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
-fn build_logger(node_id: u64) -> slog::Logger {
+fn build_logger(_node_id: u64) -> slog::Logger {
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::CompactFormat::new(decorator).build();
     let drain = std::sync::Mutex::new(drain).fuse();
@@ -30,8 +30,7 @@ fn build_logger(node_id: u64) -> slog::Logger {
     }
     let drain = builder.build();
 
-    let pid = std::process::id();
-    slog::Logger::root(drain, o!("Node ID" => node_id, "PID" => pid))
+    slog::Logger::root(drain, o!())
 }
 
 fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
@@ -55,10 +54,6 @@ fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
     let raft_handle = tokio::spawn(raft.clone().run());
 
     Ok(raft_handle)
-}
-
-pub fn setup_test() {
-    set_custom_deserializer(CustomDeserializer::<LogEntry, HashStore>::new());
 }
 
 pub async fn run_rafts(peers: Peers) -> Result<()> {

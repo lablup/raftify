@@ -3,8 +3,8 @@ use tokio::time::sleep;
 
 use harness::{
     constant::{ONE_NODE_EXAMPLE, RAFT_ADDRS, THREE_NODE_EXAMPLE},
-    raft_server::{handle_bootstrap, run_rafts, setup_test, spawn_extra_node, RAFTS},
-    utils::{load_peers, wait_for_until_cluster_size_increase},
+    raft_server::{handle_bootstrap, run_rafts, spawn_extra_node, RAFTS},
+    utils::{load_peers, wait_for_until_cluster_size_increase, setup_test},
 };
 
 #[tokio::test]

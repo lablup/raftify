@@ -523,8 +523,6 @@ impl HeedStorageCore {
             })
             .collect();
 
-        println!("Entries!!!: {:?}", entries);
-
         Ok(entries)
     }
 

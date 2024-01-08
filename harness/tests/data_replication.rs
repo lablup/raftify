@@ -4,9 +4,9 @@ use tokio::time::sleep;
 
 use harness::{
     constant::{RAFT_ADDRS, THREE_NODE_EXAMPLE},
-    raft_server::{handle_bootstrap, run_rafts, setup_test, spawn_extra_node, RAFTS},
+    raft_server::{handle_bootstrap, run_rafts, spawn_extra_node, RAFTS},
     state_machine::LogEntry,
-    utils::{load_peers, wait_for_until_cluster_size_increase},
+    utils::{load_peers, wait_for_until_cluster_size_increase, setup_test},
 };
 
 #[tokio::test]

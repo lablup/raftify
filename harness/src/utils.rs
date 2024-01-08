@@ -1,4 +1,5 @@
-use raftify::Peers;
+use raftify::{Peers, CustomDeserializer};
+use raftify::raft::derializer::set_custom_deserializer;
 use serde::Deserialize;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -7,6 +8,7 @@ use tokio::time::sleep;
 use toml;
 
 use crate::raft_server::Raft;
+use crate::state_machine::{LogEntry, HashStore};
 
 #[derive(Deserialize, Debug)]
 pub struct TomlRaftPeer {
@@ -69,4 +71,8 @@ pub async fn wait_for_until_cluster_size_decrease(raft: Raft, target: usize) {
 
     // Wait for the conf_change reflected to the cluster
     sleep(Duration::from_secs_f32(1.0)).await;
+}
+
+pub fn setup_test() {
+    set_custom_deserializer(CustomDeserializer::<LogEntry, HashStore>::new());
 }
