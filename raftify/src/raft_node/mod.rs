@@ -1198,6 +1198,12 @@ impl<
                 })
                 .unwrap();
             }
+            ServerRequestMsg::GetPeers { chan } => {
+                chan.send(ServerResponseMsg::GetPeers {
+                    peers: self.get_peers().await,
+                })
+                .unwrap();
+            }
         }
 
         Ok(())

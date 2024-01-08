@@ -277,4 +277,28 @@ impl RaftService for RaftServer {
             code: raft_service::ResultCode::Ok as i32,
         }))
     }
+
+    async fn get_peers(
+        &self,
+        request: Request<raft_service::Empty>,
+    ) -> Result<Response<raft_service::GetPeersResponse>, Status> {
+        let _request_args = request.into_inner();
+        let (tx, rx) = oneshot::channel();
+        let sender = self.snd.clone();
+        match sender
+            .send(ServerRequestMsg::GetPeers { chan: tx })
+            .await
+        {
+            Ok(_) => (),
+            Err(_) => self.print_send_error(function_name!()),
+        }
+        let response = rx.await.unwrap();
+
+        match response {
+            ServerResponseMsg::GetPeers { peers } => {
+                Ok(Response::new(raft_service::GetPeersResponse { peers_json: peers.to_json() }))
+            },
+            _ => unreachable!(),
+        }
+    }
 }

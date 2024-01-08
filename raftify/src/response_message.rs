@@ -62,6 +62,7 @@ pub enum ServerResponseMsg {
     RequestId { result: RequestIdResponseResult },
     ReportUnreachable { result: ResponseResult },
     DebugNode { result: String },
+    GetPeers { peers: Peers },
     SendMessage { result: ResponseResult },
 }
 

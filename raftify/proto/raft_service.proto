@@ -10,8 +10,11 @@ service RaftService {
   rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
   rpc Propose(ProposeArgs) returns (Empty) {}
   rpc SendMessage(eraftpb.Message) returns (Empty) {}
+  rpc GetPeers(Empty) returns (GetPeersResponse) {}
   rpc DebugNode(Empty) returns (DebugNodeResponse) {}
 }
+
+message Empty {}
 
 enum ResultCode {
   Ok            = 0;
@@ -23,6 +26,12 @@ enum ResultCode {
 
 message ProposeArgs {
   bytes msg     = 1;
+}
+
+// Used in GetPeers
+
+message GetPeersResponse {
+  string peers_json = 1;
 }
 
 // Used in Static Member's Bootstrap
@@ -44,13 +53,6 @@ message RequestIdResponse{
   string leader_addr             = 3;
   uint64 reserved_id             = 4;
   bytes peers                    = 5;
-}
-
-message Empty {}
-
-message Entry {
-  uint64 key    = 1; 
-  string value  = 2;
 }
 
 // Config Change

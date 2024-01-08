@@ -38,6 +38,10 @@ impl Peers {
         }
     }
 
+    pub fn to_json(&self) -> String {
+        serde_json::to_string(&self.inner).unwrap()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }

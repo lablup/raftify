@@ -21,6 +21,14 @@ async fn main() {
         .await
         .unwrap();
 
+    println!("---Get peers---");
+    let peers = leader_client
+        .get_peers(raft_service::Empty {})
+        .await
+        .unwrap();
+
+    println!("Peers: {:?}", peers.into_inner().peers_json);
+
     // println!("---Debug node result---");
     // let result = leader_client.debug_node(raft_service::Empty {}).await.unwrap().into_inner().result;
     // println!("Debug node result: {:?}", result);
