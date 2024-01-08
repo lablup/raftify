@@ -846,7 +846,7 @@ impl<
 
             let peer = peers.get_mut(node_id).expect("Peer not found!");
 
-            // Connection error, but try to bootstrap.
+            // ???
             if let Err(err) = peer.connect().await {
                 slog::error!(
                     self.logger,
@@ -854,6 +854,7 @@ impl<
                     node_id,
                     err
                 );
+                return Err(err);
             }
 
             let response = peer
@@ -1119,7 +1120,8 @@ impl<
             ServerRequestMsg::ClusterBootstrapReady { chan } => {
                 slog::info!(
                     self.logger,
-                    "All initial nodes (peers) requested to join cluster. Start to bootstrap process..."
+                    "Node {} received the ClusterBootstrapReady message that all initial nodes's join requests collected. Start to bootstrap process...", 
+                    self.get_id(),
                 );
                 chan.send(ServerResponseMsg::ClusterBootstrapReady {
                     result: ResponseResult::Success,
@@ -1151,7 +1153,7 @@ impl<
             ServerRequestMsg::SendMessage { message } => {
                 slog::debug!(
                     self.logger,
-                    "Node {} received Raft message from the node {}, Message: {}",
+                    "Node {} received Raft message from the node {}, {}",
                     self.raw_node.raft.id,
                     message.from,
                     format_message(&message)

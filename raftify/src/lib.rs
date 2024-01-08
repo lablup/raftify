@@ -20,12 +20,13 @@ mod utils;
 
 pub mod cli;
 pub mod raft_service;
-pub use deserializer::MyDeserializer;
-pub use jopemachine_raft as raft;
-pub use tonic;
 
-pub use crate::raft_facade::ClusterJoinTicket;
+pub use deserializer::CustomDeserializer;
+pub use jopemachine_raft as raft;
 pub use raft::Config as RaftConfig;
+pub use tonic;
+pub use async_trait::async_trait;
+pub use tonic::transport::Channel;
 
 pub use crate::config::Config;
 pub use crate::error::{Error, Result};
@@ -34,12 +35,12 @@ pub use crate::log_entry::AbstractLogEntry;
 pub use crate::peer::Peer;
 pub use crate::peers::Peers;
 pub use crate::raft_client::create_client;
+pub use crate::raft_facade::ClusterJoinTicket;
 pub use crate::raft_facade::Raft;
 pub use crate::raft_node::RaftNode;
 pub use crate::raft_service::raft_service_client::RaftServiceClient;
 pub use crate::state_machine::AbstractStateMachine;
-pub use crate::storage::heed::HeedStorage;
-pub use crate::storage::heed::LogStore;
-pub use async_trait::async_trait;
-pub use tonic::transport::Channel;
+pub use crate::storage::heed::{HeedStorage, LogStore};
+
 pub(crate) use utils::get_filesize;
+pub(crate) use utils::macro_utils;

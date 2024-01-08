@@ -1,7 +1,7 @@
 use futures::future;
 use once_cell::sync::Lazy;
 use raftify::{
-    raft::derializer::set_custom_deserializer, MyDeserializer, Peers, Raft as Raft_, Result,
+    raft::derializer::set_custom_deserializer, CustomDeserializer, Peers, Raft as Raft_, Result,
 };
 use slog::{o, Drain};
 use slog_envlogger::LogBuilder;
@@ -58,7 +58,7 @@ fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
 }
 
 pub fn setup_test() {
-    set_custom_deserializer(MyDeserializer::<LogEntry, HashStore>::new());
+    set_custom_deserializer(CustomDeserializer::<LogEntry, HashStore>::new());
 }
 
 pub async fn run_rafts(peers: Peers) -> Result<()> {

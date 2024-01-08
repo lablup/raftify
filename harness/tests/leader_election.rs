@@ -35,7 +35,7 @@ pub async fn test_leader_election_in_three_node_example() {
     wait_for_until_cluster_size_decrease(raft_2.clone(), 2).await;
 
     let leader_id = raft_2.raft_node.get_leader_id().await;
-    assert!([2, 3].contains(&leader_id));
+    assert!([2, 3].contains(&leader_id), "Actual leader_id: {}", leader_id);
 
     raft_2.raft_node.quit().await;
     let raft_3 = rafts.get_mut(&3).unwrap();
@@ -70,7 +70,7 @@ pub async fn test_leader_election_in_five_node_example() {
 
     let leader_id = raft_2.raft_node.get_leader_id().await;
 
-    assert!([2, 3, 4, 5].contains(&leader_id));
+    assert!([2, 3, 4, 5].contains(&leader_id), "Actual leader_id: {}", leader_id);
 
     let leader_raft = rafts.get_mut(&leader_id).unwrap();
     leader_raft.raft_node.leave().await;

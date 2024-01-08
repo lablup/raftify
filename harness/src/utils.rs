@@ -10,7 +10,7 @@ use crate::raft_server::Raft;
 
 #[derive(Deserialize, Debug)]
 pub struct TomlRaftPeer {
-    pub ip: String,
+    pub host: String,
     pub port: u16,
     pub node_id: u64,
 }
@@ -34,7 +34,7 @@ pub async fn load_peers(filename: &str) -> Result<Peers, Box<dyn std::error::Err
     let mut peers = Peers::with_empty();
 
     for peer_info in raft_config.raft.peers {
-        let addr = SocketAddr::new(peer_info.ip.parse().unwrap(), peer_info.port);
+        let addr = SocketAddr::new(peer_info.host.parse().unwrap(), peer_info.port);
         peers.add_peer(peer_info.node_id, addr);
     }
 

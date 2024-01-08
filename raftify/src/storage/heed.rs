@@ -496,6 +496,7 @@ impl HeedStorageCore {
 
         let iter = self.entries_db.range(reader, &(low_str..high_str))?;
         let max_size: Option<u64> = max_size.into();
+
         let mut size_count = 0;
         let mut buf = vec![];
         let mut should_not_filter = true;
@@ -521,6 +522,8 @@ impl HeedStorageCore {
                 None => true,
             })
             .collect();
+
+        println!("Entries!!!: {:?}", entries);
 
         Ok(entries)
     }

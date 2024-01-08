@@ -121,13 +121,13 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
                                 Ok(())
                             },
                             Err(err) => {
-                                slog::error!(self.logger, "RaftNode quitted with error. Shutting down... {:?}", err);
+                                slog::error!(self.logger, "RaftNode quitted with the error. Shutting down... {:?}", err);
                                 Err(Error::Other(Box::new(err)))
                             }
                         }
                     },
                     Err(err) => {
-                        slog::error!(self.logger, "RaftNode quitted with join error. Shutting down... {:?}", err);
+                        slog::error!(self.logger, "RaftNode quitted with the error. Shutting down... {:?}", err);
                         Err(Error::Unknown)
                     }
                 }
@@ -147,7 +147,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
                         }
                     },
                     Err(err) => {
-                        slog::error!(self.logger, "RaftServer quitted with join error. Shutting down... {:?}", err);
+                        slog::error!(self.logger, "RaftServer quitted with the error. Shutting down... {:?}", err);
                         Err(Error::Unknown)
                     }
                 }
@@ -211,7 +211,10 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
 
         match response.code() {
             ResultCode::Ok => {
-                println!("Member send the bootstrap ready request successfully.");
+                println!(
+                    "Node {} send the bootstrap ready request successfully.",
+                    node_id
+                );
             }
             ResultCode::Error => {
                 eprintln!("Failed to send the bootstrap ready request.");

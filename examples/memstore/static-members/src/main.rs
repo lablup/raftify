@@ -5,7 +5,7 @@ extern crate slog_scope;
 extern crate slog_term;
 
 use actix_web::{web, App, HttpServer};
-use raftify::{raft::derializer::set_custom_deserializer, MyDeserializer, Raft as Raft_};
+use raftify::{raft::derializer::set_custom_deserializer, CustomDeserializer, Raft as Raft_};
 use slog::Drain;
 use slog_envlogger::LogBuilder;
 use structopt::StructOpt;
@@ -46,7 +46,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let logger = slog::Logger::root(drain, o!());
 
-    set_custom_deserializer(MyDeserializer::<LogEntry, HashStore>::new());
+    set_custom_deserializer(CustomDeserializer::<LogEntry, HashStore>::new());
 
     // converts log to slog
     // let _scope_guard = slog_scope::set_global_logger(logger.clone());

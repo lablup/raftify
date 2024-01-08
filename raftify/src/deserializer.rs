@@ -4,11 +4,13 @@ use std::{fmt::Debug, marker::PhantomData, net::SocketAddr};
 
 use super::{AbstractLogEntry, AbstractStateMachine};
 use crate::raft::{
-    derializer::{format_confchange, format_confchangev2, Bytes, CustomDeserializer},
+    derializer::{
+        format_confchange, format_confchangev2, Bytes, CustomDeserializer as _CustomDeserializer,
+    },
     eraftpb::{ConfChange, ConfChangeV2},
 };
 
-pub struct MyDeserializer<
+pub struct CustomDeserializer<
     LogEntry: AbstractLogEntry + Debug + 'static,
     FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
 > {
@@ -19,7 +21,7 @@ pub struct MyDeserializer<
 impl<
         LogEntry: AbstractLogEntry + Debug,
         FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
-    > MyDeserializer<LogEntry, FSM>
+    > CustomDeserializer<LogEntry, FSM>
 {
     pub fn new() -> Self {
         Self {
@@ -32,7 +34,7 @@ impl<
 impl<
         LogEntry: AbstractLogEntry + Debug,
         FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
-    > Default for MyDeserializer<LogEntry, FSM>
+    > Default for CustomDeserializer<LogEntry, FSM>
 {
     fn default() -> Self {
         Self::new()
@@ -42,7 +44,7 @@ impl<
 impl<
         LogEntry: AbstractLogEntry + Debug,
         FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
-    > CustomDeserializer for MyDeserializer<LogEntry, FSM>
+    > _CustomDeserializer for CustomDeserializer<LogEntry, FSM>
 {
     fn entry_context_deserialize(&self, v: &Bytes) -> String {
         let v = match v {

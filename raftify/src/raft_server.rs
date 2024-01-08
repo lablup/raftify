@@ -19,7 +19,7 @@ use super::raft_service::{
 };
 use super::request_message::ServerRequestMsg;
 use super::response_message::{RequestIdResponseResult, ServerResponseMsg};
-use super::{function_name, Config, Error};
+use super::{macro_utils::function_name, Config, Error};
 use crate::raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 
 #[derive(Clone)]

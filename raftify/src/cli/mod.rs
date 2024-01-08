@@ -7,7 +7,7 @@ use commands::debug::{debug_entries, debug_node, debug_persisted};
 use std::fmt::Debug;
 
 use crate::raft::{default_logger, derializer::set_custom_deserializer};
-use crate::{AbstractLogEntry, AbstractStateMachine, MyDeserializer, Result};
+use crate::{AbstractLogEntry, AbstractStateMachine, CustomDeserializer, Result};
 
 pub async fn cli_handler<
     LogEntry: AbstractLogEntry + Debug + Send + 'static,
@@ -59,7 +59,7 @@ pub async fn cli_handler<
     };
 
     let logger = default_logger();
-    set_custom_deserializer(MyDeserializer::<LogEntry, FSM>::new());
+    set_custom_deserializer(CustomDeserializer::<LogEntry, FSM>::new());
 
     if let Some(("debug", debug_matches)) = matches.subcommand() {
         match debug_matches.subcommand() {

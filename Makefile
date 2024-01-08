@@ -14,6 +14,10 @@ open-doc:
 	make build
 	cargo doc --no-deps --open
 
+test:
+	make unit-test
+	make integration-test
+
 unit-test:
 	cd raftify && cargo test && cd ../
 
