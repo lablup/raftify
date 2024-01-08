@@ -14,7 +14,6 @@ from raftify import (
     Raft,
     RaftConfig,
     Logger,
-    OverflowStrategy,
     set_confchange_context_deserializer,
     set_confchangev2_context_deserializer,
     set_entry_context_deserializer,
