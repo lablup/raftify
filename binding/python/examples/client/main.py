@@ -32,6 +32,9 @@ async def main() -> None:
     client.prepare_propose(SetCommand("1", "A").encode())
     await client.propose()
 
+    peers_json = await client.get_peers()
+    print("Peers: ", peers_json)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

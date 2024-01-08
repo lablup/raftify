@@ -302,6 +302,8 @@ class RaftServiceClient:
         """ """
     async def propose(self) -> None:
         """ """
+    async def get_peers(self) -> dict[int, str]:
+        """ """
 
 def set_snapshot_data_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
     """ """
