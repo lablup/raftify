@@ -744,9 +744,9 @@ checksum = "b1a46d1a171d865aa5f83f92695765caa047a9b4cbae2cbf37dbd613a793fd4c"
 
 [[package]]
 name = "jopemachine-raft"
-version = "0.7.1"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c947d0f586d117685fbdb43f576ff05a753850a6f07b4a15f873ca6c00808a3"
+checksum = "5cb8dd2fdc3c3039499b8fd5e4fdf7e5898d3bb0e1df8ff7978847abe29bfafa"
 dependencies = [
  "bytes",
  "fxhash",
@@ -1294,9 +1294,9 @@ dependencies = [
 
 [[package]]
 name = "raftify"
-version = "0.1.21"
+version = "0.1.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba63c4a3f123eb1a2fbbcd1d0f084d5d5c6b699df0529a17bc59e2ddcae30957"
+checksum = "351ca8c26436d0a7a1a4c0d20f53b2c45b13f1194ac8e09c01cfe16f7caf6118"
 dependencies = [
  "async-trait",
  "bincode",
@@ -1321,7 +1321,7 @@ dependencies = [
 
 [[package]]
 name = "raftify-py"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "async-trait",
  "bincode",
