@@ -39,7 +39,7 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
 pub async fn debug_node(addr: &str) -> Result<()> {
     let mut client = create_client(&addr).await.unwrap();
     let response = client.debug_node(raft_service::Empty {}).await.unwrap();
-    let json = response.into_inner().result;
+    let json = response.into_inner().result_json;
     let parsed: HashMap<String, Value> = serde_json::from_str(&json).unwrap();
 
     println!("{}", format_debugging_info(&parsed));

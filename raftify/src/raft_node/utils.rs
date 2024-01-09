@@ -17,11 +17,17 @@ pub fn format_debugging_info(hashmap: &HashMap<String, Value>) -> String {
         .and_then(|v| v.as_u64())
         .expect(EXPECTED_FORMAT_NOT_EXIST);
 
+    let term = hashmap
+        .get("term")
+        .and_then(|v| v.as_u64())
+        .expect(EXPECTED_FORMAT_NOT_EXIST);
+
     let outline = format!(
         "========= Outline =========\n\
         node_id: {}\n\
-        leader_id: {}\n",
-        node_id, leader_id
+        leader_id: {}\n\
+        term: {}\n",
+        node_id, leader_id, term
     );
 
     let storage = hashmap
@@ -139,6 +145,7 @@ pub fn inspect_raftnode<T: LogStore>(raw_node: &RawNode<T>) -> Result<String> {
     let result = json!({
         "node_id": id,
         "leader_id": leader_id,
+        "term": raw_node.raft.term,
         "storage": {
             "hard_state": {
                 "term": hard_state.term,

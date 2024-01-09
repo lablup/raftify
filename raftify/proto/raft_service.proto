@@ -71,5 +71,5 @@ message ChangeConfigResponse {
 }
 
 message DebugNodeResponse {
-  string result = 1;
+  string result_json = 1;
 }

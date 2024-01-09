@@ -111,15 +111,26 @@ impl PyRaftServiceClient {
         }
     }
 
+    pub async fn debug_node(&mut self) -> PyResult<String> {
+        let response = self
+            .inner
+            .debug_node(raftify::raft_service::Empty {})
+            .await
+            .unwrap()
+            .into_inner();
+
+        return Ok(response.result);
+    }
+
     pub async fn get_peers(&mut self) -> PyResult<String> {
-        let result = self
+        let response = self
             .inner
             .get_peers(raftify::raft_service::Empty {})
             .await
             .unwrap()
             .into_inner();
 
-        return Ok(result.peers_json);
+        return Ok(response.peers_json);
     }
 }
 

@@ -209,7 +209,7 @@ impl<
         let resp = rx.await.unwrap();
 
         match resp {
-            LocalResponseMsg::DebugNode { result } => Ok(result),
+            LocalResponseMsg::DebugNode { result_json } => Ok(result_json),
             _ => unreachable!(),
         }
     }
@@ -1047,7 +1047,7 @@ impl<
             }
             LocalRequestMsg::DebugNode { chan } => {
                 chan.send(LocalResponseMsg::DebugNode {
-                    result: self.inspect().await?,
+                    result_json: self.inspect().await?,
                 })
                 .unwrap();
             }
@@ -1194,7 +1194,7 @@ impl<
             }
             ServerRequestMsg::DebugNode { chan } => {
                 chan.send(ServerResponseMsg::DebugNode {
-                    result: self.inspect().await?,
+                    result_json: self.inspect().await?,
                 })
                 .unwrap();
             }

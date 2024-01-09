@@ -35,6 +35,10 @@ impl PyPeers {
         Ok(format!("{:?}", self.inner))
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.inner.inner.is_empty()
+    }
+
     pub fn to_dict(&self, py: Python) -> PyResult<PyObject> {
         let dict = PyDict::new(py);
 

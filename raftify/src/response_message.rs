@@ -61,7 +61,7 @@ pub enum ServerResponseMsg {
     ConfigChange { result: ConfChangeResponseResult },
     RequestId { result: RequestIdResponseResult },
     ReportUnreachable { result: ResponseResult },
-    DebugNode { result: String },
+    DebugNode { result_json: String },
     GetPeers { peers: Peers },
     SendMessage { result: ResponseResult },
 }
@@ -79,7 +79,7 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
     Quit {},
     MakeSnapshot {},
     Propose {},
-    DebugNode { result: String },
+    DebugNode { result_json: String },
     JoinCluster {},
     SendMessage {},
     _Phantom(PhantomData<LogEntry>),
