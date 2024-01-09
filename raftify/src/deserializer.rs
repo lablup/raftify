@@ -4,8 +4,8 @@ use std::{fmt::Debug, marker::PhantomData, net::SocketAddr};
 
 use super::{AbstractLogEntry, AbstractStateMachine};
 use crate::raft::{
-    derializer::{
-        format_confchange, format_confchangev2, Bytes, CustomDeserializer as _CustomDeserializer,
+    deserializer::{
+        format_confchange, format_confchangev2, Bytes, CustomDeserializer as CustomDeserializer_,
     },
     eraftpb::{ConfChange, ConfChangeV2},
 };
@@ -44,7 +44,7 @@ impl<
 impl<
         LogEntry: AbstractLogEntry + Debug,
         FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
-    > _CustomDeserializer for CustomDeserializer<LogEntry, FSM>
+    > CustomDeserializer_ for CustomDeserializer<LogEntry, FSM>
 {
     fn entry_context_deserialize(&self, v: &Bytes) -> String {
         let v = match v {

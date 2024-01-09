@@ -1,7 +1,7 @@
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
-use crate::raft::{derializer::format_snapshot, RawNode};
+use crate::raft::{deserializer::format_snapshot, RawNode};
 use crate::{LogStore, Result};
 
 static EXPECTED_FORMAT_NOT_EXIST: &'static str = "Expected format not exist!";

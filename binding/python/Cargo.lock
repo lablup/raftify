@@ -1294,9 +1294,9 @@ dependencies = [
 
 [[package]]
 name = "raftify"
-version = "0.1.20"
+version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "698d57c573dc3452c301fd07a68744827d977925042e358b911997b13023deb8"
+checksum = "ba63c4a3f123eb1a2fbbcd1d0f084d5d5c6b699df0529a17bc59e2ddcae30957"
 dependencies = [
  "async-trait",
  "bincode",
@@ -1309,7 +1309,6 @@ dependencies = [
  "log",
  "parking_lot",
  "prost",
- "protobuf",
  "serde",
  "serde_json",
  "slog",
@@ -1317,6 +1316,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tonic",
+ "tonic-build",
 ]
 
 [[package]]
@@ -1923,6 +1923,19 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "tonic-build"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6fdaae4c2c638bb70fe42803a26fbd6fc6ac8c72f5c59f67ecc2a2dcabf4b07"
+dependencies = [
+ "prettyplease",
+ "proc-macro2",
+ "prost-build",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]

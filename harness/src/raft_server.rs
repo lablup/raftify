@@ -1,7 +1,7 @@
 use futures::future;
 use once_cell::sync::Lazy;
 use raftify::{
-    raft::derializer::set_custom_deserializer, CustomDeserializer, Peers, Raft as Raft_, Result,
+    raft::deserializer::set_custom_deserializer, CustomDeserializer, Peers, Raft as Raft_, Result,
 };
 use slog::{o, Drain};
 use slog_envlogger::LogBuilder;

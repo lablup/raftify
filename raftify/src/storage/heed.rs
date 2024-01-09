@@ -18,8 +18,7 @@ use super::constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_K
 use super::utils::{append_to_json_file, format_entry_key_string};
 use crate::config::Config;
 use crate::error::Result;
-use crate::raft;
-use crate::raft::{prelude::*, GetEntriesContext};
+use crate::raft::{self, prelude::*, GetEntriesContext};
 
 pub trait LogStore: Storage {
     fn append(&mut self, entries: &[Entry]) -> Result<()>;

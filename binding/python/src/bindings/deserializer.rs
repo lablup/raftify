@@ -4,7 +4,7 @@ use once_cell::sync::Lazy;
 use prost::Message as PMessage;
 use pyo3::{prelude::*, types::PyBytes, PyObject, Python};
 use raftify::raft::{
-    derializer::{format_confchange, format_confchangev2, Bytes, CustomDeserializer},
+    deserializer::{format_confchange, format_confchangev2, Bytes, CustomDeserializer},
     eraftpb::{ConfChange, ConfChangeV2},
 };
 

@@ -6,7 +6,7 @@ use clap::{App, Arg, SubCommand};
 use commands::debug::{debug_entries, debug_node, debug_persisted};
 use std::fmt::Debug;
 
-use crate::raft::{default_logger, derializer::set_custom_deserializer};
+use crate::raft::{default_logger, deserializer::set_custom_deserializer};
 use crate::{AbstractLogEntry, AbstractStateMachine, CustomDeserializer, Result};
 
 pub async fn cli_handler<

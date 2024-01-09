@@ -25,7 +25,7 @@ use utils::inspect_raftnode;
 
 use crate::error::{Result, SendMessageError};
 use crate::raft::{
-    derializer::{format_confchangev2, format_message},
+    deserializer::{format_confchangev2, format_message},
     eraftpb::{
         ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2, Entry, EntryType,
         Message as RaftMessage, Snapshot,

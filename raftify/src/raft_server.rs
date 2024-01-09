@@ -285,10 +285,7 @@ impl RaftService for RaftServer {
         let _request_args = request.into_inner();
         let (tx, rx) = oneshot::channel();
         let sender = self.snd.clone();
-        match sender
-            .send(ServerRequestMsg::GetPeers { chan: tx })
-            .await
-        {
+        match sender.send(ServerRequestMsg::GetPeers { chan: tx }).await {
             Ok(_) => (),
             Err(_) => self.print_send_error(function_name!()),
         }
@@ -296,8 +293,10 @@ impl RaftService for RaftServer {
 
         match response {
             ServerResponseMsg::GetPeers { peers } => {
-                Ok(Response::new(raft_service::GetPeersResponse { peers_json: peers.to_json() }))
-            },
+                Ok(Response::new(raft_service::GetPeersResponse {
+                    peers_json: peers.to_json(),
+                }))
+            }
             _ => unreachable!(),
         }
     }

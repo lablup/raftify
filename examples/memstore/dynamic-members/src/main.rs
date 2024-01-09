@@ -9,7 +9,7 @@ use memstore_example_harness::{
     state_machine::{HashStore, LogEntry},
     web_server_api::{debug, get, leader_id, leave, put},
 };
-use raftify::{raft::derializer::set_custom_deserializer, CustomDeserializer, Raft as Raft_};
+use raftify::{raft::deserializer::set_custom_deserializer, CustomDeserializer, Raft as Raft_};
 use slog::Drain;
 
 use actix_web::{web, App, HttpServer};

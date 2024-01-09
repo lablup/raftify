@@ -5,7 +5,7 @@ extern crate slog_scope;
 extern crate slog_term;
 
 use actix_web::{web, App, HttpServer};
-use raftify::{raft::derializer::set_custom_deserializer, CustomDeserializer, Raft as Raft_};
+use raftify::{raft::deserializer::set_custom_deserializer, CustomDeserializer, Raft as Raft_};
 use slog::Drain;
 use slog_envlogger::LogBuilder;
 use structopt::StructOpt;

@@ -3,7 +3,7 @@ use pyo3::{
     types::PyDict,
     types::{PyBytes, PyList},
 };
-use raftify::raft::{derializer::format_confchangev2, eraftpb::ConfChangeV2};
+use raftify::raft::{deserializer::format_confchangev2, eraftpb::ConfChangeV2};
 
 use super::{
     conf_change_single::PyConfChangeSingle, conf_change_transition::PyConfChangeTransition,
