@@ -91,7 +91,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --release -m binding/python/Cargo.toml -o dist -- --universal2 -i python${{ matrix.python-version }}
+          args: --release -m binding/python/Cargo.toml -o dist -i python${{ matrix.python-version }}
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
