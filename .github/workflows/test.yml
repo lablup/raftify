@@ -38,8 +38,8 @@ jobs:
         python-version: "3.11.4"
 
     - name: Build and Check Python harness tests all pass
-      working-directory: /binding/python
       run: |
+        cd ./binding/python
         pip3 install -r requirements.txt
         make install
         cd ./tests
