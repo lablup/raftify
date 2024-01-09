@@ -119,7 +119,7 @@ impl PyRaftServiceClient {
             .unwrap()
             .into_inner();
 
-        return Ok(response.result);
+        return Ok(response.result_json);
     }
 
     pub async fn get_peers(&mut self) -> PyResult<String> {
