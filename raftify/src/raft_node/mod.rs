@@ -23,28 +23,28 @@ use tonic::Request;
 use response_sender::ResponseSender;
 use utils::inspect_raftnode;
 
-use crate::error::{Result, SendMessageError};
-use crate::raft::{
-    deserializer::{format_confchangev2, format_message},
-    eraftpb::{
-        ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2, Entry, EntryType,
-        Message as RaftMessage, Snapshot,
-    },
-    raw_node::RawNode,
-};
-use crate::raft_node::bootstrap::bootstrap_peers;
-use crate::raft_service::{self, ChangeConfigResultType, ResultCode};
-use crate::request_message::{LocalRequestMsg, SelfMessage, ServerRequestMsg};
-use crate::response_message::{
-    ConfChangeResponseResult, LocalResponseMsg, RequestIdResponseResult, ResponseMessage,
-    ResponseResult, ServerResponseMsg,
-};
-use crate::storage::{
-    heed::{HeedStorage, LogStore},
-    utils::get_storage_path,
-};
-use crate::utils::{to_confchange_v2, OneShotMutex};
 use crate::{
+    error::{Result, SendMessageError},
+    raft::{
+        deserializer::{format_confchangev2, format_message},
+        eraftpb::{
+            ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2, Entry, EntryType,
+            Message as RaftMessage, Snapshot,
+        },
+        raw_node::RawNode,
+    },
+    raft_node::bootstrap::bootstrap_peers,
+    raft_service::{self, ChangeConfigResultType, ResultCode},
+    request_message::{LocalRequestMsg, SelfMessage, ServerRequestMsg},
+    response_message::{
+        ConfChangeResponseResult, LocalResponseMsg, RequestIdResponseResult, ResponseMessage,
+        ResponseResult, ServerResponseMsg,
+    },
+    storage::{
+        heed::{HeedStorage, LogStore},
+        utils::get_storage_path,
+    },
+    utils::{is_near_zero, to_confchange_v2, OneShotMutex},
     AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket, Config, Error, Peers,
     RaftServiceClient,
 };
@@ -684,8 +684,10 @@ impl<
             }
         }
 
-        if Instant::now()
-            > self.last_snapshot_created + Duration::from_secs_f32(self.config.snapshot_interval)
+        if !is_near_zero(self.config.snapshot_interval)
+            && Instant::now()
+                > self.last_snapshot_created
+                    + Duration::from_secs_f32(self.config.snapshot_interval)
         {
             self.make_snapshot(entry.index, entry.term).await?;
         }

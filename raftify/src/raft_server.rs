@@ -229,7 +229,9 @@ impl RaftService for RaftServer {
         let response = rx.await.unwrap();
         match response {
             ServerResponseMsg::DebugNode { result_json } => {
-                Ok(Response::new(raft_service::DebugNodeResponse { result_json }))
+                Ok(Response::new(raft_service::DebugNodeResponse {
+                    result_json,
+                }))
             }
             _ => unreachable!(),
         }

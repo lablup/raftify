@@ -3,13 +3,15 @@ use prost::Message as PMessage;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::error::Result;
-use crate::raft::{
-    eraftpb::{ConfChange, ConfChangeType, Entry, EntryType},
-    raw_node::RawNode,
+use crate::{
+    error::Result,
+    raft::{
+        eraftpb::{ConfChange, ConfChangeType, Entry, EntryType},
+        raw_node::RawNode,
+    },
+    storage::heed::LogStore,
+    Peers,
 };
-use crate::storage::heed::LogStore;
-use crate::Peers;
 
 /// Commit the configuration change to add all follower nodes to the cluster.
 pub async fn bootstrap_peers<T: LogStore>(

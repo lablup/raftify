@@ -43,4 +43,5 @@ pub use crate::state_machine::AbstractStateMachine;
 pub use crate::storage::heed::{HeedStorage, LogStore};
 
 pub(crate) use utils::get_filesize;
+pub(crate) use utils::is_near_zero;
 pub(crate) use utils::macro_utils;
