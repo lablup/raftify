@@ -9,6 +9,11 @@ jobs:
   release-linux-x86_64:
     if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: /binding/python
+
     strategy:
       fail-fast: false
       matrix:
@@ -19,7 +24,6 @@ jobs:
       - name: Checkout the source tree
         uses: actions/checkout@v3
       - name: Build the wheel
-        working-directory: /binding/python
         uses: PyO3/maturin-action@v1
         env:
           PROTOC: /home/runner/.local/bin/protoc
@@ -34,7 +38,6 @@ jobs:
           manylinux: ${{ matrix.manylinux }}
           target: ${{ matrix.target }}
       - name: Upload artifacts
-        working-directory: /binding/python
         uses: actions/upload-artifact@v3
         with:
           name: wheels
@@ -55,7 +58,6 @@ jobs:
       - name: Checkout the source tree
         uses: actions/checkout@v3
       - name: Build the wheel
-        working-directory: /binding/python
         uses: PyO3/maturin-action@v1
         env:
           PROTOC: /home/runner/.local/bin/protoc
@@ -71,7 +73,6 @@ jobs:
           manylinux: ${{ matrix.manylinux }}
           target: ${{ matrix.target }}
       - name: Upload artifacts
-        working-directory: /binding/python
         uses: actions/upload-artifact@v3
         with:
           name: wheels
@@ -91,13 +92,11 @@ jobs:
         run: |
           brew install protobuf
       - name: Build the wheel
-        working-directory: /binding/python
         uses: PyO3/maturin-action@v1
         with:
           command: build
           args: --release -o dist --universal2 -i python${{ matrix.python-version }}
       - name: Upload artifacts
-        working-directory: /binding/python
         uses: actions/upload-artifact@v3
         with:
           name: wheels
@@ -120,7 +119,6 @@ jobs:
           pip install -U build
           python -m build --sdist
       - name: Upload artifacts
-        working-directory: /binding/python
         uses: actions/upload-artifact@v3
         with:
           name: wheels
@@ -134,11 +132,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download artifacts
-        working-directory: /binding/python
         uses: actions/download-artifact@v3
         with:
           name: wheels
           path: dist
       - name: Publish to PyPI
-        working-directory: /binding/python
-        uses: pypa/gh-action-pypi-publish@release/v1name: default
+        uses: pypa/gh-action-pypi-publish@release/v1
