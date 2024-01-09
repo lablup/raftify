@@ -688,7 +688,7 @@ dependencies = [
 
 [[package]]
 name = "example-harness"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "raftify",
 ]
@@ -888,7 +888,7 @@ dependencies = [
 
 [[package]]
 name = "harness"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1133,9 +1133,9 @@ dependencies = [
 
 [[package]]
 name = "jopemachine-raft"
-version = "0.7.2"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "833c1240366b1c4cf73b15351d0c17db90411079df8d8517ef50b9ccc668905e"
+checksum = "5cb8dd2fdc3c3039499b8fd5e4fdf7e5898d3bb0e1df8ff7978847abe29bfafa"
 dependencies = [
  "bytes",
  "fxhash",
@@ -1245,7 +1245,7 @@ checksum = "523dc4f511e55ab87b694dc30d0f820d60906ef06413f93d4d7a1385599cc149"
 
 [[package]]
 name = "memstore-dynamic-members"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1270,7 +1270,7 @@ dependencies = [
 
 [[package]]
 name = "memstore-example-harness"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1285,7 +1285,7 @@ dependencies = [
 
 [[package]]
 name = "memstore-static-members"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1667,7 +1667,7 @@ dependencies = [
 
 [[package]]
 name = "raftify"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "async-trait",
  "bincode",
