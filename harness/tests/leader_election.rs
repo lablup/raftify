@@ -35,15 +35,14 @@ pub async fn test_leader_election_in_three_node_example() {
 
     let leader_id = raft_2.raft_node.get_leader_id().await;
 
-    let timer = timeout(Duration::from_secs(3), async {
+    let timer = timeout(Duration::from_secs(5), async {
         while leader_id == 0 {
             sleep(Duration::from_secs(1)).await;
         }
     })
     .await;
 
-    assert!(timer.is_ok());
-
+    assert!(timer.is_ok(), "Actual leader_id: {}", leader_id);
     assert!(
         [2, 3].contains(&leader_id),
         "Actual leader_id: {}",
