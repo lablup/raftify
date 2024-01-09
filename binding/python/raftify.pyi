@@ -289,7 +289,7 @@ class RaftServiceClient:
     """ """
 
     @staticmethod
-    async def build(self, addr: str) -> "RaftServiceClient":
+    async def build(addr: str) -> "RaftServiceClient":
         """ """
     def prepare_change_config(self, conf_change: "ConfChangeV2") -> None:
         """ """
@@ -303,7 +303,7 @@ class RaftServiceClient:
         """ """
     async def propose(self) -> None:
         """ """
-    async def get_peers(self) -> dict[int, str]:
+    async def get_peers(self) -> str:
         """ """
     async def debug_node(self) -> str:
         """ """
