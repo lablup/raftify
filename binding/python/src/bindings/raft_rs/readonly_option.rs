@@ -1,5 +1,4 @@
 use pyo3::{prelude::*, pyclass::CompareOp};
-
 use raftify::raft::ReadOnlyOption;
 
 #[derive(Clone)]

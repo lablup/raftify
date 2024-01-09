@@ -33,3 +33,6 @@ lint-fix-py:
 publish:
 	make build-release
 	maturin publish
+
+test:
+	cd tests && make test && cd ..

@@ -1,7 +1,6 @@
 use pyo3::{
     prelude::*,
-    types::PyDict,
-    types::{PyBytes, PyList},
+    types::{PyBytes, PyDict, PyList},
 };
 use raftify::raft::{deserializer::format_confchangev2, eraftpb::ConfChangeV2};
 

@@ -75,10 +75,7 @@ impl PyRaftServiceClient {
     pub async fn send_message(&mut self) -> PyResult<()> {
         match &self.args {
             Arguments::SendMessage { message } => {
-                self.inner
-                    .send_message(message.clone())
-                    .await
-                    .unwrap();
+                self.inner.send_message(message.clone()).await.unwrap();
 
                 return Ok(());
             }

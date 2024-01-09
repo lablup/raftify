@@ -185,26 +185,3 @@ impl PyMessageType {
         PyMessageType(MessageType::MsgRequestPreVoteResponse)
     }
 }
-
-// Checks if certain message type should be used internally.
-pub fn is_local_msg(t: MessageType) -> bool {
-    matches!(
-        t,
-        MessageType::MsgHup
-            | MessageType::MsgBeat
-            | MessageType::MsgUnreachable
-            | MessageType::MsgSnapStatus
-            | MessageType::MsgCheckQuorum,
-    )
-}
-
-pub fn is_response_msg(t: MessageType) -> bool {
-    matches!(
-        t,
-        MessageType::MsgAppendResponse
-            | MessageType::MsgRequestVoteResponse
-            | MessageType::MsgHeartbeatResponse
-            | MessageType::MsgUnreachable
-            | MessageType::MsgRequestPreVoteResponse,
-    )
-}

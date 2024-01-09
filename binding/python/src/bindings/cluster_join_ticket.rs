@@ -1,8 +1,8 @@
+use pyo3::prelude::*;
+use raftify::ClusterJoinTicket;
 use std::collections::HashMap;
 
 use super::peers::PyPeers;
-use pyo3::prelude::*;
-use raftify::ClusterJoinTicket;
 
 #[derive(Clone)]
 #[pyclass(name = "ClusterJoinTicket")]

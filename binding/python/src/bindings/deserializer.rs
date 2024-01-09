@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use once_cell::sync::Lazy;
 use prost::Message as PMessage;
 use pyo3::{prelude::*, types::PyBytes, PyObject, Python};
@@ -7,6 +5,7 @@ use raftify::raft::{
     deserializer::{format_confchange, format_confchangev2, Bytes, CustomDeserializer},
     eraftpb::{ConfChange, ConfChangeV2},
 };
+use std::sync::Mutex;
 
 pub struct PythonDeserializer;
 

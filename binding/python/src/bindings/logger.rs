@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use pyo3::{prelude::*, types::PyString};
 use raftify::raft::default_logger;
 use slog::*;
@@ -9,6 +7,7 @@ use sloggers::{
     types::{Severity, SourceLocation},
     Build,
 };
+use std::sync::{Arc, Mutex};
 
 #[pyclass(name = "OverflowStrategy")]
 pub struct PyOverflowStrategy(pub OverflowStrategy);
