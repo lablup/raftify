@@ -4,7 +4,6 @@ use raftify::{
     raft::eraftpb::{ConfChangeV2, Message},
     Channel, RaftServiceClient,
 };
-use tonic::Request;
 
 use super::{
     errors::WrongArgumentError,
@@ -52,7 +51,7 @@ impl PyRaftServiceClient {
             Arguments::ChangeConfig { conf_change } => {
                 let result = self
                     .inner
-                    .change_config(Request::new(conf_change.clone()))
+                    .change_config(conf_change.clone())
                     .await
                     .unwrap()
                     .into_inner();
@@ -77,7 +76,7 @@ impl PyRaftServiceClient {
         match &self.args {
             Arguments::SendMessage { message } => {
                 self.inner
-                    .send_message(Request::new(message.clone()))
+                    .send_message(message.clone())
                     .await
                     .unwrap();
 
@@ -99,9 +98,9 @@ impl PyRaftServiceClient {
         match &self.args {
             Arguments::Propose { proposal } => {
                 self.inner
-                    .propose(Request::new(raftify::raft_service::ProposeArgs {
+                    .propose(raftify::raft_service::ProposeArgs {
                         msg: proposal.clone(),
-                    }))
+                    })
                     .await
                     .unwrap();
 
@@ -118,7 +117,7 @@ impl PyRaftServiceClient {
     pub async fn get_peers(&mut self) -> PyResult<String> {
         let result = self
             .inner
-            .get_peers(Request::new(raftify::raft_service::Empty {}))
+            .get_peers(raftify::raft_service::Empty {})
             .await
             .unwrap()
             .into_inner();
