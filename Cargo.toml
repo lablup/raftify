@@ -18,7 +18,7 @@ default-members = [
 ]
 
 [workspace.package]
-version = "0.1.26"
+version = "0.1.27"
 authors = ["Lablup Inc."]
 edition = "2021"
 description = "Experimental High level Raft framework"
