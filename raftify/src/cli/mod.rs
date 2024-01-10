@@ -6,8 +6,10 @@ use clap::{App, Arg, SubCommand};
 use commands::debug::{debug_entries, debug_node, debug_persisted};
 use std::fmt::Debug;
 
-use crate::raft::{default_logger, formatter::set_custom_formatter};
-use crate::{AbstractLogEntry, AbstractStateMachine, CustomFormatter, Result};
+use crate::{
+    raft::{default_logger, formatter::set_custom_formatter},
+    AbstractLogEntry, AbstractStateMachine, CustomFormatter, Result,
+};
 
 pub async fn cli_handler<
     LogEntry: AbstractLogEntry + Debug + Send + 'static,

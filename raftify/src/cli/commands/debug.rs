@@ -1,14 +1,12 @@
 use serde_json::Value;
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::create_client;
-use crate::raft::formatter::{format_entry, format_snapshot};
-use crate::raft_node::utils::format_debugging_info;
-use crate::raft_service;
-use crate::Config;
-use crate::HeedStorage;
-use crate::LogStore;
-use crate::Result;
+use crate::{
+    create_client,
+    raft::formatter::{format_entry, format_snapshot},
+    raft_node::utils::format_debugging_info,
+    raft_service, Config, HeedStorage, LogStore, Result,
+};
 
 pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
     let config = Config {

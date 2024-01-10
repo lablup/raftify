@@ -12,14 +12,17 @@ use tokio::{
 };
 use tonic::{transport::Server, Request, Response, Status};
 
-use super::raft_service::{
-    self,
-    raft_service_server::{RaftService, RaftServiceServer},
-    Empty,
+use super::{
+    macro_utils::function_name,
+    raft_service::{
+        self,
+        raft_service_server::{RaftService, RaftServiceServer},
+        Empty,
+    },
+    request_message::ServerRequestMsg,
+    response_message::{RequestIdResponseResult, ServerResponseMsg},
+    Config, Error,
 };
-use super::request_message::ServerRequestMsg;
-use super::response_message::{RequestIdResponseResult, ServerResponseMsg};
-use super::{macro_utils::function_name, Config, Error};
 use crate::raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 
 #[derive(Clone)]

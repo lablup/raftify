@@ -11,12 +11,15 @@ use tokio::{
 };
 use tonic::Request;
 
-use super::error::{Error, Result};
-use super::raft_node::RaftNode;
-use super::raft_server::RaftServer;
-use super::raft_service::{self, MemberBootstrapReadyArgs, ResultCode};
-use super::request_message::ServerRequestMsg;
-use super::{create_client, AbstractLogEntry, AbstractStateMachine, Config, LogStore, Peers};
+use super::{
+    create_client,
+    error::{Error, Result},
+    raft_node::RaftNode,
+    raft_server::RaftServer,
+    raft_service::{self, MemberBootstrapReadyArgs, ResultCode},
+    request_message::ServerRequestMsg,
+    AbstractLogEntry, AbstractStateMachine, Config, LogStore, Peers,
+};
 
 #[derive(Clone)]
 pub struct Raft<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + Clone + 'static> {

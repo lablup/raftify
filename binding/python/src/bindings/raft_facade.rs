@@ -4,13 +4,15 @@ use raftify::{ClusterJoinTicket, Raft, Result};
 use std::sync::Arc;
 use tokio::{runtime::Runtime, task::JoinHandle};
 
-use super::cluster_join_ticket::PyClusterJoinTicket;
-use super::config::PyConfig;
-use super::errors::WrongArgumentError;
-use super::logger::PyLogger;
-use super::peers::PyPeers;
-use super::raft_node::PyRaftNode;
-use super::state_machine::{PyFSM, PyLogEntry};
+use super::{
+    cluster_join_ticket::PyClusterJoinTicket,
+    config::PyConfig,
+    errors::WrongArgumentError,
+    logger::PyLogger,
+    peers::PyPeers,
+    raft_node::PyRaftNode,
+    state_machine::{PyFSM, PyLogEntry},
+};
 
 lazy_static! {
     pub static ref TOKIO_RT: Runtime = Runtime::new().unwrap();

@@ -2,8 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, ToSocketAddrs};
 use tonic::transport::Channel;
 
-use super::raft_service::raft_service_client::RaftServiceClient;
-use super::{create_client, error::Result};
+use super::{create_client, error::Result, raft_service::raft_service_client::RaftServiceClient};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Peer {

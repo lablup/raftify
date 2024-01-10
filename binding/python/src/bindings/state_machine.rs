@@ -4,8 +4,10 @@ use pyo3::{prelude::*, types::PyBytes};
 use raftify::{AbstractLogEntry, AbstractStateMachine, Error, Result};
 use std::{fmt, sync::Mutex};
 
-use super::errors::{ApplyError, RestoreError, SnapshotError};
-use super::utils::get_python_repr;
+use super::{
+    errors::{ApplyError, RestoreError, SnapshotError},
+    utils::get_python_repr,
+};
 
 pub static ENTRY_LOG_ENTRY_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> =
     Lazy::new(|| Mutex::new(None));
