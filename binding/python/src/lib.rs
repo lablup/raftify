@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
-use ::raftify::raft::deserializer::set_custom_deserializer;
-use bindings::deserializer::PythonDeserializer;
+use ::raftify::raft::formatter::set_custom_formatter;
+use bindings::formatter::PythonFormatter;
 use pyo3::prelude::*;
 
 mod bindings;
@@ -40,32 +40,32 @@ fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
     )?)?;
 
     m.add_function(wrap_pyfunction!(
-        bindings::deserializer::set_confchange_context_deserializer,
+        bindings::formatter::set_confchange_context_deserializer,
         m
     )?)?;
 
     m.add_function(wrap_pyfunction!(
-        bindings::deserializer::set_confchangev2_context_deserializer,
+        bindings::formatter::set_confchangev2_context_deserializer,
         m
     )?)?;
 
     m.add_function(wrap_pyfunction!(
-        bindings::deserializer::set_entry_context_deserializer,
+        bindings::formatter::set_entry_context_deserializer,
         m
     )?)?;
 
     m.add_function(wrap_pyfunction!(
-        bindings::deserializer::set_entry_data_deserializer,
+        bindings::formatter::set_entry_data_deserializer,
         m
     )?)?;
 
     m.add_function(wrap_pyfunction!(
-        bindings::deserializer::set_message_context_deserializer,
+        bindings::formatter::set_message_context_deserializer,
         m
     )?)?;
 
     m.add_function(wrap_pyfunction!(
-        bindings::deserializer::set_snapshot_data_deserializer,
+        bindings::formatter::set_snapshot_data_deserializer,
         m
     )?)?;
 
@@ -91,7 +91,7 @@ fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
         py.get_type::<bindings::errors::SnapshotError>(),
     )?;
 
-    set_custom_deserializer(PythonDeserializer);
+    set_custom_formatter(PythonFormatter);
 
     Ok(())
 }

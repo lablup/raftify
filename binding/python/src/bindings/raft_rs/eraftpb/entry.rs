@@ -2,7 +2,7 @@ use pyo3::{
     prelude::*,
     types::{PyBytes, PyDict},
 };
-use raftify::raft::{deserializer::format_entry, eraftpb::Entry};
+use raftify::raft::{eraftpb::Entry, formatter::format_entry};
 
 use super::entry_type::PyEntryType;
 

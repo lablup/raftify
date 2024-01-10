@@ -1,8 +1,8 @@
 pub mod cli;
 pub mod cluster_join_ticket;
 pub mod config;
-pub mod deserializer;
 pub mod errors;
+pub mod formatter;
 pub mod logger;
 pub mod peers;
 pub mod raft_client;

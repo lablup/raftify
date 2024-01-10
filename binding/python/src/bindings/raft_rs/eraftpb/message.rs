@@ -2,7 +2,7 @@ use pyo3::{
     prelude::*,
     types::{PyBytes, PyList},
 };
-use raftify::raft::{deserializer::format_message, eraftpb::Message};
+use raftify::raft::{eraftpb::Message, formatter::format_message};
 
 use super::{entry::PyEntry, message_type::PyMessageType};
 

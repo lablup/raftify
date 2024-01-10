@@ -2,9 +2,9 @@
 extern crate async_trait;
 
 mod config;
-mod deserializer;
 mod error;
 mod follower_role;
+mod formatter;
 mod log_entry;
 mod peer;
 mod peers;
@@ -22,7 +22,7 @@ pub mod cli;
 pub mod raft_service;
 
 pub use async_trait::async_trait;
-pub use deserializer::CustomDeserializer;
+pub use formatter::CustomFormatter;
 pub use jopemachine_raft as raft;
 pub use raft::Config as RaftConfig;
 pub use tonic;

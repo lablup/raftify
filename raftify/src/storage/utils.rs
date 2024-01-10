@@ -1,4 +1,4 @@
-use jopemachine_raft::deserializer::Bytes;
+use jopemachine_raft::formatter::Bytes;
 use serde_json::{json, Value};
 use std::{
     fmt::Write as StdWrite,
@@ -8,7 +8,7 @@ use std::{
 };
 
 use super::constant::ENTRY_KEY_LENGTH;
-use crate::raft::{deserializer::DESERIALIZER, eraftpb::Entry};
+use crate::raft::{eraftpb::Entry, formatter::CUSTOM_FORMATTER};
 use crate::Result;
 
 pub fn get_storage_path(log_dir: &str, node_id: u64) -> Result<PathBuf> {
@@ -56,15 +56,15 @@ pub fn append_to_json_file(dest_path: &Path, new_data: &[Entry]) -> io::Result<(
         serde_json::from_str(&contents)?
     };
 
-    let deserializer = DESERIALIZER.read().unwrap();
+    let formatter = CUSTOM_FORMATTER.read().unwrap();
 
     for entry in new_data {
         data.push(json!({
             "entry_type": entry_type_to_str(entry.entry_type),
             "term": entry.term,
             "index": entry.index,
-            "data": deserializer.entry_data_deserialize(&Bytes::Prost(entry.data.clone())),
-            "context": deserializer.entry_context_deserialize(&Bytes::Prost(entry.context.clone())),
+            "data": formatter.format_entry_data(&Bytes::Prost(entry.data.clone())),
+            "context": formatter.format_entry_context(&Bytes::Prost(entry.context.clone())),
             "sync_log": entry.sync_log,
         }));
     }

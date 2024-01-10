@@ -16,7 +16,7 @@ use std::{
 };
 use tokio::{
     sync::{mpsc, oneshot, Mutex},
-    time::{interval, timeout},
+    time::timeout,
 };
 use tonic::Request;
 
@@ -26,11 +26,11 @@ use utils::inspect_raftnode;
 use crate::{
     error::{Result, SendMessageError},
     raft::{
-        deserializer::{format_confchangev2, format_message},
         eraftpb::{
             ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2, Entry, EntryType,
             Message as RaftMessage, Snapshot,
         },
+        formatter::{format_confchangev2, format_message},
         raw_node::RawNode,
     },
     raft_node::bootstrap::bootstrap_peers,

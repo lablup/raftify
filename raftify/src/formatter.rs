@@ -4,13 +4,13 @@ use std::{fmt::Debug, marker::PhantomData, net::SocketAddr};
 
 use super::{AbstractLogEntry, AbstractStateMachine};
 use crate::raft::{
-    deserializer::{
-        format_confchange, format_confchangev2, Bytes, CustomDeserializer as CustomDeserializer_,
-    },
     eraftpb::{ConfChange, ConfChangeV2},
+    formatter::{
+        format_confchange, format_confchangev2, Bytes, CustomFormatter as CustomFormatter_,
+    },
 };
 
-pub struct CustomDeserializer<
+pub struct CustomFormatter<
     LogEntry: AbstractLogEntry + Debug + 'static,
     FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
 > {
@@ -21,7 +21,7 @@ pub struct CustomDeserializer<
 impl<
         LogEntry: AbstractLogEntry + Debug,
         FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
-    > CustomDeserializer<LogEntry, FSM>
+    > CustomFormatter<LogEntry, FSM>
 {
     pub fn new() -> Self {
         Self {
@@ -34,7 +34,7 @@ impl<
 impl<
         LogEntry: AbstractLogEntry + Debug,
         FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
-    > Default for CustomDeserializer<LogEntry, FSM>
+    > Default for CustomFormatter<LogEntry, FSM>
 {
     fn default() -> Self {
         Self::new()
@@ -44,9 +44,9 @@ impl<
 impl<
         LogEntry: AbstractLogEntry + Debug,
         FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
-    > CustomDeserializer_ for CustomDeserializer<LogEntry, FSM>
+    > CustomFormatter_ for CustomFormatter<LogEntry, FSM>
 {
-    fn entry_context_deserialize(&self, v: &Bytes) -> String {
+    fn format_entry_context(&self, v: &Bytes) -> String {
         let v = match v {
             Bytes::Prost(v) => v,
             Bytes::Protobuf(v) => v.as_ref(),
@@ -59,7 +59,7 @@ impl<
         format!("{:?}", v)
     }
 
-    fn entry_data_deserialize(&self, v: &Bytes) -> String {
+    fn format_entry_data(&self, v: &Bytes) -> String {
         let v = match v {
             Bytes::Prost(v) => v,
             Bytes::Protobuf(v) => v.as_ref(),
@@ -83,7 +83,7 @@ impl<
         format!("{:?}", v)
     }
 
-    fn confchangev2_context_deserialize(&self, v: &Bytes) -> String {
+    fn format_confchangev2_context(&self, v: &Bytes) -> String {
         let v = match v {
             Bytes::Prost(v) => v,
             Bytes::Protobuf(v) => v.as_ref(),
@@ -96,7 +96,7 @@ impl<
         format!("{:?}", v)
     }
 
-    fn confchange_context_deserialize(&self, v: &Bytes) -> String {
+    fn format_confchange_context(&self, v: &Bytes) -> String {
         let v = match v {
             Bytes::Prost(v) => v,
             Bytes::Protobuf(v) => v.as_ref(),
@@ -109,7 +109,7 @@ impl<
         format!("{:?}", v)
     }
 
-    fn message_context_deserializer(&self, v: &Bytes) -> String {
+    fn format_message_context(&self, v: &Bytes) -> String {
         let v = match v {
             Bytes::Prost(v) => v,
             Bytes::Protobuf(v) => v.as_ref(),
@@ -117,7 +117,7 @@ impl<
         format!("{:?}", v)
     }
 
-    fn snapshot_data_deserializer(&self, v: &Bytes) -> String {
+    fn format_snapshot_data(&self, v: &Bytes) -> String {
         let v = match v {
             Bytes::Prost(v) => v,
             Bytes::Protobuf(v) => v.as_ref(),

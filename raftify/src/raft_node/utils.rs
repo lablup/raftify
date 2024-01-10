@@ -2,7 +2,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 
 use crate::{
-    raft::{deserializer::format_snapshot, RawNode},
+    raft::{formatter::format_snapshot, RawNode},
     LogStore, Result,
 };
 

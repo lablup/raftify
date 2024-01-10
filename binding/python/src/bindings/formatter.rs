@@ -2,12 +2,12 @@ use once_cell::sync::Lazy;
 use prost::Message as PMessage;
 use pyo3::{prelude::*, types::PyBytes, PyObject, Python};
 use raftify::raft::{
-    deserializer::{format_confchange, format_confchangev2, Bytes, CustomDeserializer},
     eraftpb::{ConfChange, ConfChangeV2},
+    formatter::{format_confchange, format_confchangev2, Bytes, CustomFormatter, CUSTOM_FORMATTER},
 };
 use std::sync::Mutex;
 
-pub struct PythonDeserializer;
+pub struct PythonFormatter;
 
 // TODO: Refactor below codes to reduce code redundancy.
 static ENTRY_CONTEXT_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> = Lazy::new(|| Mutex::new(None));
@@ -51,8 +51,8 @@ pub fn set_snapshot_data_deserializer(cb: PyObject) {
     *SNAPSHOT_DATA_DESERIALIZER_CB.lock().unwrap() = Some(cb);
 }
 
-impl CustomDeserializer for PythonDeserializer {
-    fn entry_context_deserialize(&self, v: &Bytes) -> String {
+impl CustomFormatter for PythonFormatter {
+    fn format_entry_context(&self, v: &Bytes) -> String {
         fn deserialize(py: Python, data: &[u8]) -> String {
             let callback_lock = ENTRY_CONTEXT_DESERIALIZE_CB.lock().unwrap();
 
@@ -73,7 +73,7 @@ impl CustomDeserializer for PythonDeserializer {
         })
     }
 
-    fn entry_data_deserialize(&self, v: &Bytes) -> String {
+    fn format_entry_data(&self, v: &Bytes) -> String {
         fn deserialize(py: Python, data: &[u8]) -> String {
             let callback_lock = ENTRY_DATA_DESERIALIZE_CB.lock().unwrap();
 
@@ -104,7 +104,7 @@ impl CustomDeserializer for PythonDeserializer {
         })
     }
 
-    fn confchangev2_context_deserialize(&self, v: &Bytes) -> String {
+    fn format_confchangev2_context(&self, v: &Bytes) -> String {
         fn deserialize(py: Python, data: &[u8]) -> String {
             let callback_lock = CONFCHANGEV2_CONTEXT_DESERIALIZE_CB.lock().unwrap();
 
@@ -125,7 +125,7 @@ impl CustomDeserializer for PythonDeserializer {
         })
     }
 
-    fn confchange_context_deserialize(&self, v: &Bytes) -> String {
+    fn format_confchange_context(&self, v: &Bytes) -> String {
         fn deserialize(py: Python, data: &[u8]) -> String {
             let callback_lock = CONFCHANGE_CONTEXT_DESERIALIZE_CB.lock().unwrap();
 
@@ -146,7 +146,7 @@ impl CustomDeserializer for PythonDeserializer {
         })
     }
 
-    fn message_context_deserializer(&self, v: &Bytes) -> String {
+    fn format_message_context(&self, v: &Bytes) -> String {
         fn deserialize(py: Python, data: &[u8]) -> String {
             let callback_lock = MESSAGE_CONTEXT_DESERIALIZER_CB.lock().unwrap();
 
@@ -167,7 +167,7 @@ impl CustomDeserializer for PythonDeserializer {
         })
     }
 
-    fn snapshot_data_deserializer(&self, v: &Bytes) -> String {
+    fn format_snapshot_data(&self, v: &Bytes) -> String {
         fn deserialize(py: Python, data: &[u8]) -> String {
             let callback_lock = SNAPSHOT_DATA_DESERIALIZER_CB.lock().unwrap();
 

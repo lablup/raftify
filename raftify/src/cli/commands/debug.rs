@@ -2,7 +2,7 @@ use serde_json::Value;
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::create_client;
-use crate::raft::deserializer::{format_entry, format_snapshot};
+use crate::raft::formatter::{format_entry, format_snapshot};
 use crate::raft_node::utils::format_debugging_info;
 use crate::raft_service;
 use crate::Config;
