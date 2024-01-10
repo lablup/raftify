@@ -158,6 +158,8 @@ class RaftNode:
         """ """
     async def get_cluster_size(self) -> int:
         """ """
+    async def set_bootstrap_done(self) -> None:
+        """ """
     async def store(self) -> AbstractStateMachine:
         """ """
 

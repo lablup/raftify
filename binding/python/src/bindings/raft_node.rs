@@ -141,6 +141,10 @@ impl PyRaftNode {
         Ok(self.inner.get_cluster_size().await)
     }
 
+    pub async fn set_bootstrap_done(&mut self) {
+        self.inner.set_bootstrap_done().await
+    }
+
     pub async fn store(&self) -> PyResult<PyFSM> {
         Ok(self.inner.store().await)
     }

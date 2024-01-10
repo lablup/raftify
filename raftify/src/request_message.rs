@@ -95,6 +95,9 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
         ticket: ClusterJoinTicket,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
+    SetBootstrapDone {
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
+    },
 }
 
 // Request type sent from a RaftNode to itself (RaftNode).
@@ -134,5 +137,6 @@ impl_debug_for_enum!(
     Propose,
     ChangeConfig,
     SendMessage,
-    JoinCluster
+    JoinCluster,
+    SetBootstrapDone
 );

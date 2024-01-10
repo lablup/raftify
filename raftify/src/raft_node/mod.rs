@@ -356,6 +356,19 @@ impl<
         }
     }
 
+    pub async fn set_bootstrap_done(&self) {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::SetBootstrapDone { chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
+            LocalResponseMsg::SetBootstrapDone {} => (),
+            _ => unreachable!(),
+        }
+    }
+
     pub async fn run(self) -> Result<()> {
         self.inner
             .lock()
@@ -539,6 +552,10 @@ impl<
         self.peers.lock().await.add_peer(id, addr)
     }
 
+    pub fn set_bootstrap_done(&mut self) {
+        self.bootstrap_done = true;
+    }
+
     async fn send_message(
         message: RaftMessage,
         peers: Arc<Mutex<Peers>>,
@@ -585,7 +602,7 @@ impl<
         if !self.bootstrap_done {
             slog::warn!(
                 self.logger,
-                "Skipping sending messages because bootstrap is not done yet. {:?}",
+                "Skipping sending messages because bootstrap is not done yet. Skipped messages: {:?}",
                 messages
             );
             return;
