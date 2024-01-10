@@ -16,7 +16,7 @@ use std::{
 };
 use tokio::{
     sync::{mpsc, oneshot, Mutex},
-    time::interval,
+    time::{interval, timeout},
 };
 use tonic::Request;
 
@@ -643,7 +643,7 @@ impl<
             let mut leader_client =
                 RaftServiceClient::connect(format!("http://{}", peer_addr)).await?;
             let response = leader_client
-                .change_config(Request::new(change.clone()))
+                .change_config(change.clone())
                 .await?
                 .into_inner();
 
@@ -1212,7 +1212,9 @@ impl<
     }
 
     pub async fn run(mut self) -> Result<()> {
-        let mut tick_timer = interval(Duration::from_secs_f32(self.config.tick_interval));
+        let mut tick_timer = Duration::from_secs_f32(self.config.tick_interval);
+        let fixed_tick_timer = tick_timer;
+        let mut now = Instant::now();
 
         loop {
             if self.should_exit {
@@ -1225,26 +1227,33 @@ impl<
             }
 
             tokio::select! {
-                msg = self.self_rcv.recv() => {
-                    if let Some(message) = msg {
-                        self.handle_self_message(message).await?;
+                msg = timeout(fixed_tick_timer, self.self_rcv.recv()) => {
+                    if let Ok(Some(msg)) = msg {
+                        self.handle_self_message(msg).await?;
                     }
                 }
-                msg = self.server_rcv.recv() => {
-                    if let Some(message) = msg {
-                        self.handle_server_request_msg(message).await?;
+                msg = timeout(fixed_tick_timer, self.server_rcv.recv()) => {
+                    if let Ok(Some(msg)) = msg {
+                        self.handle_server_request_msg(msg).await?;
                     }
                 }
-                msg = self.local_rcv.recv() => {
-                    if let Some(message) = msg {
-                        self.handle_local_request_msg(message).await?;
+                msg = timeout(fixed_tick_timer, self.local_rcv.recv()) => {
+                    if let Ok(Some(msg)) = msg {
+                        self.handle_local_request_msg(msg).await?;
                     }
-                }
-                _ = tick_timer.tick() => {
-                    self.raw_node.tick();
-                    self.on_ready().await?
                 }
             }
+
+            let elapsed = now.elapsed();
+            now = Instant::now();
+            if elapsed > tick_timer {
+                tick_timer = Duration::from_millis(100);
+                self.raw_node.tick();
+            } else {
+                tick_timer -= elapsed;
+            }
+
+            self.on_ready().await?
         }
     }
 
