@@ -1,5 +1,4 @@
 use pyo3::{prelude::*, types::PyList};
-
 use raftify::raft::eraftpb::ConfState;
 
 use crate::bindings::errors::runtime_error;

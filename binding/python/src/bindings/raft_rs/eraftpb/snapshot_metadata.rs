@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
+use raftify::raft::eraftpb::SnapshotMetadata;
 
 use super::conf_state::PyConfState;
-use raftify::raft::eraftpb::SnapshotMetadata;
 
 #[derive(Clone)]
 #[pyclass(name = "SnapshotMetadata")]
