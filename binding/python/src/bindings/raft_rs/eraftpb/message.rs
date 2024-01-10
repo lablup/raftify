@@ -4,7 +4,7 @@ use pyo3::{
 };
 use raftify::raft::{eraftpb::Message, formatter::format_message};
 
-use super::{entry::PyEntry, message_type::PyMessageType};
+use super::{entry::PyEntry, message_type::PyMessageType, snapshot::PySnapshot};
 
 #[derive(Clone)]
 #[pyclass(name = "Message")]
@@ -136,16 +136,15 @@ impl PyMessage {
         self.inner.set_reject(v)
     }
 
-    // pub fn get_snapshot(&mut self) -> PyResult<PySnapshotRef> {
-    //     self.inner.map_as_mut(|inner| PySnapshotRef {
-    //         inner: RefMutContainer::new_raw(inner.mut_snapshot()),
-    //     })
-    // }
+    pub fn get_snapshot(&mut self) -> PySnapshot {
+        PySnapshot {
+            inner: self.inner.mut_snapshot().clone(),
+        }
+    }
 
-    // pub fn set_snapshot(&mut self, snapshot: PySnapshotMut) -> PyResult<()> {
-    //     self.inner
-    //         .map_as_mut(|inner| inner.set_snapshot(snapshot.into()))
-    // }
+    pub fn set_snapshot(&mut self, snapshot: PySnapshot) {
+        self.inner.set_snapshot(snapshot.inner)
+    }
 
     pub fn get_to(&self) -> u64 {
         self.inner.get_to()

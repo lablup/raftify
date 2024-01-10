@@ -449,6 +449,83 @@ class Entry:
         TODO: remove it in the next major release.
         """
 
+class ConfState:
+    """ """
+
+    def __init__(
+        self, voters: Optional[list[int]], learners: Optional[list[int]]
+    ) -> None: ...
+    @staticmethod
+    def default() -> "ConfState": ...
+    def get_auto_leave(self) -> bool:
+        """ """
+    def set_auto_leave(self, auto_leave: bool) -> None:
+        """ """
+    def get_learners(self) -> list[int]:
+        """ """
+    def set_learners(self, learners: list[int]) -> None:
+        """ """
+    def get_learners_next(self) -> list[int]:
+        """ """
+    def set_learners_next(self, learners_next: list[int]) -> None:
+        """ """
+    def get_voters(self) -> list[int]:
+        """ """
+    def set_voters(self, voters: list[int]) -> None:
+        """ """
+    def get_voters_outgoing(self) -> list[int]:
+        """ """
+    def set_voters_outgoing(self, voters_outgoing: list[int]) -> None:
+        """ """
+
+class Snapshot:
+    """ """
+
+    def __init__(self) -> None: ...
+    def get_data(self) -> bytes:
+        """ """
+    def set_data(self, data: bytes) -> None:
+        """ """
+    def get_metadata(self) -> "SnapshotMetadata":
+        """ """
+    def set_metadata(
+        self, meta_data: "SnapshotMetadata"
+    ) -> None:
+        """ """
+    def has_metadata(self) -> bool:
+        """ """
+
+class SnapshotMetadata:
+    def __init__(self) -> None: ...
+    def get_index(self) -> int:
+        """
+        `index`: The applied index.
+        """
+    def set_index(self, index: int) -> None:
+        """
+        `index`: The applied index.
+        """
+    def get_term(self) -> int:
+        """
+        `term`: The term of the applied index.
+        """
+    def set_term(self, term: int) -> None:
+        """
+        `term`: The term of the applied index.
+        """
+    def get_conf_state(self) -> "ConfState":
+        """
+        `conf_state`: The current `ConfState`.
+        """
+    def set_conf_state(self, conf_state: "ConfState") -> None:
+        """
+        `conf_state`: The current `ConfState`.
+        """
+    def has_conf_state(self) -> bool:
+        """
+        `conf_state`: The current `ConfState`.
+        """
+
 class ConfChangeSingle:
     def get_node_id(self) -> int:
         """ """
@@ -541,10 +618,10 @@ class Message:
         """ """
     def set_reject(self, reject: bool) -> None:
         """ """
-    # def get_snapshot(self) -> "SnapshotRef":
-    #     """ """
-    # def set_snapshot(self, snapshot: "Snapshot" | "SnapshotRef") -> None:
-    #     """ """
+    def get_snapshot(self) -> "Snapshot":
+        """ """
+    def set_snapshot(self, snapshot: "Snapshot") -> None:
+        """ """
     def get_to(self) -> int:
         """ """
     def set_to(self, to: int) -> None:

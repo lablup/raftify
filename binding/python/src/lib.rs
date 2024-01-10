@@ -26,6 +26,9 @@ fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<bindings::raft_rs::eraftpb::message_type::PyMessageType>()?;
     m.add_class::<bindings::raft_rs::eraftpb::entry::PyEntry>()?;
     m.add_class::<bindings::raft_rs::eraftpb::entry_type::PyEntryType>()?;
+    m.add_class::<bindings::raft_rs::eraftpb::snapshot::PySnapshot>()?;
+    m.add_class::<bindings::raft_rs::eraftpb::snapshot_metadata::PySnapshotMetadata>()?;
+    m.add_class::<bindings::raft_rs::eraftpb::conf_state::PyConfState>()?;
 
     m.add_function(wrap_pyfunction!(bindings::cli::cli_main, m)?)?;
 
