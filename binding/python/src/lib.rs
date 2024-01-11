@@ -7,28 +7,28 @@ mod bindings;
 
 #[pymodule]
 fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<bindings::cluster_join_ticket::PyClusterJoinTicket>()?;
     m.add_class::<bindings::config::PyConfig>()?;
-    m.add_class::<bindings::raft_rs::config::PyRaftConfig>()?;
-    m.add_class::<bindings::raft_facade::PyRaftFacade>()?;
-    m.add_class::<bindings::peers::PyPeers>()?;
-    m.add_class::<bindings::raft_client::PyRaftServiceClient>()?;
-    m.add_class::<bindings::raft_node::PyRaftNode>()?;
     m.add_class::<bindings::logger::PyLogger>()?;
     m.add_class::<bindings::logger::PyOverflowStrategy>()?;
-    m.add_class::<bindings::cluster_join_ticket::PyClusterJoinTicket>()?;
+    m.add_class::<bindings::peers::PyPeers>()?;
+    m.add_class::<bindings::raft_client::PyRaftServiceClient>()?;
+    m.add_class::<bindings::raft_facade::PyRaftFacade>()?;
+    m.add_class::<bindings::raft_node::PyRaftNode>()?;
+    m.add_class::<bindings::raft_rs::config::PyRaftConfig>()?;
     m.add_class::<bindings::raft_rs::readonly_option::PyReadOnlyOption>()?;
 
     m.add_class::<bindings::raft_rs::eraftpb::conf_change_single::PyConfChangeSingle>()?;
     m.add_class::<bindings::raft_rs::eraftpb::conf_change_transition::PyConfChangeTransition>()?;
     m.add_class::<bindings::raft_rs::eraftpb::conf_change_type::PyConfChangeType>()?;
     m.add_class::<bindings::raft_rs::eraftpb::conf_change_v2::PyConfChangeV2>()?;
-    m.add_class::<bindings::raft_rs::eraftpb::message::PyMessage>()?;
-    m.add_class::<bindings::raft_rs::eraftpb::message_type::PyMessageType>()?;
-    m.add_class::<bindings::raft_rs::eraftpb::entry::PyEntry>()?;
-    m.add_class::<bindings::raft_rs::eraftpb::entry_type::PyEntryType>()?;
-    m.add_class::<bindings::raft_rs::eraftpb::snapshot::PySnapshot>()?;
-    m.add_class::<bindings::raft_rs::eraftpb::snapshot_metadata::PySnapshotMetadata>()?;
     m.add_class::<bindings::raft_rs::eraftpb::conf_state::PyConfState>()?;
+    m.add_class::<bindings::raft_rs::eraftpb::entry_type::PyEntryType>()?;
+    m.add_class::<bindings::raft_rs::eraftpb::entry::PyEntry>()?;
+    m.add_class::<bindings::raft_rs::eraftpb::message_type::PyMessageType>()?;
+    m.add_class::<bindings::raft_rs::eraftpb::message::PyMessage>()?;
+    m.add_class::<bindings::raft_rs::eraftpb::snapshot_metadata::PySnapshotMetadata>()?;
+    m.add_class::<bindings::raft_rs::eraftpb::snapshot::PySnapshot>()?;
 
     m.add_function(wrap_pyfunction!(bindings::cli::cli_main, m)?)?;
 
