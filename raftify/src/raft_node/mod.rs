@@ -185,7 +185,7 @@ impl<
         }
     }
 
-    pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
+    pub async fn add_peer<A: ToSocketAddrs>(&self, id: u64, addr: A) {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap().to_string();
         let (tx, rx) = oneshot::channel();
         self.local_sender
@@ -268,7 +268,7 @@ impl<
         }
     }
 
-    pub async fn quit(&mut self) {
+    pub async fn quit(&self) {
         let (tx, rx) = oneshot::channel();
         self.local_sender
             .send(LocalRequestMsg::Quit { chan: tx })
@@ -281,7 +281,7 @@ impl<
         }
     }
 
-    pub async fn leave(&mut self) {
+    pub async fn leave(&self) {
         let (tx, rx) = oneshot::channel();
         self.local_sender
             .send(LocalRequestMsg::Leave { chan: tx })
@@ -294,7 +294,7 @@ impl<
         }
     }
 
-    pub async fn change_config(&mut self, conf_change: ConfChangeV2) -> ConfChangeResponseResult {
+    pub async fn change_config(&self, conf_change: ConfChangeV2) -> ConfChangeResponseResult {
         let (tx, rx) = oneshot::channel();
         self.local_sender
             .send(LocalRequestMsg::ChangeConfig {
@@ -310,7 +310,7 @@ impl<
         }
     }
 
-    pub async fn send_message(&mut self, message: RaftMessage) {
+    pub async fn send_message(&self, message: RaftMessage) {
         let (tx, rx) = oneshot::channel();
         self.local_sender
             .send(LocalRequestMsg::SendMessage {
@@ -326,7 +326,7 @@ impl<
         }
     }
 
-    pub async fn make_snapshot(&mut self, index: u64, term: u64) {
+    pub async fn make_snapshot(&self, index: u64, term: u64) {
         let (tx, rx) = oneshot::channel();
         self.local_sender
             .send(LocalRequestMsg::MakeSnapshot {
