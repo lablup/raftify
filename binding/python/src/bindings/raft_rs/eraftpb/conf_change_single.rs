@@ -30,8 +30,8 @@ impl PyConfChangeSingle {
         let change_type = self.get_change_type().__repr__();
 
         let res = PyDict::new(py);
-        res.set_item("node_id", node_id).unwrap();
-        res.set_item("change_type", change_type).unwrap();
+        res.set_item("node_id", node_id)?;
+        res.set_item("change_type", change_type)?;
         Ok(res.into_py(py))
     }
 

@@ -6,7 +6,7 @@ use crate::{
     LogStore, Result,
 };
 
-static EXPECTED_FORMAT_NOT_EXIST: &'static str = "Expected format not exist!";
+static EXPECTED_FORMAT_NOT_EXIST: &str = "Expected format not exist!";
 
 pub fn format_debugging_info(hashmap: &HashMap<String, Value>) -> String {
     let node_id = hashmap
@@ -112,7 +112,7 @@ pub fn inspect_raftnode<T: LogStore>(raw_node: &RawNode<T>) -> Result<String> {
             .prs()
             .iter()
             .map(|(node_id, pr)| {
-                return (
+                (
                     node_id,
                     json!({
                         "matched": pr.matched,
@@ -126,7 +126,7 @@ pub fn inspect_raftnode<T: LogStore>(raw_node: &RawNode<T>) -> Result<String> {
                         "ins": format!("{:?}", pr.ins),
                         "state": format!("{}", pr.state),
                     }),
-                );
+                )
             })
             .collect::<HashMap<_, _>>()
     } else {

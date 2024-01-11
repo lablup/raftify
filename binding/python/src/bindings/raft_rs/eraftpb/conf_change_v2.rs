@@ -53,9 +53,9 @@ impl PyConfChangeV2 {
         let changes = PyList::new(py, changes);
 
         let res = PyDict::new(py);
-        res.set_item("changes", changes).unwrap();
-        res.set_item("context", context).unwrap();
-        res.set_item("transition", transition).unwrap();
+        res.set_item("changes", changes)?;
+        res.set_item("context", context)?;
+        res.set_item("transition", transition)?;
         Ok(res.into_py(py))
     }
 

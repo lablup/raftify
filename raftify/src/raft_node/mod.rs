@@ -1116,7 +1116,7 @@ impl<
                 );
                 self.raw_node.step(*message)?;
                 chan.send(LocalResponseMsg::SendMessage {}).unwrap();
-            },
+            }
             LocalRequestMsg::SetBootstrapDone { chan } => {
                 self.set_bootstrap_done();
                 chan.send(LocalResponseMsg::SetBootstrapDone {}).unwrap();

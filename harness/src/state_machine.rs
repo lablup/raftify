@@ -23,7 +23,7 @@ impl AbstractLogEntry for LogEntry {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct HashStore(pub Arc<RwLock<HashMap<u64, String>>>);
 
 impl HashStore {
