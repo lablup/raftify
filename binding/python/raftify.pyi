@@ -551,23 +551,23 @@ class ConfChangeV2:
         """ """
     def set_transition(self, transition: "ConfChangeTransition") -> None:
         """ """
-    # def enter_joint(self) -> Optional[bool]:
-    #     """
-    #     Checks if uses Joint Consensus.
+    def enter_joint(self) -> Optional[bool]:
+        """
+        Checks if uses Joint Consensus.
 
-    #     It will return Some if and only if this config change will use Joint Consensus,
-    #     which is the case if it contains more than one change or if the use of Joint
-    #     Consensus was requested explicitly. The bool indicates whether the Joint State
-    #     will be left automatically.
-    #     """
+        It will return Some if and only if this config change will use Joint Consensus,
+        which is the case if it contains more than one change or if the use of Joint
+        Consensus was requested explicitly. The bool indicates whether the Joint State
+        will be left automatically.
+        """
 
-    # def leave_joint(self) -> bool:
-    #     """
-    #     Checks if the configuration change leaves a joint configuration.
+    def leave_joint(self) -> bool:
+        """
+        Checks if the configuration change leaves a joint configuration.
 
-    #     This is the case if the ConfChangeV2 is zero, with the possible exception of
-    #     the Context field.
-    #     """
+        This is the case if the ConfChangeV2 is zero, with the possible exception of
+        the Context field.
+        """
 
 class Message:
     def get_commit(self) -> int:

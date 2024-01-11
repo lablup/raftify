@@ -92,11 +92,11 @@ impl PyConfChangeV2 {
         self.inner.set_transition(v.0);
     }
 
-    // pub fn enter_joint(&self) -> PyResult<Option<bool>> {
-    //     self.inner.map_as_ref(|inner| inner.enter_joint())
-    // }
+    pub fn enter_joint(&self) -> Option<bool> {
+        self.inner.enter_joint()
+    }
 
-    // pub fn leave_joint(&self) -> PyResult<bool> {
-    //     self.inner.map_as_ref(|inner| inner.leave_joint())
-    // }
+    pub fn leave_joint(&self) -> bool {
+        self.inner.leave_joint()
+    }
 }
