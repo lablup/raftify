@@ -34,12 +34,12 @@ impl PyEntry {
         let sync_log = self.get_sync_log();
 
         let res = PyDict::new(py);
-        res.set_item("data", data).unwrap();
-        res.set_item("context", context).unwrap();
-        res.set_item("entry_type", entry_type).unwrap();
-        res.set_item("index", index).unwrap();
-        res.set_item("term", term).unwrap();
-        res.set_item("sync_log", sync_log).unwrap();
+        res.set_item("data", data)?;
+        res.set_item("context", context)?;
+        res.set_item("entry_type", entry_type)?;
+        res.set_item("index", index)?;
+        res.set_item("term", term)?;
+        res.set_item("sync_log", sync_log)?;
         Ok(res.into_py(py))
     }
 

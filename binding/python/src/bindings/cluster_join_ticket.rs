@@ -31,8 +31,8 @@ impl PyClusterJoinTicket {
         }
     }
 
-    pub fn __repr__(&self) -> PyResult<String> {
-        Ok(format!("{:?}", self.inner))
+    pub fn __repr__(&self) -> String {
+        format!("{:?}", self.inner)
     }
 
     pub fn get_reserved_id(&self) -> u64 {

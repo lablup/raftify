@@ -31,8 +31,8 @@ impl PyPeers {
         Self { inner }
     }
 
-    pub fn __repr__(&self) -> PyResult<String> {
-        Ok(format!("{:?}", self.inner))
+    pub fn __repr__(&self) -> String {
+        format!("{:?}", self.inner)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -59,7 +59,6 @@ impl PyPeers {
         Ok(new_py_list::<(u64, String), _>(py, peer_items)?.to_object(py))
     }
 
-    // TODO: Replace String with Peer
     pub fn get(&self, node_id: u64) -> Option<String> {
         self.inner
             .get(&node_id)

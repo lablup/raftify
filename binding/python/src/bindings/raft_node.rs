@@ -38,21 +38,21 @@ impl PyRaftNode {
 
 #[pymethods]
 impl PyRaftNode {
-    pub async fn is_leader(&self) -> PyResult<bool> {
-        Ok(self.inner.is_leader().await)
+    pub async fn is_leader(&self) -> bool {
+        self.inner.is_leader().await
     }
 
-    pub async fn get_id(&self) -> PyResult<u64> {
-        Ok(self.inner.get_id().await)
+    pub async fn get_id(&self) -> u64 {
+        self.inner.get_id().await
     }
 
-    pub async fn get_leader_id(&self) -> PyResult<u64> {
-        Ok(self.inner.get_leader_id().await)
+    pub async fn get_leader_id(&self) -> u64 {
+        self.inner.get_leader_id().await
     }
 
-    pub async fn get_peers(&self) -> PyResult<PyPeers> {
+    pub async fn get_peers(&self) -> PyPeers {
         let peers = self.inner.get_peers().await;
-        Ok(PyPeers { inner: peers })
+        PyPeers { inner: peers }
     }
 
     pub fn prepare_add_peer(&mut self, id: u64, addr: &PyString) {
@@ -72,8 +72,8 @@ impl PyRaftNode {
         }
     }
 
-    pub async fn inspect(&self) -> PyResult<String> {
-        Ok(format!("{:?}", self.inner.inspect().await))
+    pub async fn inspect(&self) -> String {
+        format!("{:?}", self.inner.inspect().await)
     }
 
     pub fn prepare_proposal(&mut self, proposal: Vec<u8>) {
@@ -137,15 +137,15 @@ impl PyRaftNode {
         self.inner.quit().await;
     }
 
-    pub async fn get_cluster_size(&mut self) -> PyResult<usize> {
-        Ok(self.inner.get_cluster_size().await)
+    pub async fn get_cluster_size(&mut self) -> usize {
+        self.inner.get_cluster_size().await
     }
 
     pub async fn set_bootstrap_done(&mut self) {
         self.inner.set_bootstrap_done().await
     }
 
-    pub async fn store(&self) -> PyResult<PyFSM> {
-        Ok(self.inner.store().await)
+    pub async fn store(&self) -> PyFSM {
+        self.inner.store().await
     }
 }
