@@ -89,6 +89,10 @@ class HashStore:
         self._store = pickle.loads(snapshot)
 
 
+async def _main(argv):
+    await cli_main(argv)
+
+
 def main():
     register_custom_deserializer()
 
@@ -97,4 +101,4 @@ def main():
     argv.insert(0, "raftify_cli")
 
     with suppress(KeyboardInterrupt):
-        asyncio.run(cli_main(argv))
+        asyncio.run(_main(argv))

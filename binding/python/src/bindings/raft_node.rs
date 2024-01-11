@@ -1,151 +1,133 @@
 use pyo3::{prelude::*, types::PyString};
-use raftify::{
-    raft::eraftpb::{ConfChangeV2, Message as RaftMessage},
-    RaftNode,
-};
+use pyo3_asyncio::tokio::future_into_py;
+use raftify::RaftNode;
 
 use super::{
-    errors::WrongArgumentError,
     peers::PyPeers,
     raft_rs::eraftpb::{conf_change_v2::PyConfChangeV2, message::PyMessage},
     state_machine::{PyFSM, PyLogEntry},
 };
 
-#[derive(Clone, Debug)]
-enum Arguments {
-    Propose { proposal: Vec<u8> },
-    AddPeer { id: u64, addr: String },
-    SendMessage { message: RaftMessage },
-    ChangeConfig { conf_change: ConfChangeV2 },
-    Empty,
-}
-
 #[derive(Clone)]
 #[pyclass(name = "RaftNode")]
 pub struct PyRaftNode {
     pub inner: RaftNode<PyLogEntry, PyFSM>,
-    args: Arguments,
 }
 
 impl PyRaftNode {
     pub fn new(inner: RaftNode<PyLogEntry, PyFSM>) -> Self {
-        PyRaftNode {
-            inner,
-            args: Arguments::Empty,
-        }
+        PyRaftNode { inner }
     }
 }
 
 #[pymethods]
 impl PyRaftNode {
-    pub async fn is_leader(&self) -> bool {
-        self.inner.is_leader().await
+    pub fn is_leader<'a>(&'a self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+        future_into_py(py, async move { Ok(raft_node.is_leader().await) })
     }
 
-    pub async fn get_id(&self) -> u64 {
-        self.inner.get_id().await
+    pub fn get_id<'a>(&'a self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+        future_into_py(py, async move { Ok(raft_node.get_id().await) })
     }
 
-    pub async fn get_leader_id(&self) -> u64 {
-        self.inner.get_leader_id().await
+    pub fn get_leader_id<'a>(&'a self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+        future_into_py(py, async move { Ok(raft_node.get_leader_id().await) })
     }
 
-    pub async fn get_peers(&self) -> PyPeers {
-        let peers = self.inner.get_peers().await;
-        PyPeers { inner: peers }
+    pub fn get_peers<'a>(&'a self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+
+        future_into_py(py, async move {
+            let peers = raft_node.get_peers().await;
+            Ok(PyPeers { inner: peers })
+        })
     }
 
-    pub fn prepare_add_peer(&mut self, id: u64, addr: &PyString) {
-        self.args = Arguments::AddPeer {
-            id,
-            addr: addr.to_string(),
-        };
+    pub fn add_peer<'a>(&'a self, id: u64, addr: &PyString, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+        let addr = addr.to_string();
+
+        future_into_py(py, async move {
+            raft_node.add_peer(id, addr).await;
+            Ok(())
+        })
     }
 
-    pub async fn add_peer(&mut self) -> PyResult<()> {
-        match self.args {
-            Arguments::AddPeer { id, ref addr } => Ok(self.inner.add_peer(id, addr.clone()).await),
-            _ => Err(WrongArgumentError::new_err(format!(
-                "Invalid arguments {:?}",
-                self.args
-            ))),
-        }
+    pub fn inspect<'a>(&'a self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+
+        future_into_py(
+            py,
+            async move { Ok(format!("{:?}", raft_node.inspect().await)) },
+        )
     }
 
-    pub async fn inspect(&self) -> String {
-        format!("{:?}", self.inner.inspect().await)
+    pub fn propose<'a>(&'a self, proposal: Vec<u8>, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+
+        future_into_py(py, async move {
+            raft_node.propose(proposal.clone()).await;
+            Ok(())
+        })
     }
 
-    pub fn prepare_proposal(&mut self, proposal: Vec<u8>) {
-        self.args = Arguments::Propose { proposal };
+    pub fn change_config<'a>(
+        &'a self,
+        conf_change: &PyConfChangeV2,
+        py: Python<'a>,
+    ) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+        let conf_change = conf_change.inner.clone();
+
+        future_into_py(py, async move {
+            raft_node.change_config(conf_change).await;
+            Ok(())
+        })
     }
 
-    pub async fn propose(&mut self) -> PyResult<()> {
-        match self.args {
-            Arguments::Propose { ref proposal } => Ok(self.inner.propose(proposal.clone()).await),
-            _ => Err(WrongArgumentError::new_err(format!(
-                "Invalid arguments {:?}",
-                self.args
-            ))),
-        }
+    pub fn send_message<'a>(&'a self, message: &PyMessage, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+        let message = message.inner.clone();
+
+        future_into_py(py, async move {
+            raft_node.send_message(message).await;
+            Ok(())
+        })
     }
 
-    pub fn prepare_change_config(&mut self, conf_change: &PyConfChangeV2) {
-        self.args = Arguments::ChangeConfig {
-            conf_change: conf_change.inner.clone(),
-        };
+    pub fn leave<'a>(&'a self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+
+        future_into_py(py, async move {
+            raft_node.leave().await;
+            Ok(())
+        })
     }
 
-    pub async fn change_config(&mut self) -> PyResult<()> {
-        match self.args {
-            Arguments::ChangeConfig { ref conf_change } => {
-                // TODO: Define return type and return it.
-                self.inner.change_config(conf_change.clone()).await;
-                Ok(())
-            }
-            _ => Err(WrongArgumentError::new_err(format!(
-                "Invalid arguments {:?}",
-                self.args
-            ))),
-        }
+    pub fn quit<'a>(&'a mut self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+
+        future_into_py(py, async move {
+            raft_node.quit().await;
+            Ok(())
+        })
     }
 
-    pub fn prepare_send_message(&mut self, message: &PyMessage) {
-        self.args = Arguments::SendMessage {
-            message: message.inner.clone(),
-        };
+    pub fn get_cluster_size<'a>(&'a mut self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+        future_into_py(py, async move { Ok(raft_node.get_cluster_size().await) })
     }
 
-    pub async fn send_message(&mut self) -> PyResult<()> {
-        match self.args {
-            Arguments::SendMessage { ref message } => {
-                self.inner.send_message(message.clone()).await;
-                Ok(())
-            }
-            _ => Err(WrongArgumentError::new_err(format!(
-                "Invalid arguments {:?}",
-                self.args
-            ))),
-        }
+    pub fn set_bootstrap_done<'a>(&'a mut self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+        future_into_py(py, async move { Ok(raft_node.set_bootstrap_done().await) })
     }
 
-    pub async fn leave(&mut self) {
-        self.inner.leave().await;
-    }
-
-    pub async fn quit(&mut self) {
-        self.inner.quit().await;
-    }
-
-    pub async fn get_cluster_size(&mut self) -> usize {
-        self.inner.get_cluster_size().await
-    }
-
-    pub async fn set_bootstrap_done(&mut self) {
-        self.inner.set_bootstrap_done().await
-    }
-
-    pub async fn store(&self) -> PyFSM {
-        self.inner.store().await
+    pub fn store<'a>(&'a mut self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+        future_into_py(py, async move { Ok(raft_node.store().await) })
     }
 }

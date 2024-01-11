@@ -2,7 +2,7 @@ import asyncio
 import pytest
 from utils import load_peers, wait_for_until_cluster_size_increase
 from constant import THREE_NODE_EXAMPLE
-from harness.raft_server import RAFTS, handle_bootstrap, run_rafts, wait_for_termination
+from harness.raft_server import RAFTS, handle_bootstrap, run_rafts
 from harness.state_machine import SetCommand
 
 
@@ -10,8 +10,6 @@ from harness.state_machine import SetCommand
 async def test_data_replication():
     peers = load_peers(THREE_NODE_EXAMPLE)
     asyncio.create_task(run_rafts(peers))
-    asyncio.create_task(wait_for_termination())
-
     await asyncio.sleep(2)
 
     await handle_bootstrap(peers)
@@ -22,8 +20,7 @@ async def test_data_replication():
     entry = SetCommand("1", "test")
 
     raft_node_1 = raft_1.get_raft_node()
-    raft_node_1.prepare_proposal(entry.encode())
-    await raft_node_1.propose()
+    await raft_node_1.propose(entry.encode())
 
     await asyncio.sleep(1)
 

@@ -7,7 +7,6 @@ use sloggers::{
     types::{Severity, SourceLocation},
     Build,
 };
-use std::sync::{Arc, Mutex};
 
 #[pyclass(name = "OverflowStrategy")]
 pub struct PyOverflowStrategy(pub OverflowStrategy);
@@ -55,17 +54,9 @@ impl PyOverflowStrategy {
 }
 
 #[derive(Clone)]
-pub enum LoggerMode {
-    File,
-    Stdout,
-}
-
-#[derive(Clone)]
 #[pyclass(name = "Logger")]
 pub struct PyLogger {
     pub inner: Logger,
-    pub mutex: Arc<Mutex<()>>,
-    pub mode: LoggerMode,
 }
 
 #[pymethods]
@@ -78,19 +69,13 @@ impl PyLogger {
 
         let logger = slog::Logger::root(drain, o!());
 
-        PyLogger {
-            inner: logger,
-            mutex: Arc::new(Mutex::new(())),
-            mode: LoggerMode::Stdout,
-        }
+        PyLogger { inner: logger }
     }
 
     #[staticmethod]
     pub fn default() -> Self {
         PyLogger {
             inner: default_logger(),
-            mutex: Arc::new(Mutex::new(())),
-            mode: LoggerMode::Stdout,
         }
     }
 
@@ -115,70 +100,26 @@ impl PyLogger {
             .build()
             .unwrap();
 
-        PyLogger {
-            inner: logger,
-            mutex: Arc::new(Mutex::new(())),
-            mode: LoggerMode::File,
-        }
+        PyLogger { inner: logger }
     }
 
     pub fn info(&mut self, s: &PyString) {
-        let print = || info!(self.inner, "{}", format!("{}", s));
-
-        match self.mode {
-            LoggerMode::Stdout => {
-                let _guard = self.mutex.lock().unwrap();
-                print()
-            }
-            LoggerMode::File => print(),
-        }
+        info!(self.inner, "{}", format!("{}", s));
     }
 
     pub fn debug(&mut self, s: &PyString) {
-        let print = || debug!(self.inner, "{}", format!("{}", s));
-
-        match self.mode {
-            LoggerMode::Stdout => {
-                let _guard = self.mutex.lock().unwrap();
-                print()
-            }
-            LoggerMode::File => print(),
-        }
+        debug!(self.inner, "{}", format!("{}", s));
     }
 
     pub fn trace(&mut self, s: &PyString) {
-        let print = || trace!(self.inner, "{}", format!("{}", s));
-
-        match self.mode {
-            LoggerMode::Stdout => {
-                let _guard = self.mutex.lock().unwrap();
-                print()
-            }
-            LoggerMode::File => print(),
-        }
+        trace!(self.inner, "{}", format!("{}", s));
     }
 
     pub fn error(&mut self, s: &PyString) {
-        let print = || error!(self.inner, "{}", format!("{}", s));
-
-        match self.mode {
-            LoggerMode::Stdout => {
-                let _guard = self.mutex.lock().unwrap();
-                print()
-            }
-            LoggerMode::File => print(),
-        }
+        error!(self.inner, "{}", format!("{}", s));
     }
 
     pub fn crit(&mut self, s: &PyString) {
-        let print = || crit!(self.inner, "{}", format!("{}", s));
-
-        match self.mode {
-            LoggerMode::Stdout => {
-                let _guard = self.mutex.lock().unwrap();
-                print()
-            }
-            LoggerMode::File => print(),
-        }
+        crit!(self.inner, "{}", format!("{}", s));
     }
 }

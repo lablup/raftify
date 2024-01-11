@@ -67,7 +67,6 @@ logger.info("Bootstrap new Raft Cluster")
 node_id = 1
 raft = Raft.build(node_id, raft_addr, store, cfg, peers)
 await raft.run()
-await wait_for_termination(raft)
 ```
 
 ### Join follower nodes to the cluster
@@ -81,11 +80,9 @@ join_ticket = await Raft.request_id(peer_addr)
 node_id = join_ticket.get_reserved_id()
 
 raft = Raft.build(node_id, raft_addr, store, cfg, peers)
-await raft.run()
-
-raft.prepare_join(join_ticket)
-await raft.join()
-await wait_for_termination(raft)
+tasks = []
+tasks.append(raft.run())
+await raft.join(join_ticket)
 ```
 
 ### Manipulate FSM by RaftServiceClient
@@ -94,8 +91,7 @@ If you want to operate the FSM remotely, use the `RaftServiceClient`.
 
 ```py
 client = await RaftServiceClient.build("127.0.0.1:60061")
-client.prepare_propose(SetCommand("1", "A").encode())
-await client.propose()
+await client.propose(SetCommand("1", "A").encode())
 ```
 
 ### Manipulate FSM by RaftNode
@@ -104,8 +100,7 @@ If you want to operate FSM locally, use the RaftNode interface of the Raft objec
 
 ```py
 raft_node = raft.get_raft_node()
-raft_node.prepare_proposal(message.encode())
-await raft_node.propose()
+await raft_node.propose(message.encode())
 ```
 
 ### Debugging

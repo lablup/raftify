@@ -33,7 +33,10 @@ def load_peers() -> Peers:
 
 
 def build_config() -> Config:
-    raft_cfg = RaftConfig()
+    raft_cfg = RaftConfig(
+        election_tick=10,
+        heartbeat_tick=3,
+    )
     cfg = Config(
         raft_cfg,
         log_dir="./logs",
@@ -99,8 +102,7 @@ async def put(request: web.Request) -> web.Response:
     message = SetCommand(id, value)
 
     raft_node = raft.get_raft_node()
-    raft_node.prepare_proposal(message.encode())
-    await raft_node.propose()
+    await raft_node.propose(message.encode())
     return web.Response(text="OK")
 
 
@@ -175,13 +177,6 @@ class HashStore:
         self._store = pickle.loads(snapshot)
 
 
-async def wait_for_termination(raft: Raft):
-    while True:
-        if raft.is_finished():
-            break
-        await asyncio.sleep(1)
-
-
 async def main():
     register_custom_deserializer()
     parser = argparse.ArgumentParser()
@@ -213,20 +208,16 @@ async def main():
             node_id = peers.get_node_id_by_addr(raft_addr)
 
         raft = Raft.build(node_id, raft_addr, store, cfg, logger, peers)
-        await raft.run()
+        tasks.append(raft.run())
 
         if not peers:
-            raft.prepare_join(join_ticket)
-            await raft.join()
+            await raft.join(join_ticket)
         else:
             leader_addr = peers.get(1)
-            raft.prepare_member_bootstrap_ready(leader_addr, node_id)
-            await raft.member_bootstrap_ready()
+            await Raft.member_bootstrap_ready(leader_addr, node_id)
     else:
         raft = Raft.build(1, raft_addr, store, cfg, logger, peers)
-        await raft.run()
-
-    tasks.append(asyncio.create_task(wait_for_termination(raft)))
+        tasks.append(raft.run())
 
     async with WebServer(web_server_addr, routes, {"raft": raft, "store": store}):
         await asyncio.gather(*tasks)

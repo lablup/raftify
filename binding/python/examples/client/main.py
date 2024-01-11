@@ -29,8 +29,7 @@ async def main() -> None:
     """
 
     client = await RaftServiceClient.build("127.0.0.1:60061")
-    client.prepare_propose(SetCommand("1", "A").encode())
-    await client.propose()
+    await client.propose(SetCommand("1", "A").encode())
 
     peers_json = await client.get_peers()
     print("Peers: ", peers_json)

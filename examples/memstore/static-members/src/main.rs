@@ -50,6 +50,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     // converts log to slog
     // let _scope_guard = slog_scope::set_global_logger(logger.clone());
+    #[allow(clippy::let_unit_value)]
     let _log_guard = slog_stdlog::init_with_level(log::Level::Debug).unwrap();
 
     let options = Options::from_args();

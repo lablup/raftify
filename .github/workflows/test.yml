@@ -26,6 +26,10 @@ jobs:
         toolchain: stable
         override: true
 
+    - name: Lint Rust codes
+      run: |
+        cargo clippy
+
     - name: Build and Check Rust unit tests and harness tests all pass
       run: |
         make build

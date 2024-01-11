@@ -416,12 +416,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures"
+version = "0.3.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "645c6916888f6cb6350d2550b80fb63e734897a8498abe35cfb732b6487804b0"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eac8f7d7865dcb88bd4373ab671c8cf4508703796caa2b1985a9ca867b3fcb78"
 dependencies = [
  "futures-core",
+ "futures-sink",
 ]
 
 [[package]]
@@ -429,6 +445,34 @@ name = "futures-core"
 version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfc6580bb841c5a68e9ef15c77ccc837b40a7504914d52e47b8b0e9bbda25a1d"
+
+[[package]]
+name = "futures-executor"
+version = "0.3.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a576fc72ae164fca6b9db127eaa9a9dda0d61316034f33a0a0d4eda41f02b01d"
+dependencies = [
+ "futures-core",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
+name = "futures-io"
+version = "0.3.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a44623e20b9681a318efdd71c299b6b222ed6f231972bfe2f224ebad6311f0c1"
+
+[[package]]
+name = "futures-macro"
+version = "0.3.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87750cf4b7a4c0625b1529e4c543c2182106e4dedc60a2a6455e00d212c489ac"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.48",
+]
 
 [[package]]
 name = "futures-sink"
@@ -448,10 +492,16 @@ version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d6401deb83407ab3da39eba7e33987a73c3df0c82b4bb5813ee871c19c41d48"
 dependencies = [
+ "futures-channel",
  "futures-core",
+ "futures-io",
+ "futures-macro",
+ "futures-sink",
  "futures-task",
+ "memchr",
  "pin-project-lite",
  "pin-utils",
+ "slab",
 ]
 
 [[package]]
@@ -1080,12 +1130,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69d3587f8a9e599cc7ec2c00e331f71c4e69a5f9a4b8a6efd5b07466b9736f9a"
 
 [[package]]
-name = "portable-atomic"
-version = "1.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7170ef9988bc169ba16dd36a7fa041e5c4cbeb6a35b76d4c03daded371eae7c0"
-
-[[package]]
 name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1215,8 +1259,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3"
-version = "0.21.0-dev"
-source = "git+https://github.com/jopemachine/pyo3#0344921326cb3efc318e64d8269968221dc47d9f"
+version = "0.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a89dc7a5850d0e983be1ec2a463a171d20990487c3cfcd68b5363f1ee3d6fe0"
 dependencies = [
  "cfg-if",
  "indoc",
@@ -1224,7 +1269,6 @@ dependencies = [
  "libc",
  "memoffset",
  "parking_lot",
- "portable-atomic",
  "pyo3-build-config",
  "pyo3-ffi",
  "pyo3-macros",
@@ -1232,9 +1276,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pyo3-asyncio"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ea6b68e93db3622f3bb3bf363246cf948ed5375afe7abff98ccbdd50b184995"
+dependencies = [
+ "futures",
+ "once_cell",
+ "pin-project-lite",
+ "pyo3",
+ "tokio",
+]
+
+[[package]]
 name = "pyo3-build-config"
-version = "0.21.0-dev"
-source = "git+https://github.com/jopemachine/pyo3#0344921326cb3efc318e64d8269968221dc47d9f"
+version = "0.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07426f0d8fe5a601f26293f300afd1a7b1ed5e78b2a705870c5f30893c5163be"
 dependencies = [
  "once_cell",
  "target-lexicon",
@@ -1242,8 +1300,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-ffi"
-version = "0.21.0-dev"
-source = "git+https://github.com/jopemachine/pyo3#0344921326cb3efc318e64d8269968221dc47d9f"
+version = "0.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbb7dec17e17766b46bca4f1a4215a85006b4c2ecde122076c562dd058da6cf1"
 dependencies = [
  "libc",
  "pyo3-build-config",
@@ -1251,8 +1310,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-macros"
-version = "0.21.0-dev"
-source = "git+https://github.com/jopemachine/pyo3#0344921326cb3efc318e64d8269968221dc47d9f"
+version = "0.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05f738b4e40d50b5711957f142878cfa0f28e054aa0ebdfc3fd137a843f74ed3"
 dependencies = [
  "proc-macro2",
  "pyo3-macros-backend",
@@ -1262,8 +1322,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-macros-backend"
-version = "0.21.0-dev"
-source = "git+https://github.com/jopemachine/pyo3#0344921326cb3efc318e64d8269968221dc47d9f"
+version = "0.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fc910d4851847827daf9d6cdd4a823fbdaab5b8818325c5e97a86da79e8881f"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -1294,9 +1355,9 @@ dependencies = [
 
 [[package]]
 name = "raftify"
-version = "0.1.28"
+version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d95910e825b1ea1fd7d8603b8678e36eba9ae9b7d09955498de95d50fd858032"
+checksum = "8fb6f89560e905df90adf53ca1e7cd524b294d80b773955e2f2741713f90990a"
 dependencies = [
  "async-trait",
  "bincode",
@@ -1321,7 +1382,7 @@ dependencies = [
 
 [[package]]
 name = "raftify-py"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "async-trait",
  "bincode",
@@ -1331,6 +1392,7 @@ dependencies = [
  "once_cell",
  "prost",
  "pyo3",
+ "pyo3-asyncio",
  "raftify",
  "slog",
  "slog-async",

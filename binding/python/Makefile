@@ -8,10 +8,19 @@ install:
 	maturin build
 	pip install .
 
+uninstall:
+	pip uninstall -y raftify_cli
+
 install-cli:
-	cd cli
+	cd examples/cli
 	pip install .
-	cd ..
+	cd ../..
+
+reinstall-cli:
+	pip uninstall -y raftify_cli
+	cd examples/cli
+	pip install .
+	cd ../..
 
 install-release:
 	make build-release

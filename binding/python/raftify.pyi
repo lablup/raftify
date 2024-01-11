@@ -99,28 +99,23 @@ class Raft:
     def build(
         node_id: int,
         raft_addr: str,
-        fsm: AbstractStateMachine,
+        fsm: "AbstractStateMachine",
         config: "Config",
         logger: "Logger",
         initial_peers: Optional["Peers"] = None,
     ) -> "Raft":
         """ """
     @staticmethod
-    async def request_id(self, peer_addr: str) -> "ClusterJoinTicket":
+    async def request_id(peer_addr: str) -> "ClusterJoinTicket":
         """"""
-    def prepare_join(self, join_ticket: "ClusterJoinTicket") -> None:
+    @staticmethod
+    async def member_bootstrap_ready() -> None:
         """ """
-    async def join(self) -> None:
-        """ """
-    def prepare_member_bootstrap_ready(self, leader_addr: str, node_id: int) -> None:
-        """ """
-    async def member_bootstrap_ready(self) -> None:
+    async def join(self, join_ticket: "ClusterJoinTicket") -> None:
         """ """
     async def run(self) -> None:
         """ """
     async def snapshot(self) -> None:
-        """ """
-    def is_finished(self) -> bool:
         """ """
     def get_raft_node(self) -> "RaftNode":
         """ """
@@ -134,23 +129,15 @@ class RaftNode:
         """ """
     async def get_peers(self) -> "Peers":
         """ """
-    def prepare_add_peer(self, id: int, addr: str) -> None:
-        """ """
-    async def add_peer(self) -> None:
+    async def add_peer(self, id: int, addr: str) -> None:
         """ """
     async def inspect(self) -> str:
         """ """
-    def prepare_proposal(self, message: bytes) -> None:
+    async def propose(self, message: bytes) -> None:
         """ """
-    async def propose(self) -> None:
+    async def change_config(self, conf_change: "ConfChangeV2") -> None:
         """ """
-    def prepare_change_config(self, conf_change: "ConfChangeV2") -> None:
-        """ """
-    async def change_config(self) -> None:
-        """ """
-    def prepare_message(self, message: "Message") -> None:
-        """ """
-    async def send_message(self) -> None:
+    async def send_message(self, message: "Message") -> None:
         """ """
     async def leave(self) -> None:
         """ """
@@ -160,7 +147,7 @@ class RaftNode:
         """ """
     async def set_bootstrap_done(self) -> None:
         """ """
-    async def store(self) -> AbstractStateMachine:
+    async def store(self) -> "AbstractStateMachine":
         """ """
 
 class ClusterJoinTicket:
@@ -273,7 +260,7 @@ class Config:
     def __init__(
         self,
         *,
-        raft_config: Optional[RaftConfig] = None,
+        raft_config: Optional["RaftConfig"] = None,
         log_dir: Optional[str] = None,
         save_compacted_logs: Optional[bool] = None,
         compacted_log_dir: Optional[str] = None,
@@ -293,17 +280,11 @@ class RaftServiceClient:
     @staticmethod
     async def build(addr: str) -> "RaftServiceClient":
         """ """
-    def prepare_change_config(self, conf_change: "ConfChangeV2") -> None:
+    async def change_config(self, conf_change: "ConfChangeV2") -> None:
         """ """
-    async def change_config(self) -> None:
+    async def send_message(self, message: "Message") -> None:
         """ """
-    def prepare_message(self, message: "Message") -> None:
-        """ """
-    async def send_message(self) -> None:
-        """ """
-    def prepare_propose(self, proposal: bytes) -> None:
-        """ """
-    async def propose(self) -> None:
+    async def propose(self, proposal: bytes) -> None:
         """ """
     async def get_peers(self) -> str:
         """ """
@@ -540,7 +521,7 @@ class ConfChangeV2:
     def get_changes(self) -> list["ConfChangeSingle"]:
         """ """
     def set_changes(
-        self, changes: list["ConfChangeSingle"] | list["ConfChangeSingle"]
+        self, changes: list["ConfChangeSingle"]
     ) -> None:
         """ """
     def get_context(self) -> bytes:

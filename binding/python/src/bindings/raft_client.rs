@@ -1,141 +1,98 @@
 use pyo3::prelude::*;
-use raftify::{
-    create_client,
-    raft::eraftpb::{ConfChangeV2, Message},
-    Channel, RaftServiceClient,
-};
+use pyo3_asyncio::tokio::future_into_py;
+use raftify::{create_client, Channel, RaftServiceClient};
 
-use super::{
-    errors::WrongArgumentError,
-    raft_facade::TOKIO_RT,
-    raft_rs::eraftpb::{conf_change_v2::PyConfChangeV2, message::PyMessage},
-};
-
-#[derive(Clone, Debug)]
-enum Arguments {
-    ChangeConfig { conf_change: ConfChangeV2 },
-    SendMessage { message: Message },
-    Propose { proposal: Vec<u8> },
-    Empty,
-}
+use super::raft_rs::eraftpb::{conf_change_v2::PyConfChangeV2, message::PyMessage};
 
 #[derive(Clone)]
 #[pyclass(name = "RaftServiceClient")]
 pub struct PyRaftServiceClient {
     inner: RaftServiceClient<Channel>,
-    args: Arguments,
 }
 
 #[pymethods]
 impl PyRaftServiceClient {
     #[staticmethod]
-    pub async fn build(addr: String) -> Self {
+    pub fn build<'a>(addr: String, py: Python<'a>) -> PyResult<&'a PyAny> {
         let addr = addr.to_owned();
-        let inner = PyRaftServiceClient::_create_client(addr).await;
 
-        Self {
-            inner,
-            args: Arguments::Empty,
-        }
-    }
-
-    pub fn prepare_conf_change(&mut self, conf_change: PyConfChangeV2) {
-        self.args = Arguments::ChangeConfig {
-            conf_change: conf_change.inner,
-        };
+        future_into_py(py, async move {
+            let inner = create_client(addr).await.unwrap();
+            Ok(Self { inner })
+        })
     }
 
     // TODO: Defines the return type
-    pub async fn change_config(&mut self) -> PyResult<(i32, Vec<u8>)> {
-        match &self.args {
-            Arguments::ChangeConfig { conf_change } => {
-                let result = self
-                    .inner
-                    .change_config(conf_change.clone())
-                    .await
-                    .unwrap()
-                    .into_inner();
+    pub fn change_config<'a>(
+        &'a mut self,
+        conf_change: PyConfChangeV2,
+        py: Python<'a>,
+    ) -> PyResult<&'a PyAny> {
+        let mut client = self.inner.clone();
 
-                return Ok((result.result_type, result.data));
-            }
-            _ => {
-                return Err(WrongArgumentError::new_err(
-                    "Wrong argument type".to_string(),
-                ))
-            }
-        }
+        future_into_py(py, async move {
+            let result = client
+                .change_config(conf_change.inner)
+                .await
+                .unwrap()
+                .into_inner();
+            Ok((result.result_type, result.data))
+        })
     }
 
-    pub fn prepare_send_message(&mut self, data: PyMessage) {
-        self.args = Arguments::SendMessage {
-            message: data.inner,
-        };
+    pub fn send_message<'a>(
+        &'a mut self,
+        message: PyMessage,
+        py: Python<'a>,
+    ) -> PyResult<&'a PyAny> {
+        let mut client = self.inner.clone();
+
+        future_into_py(py, async move {
+            let _ = client
+                .send_message(message.inner)
+                .await
+                .unwrap()
+                .into_inner();
+            Ok(())
+        })
     }
 
-    pub async fn send_message(&mut self) -> PyResult<()> {
-        match &self.args {
-            Arguments::SendMessage { message } => {
-                self.inner.send_message(message.clone()).await.unwrap();
+    pub fn propose<'a>(&'a mut self, proposal: Vec<u8>, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let mut client = self.inner.clone();
 
-                return Ok(());
-            }
-            _ => {
-                return Err(WrongArgumentError::new_err(
-                    "Wrong argument type".to_string(),
-                ))
-            }
-        }
+        future_into_py(py, async move {
+            let _ = client
+                .propose(raftify::raft_service::ProposeArgs { msg: proposal })
+                .await
+                .unwrap()
+                .into_inner();
+            Ok(())
+        })
     }
 
-    pub fn prepare_propose(&mut self, proposal: Vec<u8>) {
-        self.args = Arguments::Propose { proposal };
+    pub fn debug_node<'a>(&'a mut self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let mut client = self.inner.clone();
+
+        future_into_py(py, async move {
+            let _ = client
+                .debug_node(raftify::raft_service::Empty {})
+                .await
+                .unwrap()
+                .into_inner();
+            Ok(())
+        })
     }
 
-    pub async fn propose(&mut self) -> PyResult<()> {
-        match &self.args {
-            Arguments::Propose { proposal } => {
-                self.inner
-                    .propose(raftify::raft_service::ProposeArgs {
-                        msg: proposal.clone(),
-                    })
-                    .await
-                    .unwrap();
+    pub fn get_peers<'a>(&'a mut self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let mut client = self.inner.clone();
 
-                return Ok(());
-            }
-            _ => {
-                return Err(WrongArgumentError::new_err(
-                    "Wrong argument type".to_string(),
-                ))
-            }
-        }
-    }
-
-    pub async fn debug_node(&mut self) -> PyResult<String> {
-        let response = self
-            .inner
-            .debug_node(raftify::raft_service::Empty {})
-            .await
-            .unwrap()
-            .into_inner();
-
-        return Ok(response.result_json);
-    }
-
-    pub async fn get_peers(&mut self) -> PyResult<String> {
-        let response = self
-            .inner
-            .get_peers(raftify::raft_service::Empty {})
-            .await
-            .unwrap()
-            .into_inner();
-
-        return Ok(response.peers_json);
-    }
-}
-
-impl PyRaftServiceClient {
-    pub async fn _create_client(addr: String) -> RaftServiceClient<Channel> {
-        TOKIO_RT.spawn(create_client(addr)).await.unwrap().unwrap()
+        future_into_py(py, async move {
+            let response = client
+                .get_peers(raftify::raft_service::Empty {})
+                .await
+                .unwrap()
+                .into_inner();
+            Ok(response.peers_json)
+        })
     }
 }
