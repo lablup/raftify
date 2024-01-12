@@ -63,9 +63,10 @@ class HashStore:
 First bootstrap the cluster that contains the leader node.
 
 ```py
+logger = Slogger.default()
 logger.info("Bootstrap new Raft Cluster")
 node_id = 1
-raft = Raft.build(node_id, raft_addr, store, cfg, peers)
+raft = Raft.build(node_id, raft_addr, store, cfg, logger, peers)
 await raft.run()
 ```
 
@@ -79,7 +80,8 @@ If peer specifies the configuration of the initial members, the cluster will ope
 join_ticket = await Raft.request_id(peer_addr)
 node_id = join_ticket.get_reserved_id()
 
-raft = Raft.build(node_id, raft_addr, store, cfg, peers)
+logger = Slogger.default()
+raft = Raft.build(node_id, raft_addr, store, cfg, logger, peers)
 tasks = []
 tasks.append(raft.run())
 await raft.join(join_ticket)
