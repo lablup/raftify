@@ -1,8 +1,7 @@
-use std::sync::Arc;
-
 use pyo3::{exceptions::PyException, prelude::*, types::PyString};
 use pyo3_asyncio::tokio::future_into_py;
 use raftify::Raft;
+use std::sync::Arc;
 
 use super::{
     cluster_join_ticket::PyClusterJoinTicket,

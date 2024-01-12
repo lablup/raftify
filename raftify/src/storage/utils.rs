@@ -8,8 +8,10 @@ use std::{
 };
 
 use super::constant::ENTRY_KEY_LENGTH;
-use crate::raft::{eraftpb::Entry, formatter::CUSTOM_FORMATTER};
-use crate::Result;
+use crate::{
+    raft::{eraftpb::Entry, formatter::CUSTOM_FORMATTER},
+    Result,
+};
 
 pub fn get_storage_path(log_dir: &str, node_id: u64) -> Result<PathBuf> {
     let log_dir_path = format!("{}/node-{}", log_dir, node_id);

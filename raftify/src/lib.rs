@@ -21,26 +21,25 @@ mod utils;
 pub mod cli;
 pub mod raft_service;
 
-pub use async_trait::async_trait;
-pub use formatter::CustomFormatter;
-pub use jopemachine_raft as raft;
-pub use raft::Config as RaftConfig;
-pub use tonic;
-pub use tonic::transport::Channel;
+pub use {
+    async_trait::async_trait, formatter::CustomFormatter, jopemachine_raft as raft,
+    raft::Config as RaftConfig, tonic, tonic::transport::Channel,
+};
 
-pub use crate::config::Config;
-pub use crate::error::{Error, Result};
-pub use crate::follower_role::FollowerRole;
-pub use crate::log_entry::AbstractLogEntry;
-pub use crate::peer::Peer;
-pub use crate::peers::Peers;
-pub use crate::raft_client::create_client;
-pub use crate::raft_facade::ClusterJoinTicket;
-pub use crate::raft_facade::Raft;
-pub use crate::raft_node::RaftNode;
-pub use crate::raft_service::raft_service_client::RaftServiceClient;
-pub use crate::state_machine::AbstractStateMachine;
-pub use crate::storage::heed::{HeedStorage, LogStore};
+pub use crate::{
+    config::Config,
+    error::{Error, Result},
+    follower_role::FollowerRole,
+    log_entry::AbstractLogEntry,
+    peer::Peer,
+    peers::Peers,
+    raft_client::create_client,
+    raft_facade::{ClusterJoinTicket, Raft},
+    raft_node::RaftNode,
+    raft_service::raft_service_client::RaftServiceClient,
+    state_machine::AbstractStateMachine,
+    storage::heed::{HeedStorage, LogStore},
+};
 
 // pub(crate) use utils::get_filesize;
 // pub(crate) use utils::is_near_zero;

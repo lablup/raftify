@@ -6,7 +6,7 @@ use super::{
 };
 use crate::raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 
-// Request type processed through network calls (grpc)
+/// Request type processed through network calls (gRPC)
 pub enum ServerRequestMsg {
     MemberBootstrapReady {
         node_id: u64,
@@ -37,7 +37,7 @@ pub enum ServerRequestMsg {
     },
 }
 
-// Request type used for communication (method calls) between RaftFacade and RaftNode
+/// Request type used for communication (method calls) between RaftFacade and RaftNode
 pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
     IsLeader {
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
@@ -100,8 +100,8 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
     },
 }
 
-// Request type sent from a RaftNode to itself (RaftNode).
-// Used for accessing the RaftNode from a future created by RaftNode asynchronous methods
+/// Request type sent from a RaftNode to itself (RaftNode).
+/// Used for accessing the RaftNode from a future created by RaftNode asynchronous methods
 pub enum SelfMessage {
     ReportUnreachable { node_id: u64 },
 }

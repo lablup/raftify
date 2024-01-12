@@ -3,7 +3,7 @@ mod response_sender;
 pub mod utils;
 
 use bincode::{deserialize, serialize};
-use jopemachine_raft::logger::{Logger, Slogger};
+use jopemachine_raft::logger::Logger;
 use prost::Message as PMessage;
 use std::{
     collections::HashMap,
