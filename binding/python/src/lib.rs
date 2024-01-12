@@ -9,8 +9,8 @@ mod bindings;
 fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<bindings::cluster_join_ticket::PyClusterJoinTicket>()?;
     m.add_class::<bindings::config::PyConfig>()?;
-    m.add_class::<bindings::logger::PyLogger>()?;
-    m.add_class::<bindings::logger::PyOverflowStrategy>()?;
+    m.add_class::<bindings::slogger::PySlogger>()?;
+    m.add_class::<bindings::slogger::PyOverflowStrategy>()?;
     m.add_class::<bindings::peers::PyPeers>()?;
     m.add_class::<bindings::raft_client::PyRaftServiceClient>()?;
     m.add_class::<bindings::raft_facade::PyRaftFacade>()?;

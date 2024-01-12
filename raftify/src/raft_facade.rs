@@ -1,7 +1,9 @@
 use bincode::deserialize;
+use jopemachine_raft::logger::Logger;
 use std::{
     collections::HashMap,
     net::{SocketAddr, ToSocketAddrs},
+    sync::Arc,
     time::Duration,
 };
 use tokio::{
@@ -27,7 +29,7 @@ pub struct Raft<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine 
     pub raft_server: RaftServer,
     pub server_tx: mpsc::Sender<ServerRequestMsg>,
     pub raft_addr: SocketAddr,
-    pub logger: slog::Logger,
+    pub logger: Arc<dyn Logger>,
     pub config: Config,
 }
 
@@ -47,7 +49,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         raft_addr: A,
         fsm: FSM,
         config: Config,
-        logger: slog::Logger,
+        logger: Arc<dyn Logger>,
         initial_peers: Option<Peers>,
     ) -> Result<Self> {
         let raft_addr = raft_addr.to_socket_addrs()?.next().unwrap();
@@ -99,7 +101,8 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
     }
 
     pub async fn run(self) -> Result<()> {
-        slog::info!(self.logger, "Start to run RaftNode. {:?}", self.config);
+        self.logger
+            .info(&format!("Start to run RaftNode. {:?}", self.config));
 
         let (quit_signal_tx, quit_signal_rx) = oneshot::channel::<()>();
 
@@ -110,7 +113,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
 
         tokio::select! {
             _ = signal::ctrl_c() => {
-                slog::info!(self.logger, "Ctrl+C signal detected. Shutting down...");
+                self.logger.info("Ctrl+C signal detected. Shutting down...");
                 Ok(())
             }
             result = raft_node_handle => {
@@ -120,17 +123,17 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
                     Ok(raft_node_result) => {
                         match raft_node_result {
                             Ok(_) => {
-                                slog::info!(self.logger, "RaftNode quitted. Shutting down...");
+                                self.logger.info("RaftNode quitted. Shutting down...");
                                 Ok(())
                             },
                             Err(err) => {
-                                slog::error!(self.logger, "RaftNode quitted with the error. Shutting down... {:?}", err);
+                                self.logger.error(&format!("RaftNode quitted with the error. Shutting down... {:?}", err));
                                 Err(Error::Other(Box::new(err)))
                             }
                         }
                     },
                     Err(err) => {
-                        slog::error!(self.logger, "RaftNode quitted with the error. Shutting down... {:?}", err);
+                        self.logger.error(&format!("RaftNode quitted with the error. Shutting down... {:?}", err));
                         Err(Error::Unknown)
                     }
                 }
@@ -140,17 +143,17 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
                     Ok(raft_server_result) => {
                         match raft_server_result {
                             Ok(_) => {
-                                slog::info!(self.logger, "RaftServer quitted. Shutting down...");
+                                self.logger.info("RaftServer quitted. Shutting down...");
                                 Ok(())
                             },
                             Err(err) => {
-                                slog::error!(self.logger, "RaftServer quitted with error. Shutting down... {:?}", err);
+                                self.logger.error(&format!("RaftServer quitted with error. Shutting down... {:?}", err));
                                 Err(Error::Other(Box::new(err)))
                             }
                         }
                     },
                     Err(err) => {
-                        slog::error!(self.logger, "RaftServer quitted with the error. Shutting down... {:?}", err);
+                        self.logger.error(&format!("RaftServer quitted with the error. Shutting down... {:?}", err));
                         Err(Error::Unknown)
                     }
                 }

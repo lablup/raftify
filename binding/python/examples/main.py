@@ -1,11 +1,13 @@
 import argparse
 import asyncio
+import logging
 import pickle
 from contextlib import suppress
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
 import tomli
+import colorlog
 from aiohttp import web
 from aiohttp.web import AbstractRouteDef, RouteTableDef
 from raftify import (
@@ -13,7 +15,6 @@ from raftify import (
     Peers,
     Raft,
     RaftConfig,
-    Logger,
     set_confchange_context_deserializer,
     set_confchangev2_context_deserializer,
     set_entry_context_deserializer,
@@ -125,6 +126,29 @@ class SetCommand:
         return cls(unpacked["key"], unpacked["value"])
 
 
+class Logger:
+    def __init__(self, logger) -> None:
+        self.logger = logger
+
+    def info(self, msg: str) -> None:
+        self.logger.info(msg)
+
+    def debug(self, msg: str) -> None:
+        self.logger.debug(msg)
+
+    def trace(self, msg: str) -> None:
+        self.logger.debug(msg)
+
+    def error(self, msg: str) -> None:
+        self.logger.critical(msg)
+
+    def warn(self, msg: str) -> None:
+        self.logger.debug(msg)
+
+    def fatal(self, msg: str) -> None:
+        self.logger.critical(msg)
+
+
 def pickle_deserialize(data: bytes) -> str | None:
     if data == b"":
         return None
@@ -177,6 +201,24 @@ class HashStore:
         self._store = pickle.loads(snapshot)
 
 
+def setup_logger() -> logging.Logger:
+    log_format = "%(asctime)s - " "%(log_color)s%(levelname)-8s - %(message)s%(reset)s"
+
+    log_colors_config = {
+        "DEBUG": "cyan",
+        "INFO": "green",
+        "WARNING": "yellow",
+        "ERROR": "red",
+        "CRITICAL": "red",
+        "asctime": "grey",
+    }
+
+    colorlog.basicConfig(
+        level=logging.DEBUG, format=log_format, log_colors=log_colors_config
+    )
+    return logging.getLogger()
+
+
 async def main():
     register_custom_deserializer()
     parser = argparse.ArgumentParser()
@@ -196,7 +238,7 @@ async def main():
     peers = load_peers() if not ignore_static_bootstrap else None
 
     cfg = build_config()
-    logger = Logger.default()
+    logger = Logger(setup_logger())
     store = HashStore()
     tasks = []
 

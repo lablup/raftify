@@ -4,8 +4,13 @@ extern crate slog_async;
 extern crate slog_scope;
 extern crate slog_term;
 
+use std::sync::Arc;
+
 use actix_web::{web, App, HttpServer};
-use raftify::{raft::formatter::set_custom_formatter, CustomFormatter, Raft as Raft_};
+use raftify::{
+    raft::{formatter::set_custom_formatter, logger::Slogger},
+    CustomFormatter, Raft as Raft_,
+};
 use slog::Drain;
 use slog_envlogger::LogBuilder;
 use structopt::StructOpt;
@@ -44,7 +49,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     }
     let drain = builder.build();
 
-    let logger = slog::Logger::root(drain, o!());
+    let logger = Arc::new(Slogger {
+        slog: slog::Logger::root(drain, o!()),
+    });
 
     set_custom_formatter(CustomFormatter::<LogEntry, HashStore>::new());
 

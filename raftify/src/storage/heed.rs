@@ -6,6 +6,7 @@ use heed::{
 use heed_traits::{BoxedError, BytesDecode, BytesEncode};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use prost::Message as PMessage;
+use raft::logger::Logger;
 use std::{
     borrow::Cow,
     cmp::max,
@@ -89,7 +90,7 @@ impl fmt::Debug for HeedStorage {
 }
 
 impl HeedStorage {
-    pub fn create(log_dir_path: PathBuf, config: &Config, logger: slog::Logger) -> Result<Self> {
+    pub fn create(log_dir_path: PathBuf, config: &Config, logger: Arc<dyn Logger>) -> Result<Self> {
         let core = HeedStorageCore::create(log_dir_path, config, logger)?;
         Ok(Self(Arc::new(RwLock::new(core))))
     }
@@ -321,11 +322,11 @@ pub struct HeedStorageCore {
     metadata_db: Database<HeedStr, HeedBytes>,
     #[allow(dead_code)]
     config: Config,
-    logger: slog::Logger,
+    logger: Arc<dyn Logger>,
 }
 
 impl HeedStorageCore {
-    pub fn create(log_dir_path: PathBuf, config: &Config, logger: slog::Logger) -> Result<Self> {
+    pub fn create(log_dir_path: PathBuf, config: &Config, logger: Arc<dyn Logger>) -> Result<Self> {
         let env = heed::EnvOpenOptions::new()
             .map_size(config.lmdb_map_size as usize)
             .max_dbs(3000)
@@ -488,7 +489,8 @@ impl HeedStorageCore {
         max_size: impl Into<Option<u64>>,
         _ctx: GetEntriesContext,
     ) -> Result<Vec<Entry>> {
-        slog::info!(self.logger, "Entries [{}, {}) requested", low, high);
+        self.logger
+            .info(format!("Entries [{low}, {high}) requested.", low = low, high = high).as_str());
 
         let low_str = format_entry_key_string(low.to_string().as_str());
         let high_str = format_entry_key_string(high.to_string().as_str());

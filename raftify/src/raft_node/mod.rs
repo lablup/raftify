@@ -3,6 +3,7 @@ mod response_sender;
 pub mod utils;
 
 use bincode::{deserialize, serialize};
+use jopemachine_raft::logger::{Logger, Slogger};
 use prost::Message as PMessage;
 use std::{
     collections::HashMap,
@@ -71,7 +72,7 @@ impl<
         config: Config,
         initial_peers: Peers,
         raft_addr: SocketAddr,
-        logger: slog::Logger,
+        logger: Arc<dyn Logger>,
         bootstrap_done: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
@@ -103,7 +104,7 @@ impl<
         config: Config,
         peers: Peers,
         raft_addr: SocketAddr,
-        logger: slog::Logger,
+        logger: Arc<dyn Logger>,
         bootstrap_done: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
@@ -391,7 +392,7 @@ pub struct RaftNodeCore<
     config: Config,
     should_exit: bool,
     last_snapshot_created: Instant,
-    logger: slog::Logger,
+    logger: Arc<dyn Logger>,
     bootstrap_done: bool,
     peers_bootstrap_ready: Option<HashMap<u64, bool>>,
     response_senders: HashMap<u64, ResponseSender<LogEntry, FSM>>,
@@ -419,7 +420,7 @@ impl<
         mut config: Config,
         initial_peers: Peers,
         raft_addr: SocketAddr,
-        logger: slog::Logger,
+        logger: Arc<dyn Logger>,
         bootstrap_done: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
@@ -441,7 +442,7 @@ impl<
         snapshot.mut_metadata().mut_conf_state().voters = vec![1];
         storage.apply_snapshot(snapshot).unwrap();
 
-        let mut raw_node = RawNode::new(&config.raft_config, storage, &logger)?;
+        let mut raw_node = RawNode::new(&config.raft_config, storage, logger.clone())?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now();
 
@@ -486,7 +487,7 @@ impl<
         mut config: Config,
         peers: Peers,
         raft_addr: SocketAddr,
-        logger: slog::Logger,
+        logger: Arc<dyn Logger>,
         bootstrap_done: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
@@ -501,7 +502,7 @@ impl<
             &config,
             logger.clone(),
         )?;
-        let raw_node = RawNode::new(&config.raft_config, storage, &logger)?;
+        let raw_node = RawNode::new(&config.raft_config, storage, logger.clone())?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now()
             .checked_sub(Duration::from_secs(1000))
@@ -515,7 +516,7 @@ impl<
             response_seq,
             config,
             raft_addr,
-            logger,
+            logger: logger.clone(),
             last_snapshot_created,
             should_exit: false,
             peers: Arc::new(Mutex::new(peers)),
@@ -560,7 +561,7 @@ impl<
         message: RaftMessage,
         peers: Arc<Mutex<Peers>>,
         snd: mpsc::Sender<SelfMessage>,
-        logger: slog::Logger,
+        logger: Arc<dyn Logger>,
     ) {
         let node_id = message.get_to();
 
@@ -570,7 +571,7 @@ impl<
             Some(peer) => {
                 if peer.client.is_none() {
                     if let Err(e) = peer.connect().await {
-                        slog::trace!(logger, "Connection error: {:?}", e);
+                        logger.trace(format!("Connection error: {:?}", e).as_str());
                         ok = Err(SendMessageError::ConnectionError(node_id.to_string()));
                     }
                 }
@@ -585,13 +586,13 @@ impl<
         if let Some(mut client) = client {
             let message = Request::new(message.clone());
             if let Err(e) = client.send_message(message).await {
-                slog::trace!(logger, "Message transmission error: {:?}", e);
+                logger.trace(&format!("Message transmission error: {:?}", e));
                 ok = Err(SendMessageError::TransmissionError(node_id.to_string()));
             }
         }
 
         if let Err(e) = ok {
-            slog::debug!(logger, "Error occurred while sending message: {}", e);
+            logger.debug(&format!("Error occurred while sending message: {}", e));
             snd.send(SelfMessage::ReportUnreachable { node_id })
                 .await
                 .unwrap();
@@ -600,11 +601,10 @@ impl<
 
     async fn send_messages(&mut self, messages: Vec<RaftMessage>) {
         if !self.bootstrap_done {
-            slog::warn!(
-                self.logger,
-                "Skipping sending messages because bootstrap is not done yet. Skipped messages: {:?}",
-                messages
-            );
+            self.logger.warn(format!(
+                "Skipping sending messages because bootstrap is not done yet. Skipped messages: {messages:?}",
+                messages=messages
+            ).as_str());
             return;
         }
 
@@ -739,20 +739,18 @@ impl<
             match change_type {
                 ConfChangeType::AddNode | ConfChangeType::AddLearnerNode => {
                     let addr = addrs[cc_idx];
-                    slog::info!(
-                        self.logger,
-                        "Node {} ({}) joined the cluster.",
-                        node_id,
-                        addr
-                    );
+                    self.logger
+                        .info(&format!("Node {} ({}) joined the cluster.", node_id, addr));
                     self.peers.lock().await.add_peer(node_id, &addr.to_string());
                 }
                 ConfChangeType::RemoveNode => {
                     if node_id == self.get_id() {
                         self.should_exit = true;
-                        slog::info!(self.logger, "Node {} quit the cluster.", node_id);
+                        self.logger
+                            .info(&format!("Node {} quit the cluster.", node_id));
                     } else {
-                        slog::info!(self.logger, "Node {} removed from the cluster.", node_id);
+                        self.logger
+                            .info(&format!("Node {} removed from the cluster.", node_id));
                         self.peers.lock().await.remove(&node_id);
                     }
                 }
@@ -766,11 +764,10 @@ impl<
                 self.make_snapshot(entry.index, entry.term).await?;
             }
             Err(e) => {
-                slog::error!(
-                    self.logger,
+                self.logger.error(&format!(
                     "Failed to apply the configuration change. Error: {:?}",
                     e
-                );
+                ));
             }
         }
 
@@ -840,18 +837,15 @@ impl<
             if !(peers.len() == peers_bootstrap_ready.len()
                 && peers_bootstrap_ready.iter().all(|v| *v.1))
             {
-                slog::trace!(
-                    self.logger,
-                    "Waiting for all follower nodes to be ready to join the cluster..."
-                );
+                self.logger
+                    .trace("Waiting for all follower nodes to be ready to join the cluster...");
 
                 return Ok(());
             }
         }
 
-        slog::info!(
-            self.logger,
-            "Received all follower nodes' join requests, preparing to bootstrap the cluster..."
+        self.logger.info(
+            "Received all follower nodes' join requests, preparing to bootstrap the cluster...",
         );
 
         self.bootstrap_peers().await?;
@@ -867,12 +861,8 @@ impl<
 
             // ???
             if let Err(err) = peer.connect().await {
-                slog::error!(
-                    self.logger,
-                    "Failed to connect to node {}: {}",
-                    node_id,
-                    err
-                );
+                self.logger
+                    .error(&format!("Failed to connect to node {}: {}", node_id, err));
                 return Err(err);
             }
 
@@ -887,14 +877,14 @@ impl<
             match response.code() {
                 ResultCode::Ok => {}
                 ResultCode::Error => {
-                    slog::error!(self.logger, "Node {} failed to join the cluster.", node_id);
+                    self.logger
+                        .error(&format!("Node {} failed to join the cluster.", node_id));
                 }
                 ResultCode::WrongLeader => {
-                    slog::error!(
-                        self.logger,
+                    self.logger.error(&format!(
                         "Node {} failed to join the cluster because of wrong leader.",
                         node_id
-                    );
+                    ));
                 }
             }
         }
@@ -970,7 +960,7 @@ impl<
         chan: ResponseSender<LogEntry, FSM>,
     ) -> Result<()> {
         if self.raw_node.raft.has_pending_conf() {
-            slog::warn!(self.logger, "Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index);
+            self.logger.warn(&format!("Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index));
             return Ok(());
         }
 
@@ -1008,11 +998,11 @@ impl<
                 }
             };
 
-            slog::debug!(
-                self.logger,
-                "Proposed new config change..., seq={response_seq:}, conf_change_v2={}",
+            self.logger.debug(&format!(
+                "Proposed new config change..., seq={}, conf_change_v2={}",
+                response_seq,
                 format_confchangev2(&conf_change)
-            );
+            ));
 
             self.raw_node
                 .propose_conf_change(serialize(&response_seq).unwrap(), conf_change)?;
@@ -1108,12 +1098,11 @@ impl<
                 chan.send(LocalResponseMsg::JoinCluster {}).unwrap();
             }
             LocalRequestMsg::SendMessage { message, chan } => {
-                slog::debug!(
-                    self.logger,
+                self.logger.debug(&format!(
                     "Node {} received local Raft message, Message: {}",
                     self.raw_node.raft.id,
                     format_message(&message)
-                );
+                ));
                 self.raw_node.step(*message)?;
                 chan.send(LocalResponseMsg::SendMessage {}).unwrap();
             }
@@ -1139,11 +1128,7 @@ impl<
     pub async fn handle_server_request_msg(&mut self, message: ServerRequestMsg) -> Result<()> {
         match message {
             ServerRequestMsg::ClusterBootstrapReady { chan } => {
-                slog::info!(
-                    self.logger,
-                    "Node {} received the ClusterBootstrapReady message that all initial nodes's join requests collected. Start to bootstrap process...", 
-                    self.get_id(),
-                );
+                self.logger.info(&format!("Node {} received the ClusterBootstrapReady message that all initial nodes's join requests collected. Start to bootstrap process...", self.get_id()));
                 chan.send(ServerResponseMsg::ClusterBootstrapReady {
                     result: ResponseResult::Success,
                 })
@@ -1152,11 +1137,8 @@ impl<
             }
             ServerRequestMsg::MemberBootstrapReady { node_id, chan } => {
                 assert!(self.is_leader());
-                slog::info!(
-                    self.logger,
-                    "Node {} requested to join the cluster.",
-                    node_id
-                );
+                self.logger
+                    .info(&format!("Node {} requested to join the cluster.", node_id));
                 self.peers_bootstrap_ready
                     .as_mut()
                     .unwrap()
@@ -1172,13 +1154,12 @@ impl<
                     .await?;
             }
             ServerRequestMsg::SendMessage { message } => {
-                slog::debug!(
-                    self.logger,
+                self.logger.debug(&format!(
                     "Node {} received Raft message from the node {}, {}",
                     self.raw_node.raft.id,
                     message.from,
                     format_message(&message)
-                );
+                ));
                 self.raw_node.step(*message)?
             }
             ServerRequestMsg::Propose { proposal, chan } => {
@@ -1201,7 +1182,8 @@ impl<
                     .unwrap();
                 } else {
                     let reserved_id = self.peers.lock().await.reserve_id();
-                    slog::info!(self.logger, "Reserved node id, {}", reserved_id);
+                    self.logger
+                        .info(&format!("Reserved node id, {}", reserved_id));
 
                     chan.send(ServerResponseMsg::RequestId {
                         result: RequestIdResponseResult::Success {
@@ -1237,7 +1219,8 @@ impl<
 
         loop {
             if self.should_exit {
-                slog::info!(self.logger, "Node {} quit the cluster.", self.get_id());
+                self.logger
+                    .info(&format!("Node {} quit the cluster.", self.get_id()));
                 return Ok(());
             }
 
@@ -1287,10 +1270,8 @@ impl<
         }
 
         if *ready.snapshot() != Snapshot::default() {
-            slog::info!(
-                self.logger,
-                "Restoring state machine and snapshot metadata..."
-            );
+            self.logger
+                .info("Restoring state machine and snapshot metadata...");
             let snapshot = ready.snapshot();
             if !snapshot.get_data().is_empty() {
                 self.fsm.restore(snapshot.get_data().to_vec()).await?;

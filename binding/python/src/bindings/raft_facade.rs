@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use pyo3::{exceptions::PyException, prelude::*, types::PyString};
 use pyo3_asyncio::tokio::future_into_py;
 use raftify::Raft;
@@ -25,7 +27,7 @@ impl PyRaftFacade {
         addr: &PyString,
         fsm: PyObject,
         config: PyConfig,
-        logger: PyLogger,
+        logger: PyObject,
         initial_peers: Option<PyPeers>,
     ) -> PyResult<Self> {
         let fsm = PyFSM::new(fsm);
@@ -37,7 +39,7 @@ impl PyRaftFacade {
             addr,
             fsm,
             config.into(),
-            logger.inner,
+            Arc::new(PyLogger::new(logger)),
             initial_peers,
         )
         .unwrap();

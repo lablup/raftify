@@ -33,6 +33,26 @@ class AbstractStateMachine(metaclass=abc.ABCMeta):
     def decode(cls, packed: bytes) -> "AbstractStateMachine":
         raise NotImplementedError
 
+class AbstractLogger(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def info(self, s: str) -> None:
+        raise NotImplementedError
+    @abc.abstractmethod
+    def debug(self, s: str) -> None:
+        raise NotImplementedError
+    @abc.abstractmethod
+    def trace(self, s: str) -> None:
+        raise NotImplementedError
+    @abc.abstractmethod
+    def error(self, s: str) -> None:
+        raise NotImplementedError
+    @abc.abstractmethod
+    def warn(self, s: str) -> None:
+        raise NotImplementedError
+    @abc.abstractmethod
+    def fatal(self, s: str) -> None:
+        raise NotImplementedError
+
 class ReadOnlyOption:
     """Determines the relative safety of and consistency of read only requests."""
 
@@ -51,46 +71,16 @@ class ReadOnlyOption:
     in that case.
     """
 
-class Logger:
+class Slogger:
     """ """
 
     def __init__(self) -> None: ...
     @staticmethod
-    def default() -> "Logger": ...
+    def default() -> "Slogger": ...
     @staticmethod
     def new_file_logger(
         log_path: str, chan_size: int, rotate_size: int, rotate_keep: int
     ): ...
-    def info(self, s: str) -> None:
-        """
-        Log info level record
-
-        See `slog_log` for documentation.
-        """
-    def debug(self, s: str) -> None:
-        """
-        Log debug level record
-
-        See `slog_debug` for documentation.
-        """
-    def trace(self, s: str) -> None:
-        """
-        Log trace level record
-
-        See `slog_trace` for documentation.
-        """
-    def crit(self, s: str) -> None:
-        """
-        Log crit level record
-
-        See `slog_crit` for documentation.
-        """
-    def error(self, s: str) -> None:
-        """
-        Log error level record
-
-        See `slog_error` for documentation.
-        """
 
 class Raft:
     def __init__(self) -> None:
@@ -101,7 +91,7 @@ class Raft:
         raft_addr: str,
         fsm: "AbstractStateMachine",
         config: "Config",
-        logger: "Logger",
+        logger: "AbstractLogger",
         initial_peers: Optional["Peers"] = None,
     ) -> "Raft":
         """ """

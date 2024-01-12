@@ -1,6 +1,8 @@
 use bincode::serialize;
+use jopemachine_raft::logger::Logger;
 use std::{
     net::{SocketAddr, ToSocketAddrs},
+    sync::Arc,
     time::Duration,
 };
 use tokio::{
@@ -30,7 +32,7 @@ pub struct RaftServer {
     snd: mpsc::Sender<ServerRequestMsg>,
     addr: SocketAddr,
     config: Config,
-    logger: slog::Logger,
+    logger: Arc<dyn Logger>,
 }
 
 impl RaftServer {
@@ -38,7 +40,7 @@ impl RaftServer {
         snd: mpsc::Sender<ServerRequestMsg>,
         addr: A,
         config: Config,
-        logger: slog::Logger,
+        logger: Arc<dyn Logger>,
     ) -> Self {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
         RaftServer {
@@ -52,11 +54,10 @@ impl RaftServer {
     pub async fn run(self, quit_signal_rx: Receiver<()>) -> Result<(), Error> {
         let addr = self.addr;
         let logger = self.logger.clone();
-        slog::info!(
-            logger,
+        logger.info(&format!(
             "RaftServer starts to listen gRPC requests on \"{}\"...",
             addr
-        );
+        ));
 
         let shutdown_signal = async {
             quit_signal_rx.await.ok();
@@ -73,11 +74,10 @@ impl RaftServer {
 
 impl RaftServer {
     fn print_send_error(&self, function_name: &str) {
-        slog::error!(
-            self.logger,
+        self.logger.error(&format!(
             "Error occurred in sending message ('RaftServer --> RaftNode'). Function: '{}'",
             function_name
-        );
+        ));
     }
 }
 
@@ -162,7 +162,7 @@ impl RaftService for RaftServer {
                 reply.result_type =
                     raft_service::ChangeConfigResultType::ChangeConfigTimeoutError as i32;
                 reply.data = vec![];
-                slog::error!(self.logger, "timeout waiting for reply");
+                self.logger.error("timeout waiting for reply");
             }
         }
 

@@ -4,12 +4,17 @@ extern crate slog_async;
 extern crate slog_scope;
 extern crate slog_term;
 
+use std::sync::Arc;
+
 use example_harness::config::build_config;
 use memstore_example_harness::{
     state_machine::{HashStore, LogEntry},
     web_server_api::{debug, get, leader_id, leave, put},
 };
-use raftify::{raft::formatter::set_custom_formatter, CustomFormatter, Raft as Raft_};
+use raftify::{
+    raft::{formatter::set_custom_formatter, logger::Slogger},
+    CustomFormatter, Raft as Raft_,
+};
 use slog::Drain;
 
 use actix_web::{web, App, HttpServer};
@@ -43,7 +48,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     }
     let drain = builder.build();
 
-    let logger = slog::Logger::root(drain, o!());
+    let logger = Arc::new(Slogger {
+        slog: slog::Logger::root(drain, o!()),
+    });
 
     set_custom_formatter(CustomFormatter::<LogEntry, HashStore>::new());
 

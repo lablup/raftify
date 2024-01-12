@@ -1,11 +1,15 @@
 use futures::future;
 use once_cell::sync::Lazy;
 use raftify::{
-    raft::formatter::set_custom_formatter, CustomFormatter, Peers, Raft as Raft_, Result,
+    raft::{formatter::set_custom_formatter, logger::Slogger},
+    CustomFormatter, Peers, Raft as Raft_, Result,
 };
 use slog::{o, Drain};
 use slog_envlogger::LogBuilder;
-use std::{collections::HashMap, sync::Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 use tokio::task::JoinHandle;
 
 use crate::{
@@ -44,7 +48,9 @@ fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
         peer.addr,
         store,
         cfg,
-        logger.clone(),
+        Arc::new(Slogger {
+            slog: logger.clone(),
+        }),
         Some(peers.clone()),
     )
     .expect("Raft build failed!");
@@ -103,8 +109,17 @@ pub async fn spawn_extra_node(peer_addr: &str, raft_addr: &str) -> Result<JoinHa
     let store = HashStore::new();
     let logger = build_logger(node_id);
 
-    let raft = Raft::build(node_id, raft_addr, store, cfg, logger.clone(), None)
-        .expect("Raft build failed!");
+    let raft = Raft::build(
+        node_id,
+        raft_addr,
+        store,
+        cfg,
+        Arc::new(Slogger {
+            slog: logger.clone(),
+        }),
+        None,
+    )
+    .expect("Raft build failed!");
 
     RAFTS.lock().unwrap().insert(node_id, raft.clone());
 
