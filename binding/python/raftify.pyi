@@ -99,7 +99,7 @@ class Raft:
     async def request_id(peer_addr: str) -> "ClusterJoinTicket":
         """"""
     @staticmethod
-    async def member_bootstrap_ready() -> None:
+    async def member_bootstrap_ready(leader_addr: str, node_id: int) -> None:
         """ """
     async def join(self, join_ticket: "ClusterJoinTicket") -> None:
         """ """

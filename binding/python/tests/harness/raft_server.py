@@ -1,7 +1,7 @@
 import asyncio
 import os
 from harness.state_machine import HashStore
-from raftify import Config, Peers, Raft, RaftConfig, Logger
+from raftify import Config, Peers, Raft, RaftConfig, Slogger
 
 
 RAFTS: dict[int, Raft] = {}
@@ -26,7 +26,7 @@ async def run_raft(node_id: int, peers: Peers):
     cfg = build_config()
 
     store = HashStore()
-    logger = Logger.default()
+    logger = Slogger.default()
     raft = Raft.build(node_id, peer, store, cfg, logger, peers)
     RAFTS[node_id] = raft
 
