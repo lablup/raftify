@@ -947,8 +947,7 @@ impl<
                 }
             };
 
-            let response_seq = serialize(&response_seq)?;
-            self.raw_node.propose(response_seq, proposal)?;
+            self.raw_node.propose(serialize(&response_seq)?, proposal)?;
         }
 
         Ok(())
@@ -1249,7 +1248,7 @@ impl<
             let elapsed = now.elapsed();
             now = Instant::now();
             if elapsed > tick_timer {
-                tick_timer = Duration::from_millis(100);
+                tick_timer = fixed_tick_timer;
                 self.raw_node.tick();
             } else {
                 tick_timer -= elapsed;
