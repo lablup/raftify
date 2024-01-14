@@ -21,7 +21,7 @@ pub type Raft = Raft_<LogEntry, HashStore>;
 
 pub static RAFTS: Lazy<Mutex<HashMap<u64, Raft>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
-fn build_logger(_node_id: u64) -> slog::Logger {
+fn build_logger() -> slog::Logger {
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::CompactFormat::new(decorator).build();
     let drain = std::sync::Mutex::new(drain).fuse();
@@ -41,7 +41,7 @@ fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
     let peer = peers.get(node_id).unwrap();
     let cfg = build_config();
     let store = HashStore::new();
-    let logger = build_logger(*node_id);
+    let logger = build_logger();
 
     let raft = Raft::build(
         *node_id,
@@ -102,24 +102,19 @@ pub async fn handle_bootstrap(peers: Peers) -> Result<()> {
 }
 
 pub async fn spawn_extra_node(peer_addr: &str, raft_addr: &str) -> Result<JoinHandle<Result<()>>> {
-    let join_ticket = Raft::request_id(peer_addr.to_owned()).await.unwrap();
+    let logger = Arc::new(Slogger {
+        slog: build_logger(),
+    });
+    let join_ticket = Raft::request_id(peer_addr.to_owned(), logger.clone())
+        .await
+        .unwrap();
 
     let node_id = join_ticket.reserved_id;
     let cfg = build_config();
     let store = HashStore::new();
-    let logger = build_logger(node_id);
 
-    let raft = Raft::build(
-        node_id,
-        raft_addr,
-        store,
-        cfg,
-        Arc::new(Slogger {
-            slog: logger.clone(),
-        }),
-        None,
-    )
-    .expect("Raft build failed!");
+    let raft =
+        Raft::build(node_id, raft_addr, store, cfg, logger, None).expect("Raft build failed!");
 
     RAFTS.lock().unwrap().insert(node_id, raft.clone());
 

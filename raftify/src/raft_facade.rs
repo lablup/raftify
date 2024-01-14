@@ -161,11 +161,18 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         }
     }
 
-    pub async fn request_id(peer_addr: String) -> Result<ClusterJoinTicket> {
-        println!("Attempting to get a node_id through \"{}\"...", peer_addr);
+    pub async fn request_id(
+        peer_addr: String,
+        logger: Arc<dyn Logger>,
+    ) -> Result<ClusterJoinTicket> {
         let mut leader_addr = peer_addr;
 
         loop {
+            logger.info(&format!(
+                "Attempting to get a node_id through \"{}\"...",
+                leader_addr
+            ));
+
             let mut client = create_client(&leader_addr).await?;
             let response = client
                 .request_id(Request::new(raft_service::Empty {}))
@@ -175,10 +182,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
             match response.code() {
                 ResultCode::WrongLeader => {
                     leader_addr = response.leader_addr;
-                    println!(
-                        "Sent message to the wrong leader, retrying with the leader at {}.",
-                        leader_addr
-                    );
+                    logger.trace("Sent message to the wrong leader, retrying...");
                     continue;
                 }
                 ResultCode::Ok => {

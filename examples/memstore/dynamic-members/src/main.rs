@@ -68,7 +68,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         Some(peer_addr) => {
             log::info!("Running in Follower mode");
 
-            let ticket = Raft::request_id(peer_addr.clone()).await.unwrap();
+            let ticket = Raft::request_id(peer_addr.clone(), logger.clone())
+                .await
+                .unwrap();
             let node_id = ticket.reserved_id;
 
             let raft = Raft::build(
