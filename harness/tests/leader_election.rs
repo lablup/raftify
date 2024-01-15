@@ -1,22 +1,28 @@
-use std::time::Duration;
+use raftify::raft::logger::Slogger;
+use std::{sync::Arc, time::Duration};
 use tokio::time::{sleep, timeout};
 
 use harness::{
     constant::{FIVE_NODE_EXAMPLE, THREE_NODE_EXAMPLE},
     raft_server::{handle_bootstrap, run_rafts, RAFTS},
     utils::{
-        load_peers, wait_for_until_cluster_size_decrease, wait_for_until_cluster_size_increase,
+        build_logger, load_peers, wait_for_until_cluster_size_decrease,
+        wait_for_until_cluster_size_increase,
     },
 };
 
 #[tokio::test]
 pub async fn test_leader_election_in_three_node_example() {
+    let logger = Arc::new(Slogger {
+        slog: build_logger(),
+    });
+
     let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
     let _raft_tasks = tokio::spawn(run_rafts(peers.clone()));
 
     sleep(Duration::from_secs(1)).await;
 
-    handle_bootstrap(peers).await.unwrap();
+    handle_bootstrap(peers, logger).await.unwrap();
 
     let mut rafts = RAFTS.lock().unwrap();
     let raft_1 = rafts.get_mut(&1).unwrap();
@@ -57,12 +63,16 @@ pub async fn test_leader_election_in_three_node_example() {
 #[tokio::test]
 #[ignore]
 pub async fn test_leader_election_in_five_node_example() {
+    let logger = Arc::new(Slogger {
+        slog: build_logger(),
+    });
+
     let peers = load_peers(FIVE_NODE_EXAMPLE).await.unwrap();
     let _raft_tasks = tokio::spawn(run_rafts(peers.clone()));
 
     sleep(Duration::from_secs(1)).await;
 
-    handle_bootstrap(peers).await.unwrap();
+    handle_bootstrap(peers, logger).await.unwrap();
 
     let mut rafts = RAFTS.lock().unwrap();
     let raft_1 = rafts.get_mut(&1).unwrap();

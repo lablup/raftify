@@ -565,8 +565,8 @@ impl HeedStorageCore {
 
         match fs::metadata(&dest_path) {
             Ok(metadata) if metadata.len() > self.config.compacted_log_size_threshold => {
-                println!(
-                    "Compacted log size is over threshold. Removing all previous compacted logs."
+                self.logger.debug(
+                    "Compacted log size is over threshold. Removing all previous compacted logs.",
                 );
                 fs::remove_file(&dest_path)?;
             }

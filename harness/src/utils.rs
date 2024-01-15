@@ -1,5 +1,7 @@
 use raftify::Peers;
 use serde::Deserialize;
+use slog::{o, Drain};
+use slog_envlogger::LogBuilder;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::{fs, time::Duration};
@@ -7,6 +9,22 @@ use tokio::time::sleep;
 use toml;
 
 use crate::raft_server::Raft;
+
+pub fn build_logger() -> slog::Logger {
+    let decorator = slog_term::TermDecorator::new().build();
+    let drain = slog_term::CompactFormat::new(decorator).build();
+    let drain = std::sync::Mutex::new(drain).fuse();
+
+    let mut builder = LogBuilder::new(drain);
+    builder = builder.filter(None, slog::FilterLevel::Debug);
+
+    if let Ok(s) = std::env::var("RUST_LOG") {
+        builder = builder.parse(&s);
+    }
+    let drain = builder.build();
+
+    slog::Logger::root(drain, o!())
+}
 
 #[derive(Deserialize, Debug)]
 pub struct TomlRaftPeer {

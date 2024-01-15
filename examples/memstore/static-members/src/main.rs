@@ -86,7 +86,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             let handle = tokio::spawn(raft.clone().run());
 
             let leader_addr = peers.get(&1).unwrap().addr;
-            Raft::member_bootstrap_ready(leader_addr, node_id).await?;
+            Raft::member_bootstrap_ready(leader_addr, node_id, logger).await?;
 
             (raft, handle)
         }

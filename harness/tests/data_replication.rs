@@ -1,23 +1,27 @@
-use raftify::AbstractLogEntry;
-use std::time::Duration;
+use raftify::{raft::logger::Slogger, AbstractLogEntry};
+use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 
 use harness::{
     constant::{RAFT_ADDRS, THREE_NODE_EXAMPLE},
     raft_server::{handle_bootstrap, run_rafts, spawn_extra_node, RAFTS},
     state_machine::LogEntry,
-    utils::{load_peers, wait_for_until_cluster_size_increase},
+    utils::{build_logger, load_peers, wait_for_until_cluster_size_increase},
 };
 
 #[tokio::test]
 pub async fn test_data_replication() {
     {
+        let logger = Arc::new(Slogger {
+            slog: build_logger(),
+        });
+
         let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
         let _raft_tasks = tokio::spawn(run_rafts(peers.clone()));
 
         sleep(Duration::from_secs(1)).await;
 
-        handle_bootstrap(peers).await.unwrap();
+        handle_bootstrap(peers, logger).await.unwrap();
 
         let mut rafts = RAFTS.lock().unwrap();
         let raft_1 = rafts.get(&1).unwrap();

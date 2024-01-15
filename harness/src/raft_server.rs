@@ -1,11 +1,12 @@
 use futures::future;
 use once_cell::sync::Lazy;
 use raftify::{
-    raft::{formatter::set_custom_formatter, logger::Slogger},
+    raft::{
+        formatter::set_custom_formatter,
+        logger::{Logger, Slogger},
+    },
     CustomFormatter, Peers, Raft as Raft_, Result,
 };
-use slog::{o, Drain};
-use slog_envlogger::LogBuilder;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -15,27 +16,12 @@ use tokio::task::JoinHandle;
 use crate::{
     config::build_config,
     state_machine::{HashStore, LogEntry},
+    utils::build_logger,
 };
 
 pub type Raft = Raft_<LogEntry, HashStore>;
 
 pub static RAFTS: Lazy<Mutex<HashMap<u64, Raft>>> = Lazy::new(|| Mutex::new(HashMap::new()));
-
-fn build_logger() -> slog::Logger {
-    let decorator = slog_term::TermDecorator::new().build();
-    let drain = slog_term::CompactFormat::new(decorator).build();
-    let drain = std::sync::Mutex::new(drain).fuse();
-
-    let mut builder = LogBuilder::new(drain);
-    builder = builder.filter(None, slog::FilterLevel::Debug);
-
-    if let Ok(s) = std::env::var("RUST_LOG") {
-        builder = builder.parse(&s);
-    }
-    let drain = builder.build();
-
-    slog::Logger::root(drain, o!())
-}
 
 fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
     let peer = peers.get(node_id).unwrap();
@@ -89,12 +75,12 @@ pub async fn run_rafts(peers: Peers) -> Result<()> {
     Ok(())
 }
 
-pub async fn handle_bootstrap(peers: Peers) -> Result<()> {
+pub async fn handle_bootstrap(peers: Peers, logger: Arc<dyn Logger>) -> Result<()> {
     let leader_addr = peers.get(&1).unwrap().addr;
 
     for (node_id, _) in peers.iter() {
         if node_id != 1 {
-            Raft::member_bootstrap_ready(leader_addr, node_id).await?;
+            Raft::member_bootstrap_ready(leader_addr, node_id, logger.clone()).await?;
         }
     }
 
