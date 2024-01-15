@@ -47,11 +47,18 @@ impl PyRaftFacade {
     }
 
     #[staticmethod]
-    pub fn request_id<'a>(peer_addr: String, py: Python<'a>) -> PyResult<&'a PyAny> {
+    pub fn request_id<'a>(
+        peer_addr: String,
+        logger: PyObject,
+        py: Python<'a>,
+    ) -> PyResult<&'a PyAny> {
         future_into_py(py, async move {
-            let ticket = Raft::<PyLogEntry, PyFSM>::request_id(peer_addr.to_owned())
-                .await
-                .unwrap();
+            let ticket = Raft::<PyLogEntry, PyFSM>::request_id(
+                peer_addr.to_owned(),
+                Arc::new(PyLogger::new(logger)),
+            )
+            .await
+            .unwrap();
             Ok(PyClusterJoinTicket { inner: ticket })
         })
     }
@@ -60,13 +67,18 @@ impl PyRaftFacade {
     pub fn member_bootstrap_ready<'a>(
         leader_addr: String,
         node_id: u64,
+        logger: PyObject,
         py: Python<'a>,
     ) -> PyResult<&'a PyAny> {
         future_into_py(py, async move {
-            Raft::<PyLogEntry, PyFSM>::member_bootstrap_ready(leader_addr, node_id)
-                .await
-                .map(|_| ())
-                .map_err(|e| PyException::new_err(e.to_string()))
+            Raft::<PyLogEntry, PyFSM>::member_bootstrap_ready(
+                leader_addr,
+                node_id,
+                Arc::new(PyLogger::new(logger)),
+            )
+            .await
+            .map(|_| ())
+            .map_err(|e| PyException::new_err(e.to_string()))
         })
     }
 

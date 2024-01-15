@@ -1,5 +1,6 @@
 import asyncio
 import os
+from typing import Any
 from harness.state_machine import HashStore
 from raftify import Config, Peers, Raft, RaftConfig, Slogger
 
@@ -44,9 +45,9 @@ async def run_rafts(peers: Peers):
     await asyncio.gather(*tasks)
 
 
-async def handle_bootstrap(peers: Peers):
+async def handle_bootstrap(peers: Peers, logger: Any):
     leader_addr = peers.get(1)
 
     for (node_id, _) in peers.items():
         if node_id != 1:
-            await Raft.member_bootstrap_ready(leader_addr, node_id)
+            await Raft.member_bootstrap_ready(leader_addr, node_id, logger)

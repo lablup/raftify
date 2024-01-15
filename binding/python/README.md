@@ -77,10 +77,11 @@ Then join the follower nodes.
 If peer specifies the configuration of the initial members, the cluster will operate after all member nodes are bootstrapped.
 
 ```py
-join_ticket = await Raft.request_id(peer_addr)
+logger = Slogger.default()
+
+join_ticket = await Raft.request_id(peer_addr, logger)
 node_id = join_ticket.get_reserved_id()
 
-logger = Slogger.default()
 raft = Raft.build(node_id, raft_addr, store, cfg, logger, peers)
 tasks = []
 tasks.append(raft.run())
