@@ -1,6 +1,6 @@
 use jopemachine_raft::logger::Slogger;
 use serde_json::Value;
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     create_client,
@@ -15,9 +15,8 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
         ..Default::default()
     };
 
-    let path = PathBuf::from(&config.log_dir);
     let storage = HeedStorage::create(
-        path,
+        config.log_dir.as_str(),
         &config,
         Arc::new(Slogger {
             slog: logger.clone(),

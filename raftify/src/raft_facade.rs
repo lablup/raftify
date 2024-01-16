@@ -67,6 +67,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
                 raft_addr,
                 logger.clone(),
                 bootstrap_done,
+                true,
                 server_rx,
                 server_tx.clone(),
                 local_rx,
@@ -161,11 +162,18 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         }
     }
 
-    pub async fn request_id(
+    pub async fn request_id<A: ToSocketAddrs>(
+        raft_addr: A,
         peer_addr: String,
         logger: Arc<dyn Logger>,
     ) -> Result<ClusterJoinTicket> {
-        let mut leader_addr = peer_addr;
+        let raft_addr = raft_addr
+            .to_socket_addrs()
+            .unwrap()
+            .next()
+            .unwrap()
+            .to_string();
+        let mut leader_addr = peer_addr.to_string();
 
         loop {
             logger.info(&format!(
@@ -175,7 +183,9 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
 
             let mut client = create_client(&leader_addr).await?;
             let response = client
-                .request_id(Request::new(raft_service::Empty {}))
+                .request_id(raft_service::RequestIdArgs {
+                    raft_addr: raft_addr.to_string(),
+                })
                 .await?
                 .into_inner();
 

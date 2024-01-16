@@ -16,6 +16,7 @@ pub enum ServerRequestMsg {
         chan: Sender<ServerResponseMsg>,
     },
     RequestId {
+        raft_addr: String,
         chan: Sender<ServerResponseMsg>,
     },
     Propose {

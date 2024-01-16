@@ -4,7 +4,7 @@ use std::{
     fmt::Write as StdWrite,
     fs::{self, File, OpenOptions},
     io::{self, Read, Seek, Write as StdIoWrite},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use super::constant::ENTRY_KEY_LENGTH;
@@ -13,17 +13,27 @@ use crate::{
     Result,
 };
 
-pub fn get_storage_path(log_dir: &str, node_id: u64) -> Result<PathBuf> {
-    let log_dir_path = format!("{}/node-{}", log_dir, node_id);
+pub fn get_storage_path(log_dir: &str, node_id: u64) -> String {
+    format!("{}/node-{}", log_dir, node_id)
+}
+
+pub fn clear_storage_path(log_dir_path: &str) -> Result<()> {
     let log_dir_path = Path::new(&log_dir_path);
 
-    if fs::metadata(Path::new(&log_dir_path)).is_ok() {
+    if fs::metadata(log_dir_path).is_ok() {
         fs::remove_dir_all(log_dir_path).expect("Failed to remove log directory");
     }
 
-    fs::create_dir_all(Path::new(&log_dir_path))?;
+    Ok(())
+}
 
-    Ok(log_dir_path.to_path_buf())
+pub fn ensure_directory_exist(dir_pth: &str) -> Result<()> {
+    let dir_pth: &Path = Path::new(&dir_pth);
+
+    if !fs::metadata(dir_pth).is_ok() {
+        fs::create_dir_all(dir_pth)?;
+    }
+    Ok(())
 }
 
 pub fn format_entry_key_string(entry_key: &str) -> String {

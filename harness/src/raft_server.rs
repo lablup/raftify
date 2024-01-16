@@ -91,7 +91,7 @@ pub async fn spawn_extra_node(peer_addr: &str, raft_addr: &str) -> Result<JoinHa
     let logger = Arc::new(Slogger {
         slog: build_logger(),
     });
-    let join_ticket = Raft::request_id(peer_addr.to_owned(), logger.clone())
+    let join_ticket = Raft::request_id(raft_addr.to_owned(), peer_addr.to_owned(), logger.clone())
         .await
         .unwrap();
 

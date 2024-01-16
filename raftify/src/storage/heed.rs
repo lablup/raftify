@@ -17,7 +17,7 @@ use std::{
 
 use super::{
     constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_KEY},
-    utils::{append_to_json_file, format_entry_key_string},
+    utils::{append_to_json_file, ensure_directory_exist, format_entry_key_string},
 };
 use crate::{
     config::Config,
@@ -94,8 +94,9 @@ impl fmt::Debug for HeedStorage {
 }
 
 impl HeedStorage {
-    pub fn create(log_dir_path: PathBuf, config: &Config, logger: Arc<dyn Logger>) -> Result<Self> {
-        let core = HeedStorageCore::create(log_dir_path, config, logger)?;
+    pub fn create(log_dir_path: &str, config: &Config, logger: Arc<dyn Logger>) -> Result<Self> {
+        ensure_directory_exist(log_dir_path)?;
+        let core = HeedStorageCore::create(Path::new(log_dir_path).to_path_buf(), config, logger)?;
         Ok(Self(Arc::new(RwLock::new(core))))
     }
 

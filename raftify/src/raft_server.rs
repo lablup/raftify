@@ -85,13 +85,16 @@ impl RaftServer {
 impl RaftService for RaftServer {
     async fn request_id(
         &self,
-        request: Request<Empty>,
+        request: Request<raft_service::RequestIdArgs>,
     ) -> Result<Response<raft_service::RequestIdResponse>, Status> {
-        let _request_args = request.into_inner();
+        let request_args = request.into_inner();
         let sender = self.snd.clone();
         let (tx, rx) = oneshot::channel();
         sender
-            .send(ServerRequestMsg::RequestId { chan: tx })
+            .send(ServerRequestMsg::RequestId {
+                raft_addr: request_args.raft_addr,
+                chan: tx,
+            })
             .await
             .unwrap();
         let response = rx.await.unwrap();

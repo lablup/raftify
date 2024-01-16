@@ -3,7 +3,7 @@ mod response_sender;
 pub mod utils;
 
 use bincode::{deserialize, serialize};
-use jopemachine_raft::logger::Logger;
+use jopemachine_raft::{eraftpb::ConfState, logger::Logger};
 use prost::Message as PMessage;
 use std::{
     collections::HashMap,
@@ -43,7 +43,7 @@ use crate::{
     },
     storage::{
         heed::{HeedStorage, LogStore},
-        utils::get_storage_path,
+        utils::{clear_storage_path, ensure_directory_exist, get_storage_path},
     },
     utils::{is_near_zero, to_confchange_v2, OneShotMutex},
     AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket, Config, Error, Peers,
@@ -74,6 +74,7 @@ impl<
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
         bootstrap_done: bool,
+        restore_wal: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
         local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
@@ -86,6 +87,7 @@ impl<
             raft_addr,
             logger,
             bootstrap_done,
+            restore_wal,
             server_rcv,
             server_snd,
             local_rcv,
@@ -422,6 +424,7 @@ impl<
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
         bootstrap_done: bool,
+        restore_wal: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
         local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
@@ -430,17 +433,20 @@ impl<
         config.raft_config.id = 1;
         config.raft_config.validate()?;
 
-        let mut storage = HeedStorage::create(
-            get_storage_path(config.log_dir.as_str(), 1)?,
-            &config,
-            logger.clone(),
-        )?;
+        let storage_pth = get_storage_path(config.log_dir.as_str(), 1);
+        if !restore_wal {
+            clear_storage_path(storage_pth.as_str())?;
+            ensure_directory_exist(storage_pth.as_str())?;
+        }
 
-        let mut snapshot = Snapshot::default();
-        snapshot.mut_metadata().index = 0;
-        snapshot.mut_metadata().term = 0;
-        snapshot.mut_metadata().mut_conf_state().voters = vec![1];
-        storage.apply_snapshot(snapshot).unwrap();
+        let mut storage = HeedStorage::create(storage_pth.as_str(), &config, logger.clone())?;
+
+        let mut snapshot = storage.snapshot(0, storage.last_index()?)?;
+        let conf_state = snapshot.mut_metadata().mut_conf_state();
+        if conf_state.voters.is_empty() {
+            conf_state.set_voters(vec![1]);
+        }
+        storage.apply_snapshot(snapshot)?;
 
         let mut raw_node = RawNode::new(&config.raft_config, storage, logger.clone())?;
         let response_seq = AtomicU64::new(0);
@@ -497,11 +503,10 @@ impl<
         config.raft_config.id = node_id;
         config.raft_config.validate()?;
 
-        let storage = HeedStorage::create(
-            get_storage_path(config.log_dir.as_str(), node_id)?,
-            &config,
-            logger.clone(),
-        )?;
+        let storage_pth = get_storage_path(config.log_dir.as_str(), node_id);
+        ensure_directory_exist(storage_pth.as_str())?;
+
+        let storage = HeedStorage::create(storage_pth.as_str(), &config, logger.clone())?;
         let raw_node = RawNode::new(&config.raft_config, storage, logger.clone())?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now()
@@ -1165,7 +1170,7 @@ impl<
                 self.handle_propose_request(proposal, ResponseSender::Server(chan))
                     .await?;
             }
-            ServerRequestMsg::RequestId { chan } => {
+            ServerRequestMsg::RequestId { raft_addr, chan } => {
                 if !self.is_leader() {
                     // TODO: retry strategy in case of failure
                     let leader_id = self.get_leader_id();
@@ -1180,15 +1185,24 @@ impl<
                     })
                     .unwrap();
                 } else {
-                    let reserved_id = self.peers.lock().await.reserve_id();
-                    self.logger
-                        .info(&format!("Reserved node id, {}", reserved_id));
+                    let mut peers = self.peers.lock().await;
+
+                    let reserved_id =
+                        if let Some(existing_node_id) = peers.get_node_id_by_addr(raft_addr) {
+                            self.logger
+                                .info(&format!("Node {} restored", existing_node_id));
+                            existing_node_id
+                        } else {
+                            let reserved = peers.reserve_id();
+                            self.logger.info(&format!("Reserved node id, {}", reserved));
+                            reserved
+                        };
 
                     chan.send(ServerResponseMsg::RequestId {
                         result: RequestIdResponseResult::Success {
                             reserved_id,
                             leader_id: self.get_id(),
-                            peers: self.peers.lock().await.clone(),
+                            peers: peers.clone(),
                         },
                     })
                     .unwrap();
