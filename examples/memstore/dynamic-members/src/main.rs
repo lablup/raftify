@@ -4,23 +4,21 @@ extern crate slog_async;
 extern crate slog_scope;
 extern crate slog_term;
 
+use actix_web::{web, App, HttpServer};
+use raftify::{
+    raft::{formatter::set_custom_formatter, logger::Slogger},
+    CustomFormatter, Raft as Raft_,
+};
+use slog::Drain;
+use slog_envlogger::LogBuilder;
 use std::sync::Arc;
+use structopt::StructOpt;
 
 use example_harness::config::build_config;
 use memstore_example_harness::{
     state_machine::{HashStore, LogEntry},
     web_server_api::{debug, get, leader_id, leave, peers, put},
 };
-use raftify::{
-    raft::{formatter::set_custom_formatter, logger::Slogger},
-    CustomFormatter, Raft as Raft_,
-};
-use slog::Drain;
-
-use actix_web::{web, App, HttpServer};
-use slog_envlogger::LogBuilder;
-use structopt::StructOpt;
-// use slog_envlogger::LogBuilder;
 
 type Raft = Raft_<LogEntry, HashStore>;
 
@@ -48,18 +46,13 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     if let Ok(s) = std::env::var("RUST_LOG") {
         builder = builder.parse(&s);
     }
-    let drain = builder.build();
+    let drain = builder.build().fuse();
 
     let logger = Arc::new(Slogger {
         slog: slog::Logger::root(drain, o!()),
     });
 
     set_custom_formatter(CustomFormatter::<LogEntry, HashStore>::new());
-
-    // converts log to slog
-    // let _scope_guard = slog_scope::set_global_logger(logger.clone());
-    #[allow(clippy::let_unit_value)]
-    let _log_guard = slog_stdlog::init_with_level(log::Level::Debug).unwrap();
 
     let options = Options::from_args();
     let store = HashStore::new();

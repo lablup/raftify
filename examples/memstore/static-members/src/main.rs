@@ -4,17 +4,18 @@ extern crate slog_async;
 extern crate slog_scope;
 extern crate slog_term;
 
-use std::sync::Arc;
-
 use actix_web::{web, App, HttpServer};
 use raftify::{
-    raft::{formatter::set_custom_formatter, logger::Slogger},
+    raft::{
+        formatter::set_custom_formatter,
+        logger::{Logger, Slogger},
+    },
     CustomFormatter, Raft as Raft_,
 };
 use slog::Drain;
 use slog_envlogger::LogBuilder;
+use std::sync::Arc;
 use structopt::StructOpt;
-// use slog_envlogger::LogBuilder;
 
 use example_harness::config::build_config;
 use memstore_example_harness::{
@@ -33,6 +34,8 @@ struct Options {
     peer_addr: Option<String>,
     #[structopt(long)]
     web_server: Option<String>,
+    #[structopt(long)]
+    restore_wal_from: Option<u64>,
 }
 
 #[actix_rt::main]
@@ -47,7 +50,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     if let Ok(s) = std::env::var("RUST_LOG") {
         builder = builder.parse(&s);
     }
-    let drain = builder.build();
+    let drain = builder.build().fuse();
 
     let logger = Arc::new(Slogger {
         slog: slog::Logger::root(drain, o!()),
@@ -55,16 +58,12 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     set_custom_formatter(CustomFormatter::<LogEntry, HashStore>::new());
 
-    // converts log to slog
-    // let _scope_guard = slog_scope::set_global_logger(logger.clone());
-    #[allow(clippy::let_unit_value)]
-    let _log_guard = slog_stdlog::init_with_level(log::Level::Debug).unwrap();
-
     let options = Options::from_args();
     let store = HashStore::new();
     let initial_peers = load_peers().await?;
 
-    let cfg = build_config();
+    let mut cfg = build_config();
+    cfg.restore_wal_from = options.restore_wal_from;
 
     let (raft, raft_handle) = match options.peer_addr {
         Some(_peer_addr) => {
