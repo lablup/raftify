@@ -12,11 +12,12 @@ pub struct Config {
     pub compacted_log_size_threshold: u64,
 
     pub tick_interval: f32,
-    pub snapshot_interval: f32,
     pub lmdb_map_size: u64,
     pub cluster_id: String,
-    pub terminate_on_remove: bool,
     pub conf_change_request_timeout: f32,
+
+    pub snapshot_interval: Option<f32>,
+    pub restore_wal_from: Option<u64>,
 }
 
 impl Config {
@@ -27,12 +28,12 @@ impl Config {
         compacted_log_dir: String,
         compacted_log_size_threshold: u64,
         raft_config: RaftConfig,
-        snapshot_interval: f32,
         tick_interval: f32,
         lmdb_map_size: u64,
         cluster_id: String,
-        terminate_on_remove: bool,
         conf_change_request_timeout: f32,
+        snapshot_interval: Option<f32>,
+        restore_wal_from: Option<u64>,
     ) -> Self {
         Self {
             raft_config,
@@ -44,8 +45,8 @@ impl Config {
             tick_interval,
             lmdb_map_size,
             cluster_id,
-            terminate_on_remove,
             conf_change_request_timeout,
+            restore_wal_from,
         }
     }
 }
@@ -58,12 +59,12 @@ impl Default for Config {
             save_compacted_logs: false,
             compacted_log_dir: String::from("./"),
             compacted_log_size_threshold: 1024 * 1024 * 1024,
-            snapshot_interval: 0.0,
             tick_interval: 0.1,
             lmdb_map_size: 1024 * 1024 * 1024,
             cluster_id: String::from("default"),
-            terminate_on_remove: false,
             conf_change_request_timeout: 2.0,
+            snapshot_interval: None,
+            restore_wal_from: None,
         }
     }
 }
@@ -95,12 +96,12 @@ impl fmt::Debug for Config {
                 save_compacted_logs: {save_compacted_logs}, \
                 compacted_log_dir: {compacted_log_dir}, \
                 compacted_log_size_threshold: {compacted_log_size_threshold}, \
-                snapshot_interval: {snapshot_interval}, \
+                snapshot_interval: {snapshot_interval:?}, \
                 tick_interval: {tick_interval}, \
                 lmdb_map_size: {lmdb_map_size}, \
                 cluster_id: {cluster_id}, \
-                terminate_on_remove: {terminate_on_remove}, \
                 conf_change_request_timeout: {conf_change_request_timeout}, \
+                restore_wal_from: {restore_wal_from:?}, \
             }}",
             id = self.raft_config.id,
             election_tick = self.raft_config.election_tick,
@@ -126,8 +127,8 @@ impl fmt::Debug for Config {
             tick_interval = self.tick_interval,
             lmdb_map_size = self.lmdb_map_size,
             cluster_id = self.cluster_id,
-            terminate_on_remove = self.terminate_on_remove,
             conf_change_request_timeout = self.conf_change_request_timeout,
+            restore_wal_from = self.restore_wal_from,
         )
     }
 }

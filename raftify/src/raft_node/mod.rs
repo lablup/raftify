@@ -3,7 +3,7 @@ mod response_sender;
 pub mod utils;
 
 use bincode::{deserialize, serialize};
-use jopemachine_raft::{eraftpb::ConfState, logger::Logger};
+use jopemachine_raft::logger::Logger;
 use prost::Message as PMessage;
 use std::{
     collections::HashMap,
@@ -43,9 +43,9 @@ use crate::{
     },
     storage::{
         heed::{HeedStorage, LogStore},
-        utils::{clear_storage_path, ensure_directory_exist, get_storage_path},
+        utils::{clear_storage_path, ensure_directory_exist, get_data_mdb_path, get_storage_path},
     },
-    utils::{is_near_zero, to_confchange_v2, OneShotMutex},
+    utils::{to_confchange_v2, OneShotMutex},
     AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket, Config, Error, Peers,
     RaftServiceClient,
 };
@@ -74,7 +74,6 @@ impl<
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
         bootstrap_done: bool,
-        restore_wal: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
         local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
@@ -87,7 +86,6 @@ impl<
             raft_addr,
             logger,
             bootstrap_done,
-            restore_wal,
             server_rcv,
             server_snd,
             local_rcv,
@@ -199,6 +197,20 @@ impl<
 
         match resp {
             LocalResponseMsg::AddPeer {} => (),
+            _ => unreachable!(),
+        }
+    }
+
+    pub async fn add_peers(&self, peers: HashMap<u64, SocketAddr>) {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::AddPeers { peers, chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+
+        match resp {
+            LocalResponseMsg::AddPeers {} => (),
             _ => unreachable!(),
         }
     }
@@ -424,7 +436,6 @@ impl<
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
         bootstrap_done: bool,
-        restore_wal: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
         local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
@@ -434,11 +445,12 @@ impl<
         config.raft_config.validate()?;
 
         let storage_pth = get_storage_path(config.log_dir.as_str(), 1);
-        if !restore_wal {
+
+        if config.restore_wal_from.is_none() {
             clear_storage_path(storage_pth.as_str())?;
-            ensure_directory_exist(storage_pth.as_str())?;
         }
 
+        ensure_directory_exist(storage_pth.as_str())?;
         let mut storage = HeedStorage::create(storage_pth.as_str(), &config, logger.clone())?;
 
         let mut snapshot = storage.snapshot(0, storage.last_index()?)?;
@@ -504,14 +516,21 @@ impl<
         config.raft_config.validate()?;
 
         let storage_pth = get_storage_path(config.log_dir.as_str(), node_id);
+
+        clear_storage_path(storage_pth.as_str())?;
         ensure_directory_exist(storage_pth.as_str())?;
+
+        if let Some(restore_wal_from) = config.restore_wal_from {
+            std::fs::copy(
+                get_data_mdb_path(config.log_dir.as_str(), restore_wal_from),
+                get_data_mdb_path(config.log_dir.as_str(), node_id),
+            )?;
+        }
 
         let storage = HeedStorage::create(storage_pth.as_str(), &config, logger.clone())?;
         let raw_node = RawNode::new(&config.raft_config, storage, logger.clone())?;
         let response_seq = AtomicU64::new(0);
-        let last_snapshot_created = Instant::now()
-            .checked_sub(Duration::from_secs(1000))
-            .unwrap();
+        let last_snapshot_created = Instant::now();
 
         let (self_snd, self_rcv) = mpsc::channel(100);
 
@@ -556,6 +575,12 @@ impl<
 
     pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
         self.peers.lock().await.add_peer(id, addr)
+    }
+
+    pub async fn add_peers(&mut self, peers: HashMap<u64, SocketAddr>) {
+        for (id, peer_addr) in peers.iter() {
+            self.add_peer(id.to_owned(), peer_addr).await;
+        }
     }
 
     pub fn set_bootstrap_done(&mut self) {
@@ -642,15 +667,7 @@ impl<
     }
 
     async fn handle_join(&mut self, ticket: ClusterJoinTicket) -> Result<()> {
-        let leader_id = ticket.leader_id;
-        let leader_addr = ticket.leader_addr.clone();
         let reserved_id = ticket.reserved_id;
-
-        for (id, peer_addr) in ticket.peers.iter() {
-            self.add_peer(id.to_owned(), peer_addr).await;
-        }
-
-        self.add_peer(leader_id, leader_addr).await;
 
         let mut change = ConfChangeV2::default();
         let mut cs = ConfChangeSingle::default();
@@ -706,13 +723,14 @@ impl<
             }
         }
 
-        if !is_near_zero(self.config.snapshot_interval)
-            && Instant::now()
-                > self.last_snapshot_created
-                    + Duration::from_secs_f32(self.config.snapshot_interval)
-        {
-            self.make_snapshot(entry.index, entry.term).await?;
+        if let Some(snapshot_interval) = self.config.snapshot_interval {
+            if Instant::now()
+                > self.last_snapshot_created + Duration::from_secs_f32(snapshot_interval)
+            {
+                self.make_snapshot(entry.index, entry.term).await?;
+            }
         }
+
         Ok(())
     }
 
@@ -1045,6 +1063,10 @@ impl<
             LocalRequestMsg::AddPeer { id, addr, chan } => {
                 self.add_peer(id, addr).await;
                 chan.send(LocalResponseMsg::AddPeer {}).unwrap();
+            }
+            LocalRequestMsg::AddPeers { peers, chan } => {
+                self.add_peers(peers).await;
+                chan.send(LocalResponseMsg::AddPeers {}).unwrap();
             }
             LocalRequestMsg::Store { chan } => {
                 chan.send(LocalResponseMsg::Store {

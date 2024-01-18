@@ -44,14 +44,15 @@ pub struct ClusterJoinTicket {
 impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync + 'static>
     Raft<LogEntry, FSM>
 {
-    pub fn build<A: ToSocketAddrs>(
-        node_id: u64,
+    fn build<A: ToSocketAddrs>(
+        node_id: Option<u64>,
         raft_addr: A,
         fsm: FSM,
         config: Config,
-        logger: Arc<dyn Logger>,
         initial_peers: Option<Peers>,
+        logger: Arc<dyn Logger>,
     ) -> Result<Self> {
+        let node_id = node_id.unwrap_or(1);
         let raft_addr = raft_addr.to_socket_addrs()?.next().unwrap();
         let initial_peers = initial_peers.unwrap_or(Peers::new(node_id, raft_addr));
 
@@ -67,7 +68,6 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
                 raft_addr,
                 logger.clone(),
                 bootstrap_done,
-                true,
                 server_rx,
                 server_tx.clone(),
                 local_rx,
@@ -99,6 +99,27 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
             config,
             logger,
         })
+    }
+
+    pub fn bootstrap_cluster<A: ToSocketAddrs>(
+        raft_addr: A,
+        fsm: FSM,
+        config: Config,
+        initial_peers: Option<Peers>,
+        logger: Arc<dyn Logger>,
+    ) -> Result<Self> {
+        Self::build(None, raft_addr, fsm, config, initial_peers, logger)
+    }
+
+    pub fn new_follower<A: ToSocketAddrs>(
+        node_id: u64,
+        raft_addr: A,
+        fsm: FSM,
+        config: Config,
+        initial_peers: Option<Peers>,
+        logger: Arc<dyn Logger>,
+    ) -> Result<Self> {
+        Self::build(Some(node_id), raft_addr, fsm, config, initial_peers, logger)
     }
 
     pub async fn run(self) -> Result<()> {

@@ -72,6 +72,7 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
     GetLeaderId { leader_id: u64 },
     GetPeers { peers: Peers },
     AddPeer {},
+    AddPeers {},
     Store { store: FSM },
     Storage { storage: HeedStorage },
     GetClusterSize { size: usize },

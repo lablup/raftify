@@ -19,7 +19,7 @@ use structopt::StructOpt;
 use example_harness::config::build_config;
 use memstore_example_harness::{
     state_machine::{HashStore, LogEntry},
-    web_server_api::{debug, get, leader_id, leave, put},
+    web_server_api::{debug, get, leader_id, leave, peers, put},
 };
 use memstore_static_members::utils::load_peers;
 
@@ -62,7 +62,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let options = Options::from_args();
     let store = HashStore::new();
-    let peers = load_peers().await?;
+    let initial_peers = load_peers().await?;
 
     let cfg = build_config();
 
@@ -70,36 +70,34 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         Some(_peer_addr) => {
             log::info!("Running in Follower mode");
 
-            let node_id = peers
+            let node_id = initial_peers
                 .get_node_id_by_addr(options.raft_addr.clone())
                 .unwrap();
 
-            let raft = Raft::build(
+            let raft = Raft::new_follower(
                 node_id,
                 options.raft_addr,
                 store.clone(),
                 cfg,
+                Some(initial_peers.clone()),
                 logger.clone(),
-                Some(peers.clone()),
             )?;
 
             let handle = tokio::spawn(raft.clone().run());
 
-            let leader_addr = peers.get(&1).unwrap().addr;
+            let leader_addr = initial_peers.get(&1).unwrap().addr;
             Raft::member_bootstrap_ready(leader_addr, node_id, logger).await?;
 
             (raft, handle)
         }
         None => {
             log::info!("Bootstrap a Raft Cluster");
-            let node_id = 1;
-            let raft = Raft::build(
-                node_id,
+            let raft = Raft::bootstrap_cluster(
                 options.raft_addr,
                 store.clone(),
                 cfg,
+                Some(initial_peers),
                 logger.clone(),
-                Some(peers),
             )?;
             let handle = tokio::spawn(raft.clone().run());
             (raft, handle)
@@ -115,6 +113,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .service(get)
                     .service(leave)
                     .service(debug)
+                    .service(peers)
                     .service(leader_id)
             })
             .bind(addr)

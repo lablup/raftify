@@ -29,16 +29,27 @@ fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
     let store = HashStore::new();
     let logger = build_logger();
 
-    let raft = Raft::build(
-        *node_id,
-        peer.addr,
-        store,
-        cfg,
-        Arc::new(Slogger {
-            slog: logger.clone(),
-        }),
-        Some(peers.clone()),
-    )
+    let raft = match node_id {
+        1 => Raft::bootstrap_cluster(
+            peer.addr,
+            store,
+            cfg,
+            Some(peers.clone()),
+            Arc::new(Slogger {
+                slog: logger.clone(),
+            }),
+        ),
+        _ => Raft::new_follower(
+            *node_id,
+            peer.addr,
+            store,
+            cfg,
+            Some(peers.clone()),
+            Arc::new(Slogger {
+                slog: logger.clone(),
+            }),
+        ),
+    }
     .expect("Raft build failed!");
 
     RAFTS.lock().unwrap().insert(*node_id, raft.clone());
@@ -99,8 +110,8 @@ pub async fn spawn_extra_node(peer_addr: &str, raft_addr: &str) -> Result<JoinHa
     let cfg = build_config();
     let store = HashStore::new();
 
-    let raft =
-        Raft::build(node_id, raft_addr, store, cfg, logger, None).expect("Raft build failed!");
+    let raft = Raft::new_follower(node_id, raft_addr, store, cfg, None, logger)
+        .expect("Raft build failed!");
 
     RAFTS.lock().unwrap().insert(node_id, raft.clone());
 

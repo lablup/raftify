@@ -1,3 +1,5 @@
+use std::{collections::HashMap, net::SocketAddr};
+
 use tokio::sync::oneshot::Sender;
 
 use super::{
@@ -55,6 +57,10 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
     AddPeer {
         id: u64,
         addr: String,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
+    },
+    AddPeers {
+        peers: HashMap<u64, SocketAddr>,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     DebugNode {
@@ -128,6 +134,7 @@ impl_debug_for_enum!(
     GetLeaderId,
     GetPeers,
     AddPeer,
+    AddPeers,
     DebugNode,
     Store,
     Storage,

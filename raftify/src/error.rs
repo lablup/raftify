@@ -37,7 +37,7 @@ pub enum Error {
 pub enum SendMessageError {
     #[error("Failed to connect to node {0}")]
     ConnectionError(String),
-    #[error("Peer not found node {0}")]
+    #[error("Node {0} not found from the peers")]
     PeerNotFound(String),
     #[error("Failed to send message to node {0}")]
     TransmissionError(String),

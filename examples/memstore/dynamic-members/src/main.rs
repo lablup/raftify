@@ -9,7 +9,7 @@ use std::sync::Arc;
 use example_harness::config::build_config;
 use memstore_example_harness::{
     state_machine::{HashStore, LogEntry},
-    web_server_api::{debug, get, leader_id, leave, put},
+    web_server_api::{debug, get, leader_id, leave, peers, put},
 };
 use raftify::{
     raft::{formatter::set_custom_formatter, logger::Slogger},
@@ -32,6 +32,8 @@ struct Options {
     peer_addr: Option<String>,
     #[structopt(long)]
     web_server: Option<String>,
+    #[structopt(long)]
+    restore_wal_from: Option<u64>,
 }
 
 #[actix_rt::main]
@@ -62,40 +64,44 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let options = Options::from_args();
     let store = HashStore::new();
 
-    let cfg = build_config();
+    let mut cfg = build_config();
+    cfg.restore_wal_from = options.restore_wal_from;
 
     let (raft, raft_handle) = match options.peer_addr {
         Some(peer_addr) => {
             log::info!("Running in Follower mode");
 
-            let ticket = Raft::request_id(options.raft_addr.clone(), peer_addr.clone(), logger.clone())
-                .await
-                .unwrap();
+            let ticket =
+                Raft::request_id(options.raft_addr.clone(), peer_addr.clone(), logger.clone())
+                    .await
+                    .unwrap();
             let node_id = ticket.reserved_id;
 
-            let raft = Raft::build(
+            let raft = Raft::new_follower(
                 node_id,
                 options.raft_addr,
                 store.clone(),
-                cfg,
-                logger.clone(),
+                cfg.clone(),
                 None,
+                logger.clone(),
             )?;
 
             let handle = tokio::spawn(raft.clone().run());
-            raft.join(ticket).await;
+            raft.raft_node.add_peers(ticket.peers.clone()).await;
+
+            if cfg.restore_wal_from.is_none() {
+                raft.join(ticket).await;
+            }
             (raft, handle)
         }
         None => {
             log::info!("Bootstrap a Raft Cluster");
-            let node_id = 1;
-            let raft = Raft::build(
-                node_id,
+            let raft = Raft::bootstrap_cluster(
                 options.raft_addr,
                 store.clone(),
                 cfg,
-                logger.clone(),
                 None,
+                logger.clone(),
             )?;
             let handle = tokio::spawn(raft.clone().run());
             (raft, handle)
@@ -111,6 +117,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .service(get)
                     .service(leave)
                     .service(debug)
+                    .service(peers)
                     .service(leader_id)
             })
             .bind(addr)

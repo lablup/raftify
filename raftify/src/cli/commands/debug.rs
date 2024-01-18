@@ -21,8 +21,7 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
         Arc::new(Slogger {
             slog: logger.clone(),
         }),
-    )
-    .unwrap();
+    )?;
 
     let entries = storage.all_entries()?;
 
@@ -42,8 +41,8 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
 }
 
 pub async fn debug_node(addr: &str) -> Result<()> {
-    let mut client = create_client(&addr).await.unwrap();
-    let response = client.debug_node(raft_service::Empty {}).await.unwrap();
+    let mut client = create_client(&addr).await?;
+    let response = client.debug_node(raft_service::Empty {}).await?;
     let json = response.into_inner().result_json;
     let parsed: HashMap<String, Value> = serde_json::from_str(&json).unwrap();
 
