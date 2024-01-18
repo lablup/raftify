@@ -880,7 +880,9 @@ impl<
                 continue;
             }
 
-            let peer = peers.get_mut(node_id).expect("Peer not found!");
+            let peer = peers
+                .get_mut(node_id)
+                .expect(&format!("Peer {} not found!", node_id));
 
             // ???
             if let Err(err) = peer.connect().await {
