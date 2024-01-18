@@ -23,9 +23,7 @@ slog-async = "2"
 slog-term = "2"
 slog = { version = "2", features = ["max_level_trace", "release_max_level_trace"] }
 slog-stdlog = "4"
-slog-scope = "4.4"
 slog-envlogger = "2.2"
-env_logger = "0.8"
 structopt = "0.3"
 tokio = { version = "1.4", features = ["full"] }
 toml = "0.8.8"

@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate slog;
 extern crate slog_async;
-extern crate slog_scope;
 extern crate slog_term;
 
 use actix_web::{web, App, HttpServer};
