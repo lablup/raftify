@@ -30,8 +30,6 @@ struct Options {
     peer_addr: Option<String>,
     #[structopt(long)]
     web_server: Option<String>,
-    #[structopt(long)]
-    restore_wal_from: Option<u64>,
 }
 
 #[actix_rt::main]
@@ -57,8 +55,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let options = Options::from_args();
     let store = HashStore::new();
 
-    let mut cfg = build_config();
-    cfg.restore_wal_from = options.restore_wal_from;
+    let cfg = build_config();
 
     let (raft, raft_handle) = match options.peer_addr {
         Some(peer_addr) => {
@@ -81,10 +78,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
             let handle = tokio::spawn(raft.clone().run());
             raft.raft_node.add_peers(ticket.peers.clone()).await;
+            raft.join(ticket).await;
 
-            if cfg.restore_wal_from.is_none() {
-                raft.join(ticket).await;
-            }
             (raft, handle)
         }
         None => {
