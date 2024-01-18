@@ -6,10 +6,7 @@ extern crate slog_term;
 
 use actix_web::{web, App, HttpServer};
 use raftify::{
-    raft::{
-        formatter::set_custom_formatter,
-        logger::{Logger, Slogger},
-    },
+    raft::{formatter::set_custom_formatter, logger::Slogger},
     CustomFormatter, Raft as Raft_,
 };
 use slog::Drain;
@@ -65,13 +62,13 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let mut cfg = build_config();
     cfg.restore_wal_from = options.restore_wal_from;
 
-    let (raft, raft_handle) = match options.peer_addr {
-        Some(_peer_addr) => {
-            log::info!("Running in Follower mode");
+    let node_id = initial_peers
+        .get_node_id_by_addr(options.raft_addr.clone())
+        .unwrap();
 
-            let node_id = initial_peers
-                .get_node_id_by_addr(options.raft_addr.clone())
-                .unwrap();
+    let (raft, raft_handle) = match options.peer_addr {
+        Some(peer_addr) => {
+            log::info!("Running in Follower mode");
 
             let raft = Raft::new_follower(
                 node_id,
@@ -83,15 +80,14 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             )?;
 
             let handle = tokio::spawn(raft.clone().run());
-
-            let leader_addr = initial_peers.get(&1).unwrap().addr;
-            Raft::member_bootstrap_ready(leader_addr, node_id, logger).await?;
+            Raft::member_bootstrap_ready(peer_addr, node_id, logger).await?;
 
             (raft, handle)
         }
         None => {
-            log::info!("Bootstrap a Raft Cluster");
+            log::info!("Node {} bootstrapped a raft cluster", node_id);
             let raft = Raft::bootstrap_cluster(
+                node_id,
                 options.raft_addr,
                 store.clone(),
                 cfg,

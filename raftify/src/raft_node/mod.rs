@@ -68,6 +68,7 @@ impl<
 {
     #[allow(clippy::too_many_arguments)]
     pub fn bootstrap_cluster(
+        node_id: u64,
         fsm: FSM,
         config: Config,
         initial_peers: Peers,
@@ -80,6 +81,7 @@ impl<
         local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
         RaftNodeCore::<LogEntry, FSM>::bootstrap_cluster(
+            node_id,
             fsm,
             config,
             initial_peers,
@@ -99,7 +101,7 @@ impl<
 
     #[allow(clippy::too_many_arguments)]
     pub fn new_follower(
-        id: u64,
+        node_id: u64,
         fsm: FSM,
         config: Config,
         peers: Peers,
@@ -112,7 +114,7 @@ impl<
         local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
         RaftNodeCore::<LogEntry, FSM>::new_follower(
-            id,
+            node_id,
             fsm,
             config,
             peers,
@@ -430,6 +432,7 @@ impl<
 {
     #[allow(clippy::too_many_arguments)]
     pub fn bootstrap_cluster(
+        node_id: u64,
         fsm: FSM,
         mut config: Config,
         initial_peers: Peers,
@@ -441,10 +444,10 @@ impl<
         local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
         local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
-        config.raft_config.id = 1;
+        config.raft_config.id = node_id;
         config.raft_config.validate()?;
 
-        let storage_pth = get_storage_path(config.log_dir.as_str(), 1);
+        let storage_pth = get_storage_path(config.log_dir.as_str(), node_id);
 
         if config.restore_wal_from.is_none() {
             clear_storage_path(storage_pth.as_str())?;
@@ -456,7 +459,7 @@ impl<
         let mut snapshot = storage.snapshot(0, storage.last_index()?)?;
         let conf_state = snapshot.mut_metadata().mut_conf_state();
         if conf_state.voters.is_empty() {
-            conf_state.set_voters(vec![1]);
+            conf_state.set_voters(vec![node_id]);
         }
         storage.apply_snapshot(snapshot)?;
 
@@ -468,7 +471,7 @@ impl<
         raw_node.raft.become_leader();
 
         let peers_bootstrap_ready = if !initial_peers.is_empty() {
-            Some(HashMap::from([(1, true)]))
+            Some(HashMap::from([(node_id, true)]))
         } else {
             None
         };
@@ -579,7 +582,7 @@ impl<
 
     pub async fn add_peers(&mut self, peers: HashMap<u64, SocketAddr>) {
         for (id, peer_addr) in peers.iter() {
-            self.add_peer(id.to_owned(), peer_addr).await;
+            self.add_peer(id.to_owned(), *peer_addr).await;
         }
     }
 
@@ -876,7 +879,7 @@ impl<
         let mut peers = self.peers.lock().await;
 
         for node_id in peers_bootstrap_ready.keys() {
-            if *node_id == 1 {
+            if *node_id == self.raw_node.raft.id {
                 continue;
             }
 

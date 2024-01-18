@@ -31,6 +31,7 @@ fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
 
     let raft = match node_id {
         1 => Raft::bootstrap_cluster(
+            1,
             peer.addr,
             store,
             cfg,

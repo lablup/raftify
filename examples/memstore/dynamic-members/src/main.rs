@@ -90,6 +90,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         None => {
             log::info!("Bootstrap a Raft Cluster");
             let raft = Raft::bootstrap_cluster(
+                1,
                 options.raft_addr,
                 store.clone(),
                 cfg,

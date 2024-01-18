@@ -27,7 +27,7 @@ pub async fn bootstrap_peers<T: LogStore>(
         let node_id = &peer.0;
         let node_addr = initial_peers.get(node_id).unwrap().addr;
         // Skip leader
-        if *node_id == 1 {
+        if *node_id == raw_node.raft.id {
             continue;
         }
         let mut conf_change = ConfChange::default();

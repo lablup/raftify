@@ -26,8 +26,8 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
     let entries = storage.all_entries()?;
 
     println!("---- Persisted entries ----");
-    for (i, entry) in entries.iter().enumerate() {
-        println!("Key {}, {:?}", i + 1, format_entry(entry));
+    for entry in entries.iter() {
+        println!("Key: {}, {:?}", entry.get_index(), format_entry(entry));
     }
 
     println!();
