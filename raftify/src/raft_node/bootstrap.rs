@@ -1,4 +1,5 @@
 use bincode::serialize;
+use jopemachine_raft::Storage;
 use prost::Message as PMessage;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -14,7 +15,7 @@ use crate::{
 };
 
 /// Commit the configuration change to add all follower nodes to the cluster.
-pub async fn bootstrap_peers<T: LogStore>(
+pub async fn bootstrap_peers<T: LogStore + Storage>(
     peers: Arc<Mutex<Peers>>,
     raw_node: &mut RawNode<T>,
 ) -> Result<()> {
@@ -22,11 +23,11 @@ pub async fn bootstrap_peers<T: LogStore>(
     // Skip self (the leader node).
     initial_peers.remove(&raw_node.raft.id);
 
-    let mut entries = vec![];
     let storage = raw_node.store();
     let last_index = LogStore::last_index(storage)?;
     let last_term = storage.term(last_index)?;
 
+    let mut entries = vec![];
     for (i, peer) in initial_peers.iter().enumerate() {
         let node_id = &peer.0;
         let node_addr = initial_peers.get(node_id).unwrap().addr;
@@ -41,30 +42,39 @@ pub async fn bootstrap_peers<T: LogStore>(
 
         let mut entry = Entry::default();
         entry.set_entry_type(EntryType::EntryConfChange);
-        entry.set_term(last_term);
         entry.set_index(last_index + 1 + i as u64);
+        entry.set_term(last_term);
         entry.set_data(conf_change.encode_to_vec());
         entry.set_context(vec![]);
         entries.push(entry);
     }
 
-    let unstable = &mut raw_node.raft.raft_log.unstable;
-    unstable.entries = entries.clone();
-
     let commit_index = last_index + entries.len() as u64;
 
-    unstable.stable_entries(commit_index, last_term);
+    {
+        let unstable = &mut raw_node.raft.raft_log.unstable;
+        unstable.entries = entries.clone();
+        unstable.stable_entries(commit_index, last_term);
 
-    raw_node.mut_store().append(&entries)?;
+        let store = raw_node.mut_store();
+        store.append(&entries)?;
+    }
 
-    let last_applied = raw_node.raft.raft_log.applied;
-    let store = raw_node.mut_store();
-    store.compact(last_applied)?;
-    store.create_snapshot(vec![], commit_index, last_term)?;
+    {
+        let last_applied = raw_node.raft.raft_log.applied;
+        let store = raw_node.mut_store();
+        let snapshot = LogStore::snapshot(store, 0, commit_index)?;
 
-    raw_node.raft.raft_log.applied = commit_index;
-    raw_node.raft.raft_log.committed = commit_index;
-    raw_node.raft.raft_log.persisted = commit_index;
+        store.compact(last_applied)?;
+        store.create_snapshot(snapshot.get_data().to_vec(), last_applied, last_term)?;
+    }
+
+    {
+        let raft_log = &mut raw_node.raft.raft_log;
+        raft_log.applied = commit_index;
+        raft_log.committed = commit_index;
+        raft_log.persisted = commit_index;
+    }
 
     let leader_id = raw_node.raft.leader_id;
     let leader_pr = raw_node.raft.mut_prs().get_mut(leader_id).unwrap();
