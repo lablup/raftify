@@ -23,7 +23,9 @@ pub async fn bootstrap_peers<T: LogStore>(
     initial_peers.remove(&raw_node.raft.id);
 
     let mut entries = vec![];
-    let last_index = LogStore::last_index(raw_node.store()).unwrap();
+    let storage = raw_node.store();
+    let last_index = LogStore::last_index(storage)?;
+    let last_term = storage.term(last_index)?;
 
     for (i, peer) in initial_peers.iter().enumerate() {
         let node_id = &peer.0;
@@ -32,14 +34,14 @@ pub async fn bootstrap_peers<T: LogStore>(
         let mut conf_change = ConfChange::default();
         conf_change.set_node_id(*node_id);
         conf_change.set_change_type(ConfChangeType::AddNode);
-        conf_change.set_context(serialize(&vec![node_addr]).unwrap());
+        conf_change.set_context(serialize(&vec![node_addr])?);
 
         let conf_state = raw_node.apply_conf_change(&conf_change)?;
         raw_node.mut_store().set_conf_state(&conf_state)?;
 
         let mut entry = Entry::default();
         entry.set_entry_type(EntryType::EntryConfChange);
-        entry.set_term(1);
+        entry.set_term(last_term);
         entry.set_index(last_index + 1 + i as u64);
         entry.set_data(conf_change.encode_to_vec());
         entry.set_context(vec![]);
@@ -51,14 +53,14 @@ pub async fn bootstrap_peers<T: LogStore>(
 
     let commit_index = last_index + entries.len() as u64;
 
-    unstable.stable_entries(commit_index, 1);
+    unstable.stable_entries(commit_index, last_term);
 
     raw_node.mut_store().append(&entries)?;
 
     let last_applied = raw_node.raft.raft_log.applied;
     let store = raw_node.mut_store();
     store.compact(last_applied)?;
-    store.create_snapshot(vec![], commit_index, 1)?;
+    store.create_snapshot(vec![], commit_index, last_term)?;
 
     raw_node.raft.raft_log.applied = commit_index;
     raw_node.raft.raft_log.committed = commit_index;
