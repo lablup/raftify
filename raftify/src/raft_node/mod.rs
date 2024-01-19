@@ -464,15 +464,15 @@ impl<
 
         match (config.restore_wal_from, config.restore_wal_snapshot_from) {
             (Some(restore_wal_from), None) => {
-                let meta = snapshot.mut_metadata();
-                meta.set_index(storage.entries_last_index()?);
-
                 if restore_wal_from != node_id {
                     std::fs::copy(
                         get_data_mdb_path(config.log_dir.as_str(), restore_wal_from),
                         get_data_mdb_path(config.log_dir.as_str(), node_id),
                     )?;
                 }
+
+                let meta = snapshot.mut_metadata();
+                meta.set_index(storage.entries_last_index()?);
             }
             (None, Some(restore_wal_snapshot_from)) => {
                 if restore_wal_snapshot_from != node_id {
@@ -557,15 +557,15 @@ impl<
 
         match (config.restore_wal_from, config.restore_wal_snapshot_from) {
             (Some(restore_wal_from), None) => {
-                let meta = snapshot.mut_metadata();
-                meta.set_index(storage.entries_last_index()?);
-
                 if restore_wal_from != node_id {
                     std::fs::copy(
                         get_data_mdb_path(config.log_dir.as_str(), restore_wal_from),
                         get_data_mdb_path(config.log_dir.as_str(), node_id),
                     )?;
                 }
+
+                let meta = snapshot.mut_metadata();
+                meta.set_index(storage.entries_last_index()?);
             }
             (None, Some(restore_wal_snapshot_from)) => {
                 if restore_wal_snapshot_from != node_id {
