@@ -276,12 +276,11 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         Ok(())
     }
 
-    pub async fn snapshot(&mut self) -> Result<()> {
-        let store = self.raft_node.storage().await;
-        let hard_state = store.hard_state()?;
+    pub async fn snapshot(&self) -> Result<()> {
+        let storage = self.raft_node.storage().await;
 
         self.raft_node
-            .make_snapshot(store.last_index()?, hard_state.term)
+            .make_snapshot(storage.last_index()?, storage.hard_state()?.term)
             .await;
         Ok(())
     }

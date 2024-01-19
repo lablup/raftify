@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate slog;
 extern crate slog_async;
-extern crate slog_scope;
 extern crate slog_term;
 
 use actix_web::{web, App, HttpServer};
@@ -17,7 +16,7 @@ use structopt::StructOpt;
 use example_harness::config::build_config;
 use memstore_example_harness::{
     state_machine::{HashStore, LogEntry},
-    web_server_api::{debug, get, leader_id, leave, peers, put},
+    web_server_api::{debug, get, leader_id, leave, peers, put, snapshot},
 };
 use memstore_static_members::utils::load_peers;
 
@@ -109,6 +108,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .service(leave)
                     .service(debug)
                     .service(peers)
+                    .service(snapshot)
                     .service(leader_id)
             })
             .bind(addr)
