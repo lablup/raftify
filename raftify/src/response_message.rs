@@ -64,6 +64,7 @@ pub enum ServerResponseMsg {
     DebugNode { result_json: String },
     GetPeers { peers: Peers },
     SendMessage { result: ResponseResult },
+    CreateSnapshot {},
 }
 
 pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {

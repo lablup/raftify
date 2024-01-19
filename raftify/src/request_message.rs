@@ -38,6 +38,9 @@ pub enum ServerRequestMsg {
     GetPeers {
         chan: Sender<ServerResponseMsg>,
     },
+    CreateSnapshot {
+        chan: Sender<ServerResponseMsg>,
+    },
 }
 
 /// Request type used for communication (method calls) between RaftFacade and RaftNode

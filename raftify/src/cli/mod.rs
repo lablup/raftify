@@ -5,8 +5,7 @@ mod commands;
 use clap::{App, Arg, SubCommand};
 use commands::{
     debug::{debug_entries, debug_node, debug_persisted},
-    dump::dump_peers,
-    utils::parse_peers_json,
+    restore::restore_snapshot_metadata,
 };
 use std::fmt::Debug;
 
@@ -58,24 +57,19 @@ pub async fn cli_handler<
                 ),
         )
         .subcommand(
-            SubCommand::with_name("dump")
-                .about("Dump node configuration to the storage")
-                .subcommand(
-                    SubCommand::with_name("peers")
-                        .about("Dump peer configurations to the entries")
-                        .arg(
-                            Arg::with_name("path")
-                                .help("The log directory path")
-                                .required(true)
-                                .index(1),
-                        )
-                        .arg(
-                            Arg::with_name("peers")
-                                .help("'{node_id: \"address\"... }' format of a JSON string")
-                                .required(true)
-                                .index(2),
-                        ),
-                ),
+            SubCommand::with_name("restore")
+                .about("Renew snapshot metadata from persisted entries for WAL bootstrap")
+                .arg(
+                    Arg::with_name("address")
+                        .help("The address of the RaftNode")
+                        .required(true)
+                        .index(1),
+                ), // .arg(
+                   //     Arg::with_name("path")
+                   //         .help("The log directory path")
+                   //         .required(true)
+                   //         .index(2),
+                   // ),
         );
     // .subcommand(SubCommand::with_name("health").about("Check health"))
 
@@ -108,17 +102,9 @@ pub async fn cli_handler<
         }
     };
 
-    if let Some(("dump", dump_matches)) = matches.subcommand() {
-        match dump_matches.subcommand() {
-            Some(("peers", peers_matches)) => {
-                if let Some(path) = peers_matches.value_of("path") {
-                    if let Some(peers) = peers_matches.value_of("peers") {
-                        let peers = parse_peers_json(peers).expect("Invalid JSON format");
-                        dump_peers(path, peers, logger.clone()).await?;
-                    }
-                }
-            }
-            _ => {}
+    if let Some(("restore", restore_matches)) = matches.subcommand() {
+        if let Some(address) = restore_matches.value_of("address") {
+            restore_snapshot_metadata(address).await?;
         }
     };
 

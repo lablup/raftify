@@ -308,4 +308,26 @@ impl RaftService for RaftServer {
             _ => unreachable!(),
         }
     }
+
+    async fn create_snapshot(
+        &self,
+        request: Request<raft_service::Empty>,
+    ) -> Result<Response<raft_service::Empty>, Status> {
+        let _request_args = request.into_inner();
+        let (tx, rx) = oneshot::channel();
+        let sender = self.snd.clone();
+        match sender
+            .send(ServerRequestMsg::CreateSnapshot { chan: tx })
+            .await
+        {
+            Ok(_) => (),
+            Err(_) => self.print_send_error(function_name!()),
+        }
+        let response = rx.await.unwrap();
+
+        match response {
+            ServerResponseMsg::CreateSnapshot {} => Ok(Response::new(raft_service::Empty {})),
+            _ => unreachable!(),
+        }
+    }
 }

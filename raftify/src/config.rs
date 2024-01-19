@@ -18,6 +18,7 @@ pub struct Config {
 
     pub snapshot_interval: Option<f32>,
     pub restore_wal_from: Option<u64>,
+    pub restore_wal_snapshot_from: Option<u64>,
 }
 
 impl Config {
@@ -34,6 +35,7 @@ impl Config {
         conf_change_request_timeout: f32,
         snapshot_interval: Option<f32>,
         restore_wal_from: Option<u64>,
+        restore_wal_snapshot_from: Option<u64>,
     ) -> Self {
         Self {
             raft_config,
@@ -47,6 +49,7 @@ impl Config {
             cluster_id,
             conf_change_request_timeout,
             restore_wal_from,
+            restore_wal_snapshot_from,
         }
     }
 }
@@ -65,6 +68,7 @@ impl Default for Config {
             conf_change_request_timeout: 2.0,
             snapshot_interval: None,
             restore_wal_from: None,
+            restore_wal_snapshot_from: None,
         }
     }
 }
@@ -102,6 +106,7 @@ impl fmt::Debug for Config {
                 cluster_id: {cluster_id}, \
                 conf_change_request_timeout: {conf_change_request_timeout}, \
                 restore_wal_from: {restore_wal_from:?}, \
+                restore_wal_snapshot_from: {restore_wal_snapshot_from:?}, \
             }}",
             id = self.raft_config.id,
             election_tick = self.raft_config.election_tick,
@@ -129,6 +134,7 @@ impl fmt::Debug for Config {
             cluster_id = self.cluster_id,
             conf_change_request_timeout = self.conf_change_request_timeout,
             restore_wal_from = self.restore_wal_from,
+            restore_wal_snapshot_from = self.restore_wal_snapshot_from,
         )
     }
 }

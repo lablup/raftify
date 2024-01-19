@@ -32,6 +32,8 @@ struct Options {
     web_server: Option<String>,
     #[structopt(long)]
     restore_wal_from: Option<u64>,
+    #[structopt(long)]
+    restore_wal_snapshot_from: Option<u64>,
 }
 
 #[actix_rt::main]
@@ -60,6 +62,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let mut cfg = build_config();
     cfg.restore_wal_from = options.restore_wal_from;
+    cfg.restore_wal_snapshot_from = options.restore_wal_snapshot_from;
 
     let node_id = initial_peers
         .get_node_id_by_addr(options.raft_addr.clone())

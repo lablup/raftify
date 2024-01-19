@@ -12,6 +12,7 @@ service RaftService {
   rpc SendMessage(eraftpb.Message) returns (Empty) {}
   rpc GetPeers(Empty) returns (GetPeersResponse) {}
   rpc DebugNode(Empty) returns (DebugNodeResponse) {}
+  rpc CreateSnapshot(Empty) returns (Empty) {}
 }
 
 message Empty {}

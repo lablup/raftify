@@ -4,7 +4,7 @@ build
 target
 
 # raftify log files
-logs
+logs-*
 
 # Visual Studio Code
 .vscode

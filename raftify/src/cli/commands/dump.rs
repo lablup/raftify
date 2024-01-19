@@ -9,11 +9,9 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use crate::{utils::to_confchange_v2, Config, HeedStorage, LogStore, Result};
 
-pub async fn dump_peers(
-    path: &str,
-    peers: HashMap<u64, SocketAddr>,
-    logger: slog::Logger,
-) -> Result<()> {
+/// Read all_entries and make the appropriate ConfChanges to make it peers compared to the peers given in json format.
+#[allow(dead_code)]
+pub fn dump_peers(path: &str, peers: HashMap<u64, SocketAddr>, logger: slog::Logger) -> Result<()> {
     let config = Config {
         log_dir: path.to_string(),
         ..Default::default()
