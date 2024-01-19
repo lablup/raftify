@@ -6,7 +6,7 @@ use heed::{
 use heed_traits::{BoxedError, BytesDecode, BytesEncode};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use prost::Message as PMessage;
-use raft::logger::Logger;
+use raft::{logger::Logger, formatter::format_entry};
 use std::{
     borrow::Cow,
     cmp::max,
@@ -478,7 +478,7 @@ impl HeedStorageCore {
             .last(reader)?
             .expect("There should always be at least one entry in the db");
 
-        Ok(last_entry.0.parse::<u64>().unwrap() + 1)
+        Ok(last_entry.0.parse::<u64>().unwrap())
     }
 
     fn set_last_index(&self, writer: &mut heed::RwTxn, index: u64) -> Result<()> {
