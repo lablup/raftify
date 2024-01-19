@@ -10,6 +10,8 @@ pub enum Error {
     JoinError,
     #[error("Request rejected, cause: `{0}`")]
     Rejected(String),
+    #[error("Invalid config error. cause: `{0}`")]
+    ConfigInvalid(String),
 
     #[error("Request timeout")]
     Timeout,

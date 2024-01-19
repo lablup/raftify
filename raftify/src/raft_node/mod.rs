@@ -445,22 +445,49 @@ impl<
         local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
         config.raft_config.id = node_id;
-        config.raft_config.validate()?;
+        config.validate()?;
 
         let storage_pth = get_storage_path(config.log_dir.as_str(), node_id);
 
-        if config.restore_wal_from.is_none() {
+        if let (None, None) = (config.restore_wal_from, config.restore_wal_snapshot_from) {
             clear_storage_path(storage_pth.as_str())?;
-        }
+            ensure_directory_exist(storage_pth.as_str())?;
+        };
 
-        ensure_directory_exist(storage_pth.as_str())?;
         let mut storage = HeedStorage::create(storage_pth.as_str(), &config, logger.clone())?;
-
         let mut snapshot = storage.snapshot(0, storage.last_index()?)?;
         let conf_state = snapshot.mut_metadata().mut_conf_state();
+
         if conf_state.voters.is_empty() {
             conf_state.set_voters(vec![node_id]);
         }
+
+        match (config.restore_wal_from, config.restore_wal_snapshot_from) {
+            (Some(restore_wal_from), None) => {
+                let meta = snapshot.mut_metadata();
+                meta.set_index(storage.entries_last_index()?);
+
+                if restore_wal_from != node_id {
+                    std::fs::copy(
+                        get_data_mdb_path(config.log_dir.as_str(), restore_wal_from),
+                        get_data_mdb_path(config.log_dir.as_str(), node_id),
+                    )?;
+                }
+            }
+            (None, Some(restore_wal_snapshot_from)) => {
+                if restore_wal_snapshot_from != node_id {
+                    std::fs::copy(
+                        get_data_mdb_path(config.log_dir.as_str(), restore_wal_snapshot_from),
+                        get_data_mdb_path(config.log_dir.as_str(), node_id),
+                    )?;
+                }
+            }
+            (Some(_), Some(_)) => {
+                unreachable!()
+            }
+            _ => {}
+        }
+
         storage.apply_snapshot(snapshot)?;
 
         let mut raw_node = RawNode::new(&config.raft_config, storage, logger.clone())?;
@@ -516,21 +543,44 @@ impl<
         local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
         config.raft_config.id = node_id;
-        config.raft_config.validate()?;
+        config.validate()?;
 
         let storage_pth = get_storage_path(config.log_dir.as_str(), node_id);
 
-        clear_storage_path(storage_pth.as_str())?;
-        ensure_directory_exist(storage_pth.as_str())?;
-
-        if let Some(restore_wal_from) = config.restore_wal_from {
-            std::fs::copy(
-                get_data_mdb_path(config.log_dir.as_str(), restore_wal_from),
-                get_data_mdb_path(config.log_dir.as_str(), node_id),
-            )?;
-        }
+        if let (None, None) = (config.restore_wal_from, config.restore_wal_snapshot_from) {
+            clear_storage_path(storage_pth.as_str())?;
+            ensure_directory_exist(storage_pth.as_str())?;
+        };
 
         let storage = HeedStorage::create(storage_pth.as_str(), &config, logger.clone())?;
+        let mut snapshot = storage.snapshot(0, storage.last_index()?)?;
+
+        match (config.restore_wal_from, config.restore_wal_snapshot_from) {
+            (Some(restore_wal_from), None) => {
+                let meta = snapshot.mut_metadata();
+                meta.set_index(storage.entries_last_index()?);
+
+                if restore_wal_from != node_id {
+                    std::fs::copy(
+                        get_data_mdb_path(config.log_dir.as_str(), restore_wal_from),
+                        get_data_mdb_path(config.log_dir.as_str(), node_id),
+                    )?;
+                }
+            }
+            (None, Some(restore_wal_snapshot_from)) => {
+                if restore_wal_snapshot_from != node_id {
+                    std::fs::copy(
+                        get_data_mdb_path(config.log_dir.as_str(), restore_wal_snapshot_from),
+                        get_data_mdb_path(config.log_dir.as_str(), node_id),
+                    )?;
+                }
+            }
+            (Some(_), Some(_)) => {
+                unreachable!()
+            }
+            _ => {}
+        }
+
         let raw_node = RawNode::new(&config.raft_config, storage, logger.clone())?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now();
@@ -749,6 +799,11 @@ impl<
     }
 
     async fn handle_committed_config_change_entry(&mut self, entry: &Entry) -> Result<()> {
+        // Block already applied entries (* Used in static bootstrap)
+        if entry.get_context().is_empty() {
+            return Ok(());
+        }
+
         let conf_change_v2 = match entry.get_entry_type() {
             EntryType::EntryConfChange => to_confchange_v2(ConfChange::decode(entry.get_data())?),
             EntryType::EntryConfChangeV2 => ConfChangeV2::decode(entry.get_data())?,
@@ -853,6 +908,8 @@ impl<
 
     pub async fn wait_for_initial_peers_bootstrap(&mut self) -> Result<()> {
         if !self.is_leader() {
+            self.logger
+                .warn("Waiting for initial peers bootstrap is only allowed on leader node.");
             return Ok(());
         }
 
@@ -924,7 +981,8 @@ impl<
     async fn bootstrap_peers(&mut self) -> Result<()> {
         assert!(self.is_leader());
 
-        self.make_snapshot(self.raw_node.store().last_index()?, 1)
+        let last_term = self.raw_node.raft.raft_log.last_term();
+        self.make_snapshot(self.raw_node.store().last_index()?, last_term)
             .await?;
 
         bootstrap_peers(self.peers.clone(), &mut self.raw_node).await?;
@@ -1247,6 +1305,12 @@ impl<
                 })
                 .unwrap();
             }
+            ServerRequestMsg::CreateSnapshot { chan } => {
+                let last_index = self.raw_node.store().last_index()?;
+                let last_term = self.raw_node.store().hard_state()?.term;
+                self.make_snapshot(last_index, last_term).await?;
+                chan.send(ServerResponseMsg::CreateSnapshot {}).unwrap();
+            }
         }
 
         Ok(())
@@ -1265,7 +1329,9 @@ impl<
             }
 
             if !self.bootstrap_done {
-                self.wait_for_initial_peers_bootstrap().await?;
+                if self.is_leader() {
+                    self.wait_for_initial_peers_bootstrap().await?;
+                }
             }
 
             tokio::select! {
@@ -1290,7 +1356,10 @@ impl<
             now = Instant::now();
             if elapsed > tick_timer {
                 tick_timer = fixed_tick_timer;
-                self.raw_node.tick();
+
+                if self.bootstrap_done {
+                    self.raw_node.tick();
+                }
             } else {
                 tick_timer -= elapsed;
             }

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::raft::Config as RaftConfig;
+use crate::{error::Error, raft::Config as RaftConfig, Result};
 
 #[derive(Clone)]
 pub struct Config {
@@ -51,6 +51,20 @@ impl Config {
             restore_wal_from,
             restore_wal_snapshot_from,
         }
+    }
+}
+
+impl Config {
+    pub fn validate(&self) -> Result<()> {
+        self.raft_config.validate()?;
+        if self.restore_wal_from.is_some() && self.restore_wal_snapshot_from.is_some() {
+            return Err(Error::ConfigInvalid(
+                "restore_wal_from and restore_wal_snapshot_from cannot be set at the same time"
+                    .to_owned(),
+            ));
+        }
+
+        Ok(())
     }
 }
 

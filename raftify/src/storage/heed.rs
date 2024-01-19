@@ -6,7 +6,7 @@ use heed::{
 use heed_traits::{BoxedError, BytesDecode, BytesEncode};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use prost::Message as PMessage;
-use raft::{logger::Logger, formatter::format_entry};
+use raft::{formatter::format_entry, logger::Logger};
 use std::{
     borrow::Cow,
     cmp::max,
