@@ -18,7 +18,9 @@ pub async fn bootstrap_peers<T: LogStore>(
     peers: Arc<Mutex<Peers>>,
     raw_node: &mut RawNode<T>,
 ) -> Result<()> {
-    let initial_peers = peers.lock().await;
+    let mut initial_peers = peers.lock().await.clone();
+    // Skip self (the leader node).
+    initial_peers.remove(&raw_node.raft.id);
 
     let mut entries = vec![];
     let last_index = LogStore::last_index(raw_node.store()).unwrap();
@@ -26,10 +28,7 @@ pub async fn bootstrap_peers<T: LogStore>(
     for (i, peer) in initial_peers.iter().enumerate() {
         let node_id = &peer.0;
         let node_addr = initial_peers.get(node_id).unwrap().addr;
-        // Skip leader
-        if *node_id == raw_node.raft.id {
-            continue;
-        }
+
         let mut conf_change = ConfChange::default();
         conf_change.set_node_id(*node_id);
         conf_change.set_change_type(ConfChangeType::AddNode);
@@ -41,7 +40,7 @@ pub async fn bootstrap_peers<T: LogStore>(
         let mut entry = Entry::default();
         entry.set_entry_type(EntryType::EntryConfChange);
         entry.set_term(1);
-        entry.set_index(last_index + i as u64);
+        entry.set_index(last_index + 1 + i as u64);
         entry.set_data(conf_change.encode_to_vec());
         entry.set_context(vec![]);
         entries.push(entry);
@@ -49,7 +48,9 @@ pub async fn bootstrap_peers<T: LogStore>(
 
     let unstable = &mut raw_node.raft.raft_log.unstable;
     unstable.entries = entries.clone();
+
     let commit_index = last_index + entries.len() as u64;
+
     unstable.stable_entries(commit_index, 1);
 
     raw_node.mut_store().append(&entries)?;
