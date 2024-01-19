@@ -574,6 +574,7 @@ impl HeedStorageCore {
         for entry in entries {
             let index = entry.index;
             last_index = std::cmp::max(index, last_index);
+            // TODO: Handle MDBFullError.
             self.entries_db.put(writer, &index.to_string(), entry)?;
         }
         self.set_last_index(writer, last_index)?;
