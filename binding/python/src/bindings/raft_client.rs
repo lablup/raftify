@@ -74,12 +74,12 @@ impl PyRaftServiceClient {
         let mut client = self.inner.clone();
 
         future_into_py(py, async move {
-            let _ = client
+            let response = client
                 .debug_node(raftify::raft_service::Empty {})
                 .await
                 .unwrap()
                 .into_inner();
-            Ok(())
+            Ok(response.result_json)
         })
     }
 
