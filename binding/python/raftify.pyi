@@ -274,8 +274,9 @@ class Config:
         tick_interval: Optional[float] = None,
         lmdb_map_size: Optional[int] = None,
         cluster_id: Optional[int] = None,
-        terminate_on_remove: Optional[bool] = None,
         conf_change_request_timeout: Optional[float] = None,
+        restore_wal_from: Optional[int] = None,
+        restore_wal_snapshot_from: Optional[int] = None,
     ) -> None:
         """ """
 
