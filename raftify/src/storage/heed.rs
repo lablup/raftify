@@ -6,7 +6,7 @@ use heed::{
 use heed_traits::{BoxedError, BytesDecode, BytesEncode};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use prost::Message as PMessage;
-use raft::{formatter::format_entry, logger::Logger};
+use raft::{logger::Logger, util::limit_size};
 use std::{
     borrow::Cow,
     cmp::max,
@@ -517,32 +517,14 @@ impl HeedStorageCore {
         let iter = self.entries_db.range(reader, &(low_str..high_str))?;
         let max_size: Option<u64> = max_size.into();
 
-        let mut size_count = 0;
-        let mut buf = vec![];
-        let mut should_not_filter = true;
-
-        let entries = iter
+        let mut entries = iter
             .filter_map(|e| match e {
                 Ok((_, e)) => Some(e),
                 _ => None,
             })
-            .take_while(|entry| match max_size {
-                Some(max_size) => {
-                    // One entry must be returned regardless of max_size.
-                    if should_not_filter {
-                        should_not_filter = false;
-                        return true;
-                    }
-
-                    entry.encode(&mut buf).unwrap();
-                    size_count += buf.len() as u64;
-                    buf.clear();
-                    size_count < max_size
-                }
-                None => true,
-            })
             .collect();
 
+        limit_size(&mut entries, max_size);
         Ok(entries)
     }
 
