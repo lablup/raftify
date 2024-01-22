@@ -36,6 +36,14 @@ struct Options {
     restore_wal_snapshot_from: Option<u64>,
 }
 
+fn validate_options(options: Options) -> Options {
+    if options.peer_addr.is_some() && options.restore_wal_from.is_some() {
+        panic!("Cannot restore WAL from follower node");
+    } else {
+        options
+    }
+}
+
 #[actix_rt::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let decorator = slog_term::TermDecorator::new().build();
@@ -56,7 +64,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     set_custom_formatter(CustomFormatter::<LogEntry, HashStore>::new());
 
-    let options = Options::from_args();
+    let options = validate_options(Options::from_args());
     let store = HashStore::new();
     let initial_peers = load_peers().await?;
 
