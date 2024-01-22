@@ -1,6 +1,6 @@
 # raftify
 
-⚠️ This library is in a very experimental stage. The API could be broken.
+⚠️ WARNING: This library is in a very experimental stage. The API could be broken.
 
 raftify is a *high-level* implementation of [Raft](https://raft.github.io/), developed with the goal of making it easy and straightforward to integrate the Raft algorithm.
 
@@ -124,7 +124,7 @@ If peer specifies the configuration of the initial members, the cluster will ope
 ```rust
 let raft_addr = "127.0.0.1:60062".to_owned();
 let peer_addr = "127.0.0.1:60061".to_owned();
-let join_ticket = await Raft.request_id(peer_addr);
+let join_ticket = await Raft::request_id(raft_addr, peer_addr, logger.clone());
 
 let raft = Raft::new_follower(
     join_ticket.reserved_id,
