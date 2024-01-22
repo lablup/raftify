@@ -8,7 +8,7 @@ It uses [tikv/raft-rs](https://github.com/tikv/raft-rs) and gRPC for the network
 
 ## Quick guide
 
-I strongly recommend to read the basic [memstore example code](https://github.com/lablup/raftify/blob/main/examples/memstore/src/main.rs) to get how to use this library for starters, but here's a quick guide.
+I strongly recommend to read the basic [memstore example code](https://github.com/lablup/raftify/blob/main/examples/memstore/dynamic-members/src/main.rs) to get how to use this library for starters, but here's a quick guide.
 
 ### Define your own log entry
 
@@ -188,6 +188,16 @@ $ raftify-cli debug persisted ./logs/node-1
 ```
 $ raftify-cli debug node 127.0.0.1:60061
 ```
+
+## Failure handling
+
+raftify support bootstrapping cluster from WAL (Write Ahead Logs), and WAL's snapshot.
+
+This feature is useful in cases where a failure occurs in more than the number of nodes in the quorum, requiring a restart of the cluster, or when there is a need to reboot the cluster after making a batch change to the cluster members.
+
+Use the `restore_wal_from` and `restore_wal_snapshot_from` options in `RaftConfig`.
+
+See [this example](https://github.com/lablup/raftify/blob/main/examples/memstore/static-members/src/main.rs) for more details.
 
 ## Support for other language
 

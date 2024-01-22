@@ -244,12 +244,12 @@ async def main():
 
     if peer_addr:
         if not peers:
-            join_ticket = await Raft.request_id(peer_addr, logger)
+            join_ticket = await Raft.request_id(raft_addr, peer_addr, logger)
             node_id = join_ticket.get_reserved_id()
         else:
             node_id = peers.get_node_id_by_addr(raft_addr)
 
-        raft = Raft.build(node_id, raft_addr, store, cfg, logger, peers)
+        raft = Raft.new_follower(node_id, raft_addr, store, cfg, logger, peers)
         tasks.append(raft.run())
 
         if not peers:
@@ -258,7 +258,7 @@ async def main():
             leader_addr = peers.get(1)
             await Raft.member_bootstrap_ready(leader_addr, node_id, logger)
     else:
-        raft = Raft.build(1, raft_addr, store, cfg, logger, peers)
+        raft = Raft.bootstrap_cluster(1, raft_addr, store, cfg, logger, peers)
         tasks.append(raft.run())
 
     async with WebServer(web_server_addr, routes, {"raft": raft, "store": store}):

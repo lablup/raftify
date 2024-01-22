@@ -86,7 +86,7 @@ class Raft:
     def __init__(self) -> None:
         """ """
     @staticmethod
-    def build(
+    def bootstrap_cluster(
         node_id: int,
         raft_addr: str,
         fsm: "AbstractStateMachine",
@@ -96,10 +96,24 @@ class Raft:
     ) -> "Raft":
         """ """
     @staticmethod
-    async def request_id(peer_addr: str, logger: "AbstractLogger") -> "ClusterJoinTicket":
+    def new_follower(
+        node_id: int,
+        raft_addr: str,
+        fsm: "AbstractStateMachine",
+        config: "Config",
+        logger: "AbstractLogger",
+        initial_peers: Optional["Peers"] = None,
+    ) -> "Raft":
+        """ """
+    @staticmethod
+    async def request_id(
+        raft_addr: str, peer_addr: str, logger: "AbstractLogger"
+    ) -> "ClusterJoinTicket":
         """"""
     @staticmethod
-    async def member_bootstrap_ready(leader_addr: str, node_id: int, logger: "AbstractLogger") -> None:
+    async def member_bootstrap_ready(
+        leader_addr: str, node_id: int, logger: "AbstractLogger"
+    ) -> None:
         """ """
     async def join(self, join_ticket: "ClusterJoinTicket") -> None:
         """ """
@@ -247,6 +261,7 @@ class RaftConfig:
 
 class Config:
     """ """
+
     def __init__(
         self,
         *,
@@ -459,9 +474,7 @@ class Snapshot:
         """ """
     def get_metadata(self) -> "SnapshotMetadata":
         """ """
-    def set_metadata(
-        self, meta_data: "SnapshotMetadata"
-    ) -> None:
+    def set_metadata(self, meta_data: "SnapshotMetadata") -> None:
         """ """
     def has_metadata(self) -> bool:
         """ """
@@ -510,9 +523,7 @@ class ConfChangeSingle:
 class ConfChangeV2:
     def get_changes(self) -> list["ConfChangeSingle"]:
         """ """
-    def set_changes(
-        self, changes: list["ConfChangeSingle"]
-    ) -> None:
+    def set_changes(self, changes: list["ConfChangeSingle"]) -> None:
         """ """
     def get_context(self) -> bytes:
         """ """
@@ -531,7 +542,6 @@ class ConfChangeV2:
         Consensus was requested explicitly. The bool indicates whether the Joint State
         will be left automatically.
         """
-
     def leave_joint(self) -> bool:
         """
         Checks if the configuration change leaves a joint configuration.

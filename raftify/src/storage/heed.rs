@@ -334,7 +334,6 @@ pub struct HeedStorageCore {
     env: Env,
     entries_db: Database<HeedEntryKeyString, HeedEntry>,
     metadata_db: Database<HeedStr, HeedBytes>,
-    #[allow(dead_code)]
     config: Config,
     logger: Arc<dyn Logger>,
 }
