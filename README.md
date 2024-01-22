@@ -179,7 +179,7 @@ It also provides a variety of other very useful APIs. Take a look at [the docume
 
 ## Debugging
 
-Raftify also provides a collection of CLI commands that let you check the data persisted in lmdb and the status of Raft Server.
+raftify also provides a collection of CLI commands that let you inspect the data persisted in lmdb and the status of Raft Server.
 
 ```
 $ raftify-cli debug persisted ./logs/node-1
@@ -189,7 +189,7 @@ $ raftify-cli debug persisted ./logs/node-1
 $ raftify-cli debug node 127.0.0.1:60061
 ```
 
-## Failure handling
+## Bootstrapping from WAL
 
 raftify support bootstrapping cluster from WAL (Write Ahead Logs), and WAL's snapshot.
 
@@ -199,9 +199,9 @@ Use the `restore_wal_from` and `restore_wal_snapshot_from` options in `RaftConfi
 
 See [this example](https://github.com/lablup/raftify/blob/main/examples/memstore/static-members/src/main.rs) for more details.
 
-## Support for other language
+## Support for other languages
 
-Raftify provides bindings for the following languages.
+raftify provides bindings for the following languages.
 
 - [Python](https://github.com/lablup/raftify/tree/main/binding/python)
 
