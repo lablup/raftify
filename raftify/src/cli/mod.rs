@@ -3,10 +3,7 @@ include!(concat!(env!("OUT_DIR"), "/built.rs"));
 mod commands;
 
 use clap::{App, Arg, SubCommand};
-use commands::{
-    debug::{debug_entries, debug_node, debug_persisted},
-    restore::restore_snapshot_metadata,
-};
+use commands::debug::{debug_entries, debug_node, debug_persisted};
 use std::fmt::Debug;
 
 use crate::{
@@ -67,21 +64,6 @@ pub async fn cli_handler<
                             .index(1),
                     ),
                 ),
-        )
-        .subcommand(
-            SubCommand::with_name("restore")
-                .about("Renew snapshot metadata from persisted entries for WAL bootstrap")
-                .arg(
-                    Arg::with_name("address")
-                        .help("The address of the RaftNode")
-                        .required(true)
-                        .index(1),
-                ), // .arg(
-                   //     Arg::with_name("path")
-                   //         .help("The log directory path")
-                   //         .required(true)
-                   //         .index(2),
-                   // ),
         );
     // .subcommand(SubCommand::with_name("health").about("Check health"))
 
@@ -116,12 +98,6 @@ pub async fn cli_handler<
                 }
             }
             _ => {}
-        }
-    };
-
-    if let Some(("restore", restore_matches)) = matches.subcommand() {
-        if let Some(address) = restore_matches.value_of("address") {
-            restore_snapshot_metadata(address).await?;
         }
     };
 
