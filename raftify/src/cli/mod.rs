@@ -14,6 +14,8 @@ use crate::{
     AbstractLogEntry, AbstractStateMachine, CustomFormatter, Result,
 };
 
+use self::commands::debug::debug_persitsted_all;
+
 pub async fn cli_handler<
     LogEntry: AbstractLogEntry + Debug + Send + 'static,
     FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
@@ -30,6 +32,16 @@ pub async fn cli_handler<
                 .subcommand(
                     SubCommand::with_name("persisted")
                         .about("List persisted log entries and metadata")
+                        .arg(
+                            Arg::with_name("path")
+                                .help("The log directory path")
+                                .required(true)
+                                .index(1),
+                        ),
+                )
+                .subcommand(
+                    SubCommand::with_name("persisted-all")
+                        .about("List persisted log entries and metadata for all local nodes")
                         .arg(
                             Arg::with_name("path")
                                 .help("The log directory path")
@@ -96,6 +108,11 @@ pub async fn cli_handler<
             Some(("persisted", persisted_matches)) => {
                 if let Some(path) = persisted_matches.value_of("path") {
                     debug_persisted(path, logger.clone())?;
+                }
+            }
+            Some(("persisted-all", persisted_all_matches)) => {
+                if let Some(path) = persisted_all_matches.value_of("path") {
+                    debug_persitsted_all(path, logger.clone())?;
                 }
             }
             _ => {}

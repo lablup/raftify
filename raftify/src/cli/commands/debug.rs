@@ -1,6 +1,7 @@
+use core::panic;
 use jopemachine_raft::logger::Slogger;
 use serde_json::Value;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, fs, sync::Arc};
 
 use crate::{
     create_client,
@@ -37,6 +38,40 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
     println!("{:?}", storage.conf_state()?);
     println!("{:?}", format_snapshot(&storage.snapshot(0, 0)?));
     println!("Last index: {}", storage.last_index()?);
+    Ok(())
+}
+
+pub fn debug_persitsted_all(path_str: &str, logger: slog::Logger) -> Result<()> {
+    if let Ok(subdirectories) = fs::read_dir(path_str) {
+        let mut dir_entries = vec![];
+        for dir_entry in subdirectories.filter_map(|e| e.ok()) {
+            let path = dir_entry.path();
+            if path.is_dir() {
+                if let Some(file_name) = path.file_name() {
+                    if let Some(name) = file_name.to_str() {
+                        if name.starts_with("node-") {
+                            dir_entries.push(name.to_owned());
+                        }
+                    }
+                }
+            }
+        }
+
+        if dir_entries.is_empty() {
+            panic!("No node directory found in {}", path_str);
+        }
+
+        dir_entries.sort();
+
+        for name in dir_entries {
+            println!("----- {name} -----");
+            debug_persisted(&format!("{}/{}", path_str, name), logger.clone())?;
+            println!();
+        }
+    } else {
+        panic!("Invalid path: {}", path_str);
+    }
+
     Ok(())
 }
 
