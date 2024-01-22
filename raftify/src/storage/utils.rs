@@ -25,7 +25,7 @@ pub fn clear_storage_path(log_dir_path: &str) -> Result<()> {
     let log_dir_path = Path::new(&log_dir_path);
 
     if fs::metadata(log_dir_path).is_ok() {
-        fs::remove_dir_all(log_dir_path).expect("Failed to remove log directory");
+        fs::remove_dir_all(log_dir_path)?;
     }
 
     Ok(())
@@ -53,7 +53,7 @@ fn entry_type_to_str(entry_type: i32) -> &'static str {
         0 => "EntryNormal",
         1 => "EntryConfChange",
         2 => "EntryConfChangeV2",
-        _ => "Unknown",
+        _ => unreachable!(),
     }
 }
 
