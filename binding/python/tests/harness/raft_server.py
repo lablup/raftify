@@ -28,7 +28,12 @@ async def run_raft(node_id: int, peers: Peers):
 
     store = HashStore()
     logger = Slogger.default()
-    raft = Raft.build(node_id, peer, store, cfg, logger, peers)
+
+    if node_id == 1:
+        raft = Raft.bootstrap_cluster(node_id, peer, store, cfg, logger, peers)
+    else:
+        raft = Raft.new_follower(node_id, peer, store, cfg, logger, peers)
+
     RAFTS[node_id] = raft
 
     await raft.run()

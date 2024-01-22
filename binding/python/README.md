@@ -1,6 +1,6 @@
 # raftify-py
 
-⚠️ This library is in a very experimental stage. The API could be broken.
+⚠️ WARNING: This library is in a very experimental stage. The API could be broken.
 
 Python binding of [*raftify*](https://github.com/lablup/raftify).
 
@@ -66,7 +66,7 @@ First bootstrap the cluster that contains the leader node.
 logger = Slogger.default()
 logger.info("Bootstrap new Raft Cluster")
 node_id = 1
-raft = Raft.build(node_id, raft_addr, store, cfg, logger, peers)
+raft = Raft.bootstrap_cluster(node_id, raft_addr, store, cfg, logger, peers)
 await raft.run()
 ```
 
@@ -82,7 +82,7 @@ logger = Slogger.default()
 join_ticket = await Raft.request_id(peer_addr, logger)
 node_id = join_ticket.get_reserved_id()
 
-raft = Raft.build(node_id, raft_addr, store, cfg, logger, peers)
+raft = Raft.new_follower(node_id, raft_addr, store, cfg, logger, peers)
 tasks = []
 tasks.append(raft.run())
 await raft.join(join_ticket)
