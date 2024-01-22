@@ -567,13 +567,15 @@ impl<
                 let meta = snapshot.mut_metadata();
                 meta.set_index(storage.entries_last_index()?);
             }
-            (None, Some(restore_wal_snapshot_from)) => {
-                if restore_wal_snapshot_from != node_id {
-                    std::fs::copy(
-                        get_data_mdb_path(config.log_dir.as_str(), restore_wal_snapshot_from),
-                        get_data_mdb_path(config.log_dir.as_str(), node_id),
-                    )?;
-                }
+            (None, Some(_restore_wal_snapshot_from)) => {
+                // Follower doesn't need to restore snapshot because they will be sent by leader.
+
+                // if restore_wal_snapshot_from != node_id {
+                //     std::fs::copy(
+                //         get_data_mdb_path(config.log_dir.as_str(), restore_wal_snapshot_from),
+                //         get_data_mdb_path(config.log_dir.as_str(), node_id),
+                //     )?;
+                // }
             }
             (Some(_), Some(_)) => {
                 unreachable!()
