@@ -64,7 +64,7 @@ pub fn debug_persitsted_all(path_str: &str, logger: slog::Logger) -> Result<()> 
         dir_entries.sort();
 
         for name in dir_entries {
-            println!("----- {name} -----");
+            println!("*----- {name} -----*");
             debug_persisted(&format!("{}/{}", path_str, name), logger.clone())?;
             println!();
         }

@@ -1,3 +1,4 @@
+use chrono::Utc;
 use jopemachine_raft::formatter::Bytes;
 use serde_json::{json, Value};
 use std::{
@@ -57,7 +58,11 @@ fn entry_type_to_str(entry_type: i32) -> &'static str {
     }
 }
 
-pub fn append_to_json_file(dest_path: &Path, new_data: &[Entry]) -> io::Result<()> {
+pub fn append_compacted_logs(dest_path: &Path, new_data: &[Entry]) -> io::Result<()> {
+    if new_data.is_empty() {
+        return Ok(());
+    }
+
     if !dest_path.exists() {
         File::create(dest_path)?;
     }
@@ -66,7 +71,7 @@ pub fn append_to_json_file(dest_path: &Path, new_data: &[Entry]) -> io::Result<(
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
 
-    let mut data: Vec<Value> = if contents.is_empty() {
+    let mut existing_data: Vec<Value> = if contents.is_empty() {
         Vec::new()
     } else {
         serde_json::from_str(&contents)?
@@ -74,8 +79,9 @@ pub fn append_to_json_file(dest_path: &Path, new_data: &[Entry]) -> io::Result<(
 
     let formatter = CUSTOM_FORMATTER.read().unwrap();
 
+    let mut new_data_json = Vec::new();
     for entry in new_data {
-        data.push(json!({
+        new_data_json.push(json!({
             "entry_type": entry_type_to_str(entry.entry_type),
             "term": entry.term,
             "index": entry.index,
@@ -85,9 +91,13 @@ pub fn append_to_json_file(dest_path: &Path, new_data: &[Entry]) -> io::Result<(
         }));
     }
 
+    let timestamp = Utc::now().to_rfc3339();
+
+    existing_data.push(json!({ timestamp: new_data_json }));
+
     file.set_len(0)?;
     file.seek(io::SeekFrom::Start(0))?;
-    write!(file, "{}", serde_json::to_string_pretty(&data)?)?;
+    write!(file, "{}", serde_json::to_string_pretty(&existing_data)?)?;
 
     Ok(())
 }

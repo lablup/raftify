@@ -17,7 +17,7 @@ use std::{
 
 use super::{
     constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_KEY},
-    utils::{append_to_json_file, format_entry_key_string},
+    utils::{append_compacted_logs, format_entry_key_string},
 };
 use crate::{
     config::Config,
@@ -583,7 +583,7 @@ impl HeedStorageCore {
             _ => {}
         }
 
-        append_to_json_file(Path::new(&dest_path), entries)?;
+        append_compacted_logs(Path::new(&dest_path), entries)?;
         Ok(())
     }
 }
