@@ -48,3 +48,17 @@ async fn debug(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let parsed: HashMap<String, Value> = serde_json::from_str(&json).unwrap();
     format!("{:?}", parsed)
 }
+
+#[get("/peers")]
+async fn peers(data: web::Data<(HashStore, Raft)>) -> impl Responder {
+    let raft = data.clone();
+    let peers = raft.1.raft_node.clone().get_peers().await;
+    format!("{:?}", peers)
+}
+
+#[get("/snapshot")]
+async fn snapshot(data: web::Data<(HashStore, Raft)>) -> impl Responder {
+    let raft = data.clone();
+    raft.1.snapshot().await.unwrap();
+    "OK".to_string()
+}

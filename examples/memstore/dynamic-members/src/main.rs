@@ -1,26 +1,23 @@
 #[macro_use]
 extern crate slog;
 extern crate slog_async;
-extern crate slog_scope;
 extern crate slog_term;
 
-use std::sync::Arc;
-
-use example_harness::config::build_config;
-use memstore_example_harness::{
-    state_machine::{HashStore, LogEntry},
-    web_server_api::{debug, get, leader_id, leave, put},
-};
+use actix_web::{web, App, HttpServer};
 use raftify::{
     raft::{formatter::set_custom_formatter, logger::Slogger},
     CustomFormatter, Raft as Raft_,
 };
 use slog::Drain;
-
-use actix_web::{web, App, HttpServer};
 use slog_envlogger::LogBuilder;
+use std::sync::Arc;
 use structopt::StructOpt;
-// use slog_envlogger::LogBuilder;
+
+use example_harness::config::build_config;
+use memstore_example_harness::{
+    state_machine::{HashStore, LogEntry},
+    web_server_api::{debug, get, leader_id, leave, peers, put, snapshot},
+};
 
 type Raft = Raft_<LogEntry, HashStore>;
 
@@ -46,18 +43,13 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     if let Ok(s) = std::env::var("RUST_LOG") {
         builder = builder.parse(&s);
     }
-    let drain = builder.build();
+    let drain = builder.build().fuse();
 
     let logger = Arc::new(Slogger {
         slog: slog::Logger::root(drain, o!()),
     });
 
     set_custom_formatter(CustomFormatter::<LogEntry, HashStore>::new());
-
-    // converts log to slog
-    // let _scope_guard = slog_scope::set_global_logger(logger.clone());
-    #[allow(clippy::let_unit_value)]
-    let _log_guard = slog_stdlog::init_with_level(log::Level::Debug).unwrap();
 
     let options = Options::from_args();
     let store = HashStore::new();
@@ -68,34 +60,36 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         Some(peer_addr) => {
             log::info!("Running in Follower mode");
 
-            let ticket = Raft::request_id(peer_addr.clone(), logger.clone())
-                .await
-                .unwrap();
+            let ticket =
+                Raft::request_id(options.raft_addr.clone(), peer_addr.clone(), logger.clone())
+                    .await
+                    .unwrap();
             let node_id = ticket.reserved_id;
 
-            let raft = Raft::build(
+            let raft = Raft::new_follower(
                 node_id,
                 options.raft_addr,
                 store.clone(),
-                cfg,
-                logger.clone(),
+                cfg.clone(),
                 None,
+                logger.clone(),
             )?;
 
             let handle = tokio::spawn(raft.clone().run());
+            raft.raft_node.add_peers(ticket.peers.clone()).await;
             raft.join(ticket).await;
+
             (raft, handle)
         }
         None => {
             log::info!("Bootstrap a Raft Cluster");
-            let node_id = 1;
-            let raft = Raft::build(
-                node_id,
+            let raft = Raft::bootstrap_cluster(
+                1,
                 options.raft_addr,
                 store.clone(),
                 cfg,
-                logger.clone(),
                 None,
+                logger.clone(),
             )?;
             let handle = tokio::spawn(raft.clone().run());
             (raft, handle)
@@ -111,6 +105,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .service(get)
                     .service(leave)
                     .service(debug)
+                    .service(peers)
+                    .service(snapshot)
                     .service(leader_id)
             })
             .bind(addr)

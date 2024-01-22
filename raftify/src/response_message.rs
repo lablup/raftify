@@ -64,6 +64,7 @@ pub enum ServerResponseMsg {
     DebugNode { result_json: String },
     GetPeers { peers: Peers },
     SendMessage { result: ResponseResult },
+    CreateSnapshot {},
 }
 
 pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
@@ -72,6 +73,7 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
     GetLeaderId { leader_id: u64 },
     GetPeers { peers: Peers },
     AddPeer {},
+    AddPeers {},
     Store { store: FSM },
     Storage { storage: HeedStorage },
     GetClusterSize { size: usize },

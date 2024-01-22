@@ -6,7 +6,7 @@ use heed::{
 use heed_traits::{BoxedError, BytesDecode, BytesEncode};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use prost::Message as PMessage;
-use raft::logger::Logger;
+use raft::{logger::Logger, util::limit_size};
 use std::{
     borrow::Cow,
     cmp::max,
@@ -17,7 +17,7 @@ use std::{
 
 use super::{
     constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_KEY},
-    utils::{append_to_json_file, format_entry_key_string},
+    utils::{append_compacted_logs, format_entry_key_string},
 };
 use crate::{
     config::Config,
@@ -38,6 +38,7 @@ pub trait LogStore: Storage {
     fn last_index(&self) -> Result<u64>;
     fn compact(&mut self, index: u64) -> Result<()>;
     fn all_entries(&self) -> raft::Result<Vec<Entry>>;
+    fn entries_last_index(&self) -> Result<u64>;
 }
 
 #[derive(Eq, PartialEq)]
@@ -94,9 +95,12 @@ impl fmt::Debug for HeedStorage {
 }
 
 impl HeedStorage {
-    pub fn create(log_dir_path: PathBuf, config: &Config, logger: Arc<dyn Logger>) -> Result<Self> {
-        let core = HeedStorageCore::create(log_dir_path, config, logger)?;
-        Ok(Self(Arc::new(RwLock::new(core))))
+    pub fn create(log_dir_path: &str, config: &Config, logger: Arc<dyn Logger>) -> Result<Self> {
+        Ok(Self(Arc::new(RwLock::new(HeedStorageCore::create(
+            Path::new(log_dir_path).to_path_buf(),
+            config,
+            logger,
+        )?))))
     }
 
     fn wl(&mut self) -> RwLockWriteGuard<HeedStorageCore> {
@@ -111,9 +115,8 @@ impl HeedStorage {
 impl LogStore for HeedStorage {
     fn compact(&mut self, index: u64) -> Result<()> {
         let store = self.wl();
-        let reader = store.env.read_txn()?;
         let mut writer = store.env.write_txn()?;
-        store.compact(&reader, &mut writer, index)?;
+        store.compact(&mut writer, index)?;
         writer.commit()?;
         Ok(())
     }
@@ -213,6 +216,13 @@ impl LogStore for HeedStorage {
         let store = self.rl();
         let reader = store.env.read_txn()?;
         let last_index = store.last_index(&reader)?;
+        Ok(last_index)
+    }
+
+    fn entries_last_index(&self) -> Result<u64> {
+        let store = self.rl();
+        let reader = store.env.read_txn()?;
+        let last_index = store.entries_last_index(&reader)?;
         Ok(last_index)
     }
 
@@ -324,7 +334,6 @@ pub struct HeedStorageCore {
     env: Env,
     entries_db: Database<HeedEntryKeyString, HeedEntry>,
     metadata_db: Database<HeedStr, HeedBytes>,
-    #[allow(dead_code)]
     config: Config,
     logger: Arc<dyn Logger>,
 }
@@ -360,12 +369,7 @@ impl HeedStorageCore {
         Ok(storage)
     }
 
-    pub fn compact(
-        &self,
-        reader: &heed::RoTxn,
-        writer: &mut heed::RwTxn,
-        index: u64,
-    ) -> Result<()> {
+    pub fn compact(&self, writer: &mut heed::RwTxn, index: u64) -> Result<()> {
         // TODO, check that compaction is legal
         //let last_index = self.last_index(&writer)?;
         // there should always be at least one entry in the log
@@ -374,7 +378,7 @@ impl HeedStorageCore {
         let index = format_entry_key_string(index.to_string().as_str());
 
         if self.config.save_compacted_logs {
-            let iter = self.entries_db.range(reader, &(..index.clone()))?;
+            let iter = self.entries_db.range(writer, &(..index.clone()))?;
 
             let entries = iter
                 .filter_map(|e| match e {
@@ -465,6 +469,17 @@ impl HeedStorageCore {
         }
     }
 
+    /// Actual last index of the all entries.
+    /// This could be different from the last_index.
+    fn entries_last_index(&self, reader: &heed::RoTxn) -> Result<u64> {
+        let last_entry = self
+            .entries_db
+            .last(reader)?
+            .expect("There should always be at least one entry in the db");
+
+        Ok(last_entry.0.parse::<u64>().unwrap())
+    }
+
     fn set_last_index(&self, writer: &mut heed::RwTxn, index: u64) -> Result<()> {
         self.metadata_db
             .put(writer, LAST_INDEX_KEY, serialize(&index)?.as_slice())?;
@@ -481,8 +496,7 @@ impl HeedStorageCore {
     }
 
     fn entry(&self, reader: &heed::RoTxn, index: u64) -> Result<Option<Entry>> {
-        let entry = self.entries_db.get(reader, &index.to_string())?;
-        Ok(entry)
+        Ok(self.entries_db.get(reader, &index.to_string())?)
     }
 
     fn entries(
@@ -502,32 +516,14 @@ impl HeedStorageCore {
         let iter = self.entries_db.range(reader, &(low_str..high_str))?;
         let max_size: Option<u64> = max_size.into();
 
-        let mut size_count = 0;
-        let mut buf = vec![];
-        let mut should_not_filter = true;
-
-        let entries = iter
+        let mut entries = iter
             .filter_map(|e| match e {
                 Ok((_, e)) => Some(e),
                 _ => None,
             })
-            .take_while(|entry| match max_size {
-                Some(max_size) => {
-                    // One entry must be returned regardless of max_size.
-                    if should_not_filter {
-                        should_not_filter = false;
-                        return true;
-                    }
-
-                    entry.encode(&mut buf).unwrap();
-                    size_count += buf.len() as u64;
-                    buf.clear();
-                    size_count < max_size
-                }
-                None => true,
-            })
             .collect();
 
+        limit_size(&mut entries, max_size);
         Ok(entries)
     }
 
@@ -543,12 +539,23 @@ impl HeedStorageCore {
     }
 
     fn append(&self, writer: &mut heed::RwTxn, entries: &[Entry]) -> Result<()> {
+        if entries.is_empty() {
+            return Ok(());
+        }
+
         let mut last_index = self.last_index(writer)?;
-        // TODO: ensure entry arrive in the right order
+
+        if last_index + 1 < entries[0].index {
+            self.logger.fatal(&format!(
+                "raft logs should be continuous, last index: {}, new appended: {}",
+                last_index, entries[0].index,
+            ));
+        }
+
         for entry in entries {
-            //assert_eq!(entry.get_index(), last_index + 1);
             let index = entry.index;
             last_index = std::cmp::max(index, last_index);
+            // TODO: Handle MDBFullError.
             self.entries_db.put(writer, &index.to_string(), entry)?;
         }
         self.set_last_index(writer, last_index)?;
@@ -570,14 +577,12 @@ impl HeedStorageCore {
                 );
                 fs::remove_file(&dest_path)?;
             }
-            Err(ref e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => {
-                return Err(e.into());
-            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e.into()),
             _ => {}
         }
 
-        append_to_json_file(Path::new(&dest_path), entries)?;
+        append_compacted_logs(Path::new(&dest_path), entries)?;
         Ok(())
     }
 }

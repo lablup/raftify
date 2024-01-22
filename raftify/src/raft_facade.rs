@@ -44,13 +44,13 @@ pub struct ClusterJoinTicket {
 impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync + 'static>
     Raft<LogEntry, FSM>
 {
-    pub fn build<A: ToSocketAddrs>(
+    pub fn bootstrap_cluster<A: ToSocketAddrs>(
         node_id: u64,
         raft_addr: A,
         fsm: FSM,
         config: Config,
-        logger: Arc<dyn Logger>,
         initial_peers: Option<Peers>,
+        logger: Arc<dyn Logger>,
     ) -> Result<Self> {
         let raft_addr = raft_addr.to_socket_addrs()?.next().unwrap();
         let initial_peers = initial_peers.unwrap_or(Peers::new(node_id, raft_addr));
@@ -59,33 +59,61 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         let (server_tx, server_rx) = mpsc::channel(100);
         let bootstrap_done = initial_peers.is_empty() || initial_peers.len() <= 1;
 
-        let raft_node = match node_id {
-            1 => RaftNode::bootstrap_cluster(
-                fsm,
-                config.clone(),
-                initial_peers,
-                raft_addr,
-                logger.clone(),
-                bootstrap_done,
-                server_rx,
-                server_tx.clone(),
-                local_rx,
-                local_tx.clone(),
-            ),
-            _ => RaftNode::new_follower(
-                node_id,
-                fsm,
-                config.clone(),
-                initial_peers,
-                raft_addr,
-                logger.clone(),
-                bootstrap_done,
-                server_rx,
-                server_tx.clone(),
-                local_rx,
-                local_tx.clone(),
-            ),
-        }?;
+        let raft_node = RaftNode::bootstrap_cluster(
+            node_id,
+            fsm,
+            config.clone(),
+            initial_peers,
+            raft_addr,
+            logger.clone(),
+            bootstrap_done,
+            server_rx,
+            server_tx.clone(),
+            local_rx,
+            local_tx.clone(),
+        )?;
+
+        let raft_server =
+            RaftServer::new(server_tx.clone(), raft_addr, config.clone(), logger.clone());
+
+        Ok(Self {
+            raft_addr,
+            server_tx: server_tx.clone(),
+            raft_node,
+            raft_server,
+            config,
+            logger,
+        })
+    }
+
+    pub fn new_follower<A: ToSocketAddrs>(
+        node_id: u64,
+        raft_addr: A,
+        fsm: FSM,
+        config: Config,
+        initial_peers: Option<Peers>,
+        logger: Arc<dyn Logger>,
+    ) -> Result<Self> {
+        let raft_addr = raft_addr.to_socket_addrs()?.next().unwrap();
+        let initial_peers = initial_peers.unwrap_or(Peers::new(node_id, raft_addr));
+
+        let (local_tx, local_rx) = mpsc::channel(100);
+        let (server_tx, server_rx) = mpsc::channel(100);
+        let bootstrap_done = initial_peers.is_empty() || initial_peers.len() <= 1;
+
+        let raft_node = RaftNode::new_follower(
+            node_id,
+            fsm,
+            config.clone(),
+            initial_peers,
+            raft_addr,
+            logger.clone(),
+            bootstrap_done,
+            server_rx,
+            server_tx.clone(),
+            local_rx,
+            local_tx.clone(),
+        )?;
 
         let raft_server =
             RaftServer::new(server_tx.clone(), raft_addr, config.clone(), logger.clone());
@@ -161,11 +189,18 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         }
     }
 
-    pub async fn request_id(
+    pub async fn request_id<A: ToSocketAddrs>(
+        raft_addr: A,
         peer_addr: String,
         logger: Arc<dyn Logger>,
     ) -> Result<ClusterJoinTicket> {
-        let mut leader_addr = peer_addr;
+        let raft_addr = raft_addr
+            .to_socket_addrs()
+            .unwrap()
+            .next()
+            .unwrap()
+            .to_string();
+        let mut leader_addr = peer_addr.to_string();
 
         loop {
             logger.info(&format!(
@@ -175,7 +210,9 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
 
             let mut client = create_client(&leader_addr).await?;
             let response = client
-                .request_id(Request::new(raft_service::Empty {}))
+                .request_id(raft_service::RequestIdArgs {
+                    raft_addr: raft_addr.to_string(),
+                })
                 .await?
                 .into_inner();
 
@@ -239,12 +276,11 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         Ok(())
     }
 
-    pub async fn snapshot(&mut self) -> Result<()> {
-        let store = self.raft_node.storage().await;
-        let hard_state = store.hard_state()?;
+    pub async fn snapshot(&self) -> Result<()> {
+        let storage = self.raft_node.storage().await;
 
         self.raft_node
-            .make_snapshot(store.last_index()?, hard_state.term)
+            .make_snapshot(storage.last_index()?, storage.hard_state()?.term)
             .await;
         Ok(())
     }

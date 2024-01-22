@@ -21,7 +21,7 @@ pub struct PyRaftFacade {
 #[pymethods]
 impl PyRaftFacade {
     #[staticmethod]
-    pub fn build(
+    pub fn bootstrap_cluster(
         node_id: u64,
         addr: &PyString,
         fsm: PyObject,
@@ -33,13 +33,39 @@ impl PyRaftFacade {
         let addr = addr.to_string();
         let initial_peers = initial_peers.map(|peers| peers.inner);
 
-        let raft = Raft::build(
+        let raft = Raft::bootstrap_cluster(
             node_id,
             addr,
             fsm,
             config.into(),
-            Arc::new(PyLogger::new(logger)),
             initial_peers,
+            Arc::new(PyLogger::new(logger)),
+        )
+        .unwrap();
+
+        Ok(Self { inner: raft })
+    }
+
+    #[staticmethod]
+    pub fn new_follower(
+        node_id: u64,
+        addr: &PyString,
+        fsm: PyObject,
+        config: PyConfig,
+        logger: PyObject,
+        initial_peers: Option<PyPeers>,
+    ) -> PyResult<Self> {
+        let fsm = PyFSM::new(fsm);
+        let addr = addr.to_string();
+        let initial_peers = initial_peers.map(|peers| peers.inner);
+
+        let raft = Raft::new_follower(
+            node_id,
+            addr,
+            fsm,
+            config.into(),
+            initial_peers,
+            Arc::new(PyLogger::new(logger)),
         )
         .unwrap();
 
@@ -48,12 +74,14 @@ impl PyRaftFacade {
 
     #[staticmethod]
     pub fn request_id<'a>(
+        raft_addr: String,
         peer_addr: String,
         logger: PyObject,
         py: Python<'a>,
     ) -> PyResult<&'a PyAny> {
         future_into_py(py, async move {
             let ticket = Raft::<PyLogEntry, PyFSM>::request_id(
+                raft_addr,
                 peer_addr.to_owned(),
                 Arc::new(PyLogger::new(logger)),
             )

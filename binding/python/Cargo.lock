@@ -245,7 +245,9 @@ checksum = "7f2c685bad3eb3d45a01354cedb7d5faa66194d1d58ba6e267a8de788f79db38"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
+ "js-sys",
  "num-traits",
+ "wasm-bindgen",
  "windows-targets 0.48.5",
 ]
 
@@ -1355,14 +1357,15 @@ dependencies = [
 
 [[package]]
 name = "raftify"
-version = "0.1.34"
+version = "0.1.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df9e99c3b8cd37953e23ce90b570f521eb438903f2cd52e210031f94e0792db7"
+checksum = "e42c86f99d417eb514792eb8f55f7fe7526c9a42beba26b90ead5a99151e100c"
 dependencies = [
  "async-trait",
  "bincode",
  "built",
  "bytes",
+ "chrono",
  "clap",
  "heed",
  "heed-traits",
@@ -1382,13 +1385,12 @@ dependencies = [
 
 [[package]]
 name = "raftify-py"
-version = "0.1.34"
+version = "0.1.35"
 dependencies = [
  "async-trait",
  "bincode",
  "bytes",
  "fxhash",
- "lazy_static",
  "once_cell",
  "prost",
  "pyo3",

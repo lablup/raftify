@@ -10,6 +10,8 @@ pub enum Error {
     JoinError,
     #[error("Request rejected, cause: `{0}`")]
     Rejected(String),
+    #[error("Invalid config error. cause: `{0}`")]
+    ConfigInvalid(String),
 
     #[error("Request timeout")]
     Timeout,
@@ -37,7 +39,7 @@ pub enum Error {
 pub enum SendMessageError {
     #[error("Failed to connect to node {0}")]
     ConnectionError(String),
-    #[error("Peer not found node {0}")]
+    #[error("Node {0} not found from the peers")]
     PeerNotFound(String),
     #[error("Failed to send message to node {0}")]
     TransmissionError(String),

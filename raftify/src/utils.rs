@@ -1,4 +1,3 @@
-// use std::fs;
 use tokio::sync::Mutex;
 
 use crate::raft::eraftpb::{ConfChange, ConfChangeSingle, ConfChangeV2};
@@ -14,18 +13,6 @@ pub fn to_confchange_v2(conf_change: ConfChange) -> ConfChangeV2 {
 
     cc_v2
 }
-
-#[inline]
-pub fn is_near_zero(val: f32) -> bool {
-    val.abs() < 1e-10
-}
-
-// pub fn get_filesize(path: &str) -> u64 {
-//     match fs::metadata(path) {
-//         Ok(metadata) => metadata.len(),
-//         Err(_) => 0,
-//     }
-// }
 
 pub struct OneShotMutex<T> {
     data: Mutex<Option<T>>,

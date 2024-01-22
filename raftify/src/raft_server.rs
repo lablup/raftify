@@ -85,13 +85,16 @@ impl RaftServer {
 impl RaftService for RaftServer {
     async fn request_id(
         &self,
-        request: Request<Empty>,
+        request: Request<raft_service::RequestIdArgs>,
     ) -> Result<Response<raft_service::RequestIdResponse>, Status> {
-        let _request_args = request.into_inner();
+        let request_args = request.into_inner();
         let sender = self.snd.clone();
         let (tx, rx) = oneshot::channel();
         sender
-            .send(ServerRequestMsg::RequestId { chan: tx })
+            .send(ServerRequestMsg::RequestId {
+                raft_addr: request_args.raft_addr,
+                chan: tx,
+            })
             .await
             .unwrap();
         let response = rx.await.unwrap();
@@ -302,6 +305,28 @@ impl RaftService for RaftServer {
                     peers_json: peers.to_json(),
                 }))
             }
+            _ => unreachable!(),
+        }
+    }
+
+    async fn create_snapshot(
+        &self,
+        request: Request<raft_service::Empty>,
+    ) -> Result<Response<raft_service::Empty>, Status> {
+        let _request_args = request.into_inner();
+        let (tx, rx) = oneshot::channel();
+        let sender = self.snd.clone();
+        match sender
+            .send(ServerRequestMsg::CreateSnapshot { chan: tx })
+            .await
+        {
+            Ok(_) => (),
+            Err(_) => self.print_send_error(function_name!()),
+        }
+        let response = rx.await.unwrap();
+
+        match response {
+            ServerResponseMsg::CreateSnapshot {} => Ok(Response::new(raft_service::Empty {})),
             _ => unreachable!(),
         }
     }

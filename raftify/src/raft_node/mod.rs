@@ -43,9 +43,9 @@ use crate::{
     },
     storage::{
         heed::{HeedStorage, LogStore},
-        utils::get_storage_path,
+        utils::{clear_storage_path, ensure_directory_exist, get_data_mdb_path, get_storage_path},
     },
-    utils::{is_near_zero, to_confchange_v2, OneShotMutex},
+    utils::{to_confchange_v2, OneShotMutex},
     AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket, Config, Error, Peers,
     RaftServiceClient,
 };
@@ -68,6 +68,7 @@ impl<
 {
     #[allow(clippy::too_many_arguments)]
     pub fn bootstrap_cluster(
+        node_id: u64,
         fsm: FSM,
         config: Config,
         initial_peers: Peers,
@@ -80,6 +81,7 @@ impl<
         local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
         RaftNodeCore::<LogEntry, FSM>::bootstrap_cluster(
+            node_id,
             fsm,
             config,
             initial_peers,
@@ -99,7 +101,7 @@ impl<
 
     #[allow(clippy::too_many_arguments)]
     pub fn new_follower(
-        id: u64,
+        node_id: u64,
         fsm: FSM,
         config: Config,
         peers: Peers,
@@ -112,7 +114,7 @@ impl<
         local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
         RaftNodeCore::<LogEntry, FSM>::new_follower(
-            id,
+            node_id,
             fsm,
             config,
             peers,
@@ -197,6 +199,20 @@ impl<
 
         match resp {
             LocalResponseMsg::AddPeer {} => (),
+            _ => unreachable!(),
+        }
+    }
+
+    pub async fn add_peers(&self, peers: HashMap<u64, SocketAddr>) {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::AddPeers { peers, chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+
+        match resp {
+            LocalResponseMsg::AddPeers {} => (),
             _ => unreachable!(),
         }
     }
@@ -416,6 +432,7 @@ impl<
 {
     #[allow(clippy::too_many_arguments)]
     pub fn bootstrap_cluster(
+        node_id: u64,
         fsm: FSM,
         mut config: Config,
         initial_peers: Peers,
@@ -427,20 +444,51 @@ impl<
         local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
         local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
-        config.raft_config.id = 1;
-        config.raft_config.validate()?;
+        config.raft_config.id = node_id;
+        config.validate()?;
 
-        let mut storage = HeedStorage::create(
-            get_storage_path(config.log_dir.as_str(), 1)?,
-            &config,
-            logger.clone(),
-        )?;
+        let storage_pth = get_storage_path(config.log_dir.as_str(), node_id);
 
-        let mut snapshot = Snapshot::default();
-        snapshot.mut_metadata().index = 0;
-        snapshot.mut_metadata().term = 0;
-        snapshot.mut_metadata().mut_conf_state().voters = vec![1];
-        storage.apply_snapshot(snapshot).unwrap();
+        if let (None, None) = (config.restore_wal_from, config.restore_wal_snapshot_from) {
+            clear_storage_path(storage_pth.as_str())?;
+            ensure_directory_exist(storage_pth.as_str())?;
+        };
+
+        let mut storage = HeedStorage::create(storage_pth.as_str(), &config, logger.clone())?;
+        let mut snapshot = storage.snapshot(0, storage.last_index()?)?;
+        let conf_state = snapshot.mut_metadata().mut_conf_state();
+
+        if conf_state.voters.is_empty() {
+            conf_state.set_voters(vec![node_id]);
+        }
+
+        match (config.restore_wal_from, config.restore_wal_snapshot_from) {
+            (Some(restore_wal_from), None) => {
+                if restore_wal_from != node_id {
+                    std::fs::copy(
+                        get_data_mdb_path(config.log_dir.as_str(), restore_wal_from),
+                        get_data_mdb_path(config.log_dir.as_str(), node_id),
+                    )?;
+                }
+
+                let meta = snapshot.mut_metadata();
+                meta.set_index(storage.entries_last_index()?);
+            }
+            (None, Some(restore_wal_snapshot_from)) => {
+                if restore_wal_snapshot_from != node_id {
+                    std::fs::copy(
+                        get_data_mdb_path(config.log_dir.as_str(), restore_wal_snapshot_from),
+                        get_data_mdb_path(config.log_dir.as_str(), node_id),
+                    )?;
+                }
+            }
+            (Some(_), Some(_)) => {
+                unreachable!()
+            }
+            _ => {}
+        }
+
+        storage.apply_snapshot(snapshot)?;
 
         let mut raw_node = RawNode::new(&config.raft_config, storage, logger.clone())?;
         let response_seq = AtomicU64::new(0);
@@ -450,7 +498,7 @@ impl<
         raw_node.raft.become_leader();
 
         let peers_bootstrap_ready = if !initial_peers.is_empty() {
-            Some(HashMap::from([(1, true)]))
+            Some(HashMap::from([(node_id, true)]))
         } else {
             None
         };
@@ -495,18 +543,47 @@ impl<
         local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
         config.raft_config.id = node_id;
-        config.raft_config.validate()?;
+        config.validate()?;
 
-        let storage = HeedStorage::create(
-            get_storage_path(config.log_dir.as_str(), node_id)?,
-            &config,
-            logger.clone(),
-        )?;
+        let storage_pth = get_storage_path(config.log_dir.as_str(), node_id);
+
+        if let (None, None) = (config.restore_wal_from, config.restore_wal_snapshot_from) {
+            clear_storage_path(storage_pth.as_str())?;
+            ensure_directory_exist(storage_pth.as_str())?;
+        };
+
+        let storage = HeedStorage::create(storage_pth.as_str(), &config, logger.clone())?;
+        let mut snapshot = storage.snapshot(0, storage.last_index()?)?;
+
+        match (config.restore_wal_from, config.restore_wal_snapshot_from) {
+            (Some(restore_wal_from), None) => {
+                if restore_wal_from != node_id {
+                    std::fs::copy(
+                        get_data_mdb_path(config.log_dir.as_str(), restore_wal_from),
+                        get_data_mdb_path(config.log_dir.as_str(), node_id),
+                    )?;
+                }
+
+                let meta = snapshot.mut_metadata();
+                meta.set_index(storage.entries_last_index()?);
+            }
+            (None, Some(restore_wal_snapshot_from)) => {
+                if restore_wal_snapshot_from != node_id {
+                    std::fs::copy(
+                        get_data_mdb_path(config.log_dir.as_str(), restore_wal_snapshot_from),
+                        get_data_mdb_path(config.log_dir.as_str(), node_id),
+                    )?;
+                }
+            }
+            (Some(_), Some(_)) => {
+                unreachable!()
+            }
+            _ => {}
+        }
+
         let raw_node = RawNode::new(&config.raft_config, storage, logger.clone())?;
         let response_seq = AtomicU64::new(0);
-        let last_snapshot_created = Instant::now()
-            .checked_sub(Duration::from_secs(1000))
-            .unwrap();
+        let last_snapshot_created = Instant::now();
 
         let (self_snd, self_rcv) = mpsc::channel(100);
 
@@ -551,6 +628,12 @@ impl<
 
     pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
         self.peers.lock().await.add_peer(id, addr)
+    }
+
+    pub async fn add_peers(&mut self, peers: HashMap<u64, SocketAddr>) {
+        for (id, peer_addr) in peers.iter() {
+            self.add_peer(id.to_owned(), *peer_addr).await;
+        }
     }
 
     pub fn set_bootstrap_done(&mut self) {
@@ -637,15 +720,7 @@ impl<
     }
 
     async fn handle_join(&mut self, ticket: ClusterJoinTicket) -> Result<()> {
-        let leader_id = ticket.leader_id;
-        let leader_addr = ticket.leader_addr.clone();
         let reserved_id = ticket.reserved_id;
-
-        for (id, peer_addr) in ticket.peers.iter() {
-            self.add_peer(id.to_owned(), peer_addr).await;
-        }
-
-        self.add_peer(leader_id, leader_addr).await;
 
         let mut change = ConfChangeV2::default();
         let mut cs = ConfChangeSingle::default();
@@ -701,13 +776,14 @@ impl<
             }
         }
 
-        if !is_near_zero(self.config.snapshot_interval)
-            && Instant::now()
-                > self.last_snapshot_created
-                    + Duration::from_secs_f32(self.config.snapshot_interval)
-        {
-            self.make_snapshot(entry.index, entry.term).await?;
+        if let Some(snapshot_interval) = self.config.snapshot_interval {
+            if Instant::now()
+                > self.last_snapshot_created + Duration::from_secs_f32(snapshot_interval)
+            {
+                self.make_snapshot(entry.index, entry.term).await?;
+            }
         }
+
         Ok(())
     }
 
@@ -723,6 +799,11 @@ impl<
     }
 
     async fn handle_committed_config_change_entry(&mut self, entry: &Entry) -> Result<()> {
+        // Block already applied entries (* Used in static bootstrap)
+        if entry.get_context().is_empty() {
+            return Ok(());
+        }
+
         let conf_change_v2 = match entry.get_entry_type() {
             EntryType::EntryConfChange => to_confchange_v2(ConfChange::decode(entry.get_data())?),
             EntryType::EntryConfChangeV2 => ConfChangeV2::decode(entry.get_data())?,
@@ -827,6 +908,8 @@ impl<
 
     pub async fn wait_for_initial_peers_bootstrap(&mut self) -> Result<()> {
         if !self.is_leader() {
+            self.logger
+                .warn("Waiting for initial peers bootstrap is only allowed on leader node.");
             return Ok(());
         }
 
@@ -853,11 +936,13 @@ impl<
         let mut peers = self.peers.lock().await;
 
         for node_id in peers_bootstrap_ready.keys() {
-            if *node_id == 1 {
+            if *node_id == self.raw_node.raft.id {
                 continue;
             }
 
-            let peer = peers.get_mut(node_id).expect("Peer not found!");
+            let peer = peers
+                .get_mut(node_id)
+                .expect(&format!("Peer {} not found!", node_id));
 
             // ???
             if let Err(err) = peer.connect().await {
@@ -896,7 +981,8 @@ impl<
     async fn bootstrap_peers(&mut self) -> Result<()> {
         assert!(self.is_leader());
 
-        self.make_snapshot(self.raw_node.store().last_index()?, 1)
+        let last_term = self.raw_node.raft.raft_log.last_term();
+        self.make_snapshot(self.raw_node.store().last_index()?, last_term)
             .await?;
 
         bootstrap_peers(self.peers.clone(), &mut self.raw_node).await?;
@@ -1041,6 +1127,10 @@ impl<
                 self.add_peer(id, addr).await;
                 chan.send(LocalResponseMsg::AddPeer {}).unwrap();
             }
+            LocalRequestMsg::AddPeers { peers, chan } => {
+                self.add_peers(peers).await;
+                chan.send(LocalResponseMsg::AddPeers {}).unwrap();
+            }
             LocalRequestMsg::Store { chan } => {
                 chan.send(LocalResponseMsg::Store {
                     store: self.fsm.clone(),
@@ -1165,7 +1255,7 @@ impl<
                 self.handle_propose_request(proposal, ResponseSender::Server(chan))
                     .await?;
             }
-            ServerRequestMsg::RequestId { chan } => {
+            ServerRequestMsg::RequestId { raft_addr, chan } => {
                 if !self.is_leader() {
                     // TODO: retry strategy in case of failure
                     let leader_id = self.get_leader_id();
@@ -1180,15 +1270,24 @@ impl<
                     })
                     .unwrap();
                 } else {
-                    let reserved_id = self.peers.lock().await.reserve_id();
-                    self.logger
-                        .info(&format!("Reserved node id, {}", reserved_id));
+                    let mut peers = self.peers.lock().await;
+
+                    let reserved_id =
+                        if let Some(existing_node_id) = peers.get_node_id_by_addr(raft_addr) {
+                            self.logger
+                                .info(&format!("Node {} restored", existing_node_id));
+                            existing_node_id
+                        } else {
+                            let reserved = peers.reserve_id();
+                            self.logger.info(&format!("Reserved node id, {}", reserved));
+                            reserved
+                        };
 
                     chan.send(ServerResponseMsg::RequestId {
                         result: RequestIdResponseResult::Success {
                             reserved_id,
                             leader_id: self.get_id(),
-                            peers: self.peers.lock().await.clone(),
+                            peers: peers.clone(),
                         },
                     })
                     .unwrap();
@@ -1205,6 +1304,12 @@ impl<
                     peers: self.get_peers().await,
                 })
                 .unwrap();
+            }
+            ServerRequestMsg::CreateSnapshot { chan } => {
+                let last_index = self.raw_node.store().last_index()?;
+                let last_term = self.raw_node.store().hard_state()?.term;
+                self.make_snapshot(last_index, last_term).await?;
+                chan.send(ServerResponseMsg::CreateSnapshot {}).unwrap();
             }
         }
 
@@ -1224,7 +1329,9 @@ impl<
             }
 
             if !self.bootstrap_done {
-                self.wait_for_initial_peers_bootstrap().await?;
+                if self.is_leader() {
+                    self.wait_for_initial_peers_bootstrap().await?;
+                }
             }
 
             tokio::select! {
@@ -1249,7 +1356,10 @@ impl<
             now = Instant::now();
             if elapsed > tick_timer {
                 tick_timer = fixed_tick_timer;
-                self.raw_node.tick();
+
+                if self.bootstrap_done {
+                    self.raw_node.tick();
+                }
             } else {
                 tick_timer -= elapsed;
             }
