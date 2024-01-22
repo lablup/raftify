@@ -3,15 +3,17 @@ include!(concat!(env!("OUT_DIR"), "/built.rs"));
 mod commands;
 
 use clap::{App, Arg, SubCommand};
-use commands::debug::{debug_entries, debug_node, debug_persisted};
+use commands::{
+    debug::{debug_entries, debug_node, debug_persisted, debug_persitsted_all},
+    dump::dump_peers,
+    utils::parse_peers_json,
+};
 use std::fmt::Debug;
 
 use crate::{
     raft::{default_logger, formatter::set_custom_formatter},
     AbstractLogEntry, AbstractStateMachine, CustomFormatter, Result,
 };
-
-use self::commands::debug::debug_persitsted_all;
 
 pub async fn cli_handler<
     LogEntry: AbstractLogEntry + Debug + Send + 'static,
@@ -64,8 +66,23 @@ pub async fn cli_handler<
                             .index(1),
                     ),
                 ),
+        )
+        .subcommand(
+            SubCommand::with_name("dump")
+                .arg(
+                    Arg::with_name("path")
+                        .help("The log directory path")
+                        .required(true)
+                        .index(1),
+                )
+                .arg(
+                    Arg::with_name("peers")
+                        .help("The peers to dump")
+                        .required(true)
+                        .index(2),
+                )
+                .about(""),
         );
-    // .subcommand(SubCommand::with_name("health").about("Check health"))
 
     let matches = match custom_args {
         Some(args) => app.get_matches_from(args),
@@ -98,6 +115,14 @@ pub async fn cli_handler<
                 }
             }
             _ => {}
+        }
+    };
+
+    if let Some(("dump", dump_matches)) = matches.subcommand() {
+        if let Some(path) = dump_matches.value_of("path") {
+            if let Some(peers) = dump_matches.value_of("peers") {
+                dump_peers(path, parse_peers_json(peers).unwrap(), logger.clone())?;
+            }
         }
     };
 

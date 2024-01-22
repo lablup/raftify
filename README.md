@@ -124,7 +124,7 @@ If peer specifies the configuration of the initial members, the cluster will ope
 ```rust
 let raft_addr = "127.0.0.1:60062".to_owned();
 let peer_addr = "127.0.0.1:60061".to_owned();
-let join_ticket = await Raft::request_id(raft_addr, peer_addr, logger.clone());
+let join_ticket = Raft::request_id(raft_addr, peer_addr, logger.clone()).await;
 
 let raft = Raft::new_follower(
     join_ticket.reserved_id,

@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::str::FromStr;
 
-#[allow(dead_code)]
 pub fn parse_peers_json(
     peers: &str,
 ) -> Result<HashMap<u64, SocketAddr>, Box<dyn std::error::Error>> {
