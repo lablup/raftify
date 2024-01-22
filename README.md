@@ -100,13 +100,13 @@ First bootstrap the cluster that contains the leader node.
 let raft_addr = "127.0.0.1:60062".to_owned();
 let node_id = 1;
 
-let raft = Raft::build(
+let raft = Raft::bootstrap_cluster(
     node_id,
     raft_addr,
     store.clone(),
     cfg,
-    logger.clone(),
     peers.clone(),
+    logger.clone(),
 )?;
 
 tokio::spawn(raft.clone().run());
@@ -126,13 +126,13 @@ let raft_addr = "127.0.0.1:60062".to_owned();
 let peer_addr = "127.0.0.1:60061".to_owned();
 let join_ticket = await Raft.request_id(peer_addr);
 
-let raft = Raft::build(
+let raft = Raft::new_follower(
     join_ticket.reserved_id,
     raft_addr,
     store.clone(),
     cfg,
-    logger.clone(),
     peers.clone(),
+    logger.clone(),
 )?;
 
 let raft_handle = tokio::spawn(raft.clone().run());
