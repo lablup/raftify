@@ -1357,9 +1357,9 @@ dependencies = [
 
 [[package]]
 name = "raftify"
-version = "0.1.38"
+version = "0.1.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6745f7880814ee78d6ecf959ac8e7b92afe749045413a8228f3ada79ebd2e24"
+checksum = "c440b144d93f34f4a20b50dba79859fb4909b5d07d8d275b3c4e930945299514"
 dependencies = [
  "async-trait",
  "bincode",
@@ -1385,7 +1385,7 @@ dependencies = [
 
 [[package]]
 name = "raftify-py"
-version = "0.1.38"
+version = "0.1.41"
 dependencies = [
  "async-trait",
  "bincode",
