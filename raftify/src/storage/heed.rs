@@ -508,7 +508,7 @@ impl HeedStorageCore {
         _ctx: GetEntriesContext,
     ) -> Result<Vec<Entry>> {
         self.logger
-            .info(format!("Entries [{low}, {high}) requested.", low = low, high = high).as_str());
+            .debug(format!("Entries [{low}, {high}) requested.", low = low, high = high).as_str());
 
         let low_str = format_entry_key_string(low.to_string().as_str());
         let high_str = format_entry_key_string(high.to_string().as_str());

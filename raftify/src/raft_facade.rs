@@ -270,7 +270,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
 
         match response.code() {
             ResultCode::Ok => {
-                logger.info(&format!(
+                logger.debug(&format!(
                     "Node {} send the bootstrap ready request successfully.",
                     node_id
                 ));

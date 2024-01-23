@@ -54,7 +54,7 @@ impl RaftServer {
     pub async fn run(self, quit_signal_rx: Receiver<()>) -> Result<(), Error> {
         let addr = self.addr;
         let logger = self.logger.clone();
-        logger.info(&format!(
+        logger.debug(&format!(
             "RaftServer starts to listen gRPC requests on \"{}\"...",
             addr
         ));
