@@ -7,8 +7,9 @@ use heed_traits::{BoxedError, BytesDecode, BytesEncode};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use prost::Message as PMessage;
 use raft::{logger::Logger, util::limit_size};
+use core::panic;
 use std::{
-    borrow::Cow,
+    borrow::{Borrow, Cow},
     cmp::max,
     fmt, fs,
     path::{Path, PathBuf},
@@ -21,7 +22,7 @@ use super::{
 };
 use crate::{
     config::Config,
-    error::Result,
+    error::{Error, Result},
     raft::{self, prelude::*, GetEntriesContext},
 };
 
@@ -112,6 +113,24 @@ impl HeedStorage {
     }
 }
 
+fn handle_entries_overflow(store: &HeedStorageCore, result: heed::Result<()>, entries: &[Entry]) -> Result<()> {
+    match result {
+        Ok(_) => Ok(()),
+        Err(heed::Error::Mdb(heed::MdbError::MapFull)) => {
+            let reader = store.env.read_txn()?;
+            let last_index = store.last_index(&reader)?;
+            let mut writer = store.env.write_txn()?;
+            store.compact(&mut writer, last_index)?;
+            writer.commit()?;
+            let mut writer = store.env.write_txn()?;
+            store.append(&mut writer, entries)?;
+            writer.commit()?;
+            Ok(())
+        },
+        Err(e) => Err(e.into())
+    }
+}
+
 impl LogStore for HeedStorage {
     fn compact(&mut self, index: u64) -> Result<()> {
         let store = self.wl();
@@ -124,8 +143,10 @@ impl LogStore for HeedStorage {
     fn append(&mut self, entries: &[Entry]) -> Result<()> {
         let store = self.wl();
         let mut writer = store.env.write_txn()?;
+
         store.append(&mut writer, entries)?;
-        writer.commit()?;
+
+        handle_entries_overflow(&store, writer.commit(), entries)?;
         Ok(())
     }
 
@@ -545,20 +566,41 @@ impl HeedStorageCore {
 
         let mut last_index = self.last_index(writer)?;
 
-        if last_index + 1 < entries[0].index {
-            self.logger.fatal(&format!(
-                "raft logs should be continuous, last index: {}, new appended: {}",
-                last_index, entries[0].index,
-            ));
-        }
-
+        // if last_index + 1 < entries[0].index {
+        //     self.logger.fatal(&format!(
+        //         "raft logs should be continuous, last index: {}, new appended: {}",
+        //         last_index, entries[0].index,
+        //     ));
+        // }
+        println!("entries_len {}", entries.len());
         for entry in entries {
             let index = entry.index;
             last_index = std::cmp::max(index, last_index);
-            // TODO: Handle MDBFullError.
+
             self.entries_db.put(writer, &index.to_string(), entry)?;
+            // match self.entries_db.put(writer, &index.to_string(), entry) {
+            //     Ok(_) => {
+            //         println!("entries_db.put success!");
+            //     }
+            //     // Err(heed::Error::Mdb(heed::MdbError::MapFull)) => {
+            //     //     println!("heed::Error::Mdb(heed::MdbError::MapFull inner catch!!");
+            //     //     // self.logger.info(
+            //     //     //     "MDB is full. Clearing previous log entries and trying to append again.",
+            //     //     // );
+            //     //     self.compact(writer, index - 1)?;
+            //     //     // TODO: Create snapshot after compaction occurred here.
+            //     //     self.append(writer, entries)?;
+            //     // }
+            //     Err(e) => {
+            //         return Err(e.into());
+            //     },
+            // }
+            println!("adsadd");
         }
+
+        println!("do the hololive!! 1");
         self.set_last_index(writer, last_index)?;
+        println!("do the hololive!! 2");
         Ok(())
     }
 
@@ -584,5 +626,39 @@ impl HeedStorageCore {
 
         append_compacted_logs(Path::new(&dest_path), entries)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::{storage::utils::ensure_directory_exist, Config, HeedStorage, LogStore};
+    use jopemachine_raft::{default_logger, eraftpb::Entry, logger::Slogger};
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_mdb_full() {
+        // let dir_path = tempdir().expect("Failed to create temp directory");
+        let dir_path = "./logs-test";
+        ensure_directory_exist(dir_path);
+        let mut config = Config::default();
+        config.lmdb_map_size = 1024 * 256;
+
+        let logger = Arc::new(Slogger {
+            slog: default_logger(),
+        });
+
+        let mut storage = HeedStorage::create(dir_path, &config, logger)
+            .expect("Failed to create HeedStorage");
+
+        // Should raise MDBFullError.
+        for i in 0..1000 {
+            let mut e = Entry::default();
+            e.set_index(i);
+            println!("do the ith hololive!! {}", i);
+            storage.append(&vec![e]).unwrap();
+            println!("finish the ith hololive!! {}", i);
+        }
     }
 }
