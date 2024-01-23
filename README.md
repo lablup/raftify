@@ -36,11 +36,11 @@ impl AbstractLogEntry for LogEntry {
 
 Essentially, the following three methods need to be implemented for the `Store`.
 
-And similarly to `LogEntry`, you need to implement `encode` and `decode`.
-
 - `apply`: applies a committed entry to the store.
 - `snapshot`: returns snapshot data for the store.
 - `restore`: applies the snapshot passed as argument.
+
+And also similarly to `LogEntry`, you need to implement `encode` and `decode`.
 
 ```rust
 #[derive(Clone, Debug)]

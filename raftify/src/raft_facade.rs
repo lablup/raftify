@@ -240,15 +240,25 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         node_id: u64,
         logger: Arc<dyn Logger>,
     ) -> Result<()> {
-        let mut leader_client = loop {
-            match create_client(&leader_addr).await {
-                Ok(client) => break client,
-                Err(e) => {
-                    logger.error(&format!("Leader connection failed. Cause: {}", e));
+        let mut ctrl_c = Box::pin(signal::ctrl_c());
 
-                    sleep(Duration::from_secs(1)).await;
-                    tokio::task::yield_now().await;
-                    continue;
+        let mut leader_client = loop {
+            tokio::select! {
+                res = create_client(&leader_addr) => {
+                    match res {
+                        Ok(client) => break client,
+                        Err(e) => {
+                            logger.error(&format!(
+                                "Connection to the Leader node failed. Cause: \"{}\". Retry after 1s...",
+                                e
+                            ));
+                            sleep(Duration::from_secs(1)).await;
+                        }
+                    }
+                }
+                _ = ctrl_c.as_mut() => {
+                    logger.info("Ctrl+C signal detected. Shutting down...");
+                    return Err(Error::CtrlC)
                 }
             }
         };

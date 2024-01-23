@@ -29,6 +29,9 @@ pub enum Error {
     #[error("Unknown error")]
     Unknown,
 
+    #[error("Shut down by Ctrl+C signal")]
+    CtrlC,
+
     #[error("Encoding error")]
     EncodingError(String),
     #[error("Decoding error")]
