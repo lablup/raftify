@@ -40,7 +40,7 @@ fn validate_options(options: Options) -> Options {
     if options.peer_addr.is_some() && options.restore_wal_from.is_some() {
         panic!("Cannot restore WAL from follower node");
     } else if options.peer_addr.is_some() && options.restore_wal_snapshot_from.is_some() {
-        panic!("Cannot restore WAL snapshot from follower node");
+        panic!("Follower node should receive snapshot from leader, not restoring it from storage");
     } else {
         options
     }
