@@ -40,7 +40,6 @@ lint-fix-py:
 	python -m black **/*.py
 
 publish:
-	make build-release
 	maturin publish
 
 test:
