@@ -179,14 +179,21 @@ It also provides a variety of other very useful APIs. Take a look at [the docume
 
 ## Debugging
 
-raftify also provides a collection of CLI commands that let you inspect the data persisted in lmdb and the status of Raft Server.
+You can use a collection of CLI commands that let you inspect the data persisted in LMDB and the status of Raft Servers.
 
 ```
-$ raftify-cli debug persisted ./logs/node-1
-```
+❯ raftify-cli debug persisted ./logs/node-1
+---- Persisted entries ----
+Key: 0, "Entry { context: [], data: [], entry_type: EntryNormal, index: 0, sync_log: false, term: 0 }"
+Key: 1, "Entry { context: [], data: [], entry_type: EntryNormal, index: 1, sync_log: false, term: 1 }"
+Key: 2, "Entry { context: [], data: ConfChange { change_type: AddNode, node_id: 2, context: [127.0.0.1:60062], id: 0 }, entry_type: EntryConfChange, index: 2, sync_log: false, term: 1 }"
+Key: 3, "Entry { context: [], data: ConfChange { change_type: AddNode, node_id: 3, context: [127.0.0.1:60063], id: 0 }, entry_type: EntryConfChange, index: 3, sync_log: false, term: 1 }"
 
-```
-$ raftify-cli debug node 127.0.0.1:60061
+---- Metadata ----
+HardState { term: 1, vote: 1, commit: 3 }
+ConfState { voters: [1, 2, 3], learners: [], voters_outgoing: [], learners_next: [], auto_leave: false }
+Snapshot { data: HashStore(RwLock { data: {}, poisoned: false, .. }), metadata: Some(SnapshotMetadata { conf_state: Some(ConfState { voters: [1, 2, 3], learners: [], voters_outgoing: [], learners_next: [], auto_leave: false }), index: 1, term: 1 }) }
+Last index: 3
 ```
 
 ## Bootstrapping from WAL
