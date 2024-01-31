@@ -66,12 +66,12 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .unwrap();
             let node_id = ticket.reserved_id;
 
-            let raft = Raft::new_follower(
+            let raft = Raft::bootstrap(
                 node_id,
                 options.raft_addr,
                 store.clone(),
                 cfg.clone(),
-                None,
+                Some(ticket.peers.clone().into()),
                 logger.clone(),
             )?;
 
@@ -83,7 +83,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         }
         None => {
             log::info!("Bootstrap a Raft Cluster");
-            let raft = Raft::bootstrap_cluster(
+            let raft = Raft::bootstrap(
                 1,
                 options.raft_addr,
                 store.clone(),

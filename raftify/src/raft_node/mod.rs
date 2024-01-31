@@ -34,8 +34,7 @@ use crate::{
         formatter::{format_confchangev2, format_message},
         raw_node::RawNode,
     },
-    raft_node::bootstrap::bootstrap_peers,
-    raft_service::{self, ChangeConfigResultType, ResultCode},
+    raft_service::ChangeConfigResultType,
     request_message::{LocalRequestMsg, SelfMessage, ServerRequestMsg},
     response_message::{
         ConfChangeResponseResult, LocalResponseMsg, RequestIdResponseResult, ResponseMessage,
@@ -67,60 +66,27 @@ impl<
     > RaftNode<LogEntry, FSM>
 {
     #[allow(clippy::too_many_arguments)]
-    pub fn bootstrap_cluster(
+    pub fn bootstrap(
         node_id: u64,
+        should_be_leader: bool,
         fsm: FSM,
         config: Config,
         initial_peers: Peers,
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
-        bootstrap_done: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
         local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
         local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
-        RaftNodeCore::<LogEntry, FSM>::bootstrap_cluster(
+        RaftNodeCore::<LogEntry, FSM>::bootstrap(
             node_id,
+            should_be_leader,
             fsm,
             config,
             initial_peers,
             raft_addr,
             logger,
-            bootstrap_done,
-            server_rcv,
-            server_snd,
-            local_rcv,
-            local_snd.clone(),
-        )
-        .map(|core| Self {
-            inner: Arc::new(OneShotMutex::new(core)),
-            local_sender: local_snd.clone(),
-        })
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_follower(
-        node_id: u64,
-        fsm: FSM,
-        config: Config,
-        peers: Peers,
-        raft_addr: SocketAddr,
-        logger: Arc<dyn Logger>,
-        bootstrap_done: bool,
-        server_rcv: mpsc::Receiver<ServerRequestMsg>,
-        server_snd: mpsc::Sender<ServerRequestMsg>,
-        local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
-        local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
-    ) -> Result<Self> {
-        RaftNodeCore::<LogEntry, FSM>::new_follower(
-            node_id,
-            fsm,
-            config,
-            peers,
-            raft_addr,
-            logger,
-            bootstrap_done,
             server_rcv,
             server_snd,
             local_rcv,
@@ -373,19 +339,6 @@ impl<
         }
     }
 
-    pub async fn set_bootstrap_done(&self) {
-        let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::SetBootstrapDone { chan: tx })
-            .await
-            .unwrap();
-        let resp = rx.await.unwrap();
-        match resp {
-            LocalResponseMsg::SetBootstrapDone {} => (),
-            _ => unreachable!(),
-        }
-    }
-
     pub async fn run(self) -> Result<()> {
         self.inner
             .lock()
@@ -409,8 +362,6 @@ pub struct RaftNodeCore<
     should_exit: bool,
     last_snapshot_created: Instant,
     logger: Arc<dyn Logger>,
-    bootstrap_done: bool,
-    peers_bootstrap_ready: Option<HashMap<u64, bool>>,
     response_senders: HashMap<u64, ResponseSender<LogEntry, FSM>>,
 
     server_rcv: mpsc::Receiver<ServerRequestMsg>,
@@ -431,14 +382,14 @@ impl<
     > RaftNodeCore<LogEntry, FSM>
 {
     #[allow(clippy::too_many_arguments)]
-    pub fn bootstrap_cluster(
+    pub fn bootstrap(
         node_id: u64,
+        should_be_leader: bool,
         fsm: FSM,
         mut config: Config,
         initial_peers: Peers,
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
-        bootstrap_done: bool,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
         local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
@@ -458,8 +409,10 @@ impl<
         let mut snapshot = storage.snapshot(0, storage.last_index()?)?;
         let conf_state = snapshot.mut_metadata().mut_conf_state();
 
+        let voters = initial_peers.inner.clone().into_keys().collect::<Vec<_>>();
+
         if conf_state.voters.is_empty() {
-            conf_state.set_voters(vec![node_id]);
+            conf_state.set_voters(voters);
         }
 
         match (config.restore_wal_from, config.restore_wal_snapshot_from) {
@@ -494,16 +447,12 @@ impl<
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now();
 
-        raw_node.raft.become_candidate();
-        raw_node.raft.become_leader();
-
-        let peers_bootstrap_ready = if !initial_peers.is_empty() {
-            Some(HashMap::from([(node_id, true)]))
-        } else {
-            None
-        };
-
         let (self_snd, self_rcv) = mpsc::channel(100);
+
+        if should_be_leader {
+            raw_node.raft.become_candidate();
+            raw_node.raft.become_leader();
+        }
 
         Ok(RaftNodeCore {
             raw_node,
@@ -515,92 +464,6 @@ impl<
             last_snapshot_created,
             should_exit: false,
             peers: Arc::new(Mutex::new(initial_peers)),
-            bootstrap_done,
-            peers_bootstrap_ready,
-            response_senders: HashMap::new(),
-            server_rcv,
-            server_snd,
-            local_rcv,
-            local_snd,
-            self_snd,
-            self_rcv,
-            _phantom_log_entry_typ: PhantomData,
-        })
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_follower(
-        node_id: u64,
-        fsm: FSM,
-        mut config: Config,
-        peers: Peers,
-        raft_addr: SocketAddr,
-        logger: Arc<dyn Logger>,
-        bootstrap_done: bool,
-        server_rcv: mpsc::Receiver<ServerRequestMsg>,
-        server_snd: mpsc::Sender<ServerRequestMsg>,
-        local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
-        local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
-    ) -> Result<Self> {
-        config.raft_config.id = node_id;
-        config.validate()?;
-
-        let storage_pth = get_storage_path(config.log_dir.as_str(), node_id);
-
-        if let (None, None) = (config.restore_wal_from, config.restore_wal_snapshot_from) {
-            clear_storage_path(storage_pth.as_str())?;
-            ensure_directory_exist(storage_pth.as_str())?;
-        };
-
-        let storage = HeedStorage::create(storage_pth.as_str(), &config, logger.clone())?;
-        let mut snapshot = storage.snapshot(0, storage.last_index()?)?;
-
-        match (config.restore_wal_from, config.restore_wal_snapshot_from) {
-            (Some(restore_wal_from), None) => {
-                if restore_wal_from != node_id {
-                    std::fs::copy(
-                        get_data_mdb_path(config.log_dir.as_str(), restore_wal_from),
-                        get_data_mdb_path(config.log_dir.as_str(), node_id),
-                    )?;
-                }
-
-                let meta = snapshot.mut_metadata();
-                meta.set_index(storage.entries_last_index()?);
-            }
-            (None, Some(_restore_wal_snapshot_from)) => {
-                // Follower doesn't need to restore snapshot because they will be sent by leader.
-
-                // if restore_wal_snapshot_from != node_id {
-                //     std::fs::copy(
-                //         get_data_mdb_path(config.log_dir.as_str(), restore_wal_snapshot_from),
-                //         get_data_mdb_path(config.log_dir.as_str(), node_id),
-                //     )?;
-                // }
-            }
-            (Some(_), Some(_)) => {
-                unreachable!()
-            }
-            _ => {}
-        }
-
-        let raw_node = RawNode::new(&config.raft_config, storage, logger.clone())?;
-        let response_seq = AtomicU64::new(0);
-        let last_snapshot_created = Instant::now();
-
-        let (self_snd, self_rcv) = mpsc::channel(100);
-
-        Ok(RaftNodeCore {
-            raw_node,
-            fsm,
-            response_seq,
-            config,
-            raft_addr,
-            logger: logger.clone(),
-            last_snapshot_created,
-            should_exit: false,
-            peers: Arc::new(Mutex::new(peers)),
-            bootstrap_done,
-            peers_bootstrap_ready: None,
             response_senders: HashMap::new(),
             server_rcv,
             server_snd,
@@ -628,18 +491,17 @@ impl<
         self.peers.lock().await.to_owned()
     }
 
-    pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
-        self.peers.lock().await.add_peer(id, addr)
+    pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) -> Result<()> {
+        let mut peers = self.peers.lock().await;
+        peers.add_peer(id, addr);
+        peers.connect(id).await
     }
 
-    pub async fn add_peers(&mut self, peers: HashMap<u64, SocketAddr>) {
+    pub async fn add_peers(&mut self, peers: HashMap<u64, SocketAddr>) -> Result<()> {
         for (id, peer_addr) in peers.iter() {
-            self.add_peer(id.to_owned(), *peer_addr).await;
+            self.add_peer(id.to_owned(), *peer_addr).await?;
         }
-    }
-
-    pub fn set_bootstrap_done(&mut self) {
-        self.bootstrap_done = true;
+        Ok(())
     }
 
     async fn send_message(
@@ -656,7 +518,7 @@ impl<
             Some(peer) => {
                 if peer.client.is_none() {
                     if let Err(e) = peer.connect().await {
-                        logger.trace(format!("Connection error: {:?}", e).as_str());
+                        logger.debug(format!("Connection error: {:?}", e).as_str());
                         ok = Err(SendMessageError::ConnectionError(node_id.to_string()));
                     }
                 }
@@ -685,14 +547,6 @@ impl<
     }
 
     async fn send_messages(&mut self, messages: Vec<RaftMessage>) {
-        if !self.bootstrap_done {
-            self.logger.warn(format!(
-                "Skipping sending messages because bootstrap is not done yet. Skipped messages: {messages:?}",
-                messages=messages
-            ).as_str());
-            return;
-        }
-
         for message in messages {
             tokio::spawn(RaftNodeCore::<LogEntry, FSM>::send_message(
                 message,
@@ -908,90 +762,6 @@ impl<
         inspect_raftnode(&self.raw_node)
     }
 
-    pub async fn wait_for_initial_peers_bootstrap(&mut self) -> Result<()> {
-        if !self.is_leader() {
-            self.logger
-                .warn("Waiting for initial peers bootstrap is only allowed on leader node.");
-            return Ok(());
-        }
-
-        let peers_bootstrap_ready = self.peers_bootstrap_ready.clone().unwrap();
-
-        {
-            let peers = self.peers.lock().await;
-            if !(peers.len() == peers_bootstrap_ready.len()
-                && peers_bootstrap_ready.iter().all(|v| *v.1))
-            {
-                self.logger
-                    .trace("Waiting for all follower nodes to be ready to join the cluster...");
-
-                return Ok(());
-            }
-        }
-
-        self.logger.info(
-            "Received all follower nodes' join requests, preparing to bootstrap the cluster...",
-        );
-
-        self.bootstrap_peers().await?;
-
-        let mut peers = self.peers.lock().await;
-
-        for node_id in peers_bootstrap_ready.keys() {
-            if *node_id == self.raw_node.raft.id {
-                continue;
-            }
-
-            let peer = peers
-                .get_mut(node_id)
-                .expect(&format!("Peer {} not found!", node_id));
-
-            // ???
-            if let Err(err) = peer.connect().await {
-                self.logger
-                    .error(&format!("Failed to connect to node {}: {}", node_id, err));
-                return Err(err);
-            }
-
-            let response = peer
-                .client
-                .as_mut()
-                .unwrap()
-                .cluster_bootstrap_ready(Request::new(raft_service::Empty {}))
-                .await?
-                .into_inner();
-
-            match response.code() {
-                ResultCode::Ok => {}
-                ResultCode::Error => {
-                    self.logger
-                        .error(&format!("Node {} failed to join the cluster.", node_id));
-                }
-                ResultCode::WrongLeader => {
-                    self.logger.error(&format!(
-                        "Node {} failed to join the cluster because of wrong leader.",
-                        node_id
-                    ));
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Commit the configuration change to add all follower nodes to the cluster.
-    async fn bootstrap_peers(&mut self) -> Result<()> {
-        assert!(self.is_leader());
-
-        let last_term = self.raw_node.raft.raft_log.last_term();
-        self.make_snapshot(self.raw_node.store().last_index()?, last_term)
-            .await?;
-
-        bootstrap_peers(self.peers.clone(), &mut self.raw_node).await?;
-        self.bootstrap_done = true;
-        Ok(())
-    }
-
     async fn handle_propose_request(
         &mut self,
         proposal: Vec<u8>,
@@ -1197,10 +967,6 @@ impl<
                 self.raw_node.step(*message)?;
                 chan.send(LocalResponseMsg::SendMessage {}).unwrap();
             }
-            LocalRequestMsg::SetBootstrapDone { chan } => {
-                self.set_bootstrap_done();
-                chan.send(LocalResponseMsg::SetBootstrapDone {}).unwrap();
-            }
         }
 
         Ok(())
@@ -1218,28 +984,6 @@ impl<
 
     pub async fn handle_server_request_msg(&mut self, message: ServerRequestMsg) -> Result<()> {
         match message {
-            ServerRequestMsg::ClusterBootstrapReady { chan } => {
-                self.logger.info(&format!("Node {} received the ClusterBootstrapReady message that all initial nodes's join requests collected. Start to bootstrap process...", self.get_id()));
-                chan.send(ServerResponseMsg::ClusterBootstrapReady {
-                    result: ResponseResult::Success,
-                })
-                .unwrap();
-                self.bootstrap_done = true;
-            }
-            ServerRequestMsg::MemberBootstrapReady { node_id, chan } => {
-                assert!(self.is_leader());
-                self.logger
-                    .info(&format!("Node {} requested to join the cluster.", node_id));
-                self.peers_bootstrap_ready
-                    .as_mut()
-                    .unwrap()
-                    .insert(node_id, true);
-
-                chan.send(ServerResponseMsg::MemberBootstrapReady {
-                    result: ResponseResult::Success,
-                })
-                .unwrap();
-            }
             ServerRequestMsg::ChangeConfig { conf_change, chan } => {
                 self.handle_confchange_request(conf_change, ResponseSender::Server(chan))
                     .await?;
@@ -1330,12 +1074,6 @@ impl<
                 return Ok(());
             }
 
-            if !self.bootstrap_done {
-                if self.is_leader() {
-                    self.wait_for_initial_peers_bootstrap().await?;
-                }
-            }
-
             tokio::select! {
                 msg = timeout(fixed_tick_timer, self.self_rcv.recv()) => {
                     if let Ok(Some(msg)) = msg {
@@ -1358,10 +1096,7 @@ impl<
             now = Instant::now();
             if elapsed > tick_timer {
                 tick_timer = fixed_tick_timer;
-
-                if self.bootstrap_done {
-                    self.raw_node.tick();
-                }
+                self.raw_node.tick();
             } else {
                 tick_timer -= elapsed;
             }

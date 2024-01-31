@@ -6,7 +6,6 @@ members = [
     "examples/memstore",
     "examples/memstore/dynamic-members",
     "examples/memstore/static-members",
-    "harness"
 ]
 default-members = [
     "raftify",
@@ -14,7 +13,6 @@ default-members = [
     "examples/memstore",
     "examples/memstore/dynamic-members",
     "examples/memstore/static-members",
-    "harness"
 ]
 
 [workspace.package]

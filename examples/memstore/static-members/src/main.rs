@@ -27,23 +27,11 @@ struct Options {
     #[structopt(long)]
     raft_addr: String,
     #[structopt(long)]
-    peer_addr: Option<String>,
-    #[structopt(long)]
     web_server: Option<String>,
     #[structopt(long)]
     restore_wal_from: Option<u64>,
     #[structopt(long)]
     restore_wal_snapshot_from: Option<u64>,
-}
-
-fn validate_options(options: Options) -> Options {
-    if options.peer_addr.is_some() && options.restore_wal_from.is_some() {
-        panic!("Cannot restore WAL from follower node");
-    } else if options.peer_addr.is_some() && options.restore_wal_snapshot_from.is_some() {
-        panic!("Follower node should receive snapshot from leader, not restoring it from storage");
-    } else {
-        options
-    }
 }
 
 #[actix_rt::main]
@@ -66,7 +54,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     set_custom_formatter(CustomFormatter::<LogEntry, HashStore>::new());
 
-    let options = validate_options(Options::from_args());
+    let options = Options::from_args();
     let store = HashStore::new();
     let initial_peers = load_peers().await?;
 
@@ -78,38 +66,16 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         .get_node_id_by_addr(options.raft_addr.clone())
         .unwrap();
 
-    let (raft, raft_handle) = match options.peer_addr {
-        Some(peer_addr) => {
-            log::info!("Running in Follower mode");
+    let raft = Raft::bootstrap(
+        node_id,
+        options.raft_addr,
+        store.clone(),
+        cfg.clone(),
+        Some(initial_peers.clone()),
+        logger.clone(),
+    )?;
 
-            let raft = Raft::new_follower(
-                node_id,
-                options.raft_addr,
-                store.clone(),
-                cfg,
-                Some(initial_peers.clone()),
-                logger.clone(),
-            )?;
-
-            let handle = tokio::spawn(raft.clone().run());
-            Raft::member_bootstrap_ready(peer_addr, node_id, logger).await?;
-
-            (raft, handle)
-        }
-        None => {
-            log::info!("Node {} bootstrapped a raft cluster", node_id);
-            let raft = Raft::bootstrap_cluster(
-                node_id,
-                options.raft_addr,
-                store.clone(),
-                cfg,
-                Some(initial_peers),
-                logger.clone(),
-            )?;
-            let handle = tokio::spawn(raft.clone().run());
-            (raft, handle)
-        }
-    };
+    let handle = tokio::spawn(raft.clone().run());
 
     if let Some(addr) = options.web_server {
         let _web_server = tokio::spawn(
@@ -130,7 +96,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    let result = tokio::try_join!(raft_handle)?;
+    let result = tokio::try_join!(handle)?;
     result.0?;
     Ok(())
 }

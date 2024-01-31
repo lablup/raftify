@@ -243,49 +243,6 @@ impl RaftService for RaftServer {
         }
     }
 
-    async fn member_bootstrap_ready(
-        &self,
-        request: Request<raft_service::MemberBootstrapReadyArgs>,
-    ) -> Result<Response<raft_service::MemberBootstrapReadyResponse>, Status> {
-        let request_args = request.into_inner();
-        let (tx, rx) = oneshot::channel();
-        let sender = self.snd.clone();
-        match sender
-            .send(ServerRequestMsg::MemberBootstrapReady {
-                node_id: request_args.node_id,
-                chan: tx,
-            })
-            .await
-        {
-            Ok(_) => (),
-            Err(_) => self.print_send_error(function_name!()),
-        }
-        let _response = rx.await.unwrap();
-        Ok(Response::new(raft_service::MemberBootstrapReadyResponse {
-            code: raft_service::ResultCode::Ok as i32,
-        }))
-    }
-
-    async fn cluster_bootstrap_ready(
-        &self,
-        request: Request<raft_service::Empty>,
-    ) -> Result<Response<raft_service::ClusterBootstrapReadyResponse>, Status> {
-        let _request_args = request.into_inner();
-        let (tx, rx) = oneshot::channel();
-        let sender = self.snd.clone();
-        match sender
-            .send(ServerRequestMsg::ClusterBootstrapReady { chan: tx })
-            .await
-        {
-            Ok(_) => (),
-            Err(_) => self.print_send_error(function_name!()),
-        }
-        let _response = rx.await.unwrap();
-        Ok(Response::new(raft_service::ClusterBootstrapReadyResponse {
-            code: raft_service::ResultCode::Ok as i32,
-        }))
-    }
-
     async fn get_peers(
         &self,
         request: Request<raft_service::Empty>,

@@ -10,13 +10,6 @@ use crate::raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 
 /// Request type processed through network calls (gRPC)
 pub enum ServerRequestMsg {
-    MemberBootstrapReady {
-        node_id: u64,
-        chan: Sender<ServerResponseMsg>,
-    },
-    ClusterBootstrapReady {
-        chan: Sender<ServerResponseMsg>,
-    },
     RequestId {
         raft_addr: String,
         chan: Sender<ServerResponseMsg>,
@@ -105,9 +98,6 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
         ticket: ClusterJoinTicket,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
-    SetBootstrapDone {
-        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
-    },
 }
 
 /// Request type sent from a RaftNode to itself (RaftNode).
@@ -148,6 +138,5 @@ impl_debug_for_enum!(
     Propose,
     ChangeConfig,
     SendMessage,
-    JoinCluster,
-    SetBootstrapDone
+    JoinCluster
 );

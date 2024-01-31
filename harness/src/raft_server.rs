@@ -87,18 +87,6 @@ pub async fn run_rafts(peers: Peers) -> Result<()> {
     Ok(())
 }
 
-pub async fn handle_bootstrap(peers: Peers, logger: Arc<dyn Logger>) -> Result<()> {
-    let leader_addr = peers.get(&1).unwrap().addr;
-
-    for (node_id, _) in peers.iter() {
-        if node_id != 1 {
-            Raft::member_bootstrap_ready(leader_addr, node_id, logger.clone()).await?;
-        }
-    }
-
-    Ok(())
-}
-
 pub async fn spawn_extra_node(peer_addr: &str, raft_addr: &str) -> Result<JoinHandle<Result<()>>> {
     let logger = Arc::new(Slogger {
         slog: build_logger(),

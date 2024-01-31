@@ -15,6 +15,8 @@ use crate::{
 };
 
 /// Commit the configuration change to add all follower nodes to the cluster.
+#[deprecated]
+#[allow(dead_code)]
 pub async fn bootstrap_peers<T: LogStore + Storage>(
     peers: Arc<Mutex<Peers>>,
     raw_node: &mut RawNode<T>,

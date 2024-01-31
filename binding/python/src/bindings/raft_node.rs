@@ -121,11 +121,6 @@ impl PyRaftNode {
         future_into_py(py, async move { Ok(raft_node.get_cluster_size().await) })
     }
 
-    pub fn set_bootstrap_done<'a>(&'a mut self, py: Python<'a>) -> PyResult<&'a PyAny> {
-        let raft_node = self.inner.clone();
-        future_into_py(py, async move { Ok(raft_node.set_bootstrap_done().await) })
-    }
-
     pub fn store<'a>(&'a mut self, py: Python<'a>) -> PyResult<&'a PyAny> {
         let raft_node = self.inner.clone();
         future_into_py(py, async move { Ok(raft_node.store().await) })
