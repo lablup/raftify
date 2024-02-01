@@ -13,7 +13,7 @@ use harness::{
 pub async fn test_data_replication() {
     let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
     let _raft_tasks = tokio::spawn(build_raft_cluster(peers.clone()));
-    sleep(Duration::from_secs(5)).await;
+    sleep(Duration::from_secs(1)).await;
 
     {
         let mut rafts = RAFTS.lock().unwrap();

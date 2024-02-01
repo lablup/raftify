@@ -57,7 +57,12 @@ pub async fn load_peers(example_filename: &str) -> Result<Peers, Box<dyn std::er
 
     for peer_info in raft_config.raft.peers {
         let addr = SocketAddr::new(peer_info.host.parse().unwrap(), peer_info.port);
-        peers.add_peer(peer_info.node_id, addr, Some(InitialRole::Voter));
+
+        if peer_info.node_id == 1 {
+            peers.add_peer(peer_info.node_id, addr, Some(InitialRole::Leader));
+        } else {
+            peers.add_peer(peer_info.node_id, addr, Some(InitialRole::Voter));
+        }
     }
 
     Ok(peers)
