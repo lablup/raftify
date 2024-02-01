@@ -59,7 +59,9 @@ enum ChangeConfigResultType {
 
 message ChangeConfigResponse {
   ChangeConfigResultType result_type = 1;
-  bytes data                         = 2;
+  uint64 assigned_id                 = 2; // Used in JoinSuccess
+  bytes peers                        = 3; // Used in JoinSuccess
+  bytes error                        = 4; // Used in Handling error
 }
 
 message DebugNodeResponse {

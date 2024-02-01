@@ -28,9 +28,8 @@ use super::{
 use crate::{
     create_client,
     raft::eraftpb::{ConfChangeV2, Message as RaftMessage},
-    raft_service::{ProposeArgs},
-    response_message::ResponseResult,
-    RaftServiceClient,
+    raft_service::ProposeArgs,
+    response_message::{ConfChangeResponseResult, ResponseResult},
 };
 
 #[derive(Clone)]
@@ -143,7 +142,7 @@ impl RaftService for RaftServer {
         let (tx, rx) = oneshot::channel();
 
         let message = ServerRequestMsg::ChangeConfig {
-            conf_change: request_args,
+            conf_change: request_args.clone(),
             chan: tx,
         };
 
@@ -161,16 +160,51 @@ impl RaftService for RaftServer {
         )
         .await
         {
-            Ok(Ok(_raft_response)) => {
+            Ok(Ok(raft_response)) => {
+                match raft_response {
+                    ServerResponseMsg::ConfigChange { result } => match result {
+                        ConfChangeResponseResult::JoinSuccess { assigned_id, peers } => {
+                            reply.result_type =
+                                raft_service::ChangeConfigResultType::ChangeConfigSuccess as i32;
+                            reply.assigned_id = assigned_id;
+                            reply.peers = serialize(&peers).unwrap();
+                        }
+                        ConfChangeResponseResult::RemoveSuccess {} => {
+                            reply.result_type =
+                                raft_service::ChangeConfigResultType::ChangeConfigSuccess as i32;
+                        }
+                        ConfChangeResponseResult::Error(e) => {
+                            reply.result_type =
+                                raft_service::ChangeConfigResultType::ChangeConfigUnknownError
+                                    as i32;
+                            reply.error = e.to_string().as_bytes().to_vec();
+                        }
+                        ConfChangeResponseResult::WrongLeader {
+                            leader_id,
+                            leader_addr,
+                        } => {
+                            reply.result_type =
+                                raft_service::ChangeConfigResultType::ChangeConfigWrongLeader
+                                    as i32;
+
+                            let mut client = create_client(leader_addr).await.unwrap();
+                            reply = client.change_config(request_args).await?.into_inner();
+                        }
+                    },
+                    _ => unreachable!(),
+                }
                 reply.result_type =
                     raft_service::ChangeConfigResultType::ChangeConfigSuccess as i32;
-                reply.data = vec![];
             }
-            Ok(_) => (),
-            Err(_e) => {
+            Ok(Err(e)) => {
+                reply.result_type =
+                    raft_service::ChangeConfigResultType::ChangeConfigUnknownError as i32;
+                reply.error = e.to_string().as_bytes().to_vec();
+            }
+            Err(e) => {
                 reply.result_type =
                     raft_service::ChangeConfigResultType::ChangeConfigTimeoutError as i32;
-                reply.data = vec![];
+                reply.error = e.to_string().as_bytes().to_vec();
                 self.logger.error("timeout waiting for reply");
             }
         }
@@ -228,7 +262,11 @@ impl RaftService for RaftServer {
                     } => {
                         // TODO: Handle this kind of errors
                         let mut client = create_client(leader_addr).await.unwrap();
-                        let _ = client.propose(ProposeArgs {msg: request_args.msg}).await?;
+                        let _ = client
+                            .propose(ProposeArgs {
+                                msg: request_args.msg,
+                            })
+                            .await?;
 
                         Ok(Response::new(raft_service::Empty {}))
                     }

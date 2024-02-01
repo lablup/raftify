@@ -65,7 +65,10 @@ pub async fn load_peers(example_filename: &str) -> Result<Peers, Box<dyn std::er
 }
 
 pub async fn wait_for_until_cluster_size_increase(raft: Raft, target: usize) {
-    println!("Waiting for cluster size to increase to {}...", target);
+    raft.logger.debug(&format!(
+        "Waiting for cluster size to increase to... {}",
+        target
+    ));
 
     loop {
         let size = raft.cluster_size().await;
@@ -80,7 +83,10 @@ pub async fn wait_for_until_cluster_size_increase(raft: Raft, target: usize) {
 }
 
 pub async fn wait_for_until_cluster_size_decrease(raft: Raft, target: usize) {
-    println!("Waiting for cluster size to decrease to {}...", target);
+    raft.logger.debug(&format!(
+        "Waiting for cluster size to decrease to {}...",
+        target
+    ));
 
     loop {
         let size = raft.cluster_size().await;

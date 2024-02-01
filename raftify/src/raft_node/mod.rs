@@ -239,7 +239,7 @@ impl<
         match resp {
             LocalResponseMsg::Propose { result } => match result {
                 ResponseResult::Success => (),
-                ResponseResult::Error(_) => (),
+                ResponseResult::Error(e) => return Err(e),
                 ResponseResult::WrongLeader {
                     leader_id,
                     leader_addr,
@@ -253,6 +253,44 @@ impl<
             _ => unreachable!(),
         }
         Ok(())
+    }
+
+    pub async fn change_config(&self, conf_change: ConfChangeV2) -> ConfChangeResponseResult {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::ChangeConfig {
+                conf_change: conf_change.clone(),
+                chan: tx,
+            })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
+            LocalResponseMsg::ChangeConfig { result } => match result {
+                ConfChangeResponseResult::WrongLeader {
+                    leader_id,
+                    leader_addr,
+                } => {
+                    let mut client = create_client(leader_addr).await.unwrap();
+                    let res = client.change_config(conf_change.clone()).await.unwrap();
+
+                    let result = res.into_inner();
+
+                    if result.result_type
+                        == raft_service::ChangeConfigResultType::ChangeConfigSuccess as i32
+                    {
+                        ConfChangeResponseResult::JoinSuccess {
+                            assigned_id: result.assigned_id,
+                            peers: deserialize(result.peers.as_slice()).unwrap(),
+                        }
+                    } else {
+                        ConfChangeResponseResult::Error(Error::Unknown)
+                    }
+                }
+                _ => result,
+            },
+            _ => unreachable!(),
+        }
     }
 
     pub async fn get_cluster_size(&self) -> usize {
@@ -290,22 +328,6 @@ impl<
         let resp = rx.await.unwrap();
         match resp {
             LocalResponseMsg::ChangeConfig { result: _result } => (),
-            _ => unreachable!(),
-        }
-    }
-
-    pub async fn change_config(&self, conf_change: ConfChangeV2) -> ConfChangeResponseResult {
-        let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::ChangeConfig {
-                conf_change,
-                chan: tx,
-            })
-            .await
-            .unwrap();
-        let resp = rx.await.unwrap();
-        match resp {
-            LocalResponseMsg::ChangeConfig { result } => result,
             _ => unreachable!(),
         }
     }
@@ -613,11 +635,6 @@ impl<
                 .into_inner();
 
             match response.result_type() {
-                ChangeConfigResultType::ChangeConfigWrongLeader => {
-                    // TODO: Handle this
-                    // response.data();
-                    continue;
-                }
                 ChangeConfigResultType::ChangeConfigSuccess => break Ok(()),
                 ChangeConfigResultType::ChangeConfigUnknownError => return Err(Error::JoinError),
                 ChangeConfigResultType::ChangeConfigRejected => {
@@ -625,6 +642,10 @@ impl<
                 }
                 ChangeConfigResultType::ChangeConfigTimeoutError => {
                     return Err(Error::Timeout);
+                }
+                ChangeConfigResultType::ChangeConfigWrongLeader => {
+                    // Should be handled in RaftServiceClient
+                    unreachable!()
                 }
             }
         }

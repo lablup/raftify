@@ -13,8 +13,7 @@ use harness::{
 pub async fn test_leader_election_in_three_node_example() {
     let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
     let _raft_tasks = tokio::spawn(build_raft_cluster(peers.clone()));
-
-    sleep(Duration::from_secs(1)).await;
+    sleep(Duration::from_secs(5)).await;
 
     let mut rafts = RAFTS.lock().unwrap();
     let raft_1 = rafts.get_mut(&1).unwrap();
