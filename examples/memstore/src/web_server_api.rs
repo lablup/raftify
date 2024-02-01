@@ -63,6 +63,6 @@ async fn peers(data: web::Data<(HashStore, Raft)>) -> impl Responder {
 #[get("/snapshot")]
 async fn snapshot(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    raft.1.snapshot().await.unwrap();
+    raft.1.capture_snapshot().await.unwrap();
     "OK".to_string()
 }

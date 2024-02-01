@@ -192,17 +192,13 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         }
     }
 
-    pub async fn snapshot(&self) -> Result<()> {
+    pub async fn capture_snapshot(&self) -> Result<()> {
         let storage = self.raft_node.storage().await;
 
         self.raft_node
             .make_snapshot(storage.last_index()?, storage.hard_state()?.term)
             .await;
         Ok(())
-    }
-
-    pub async fn cluster_size(&self) -> usize {
-        self.raft_node.get_cluster_size().await
     }
 
     pub async fn join(&self, ticket: ClusterJoinTicket) {
