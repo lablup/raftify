@@ -45,6 +45,7 @@ message RequestIdResponse{
   string leader_addr             = 3;
   uint64 reserved_id             = 4;
   bytes peers                    = 5;
+  bytes error                    = 6;
 }
 
 // Config Change

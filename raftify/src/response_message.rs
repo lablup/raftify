@@ -108,7 +108,7 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
 
     // Rerouting available
     Propose { result: ResponseResult },
-    ChangeConfig { result: ConfChangeResponseResult },
+    ConfigChange { result: ConfChangeResponseResult },
     _Phantom(PhantomData<LogEntry>),
 }
 

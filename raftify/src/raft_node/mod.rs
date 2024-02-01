@@ -235,14 +235,15 @@ impl<
             })
             .await
             .unwrap();
+
         let resp = rx.await.unwrap();
         match resp {
             LocalResponseMsg::Propose { result } => match result {
                 ResponseResult::Success => (),
                 ResponseResult::Error(e) => return Err(e),
                 ResponseResult::WrongLeader {
-                    leader_id,
                     leader_addr,
+                    ..
                 } => {
                     let mut client = create_client(leader_addr).await?;
                     client
@@ -264,12 +265,13 @@ impl<
             })
             .await
             .unwrap();
+
         let resp = rx.await.unwrap();
         match resp {
-            LocalResponseMsg::ChangeConfig { result } => match result {
+            LocalResponseMsg::ConfigChange { result } => match result {
                 ConfChangeResponseResult::WrongLeader {
-                    leader_id,
                     leader_addr,
+                    ..
                 } => {
                     let mut client = create_client(leader_addr).await.unwrap();
                     let res = client.change_config(conf_change.clone()).await.unwrap();
@@ -299,6 +301,7 @@ impl<
             .send(LocalRequestMsg::GetClusterSize { chan: tx })
             .await
             .unwrap();
+
         let resp = rx.await.unwrap();
         match resp {
             LocalResponseMsg::GetClusterSize { size } => size,
@@ -327,7 +330,7 @@ impl<
             .unwrap();
         let resp = rx.await.unwrap();
         match resp {
-            LocalResponseMsg::ChangeConfig { result: _result } => (),
+            LocalResponseMsg::ConfigChange { result: _result } => (),
             _ => unreachable!(),
         }
     }
@@ -786,7 +789,7 @@ impl<
             match sender {
                 ResponseSender::Local(sender) => {
                     sender
-                        .send(LocalResponseMsg::ChangeConfig { result: response })
+                        .send(LocalResponseMsg::ConfigChange { result: response })
                         .unwrap();
                 }
                 ResponseSender::Server(sender) => {
@@ -876,17 +879,17 @@ impl<
             let peers = self.peers.lock().await;
             let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
 
-            let result = ConfChangeResponseResult::WrongLeader {
+            let wrong_leader_result = ConfChangeResponseResult::WrongLeader {
                 leader_id,
                 leader_addr,
             };
 
             match chan {
                 ResponseSender::Local(chan) => chan
-                    .send(LocalResponseMsg::ChangeConfig { result })
+                    .send(LocalResponseMsg::ConfigChange { result: wrong_leader_result })
                     .unwrap(),
                 ResponseSender::Server(chan) => chan
-                    .send(ServerResponseMsg::ConfigChange { result })
+                    .send(ServerResponseMsg::ConfigChange { result: wrong_leader_result })
                     .unwrap(),
             }
         } else {
@@ -1030,23 +1033,6 @@ impl<
         Ok(())
     }
 
-    pub async fn handle_rerouting_msg(&mut self, message: ServerRequestMsg) -> Result<()> {
-        match message {
-            ServerRequestMsg::ChangeConfig { conf_change, chan } => {
-                self.handle_confchange_request(conf_change, ResponseSender::Server(chan))
-                    .await?;
-            }
-            ServerRequestMsg::Propose { proposal, chan } => {
-                self.handle_propose_request(proposal, ResponseSender::Server(chan))
-                    .await?;
-            }
-            _ => {
-                unimplemented!()
-            }
-        }
-        Ok(())
-    }
-
     pub async fn handle_server_request_msg(&mut self, message: ServerRequestMsg) -> Result<()> {
         match message {
             ServerRequestMsg::ChangeConfig { conf_change, chan } => {
@@ -1068,7 +1054,6 @@ impl<
             }
             ServerRequestMsg::RequestId { raft_addr, chan } => {
                 if !self.is_leader() {
-                    // TODO: retry strategy in case of failure
                     let leader_id = self.get_leader_id();
                     let peers = self.peers.lock().await;
                     let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();

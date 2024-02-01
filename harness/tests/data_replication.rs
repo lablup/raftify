@@ -19,16 +19,16 @@ pub async fn test_data_replication() {
         let mut rafts = RAFTS.lock().unwrap();
         let raft_1 = rafts.get(&1).unwrap();
         wait_for_until_cluster_size_increase(raft_1.clone(), 3).await;
-    
+
         let entry = LogEntry::Insert {
             key: 1,
             value: "test".to_string(),
         }
         .encode()
         .unwrap();
-    
+
         raft_1.raft_node.propose(entry).await.unwrap();
-    
+
         sleep(Duration::from_secs(1)).await;
         // Data should be replicated to all nodes.
         for (_, raft) in rafts.iter_mut() {
@@ -40,7 +40,6 @@ pub async fn test_data_replication() {
         sleep(Duration::from_secs(1)).await;
     }
 
-    // TODO: This assumes that the leader is node 1, and it is not true anymore, so we requires to implement rerouting logic.
     tokio::spawn(spawn_extra_node("127.0.0.1:60064", RAFT_ADDRS[0]));
     sleep(Duration::from_secs(1)).await;
 
@@ -59,17 +58,17 @@ pub async fn test_data_replication() {
     {
         let mut rafts = RAFTS.lock().unwrap();
         let raft_1 = rafts.get(&1).unwrap();
-    
+
         let new_entry = LogEntry::Insert {
             key: 2,
             value: "test2".to_string(),
         }
         .encode()
         .unwrap();
-    
+
         raft_1.raft_node.propose(new_entry).await.unwrap();
         sleep(Duration::from_secs(1)).await;
-    
+
         // New entry data should be replicated to all nodes including new joined node.
         for (_, raft) in rafts.iter_mut() {
             let store = raft.raft_node.store().await;
