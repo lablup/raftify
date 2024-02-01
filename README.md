@@ -123,7 +123,7 @@ If peer specifies the configuration of the initial members, the cluster will ope
 ```rust
 let raft_addr = "127.0.0.1:60062".to_owned();
 let peer_addr = "127.0.0.1:60061".to_owned();
-let join_ticket = Raft::request_id(raft_addr, peer_addr, logger.clone()).await;
+let join_ticket = Raft::request_id(raft_addr, peer_addr).await;
 
 let raft = Raft::bootstrap(
     join_ticket.reserved_id,
@@ -142,7 +142,7 @@ tokio::try_join!(join_ticket)?;
 
 ### Manipulate FSM by RaftServiceClient
 
-If you want to operate the FSM remotely, use `RaftServiceClient`.
+If you want to operate the FSM remotely, you can use [RaftServiceClient](https://docs.rs/raftify/latest/raftify/raft_service/raft_service_client/struct.RaftServiceClient.html).
 
 ```rust
 let mut leader_client = create_client(&"127.0.0.1:60061").await.unwrap();
@@ -162,7 +162,7 @@ leader_client
 
 ### Manipulate FSM by RaftNode
 
-If you want to operate FSM locally, use the RaftNode interface of the Raft object.
+If you want to operate FSM locally, use the [RaftNode](https://docs.rs/raftify/latest/raftify/struct.RaftNode.html) type of the [Raft](https://docs.rs/raftify/latest/raftify/struct.Raft.html) object.
 
 ```rust
 let mut raft_node = raft.get_raft_node();
@@ -172,8 +172,6 @@ raft_node.propose(LogEntry::Insert {
     value: "test".to_string(),
 }.encode().unwrap()).await;
 ```
-
-It also provides a variety of other very useful APIs. Take a look at [the document](https://docs.rs/raftify/latest/raftify/).
 
 ## Debugging
 
@@ -212,7 +210,7 @@ raftify provides bindings for the following languages.
 
 ## References
 
-This library was inspired by a wide variety of previous Raft implementations.
+raftify was inspired by a wide variety of previous Raft implementations.
 
 Great thanks to all the relevant developers.
 
