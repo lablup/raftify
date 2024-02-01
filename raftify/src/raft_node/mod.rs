@@ -623,8 +623,7 @@ impl<
 
         let peer_addr = ticket.leader_addr;
 
-        let mut leader_client =
-            RaftServiceClient::connect(format!("http://{}", peer_addr)).await?;
+        let mut leader_client = RaftServiceClient::connect(format!("http://{}", peer_addr)).await?;
         let response = leader_client
             .change_config(change.clone())
             .await?
@@ -636,9 +635,7 @@ impl<
             ChangeConfigResultType::ChangeConfigRejected => {
                 Err(Error::Rejected("Join request rejected".to_string()))
             }
-            ChangeConfigResultType::ChangeConfigTimeoutError => {
-                Err(Error::Timeout)
-            }
+            ChangeConfigResultType::ChangeConfigTimeoutError => Err(Error::Timeout),
             ChangeConfigResultType::ChangeConfigWrongLeader => {
                 // Should be handled in RaftServiceClient
                 unreachable!()

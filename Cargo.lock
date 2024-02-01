@@ -920,7 +920,6 @@ version = "0.1.42"
 dependencies = [
  "actix-rt",
  "actix-web",
- "async-trait",
  "bincode",
  "futures",
  "log",

@@ -8,8 +8,7 @@ use std::{fs, time::Duration};
 use tokio::time::sleep;
 use toml;
 
-use crate::constant::ZERO_NODE_EXAMPLE;
-use crate::raft::Raft;
+use crate::{constant::ZERO_NODE_EXAMPLE, raft::Raft};
 
 pub fn build_logger() -> slog::Logger {
     let decorator = slog_term::TermDecorator::new().build();
