@@ -1,10 +1,7 @@
 use futures::future;
 use once_cell::sync::Lazy;
 use raftify::{
-    raft::{
-        formatter::set_custom_formatter,
-        logger::{Logger, Slogger},
-    },
+    raft::{formatter::set_custom_formatter, logger::Slogger},
     CustomFormatter, Peers, Raft as Raft_, Result,
 };
 use std::{
@@ -23,34 +20,28 @@ pub type Raft = Raft_<LogEntry, HashStore>;
 
 pub static RAFTS: Lazy<Mutex<HashMap<u64, Raft>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
-fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
+fn run_raft(node_id: &u64, peers: Peers, should_be_leader: bool) -> Result<JoinHandle<Result<()>>> {
     let peer = peers.get(node_id).unwrap();
     let cfg = build_config();
     let store = HashStore::new();
     let logger = build_logger();
 
-    let raft = match node_id {
-        1 => Raft::bootstrap_cluster(
-            1,
-            peer.addr,
-            store,
-            cfg,
-            Some(peers.clone()),
-            Arc::new(Slogger {
-                slog: logger.clone(),
-            }),
-        ),
-        _ => Raft::new_follower(
-            *node_id,
-            peer.addr,
-            store,
-            cfg,
-            Some(peers.clone()),
-            Arc::new(Slogger {
-                slog: logger.clone(),
-            }),
-        ),
-    }
+    let peers = if should_be_leader {
+        None
+    } else {
+        Some(peers.clone())
+    };
+
+    let raft = Raft::bootstrap(
+        *node_id,
+        peer.addr,
+        store,
+        cfg,
+        peers,
+        Arc::new(Slogger {
+            slog: logger.clone(),
+        }),
+    )
     .expect("Raft build failed!");
 
     RAFTS.lock().unwrap().insert(*node_id, raft.clone());
@@ -60,13 +51,14 @@ fn run_raft(node_id: &u64, peers: Peers) -> Result<JoinHandle<Result<()>>> {
     Ok(raft_handle)
 }
 
-pub async fn run_rafts(peers: Peers) -> Result<()> {
+pub async fn build_raft_cluster(peers: Peers) -> Result<()> {
     set_custom_formatter(CustomFormatter::<LogEntry, HashStore>::new());
 
     let mut raft_handles = vec![];
+    let should_be_leader = peers.len() <= 1;
 
     for (node_id, _) in peers.iter() {
-        let raft_handle = run_raft(&node_id, peers.clone())?;
+        let raft_handle = run_raft(&node_id, peers.clone(), should_be_leader)?;
         raft_handles.push(raft_handle);
         println!("Node {} starting...", node_id);
     }
@@ -87,7 +79,7 @@ pub async fn run_rafts(peers: Peers) -> Result<()> {
     Ok(())
 }
 
-pub async fn spawn_extra_node(peer_addr: &str, raft_addr: &str) -> Result<JoinHandle<Result<()>>> {
+pub async fn spawn_extra_node(raft_addr: &str, peer_addr: &str) -> Result<JoinHandle<Result<()>>> {
     let logger = Arc::new(Slogger {
         slog: build_logger(),
     });
@@ -99,8 +91,15 @@ pub async fn spawn_extra_node(peer_addr: &str, raft_addr: &str) -> Result<JoinHa
     let cfg = build_config();
     let store = HashStore::new();
 
-    let raft = Raft::new_follower(node_id, raft_addr, store, cfg, None, logger)
-        .expect("Raft build failed!");
+    let raft = Raft::bootstrap(
+        node_id,
+        raft_addr,
+        store,
+        cfg,
+        Some(join_ticket.peers.clone().into()),
+        logger,
+    )
+    .expect("Raft build failed!");
 
     RAFTS.lock().unwrap().insert(node_id, raft.clone());
 

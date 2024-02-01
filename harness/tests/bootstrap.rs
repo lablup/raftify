@@ -3,14 +3,14 @@ use tokio::time::sleep;
 
 use harness::{
     constant::{ONE_NODE_EXAMPLE, RAFT_ADDRS, THREE_NODE_EXAMPLE},
-    raft_server::{run_rafts, spawn_extra_node, RAFTS},
+    raft::{build_raft_cluster, spawn_extra_node, RAFTS},
     utils::{load_peers, wait_for_until_cluster_size_increase},
 };
 
 #[tokio::test]
 pub async fn test_static_bootstrap() {
     let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
-    let _raft_tasks = tokio::spawn(run_rafts(peers.clone()));
+    let _raft_tasks = tokio::spawn(build_raft_cluster(peers.clone()));
 
     sleep(Duration::from_secs(1)).await;
 
@@ -29,16 +29,16 @@ pub async fn test_static_bootstrap() {
 #[tokio::test]
 pub async fn test_dynamic_bootstrap() {
     let peers = load_peers(ONE_NODE_EXAMPLE).await.unwrap();
-    let _raft_tasks = tokio::spawn(run_rafts(peers.clone()));
+    let _raft_tasks = tokio::spawn(build_raft_cluster(peers.clone()));
     sleep(Duration::from_secs(1)).await;
 
-    tokio::spawn(spawn_extra_node(RAFT_ADDRS[0], "127.0.0.1:60062"))
+    tokio::spawn(spawn_extra_node("127.0.0.1:60062", RAFT_ADDRS[0]))
         .await
         .unwrap()
         .unwrap();
     sleep(Duration::from_secs(1)).await;
 
-    tokio::spawn(spawn_extra_node(RAFT_ADDRS[0], "127.0.0.1:60063"))
+    tokio::spawn(spawn_extra_node("127.0.0.1:60063", RAFT_ADDRS[0]))
         .await
         .unwrap()
         .unwrap();

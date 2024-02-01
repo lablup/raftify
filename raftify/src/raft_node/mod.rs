@@ -896,11 +896,11 @@ impl<
                 .unwrap();
             }
             LocalRequestMsg::AddPeer { id, addr, chan } => {
-                self.add_peer(id, addr).await;
+                self.add_peer(id, addr).await?;
                 chan.send(LocalResponseMsg::AddPeer {}).unwrap();
             }
             LocalRequestMsg::AddPeers { peers, chan } => {
-                self.add_peers(peers).await;
+                self.add_peers(peers).await?;
                 chan.send(LocalResponseMsg::AddPeers {}).unwrap();
             }
             LocalRequestMsg::Store { chan } => {

@@ -8,7 +8,8 @@ use std::{fs, time::Duration};
 use tokio::time::sleep;
 use toml;
 
-use crate::raft_server::Raft;
+use crate::constant::ZERO_NODE_EXAMPLE;
+use crate::raft::Raft;
 
 pub fn build_logger() -> slog::Logger {
     let decorator = slog_term::TermDecorator::new().build();
@@ -43,8 +44,12 @@ pub struct TomlInnerRaftConfig {
     pub peers: Vec<TomlRaftPeer>,
 }
 
-pub async fn load_peers(filename: &str) -> Result<Peers, Box<dyn std::error::Error>> {
-    let path = Path::new("fixtures").join(filename);
+pub async fn load_peers(example_filename: &str) -> Result<Peers, Box<dyn std::error::Error>> {
+    if example_filename == ZERO_NODE_EXAMPLE {
+        return Ok(Peers::with_empty());
+    }
+
+    let path = Path::new("fixtures").join(example_filename);
     let config_str = fs::read_to_string(path)?;
 
     let raft_config: TomlRaftConfig = toml::from_str(&config_str)?;
