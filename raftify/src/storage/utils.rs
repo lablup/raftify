@@ -35,7 +35,7 @@ pub fn clear_storage_path(log_dir_path: &str) -> Result<()> {
 pub fn ensure_directory_exist(dir_pth: &str) -> Result<()> {
     let dir_pth: &Path = Path::new(&dir_pth);
 
-    if !fs::metadata(dir_pth).is_ok() {
+    if fs::metadata(dir_pth).is_err() {
         fs::create_dir_all(dir_pth)?;
     }
     Ok(())

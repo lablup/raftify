@@ -125,15 +125,12 @@ impl RaftService for RaftServer {
                         ..Default::default()
                     }))
                 }
-                RequestIdResponseResult::WrongLeader {
-                    leader_addr,
-                    ..
-                } => {
+                RequestIdResponseResult::WrongLeader { leader_addr, .. } => {
                     let mut client = create_client(leader_addr).await.unwrap();
                     let reply = client.request_id(request_args).await?.into_inner();
 
                     Ok(Response::new(reply))
-                },
+                }
             },
             _ => unreachable!(),
         }
@@ -185,10 +182,7 @@ impl RaftService for RaftServer {
                                     as i32;
                             reply.error = e.to_string().as_bytes().to_vec();
                         }
-                        ConfChangeResponseResult::WrongLeader {
-                            leader_addr,
-                            ..
-                        } => {
+                        ConfChangeResponseResult::WrongLeader { leader_addr, .. } => {
                             reply.result_type =
                                 raft_service::ChangeConfigResultType::ChangeConfigWrongLeader
                                     as i32;
@@ -262,10 +256,7 @@ impl RaftService for RaftServer {
                 match result {
                     ResponseResult::Success => Ok(Response::new(raft_service::Empty {})),
                     ResponseResult::Error(_) => Ok(Response::new(raft_service::Empty {})),
-                    ResponseResult::WrongLeader {
-                        leader_addr,
-                        ..
-                    } => {
+                    ResponseResult::WrongLeader { leader_addr, .. } => {
                         // TODO: Handle this kind of errors
                         let mut client = create_client(leader_addr).await.unwrap();
                         let _ = client

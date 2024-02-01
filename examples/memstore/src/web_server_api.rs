@@ -14,7 +14,7 @@ async fn put(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, String)>)
         key: path.0,
         value: path.1.clone(),
     };
-    data.1.raft_node.propose(log_entry.encode().unwrap()).await;
+    data.1.raft_node.propose(log_entry.encode().unwrap()).await.unwrap();
 
     "OK".to_string()
 }

@@ -1,9 +1,5 @@
 use std::{fmt, marker::PhantomData};
 
-use jopemachine_raft::eraftpb::ConfChangeV2;
-
-use crate::raft_service;
-
 use super::{AbstractLogEntry, AbstractStateMachine, Error, HeedStorage, Peers};
 
 pub enum ResponseMessage<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
@@ -59,35 +55,16 @@ pub enum RequestIdResponseResult {
 
 #[derive(Debug)]
 pub enum ServerResponseMsg {
-    ReportUnreachable {
-        result: ResponseResult,
-    },
-    DebugNode {
-        result_json: String,
-    },
-    GetPeers {
-        peers: Peers,
-    },
-    SendMessage {
-        result: ResponseResult,
-    },
+    ReportUnreachable { result: ResponseResult },
+    DebugNode { result_json: String },
+    GetPeers { peers: Peers },
+    SendMessage { result: ResponseResult },
     CreateSnapshot {},
 
-    RerouteMessageResponse {
-        typ: i32,
-        propose_response: raft_service::Empty,
-        conf_change_response: Option<raft_service::ChangeConfigResponse>,
-    },
     // Rerouting available
-    Propose {
-        result: ResponseResult,
-    },
-    ConfigChange {
-        result: ConfChangeResponseResult,
-    },
-    RequestId {
-        result: RequestIdResponseResult,
-    },
+    Propose { result: ResponseResult },
+    ConfigChange { result: ConfChangeResponseResult },
+    RequestId { result: RequestIdResponseResult },
 }
 
 pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
@@ -105,11 +82,11 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
     JoinCluster {},
     SendMessage {},
     DebugNode { result_json: String },
+    _Phantom(PhantomData<LogEntry>),
 
     // Rerouting available
     Propose { result: ResponseResult },
     ConfigChange { result: ConfChangeResponseResult },
-    _Phantom(PhantomData<LogEntry>),
 }
 
 impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> fmt::Debug

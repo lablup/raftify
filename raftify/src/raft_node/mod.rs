@@ -241,10 +241,7 @@ impl<
             LocalResponseMsg::Propose { result } => match result {
                 ResponseResult::Success => (),
                 ResponseResult::Error(e) => return Err(e),
-                ResponseResult::WrongLeader {
-                    leader_addr,
-                    ..
-                } => {
+                ResponseResult::WrongLeader { leader_addr, .. } => {
                     let mut client = create_client(leader_addr).await?;
                     client
                         .propose(Request::new(ProposeArgs { msg: proposal }))
@@ -269,10 +266,7 @@ impl<
         let resp = rx.await.unwrap();
         match resp {
             LocalResponseMsg::ConfigChange { result } => match result {
-                ConfChangeResponseResult::WrongLeader {
-                    leader_addr,
-                    ..
-                } => {
+                ConfChangeResponseResult::WrongLeader { leader_addr, .. } => {
                     let mut client = create_client(leader_addr).await.unwrap();
                     let res = client.change_config(conf_change.clone()).await.unwrap();
 
@@ -629,27 +623,25 @@ impl<
 
         let peer_addr = ticket.leader_addr;
 
-        loop {
-            let mut leader_client =
-                RaftServiceClient::connect(format!("http://{}", peer_addr)).await?;
-            let response = leader_client
-                .change_config(change.clone())
-                .await?
-                .into_inner();
+        let mut leader_client =
+            RaftServiceClient::connect(format!("http://{}", peer_addr)).await?;
+        let response = leader_client
+            .change_config(change.clone())
+            .await?
+            .into_inner();
 
-            match response.result_type() {
-                ChangeConfigResultType::ChangeConfigSuccess => break Ok(()),
-                ChangeConfigResultType::ChangeConfigUnknownError => return Err(Error::JoinError),
-                ChangeConfigResultType::ChangeConfigRejected => {
-                    return Err(Error::Rejected("Join request rejected".to_string()))
-                }
-                ChangeConfigResultType::ChangeConfigTimeoutError => {
-                    return Err(Error::Timeout);
-                }
-                ChangeConfigResultType::ChangeConfigWrongLeader => {
-                    // Should be handled in RaftServiceClient
-                    unreachable!()
-                }
+        match response.result_type() {
+            ChangeConfigResultType::ChangeConfigSuccess => Ok(()),
+            ChangeConfigResultType::ChangeConfigUnknownError => Err(Error::JoinError),
+            ChangeConfigResultType::ChangeConfigRejected => {
+                Err(Error::Rejected("Join request rejected".to_string()))
+            }
+            ChangeConfigResultType::ChangeConfigTimeoutError => {
+                Err(Error::Timeout)
+            }
+            ChangeConfigResultType::ChangeConfigWrongLeader => {
+                // Should be handled in RaftServiceClient
+                unreachable!()
             }
         }
     }
@@ -886,10 +878,14 @@ impl<
 
             match chan {
                 ResponseSender::Local(chan) => chan
-                    .send(LocalResponseMsg::ConfigChange { result: wrong_leader_result })
+                    .send(LocalResponseMsg::ConfigChange {
+                        result: wrong_leader_result,
+                    })
                     .unwrap(),
                 ResponseSender::Server(chan) => chan
-                    .send(ServerResponseMsg::ConfigChange { result: wrong_leader_result })
+                    .send(ServerResponseMsg::ConfigChange {
+                        result: wrong_leader_result,
+                    })
                     .unwrap(),
             }
         } else {

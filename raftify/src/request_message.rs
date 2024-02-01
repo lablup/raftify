@@ -36,7 +36,7 @@ pub enum ServerRequestMsg {
     },
 }
 
-/// Request type used for communication (method calls) between RaftFacade and RaftNode
+/// Request type used for communication (method calls) between user side and RaftNode
 pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
     IsLeader {
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,

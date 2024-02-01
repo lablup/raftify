@@ -28,7 +28,7 @@ pub fn dump_peers(path: &str, peers: HashMap<u64, SocketAddr>, logger: slog::Log
 
     let mut persisted_peers_configs: HashMap<u64, SocketAddr> = HashMap::new();
 
-    for (_, entry) in entries.iter().enumerate() {
+    for entry in entries.iter() {
         let conf_change_v2 = match entry.get_entry_type() {
             EntryType::EntryConfChange => to_confchange_v2(ConfChange::decode(entry.get_data())?),
             EntryType::EntryConfChangeV2 => ConfChangeV2::decode(entry.get_data())?,
@@ -73,7 +73,7 @@ pub fn dump_peers(path: &str, peers: HashMap<u64, SocketAddr>, logger: slog::Log
 
     for (k, v) in diffs_to_remove.into_iter() {
         let mut cs = ConfChangeSingle::default();
-        cs.set_node_id(*k as u64);
+        cs.set_node_id(*k);
         cs.set_change_type(ConfChangeType::RemoveNode);
         conf_changes.push(cs);
         cc_addrs.push(*v);
@@ -82,13 +82,13 @@ pub fn dump_peers(path: &str, peers: HashMap<u64, SocketAddr>, logger: slog::Log
     // TODO: Support AddLearnerNode
     for (k, v) in diffs_to_add.into_iter() {
         let mut cs = ConfChangeSingle::default();
-        cs.set_node_id(*k as u64);
+        cs.set_node_id(*k);
         cs.set_change_type(ConfChangeType::AddNode);
         conf_changes.push(cs);
         cc_addrs.push(*v);
     }
 
-    if conf_changes.len() >= 1 {
+    if !conf_changes.is_empty() {
         new_cc_v2.set_context(serialize(&cc_addrs)?);
         new_cc_v2.set_changes(conf_changes);
 
