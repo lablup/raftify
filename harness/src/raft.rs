@@ -78,7 +78,7 @@ pub async fn build_raft_cluster(peers: Peers) -> Result<()> {
     Ok(())
 }
 
-// Note that this function lock RAFTS, so it should not be called while holding RAFTS lock.
+// NOTE: this function lock RAFTS, so it should not be called while holding RAFTS lock.
 pub async fn spawn_extra_node(raft_addr: &str, peer_addr: &str) -> Result<JoinHandle<Result<()>>> {
     let logger = Arc::new(Slogger {
         slog: build_logger(),

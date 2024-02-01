@@ -9,7 +9,7 @@ def load_peers(filename: str) -> Peers:
     cfg = tomli.loads(path.read_text())["raft"]["peers"]
 
     return Peers(
-        {int(entry["node_id"]): f"{entry['host']}:{entry['port']}" for entry in cfg}
+        {int(entry["node_id"]): f"{entry['ip']}:{entry['port']}" for entry in cfg}
     )
 
 

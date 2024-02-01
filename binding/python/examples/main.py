@@ -29,7 +29,7 @@ def load_peers() -> Peers:
     cfg = tomli.loads(path.read_text())["raft"]["peers"]
 
     return Peers(
-        {int(entry["node_id"]): f"{entry['host']}:{entry['port']}" for entry in cfg}
+        {int(entry["node_id"]): f"{entry['ip']}:{entry['port']}" for entry in cfg}
     )
 
 
@@ -54,13 +54,13 @@ class WebServer:
         self.app = web.Application()
         self.app.add_routes(routes)
         self.app["state"] = state
-        self.host, self.port = addr.split(":")
+        self.ip, self.port = addr.split(":")
         self.runner = None
 
     async def __aenter__(self):
         self.runner = web.AppRunner(self.app)
         await self.runner.setup()
-        self.site = web.TCPSite(self.runner, self.host, self.port)
+        self.site = web.TCPSite(self.runner, self.ip, self.port)
         await self.site.start()
         return self.runner
 

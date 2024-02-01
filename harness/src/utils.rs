@@ -4,6 +4,7 @@ use slog::{o, Drain};
 use slog_envlogger::LogBuilder;
 use std::net::SocketAddr;
 use std::path::Path;
+use std::str::FromStr;
 use std::{fs, time::Duration};
 use tokio::time::sleep;
 use toml;
@@ -28,7 +29,8 @@ pub fn build_logger() -> slog::Logger {
 
 #[derive(Deserialize, Debug)]
 pub struct TomlRaftPeer {
-    pub host: String,
+    pub ip: String,
+    pub role: String,
     pub port: u16,
     pub node_id: u64,
 }
@@ -56,13 +58,9 @@ pub async fn load_peers(example_filename: &str) -> Result<Peers, Box<dyn std::er
     let mut peers = Peers::with_empty();
 
     for peer_info in raft_config.raft.peers {
-        let addr = SocketAddr::new(peer_info.host.parse().unwrap(), peer_info.port);
-
-        if peer_info.node_id == 1 {
-            peers.add_peer(peer_info.node_id, addr, Some(InitialRole::Leader));
-        } else {
-            peers.add_peer(peer_info.node_id, addr, Some(InitialRole::Voter));
-        }
+        let addr = SocketAddr::new(peer_info.ip.parse().unwrap(), peer_info.port);
+        let role = InitialRole::from_str(&peer_info.role).expect("Invalid role!");
+        peers.add_peer(peer_info.node_id, addr, Some(role));
     }
 
     Ok(peers)

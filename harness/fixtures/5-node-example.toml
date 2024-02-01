@@ -1,24 +1,29 @@
 [[raft.peers]]
-host = "127.0.0.1"
+ip = "127.0.0.1"
 port = 60061
 node_id = 1
+role = "leader"
 
 [[raft.peers]]
-host = "127.0.0.1"
+ip = "127.0.0.1"
 port = 60062
 node_id = 2
+role = "voter"
 
 [[raft.peers]]
-host = "127.0.0.1"
+ip = "127.0.0.1"
 port = 60063
 node_id = 3
+role = "voter"
 
 [[raft.peers]]
-host = "127.0.0.1"
+ip = "127.0.0.1"
 port = 60064
 node_id = 4
+role = "voter"
 
 [[raft.peers]]
-host = "127.0.0.1"
+ip = "127.0.0.1"
 port = 60065
 node_id = 5
+role = "voter"
