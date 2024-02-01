@@ -35,10 +35,11 @@ impl FromStr for InitialRole {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "Leader" => Ok(InitialRole::Leader),
-            "Voter" => Ok(InitialRole::Voter),
-            "Learner" => Ok(InitialRole::Learner),
+        let s = s.to_lowercase();
+        match s.as_str() {
+            "leader" => Ok(InitialRole::Leader),
+            "voter" => Ok(InitialRole::Voter),
+            "learner" => Ok(InitialRole::Learner),
             _ => Err(()),
         }
     }

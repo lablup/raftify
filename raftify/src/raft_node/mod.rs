@@ -457,7 +457,7 @@ impl<
             .clone()
             .inner
             .into_iter()
-            .filter(|(_, peer)| peer.role == InitialRole::Voter)
+            .filter(|(_, peer)| peer.role == InitialRole::Voter || peer.role == InitialRole::Leader)
             .map(|(key, _)| key)
             .collect::<Vec<_>>();
 

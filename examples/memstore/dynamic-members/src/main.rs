@@ -64,7 +64,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 .await
                 .unwrap();
             let node_id = ticket.reserved_id;
-            println!("ticket.peers {:?}", ticket.peers);
             cfg.initial_peers = Some(ticket.peers.clone().into());
 
             let raft = Raft::bootstrap(
