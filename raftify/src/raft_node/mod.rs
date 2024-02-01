@@ -25,6 +25,7 @@ use response_sender::ResponseSender;
 use utils::inspect_raftnode;
 
 use crate::{
+    create_client,
     error::{Result, SendMessageError},
     raft::{
         eraftpb::{
@@ -34,7 +35,7 @@ use crate::{
         formatter::{format_confchangev2, format_message},
         raw_node::RawNode,
     },
-    raft_service::ChangeConfigResultType,
+    raft_service::{self, ChangeConfigResultType, ProposeArgs},
     request_message::{LocalRequestMsg, SelfMessage, ServerRequestMsg},
     response_message::{
         ConfChangeResponseResult, LocalResponseMsg, RequestIdResponseResult, ResponseMessage,
@@ -225,17 +226,33 @@ impl<
         }
     }
 
-    pub async fn propose(&self, proposal: Vec<u8>) {
+    pub async fn propose(&self, proposal: Vec<u8>) -> Result<()> {
         let (tx, rx) = oneshot::channel();
         self.local_sender
-            .send(LocalRequestMsg::Propose { proposal, chan: tx })
+            .send(LocalRequestMsg::Propose {
+                proposal: proposal.clone(),
+                chan: tx,
+            })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
         match resp {
-            LocalResponseMsg::Propose {} => (),
+            LocalResponseMsg::Propose { result } => match result {
+                ResponseResult::Success => (),
+                ResponseResult::Error(_) => (),
+                ResponseResult::WrongLeader {
+                    leader_id,
+                    leader_addr,
+                } => {
+                    let mut client = create_client(leader_addr).await?;
+                    client
+                        .propose(Request::new(ProposeArgs { msg: proposal }))
+                        .await?;
+                }
+            },
             _ => unreachable!(),
         }
+        Ok(())
     }
 
     pub async fn get_cluster_size(&self) -> usize {
@@ -620,7 +637,11 @@ impl<
         if let Some(sender) = self.response_senders.remove(&response_seq) {
             match sender {
                 ResponseSender::Local(sender) => {
-                    sender.send(LocalResponseMsg::Propose {}).unwrap();
+                    sender
+                        .send(LocalResponseMsg::Propose {
+                            result: ResponseResult::Success,
+                        })
+                        .unwrap();
                 }
                 ResponseSender::Server(sender) => {
                     sender
@@ -781,7 +802,13 @@ impl<
                 .to_string();
 
             let raft_response: ResponseMessage<LogEntry, FSM> = match chan {
-                ResponseSender::Local(_) => LocalResponseMsg::Propose {}.into(),
+                ResponseSender::Local(_) => LocalResponseMsg::Propose {
+                    result: ResponseResult::WrongLeader {
+                        leader_id,
+                        leader_addr,
+                    },
+                }
+                .into(),
                 ResponseSender::Server(_) => ServerResponseMsg::Propose {
                     result: ResponseResult::WrongLeader {
                         leader_id,
@@ -979,6 +1006,23 @@ impl<
             }
         }
 
+        Ok(())
+    }
+
+    pub async fn handle_rerouting_msg(&mut self, message: ServerRequestMsg) -> Result<()> {
+        match message {
+            ServerRequestMsg::ChangeConfig { conf_change, chan } => {
+                self.handle_confchange_request(conf_change, ResponseSender::Server(chan))
+                    .await?;
+            }
+            ServerRequestMsg::Propose { proposal, chan } => {
+                self.handle_propose_request(proposal, ResponseSender::Server(chan))
+                    .await?;
+            }
+            _ => {
+                unimplemented!()
+            }
+        }
         Ok(())
     }
 

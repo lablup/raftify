@@ -25,7 +25,13 @@ use super::{
     response_message::{RequestIdResponseResult, ServerResponseMsg},
     Config, Error,
 };
-use crate::raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
+use crate::{
+    create_client,
+    raft::eraftpb::{ConfChangeV2, Message as RaftMessage},
+    raft_service::{ProposeArgs},
+    response_message::ResponseResult,
+    RaftServiceClient,
+};
 
 #[derive(Clone)]
 pub struct RaftServer {
@@ -201,7 +207,7 @@ impl RaftService for RaftServer {
         let (tx, rx) = oneshot::channel();
         match sender
             .send(ServerRequestMsg::Propose {
-                proposal: request_args.msg,
+                proposal: request_args.msg.clone(),
                 chan: tx,
             })
             .await
@@ -212,8 +218,21 @@ impl RaftService for RaftServer {
 
         let response = rx.await.unwrap();
         match response {
-            ServerResponseMsg::Propose { result: _result } => {
-                Ok(Response::new(raft_service::Empty {}))
+            ServerResponseMsg::Propose { result } => {
+                match result {
+                    ResponseResult::Success => Ok(Response::new(raft_service::Empty {})),
+                    ResponseResult::Error(_) => Ok(Response::new(raft_service::Empty {})),
+                    ResponseResult::WrongLeader {
+                        leader_id,
+                        leader_addr,
+                    } => {
+                        // TODO: Handle this kind of errors
+                        let mut client = create_client(leader_addr).await.unwrap();
+                        let _ = client.propose(ProposeArgs {msg: request_args.msg}).await?;
+
+                        Ok(Response::new(raft_service::Empty {}))
+                    }
+                }
             }
             _ => unreachable!(),
         }

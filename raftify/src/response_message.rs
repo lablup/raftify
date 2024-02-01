@@ -1,5 +1,9 @@
 use std::{fmt, marker::PhantomData};
 
+use jopemachine_raft::eraftpb::ConfChangeV2;
+
+use crate::raft_service;
+
 use super::{AbstractLogEntry, AbstractStateMachine, Error, HeedStorage, Peers};
 
 pub enum ResponseMessage<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
@@ -55,16 +59,35 @@ pub enum RequestIdResponseResult {
 
 #[derive(Debug)]
 pub enum ServerResponseMsg {
-    MemberBootstrapReady { result: ResponseResult },
-    ClusterBootstrapReady { result: ResponseResult },
-    Propose { result: ResponseResult },
-    ConfigChange { result: ConfChangeResponseResult },
-    RequestId { result: RequestIdResponseResult },
-    ReportUnreachable { result: ResponseResult },
-    DebugNode { result_json: String },
-    GetPeers { peers: Peers },
-    SendMessage { result: ResponseResult },
+    ReportUnreachable {
+        result: ResponseResult,
+    },
+    DebugNode {
+        result_json: String,
+    },
+    GetPeers {
+        peers: Peers,
+    },
+    SendMessage {
+        result: ResponseResult,
+    },
     CreateSnapshot {},
+
+    RerouteMessageResponse {
+        typ: i32,
+        propose_response: raft_service::Empty,
+        conf_change_response: Option<raft_service::ChangeConfigResponse>,
+    },
+    // Rerouting available
+    Propose {
+        result: ResponseResult,
+    },
+    ConfigChange {
+        result: ConfChangeResponseResult,
+    },
+    RequestId {
+        result: RequestIdResponseResult,
+    },
 }
 
 pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
@@ -77,13 +100,15 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
     Store { store: FSM },
     Storage { storage: HeedStorage },
     GetClusterSize { size: usize },
-    ChangeConfig { result: ConfChangeResponseResult },
     Quit {},
     MakeSnapshot {},
-    Propose {},
-    DebugNode { result_json: String },
     JoinCluster {},
     SendMessage {},
+    DebugNode { result_json: String },
+
+    // Rerouting available
+    Propose { result: ResponseResult },
+    ChangeConfig { result: ConfChangeResponseResult },
     _Phantom(PhantomData<LogEntry>),
 }
 
