@@ -104,8 +104,7 @@ let raft = Raft::bootstrap(
     node_id,
     raft_addr,
     store.clone(),
-    cfg,
-    peers.clone(),
+    raft_config,
     logger.clone(),
 )?;
 
@@ -130,16 +129,15 @@ let raft = Raft::bootstrap(
     join_ticket.reserved_id,
     raft_addr,
     store.clone(),
-    cfg,
-    peers.clone(),
+    raft_config,
     logger.clone(),
 )?;
 
 let raft_handle = tokio::spawn(raft.clone().run());
-raft.join(request_id_resp).await;
+raft.join(join_ticket).await;
 
 // ...
-tokio::try_join!(raft_handle)?;
+tokio::try_join!(join_ticket)?;
 ```
 
 ### Manipulate FSM by RaftServiceClient
@@ -170,12 +168,12 @@ If you want to operate FSM locally, use the RaftNode interface of the Raft objec
 let mut raft_node = raft.get_raft_node();
 
 raft_node.propose(LogEntry::Insert {
-    key: 1,
+    key: 123,
     value: "test".to_string(),
 }.encode().unwrap()).await;
 ```
 
-It also provides a variety of other very useful APIs. Take a look at [the document]().
+It also provides a variety of other very useful APIs. Take a look at [the document](https://docs.rs/raftify/latest/raftify/).
 
 ## Debugging
 
