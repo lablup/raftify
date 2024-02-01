@@ -568,6 +568,21 @@ impl<
         Ok(())
     }
 
+    pub async fn make_snapshot(&mut self, index: u64, term: u64) -> Result<()> {
+        self.last_snapshot_created = Instant::now();
+        let snapshot_data = self.fsm.snapshot().await?;
+
+        let last_applied = self.raw_node.raft.raft_log.applied;
+        let store = self.raw_node.mut_store();
+        store.compact(last_applied)?;
+        store.create_snapshot(snapshot_data, index, term)?;
+        Ok(())
+    }
+
+    pub async fn inspect(&self) -> Result<String> {
+        inspect_raftnode(&self.raw_node)
+    }
+
     async fn send_message(
         message: RaftMessage,
         peers: Arc<Mutex<Peers>>,
@@ -705,17 +720,6 @@ impl<
         Ok(())
     }
 
-    pub async fn make_snapshot(&mut self, index: u64, term: u64) -> Result<()> {
-        self.last_snapshot_created = Instant::now();
-        let snapshot_data = self.fsm.snapshot().await?;
-
-        let last_applied = self.raw_node.raft.raft_log.applied;
-        let store = self.raw_node.mut_store();
-        store.compact(last_applied)?;
-        store.create_snapshot(snapshot_data, index, term)?;
-        Ok(())
-    }
-
     async fn handle_committed_config_change_entry(&mut self, entry: &Entry) -> Result<()> {
         // Block already applied entries (* Used in static bootstrap)
         if entry.get_context().is_empty() {
@@ -836,10 +840,6 @@ impl<
         }
 
         Ok(())
-    }
-
-    pub async fn inspect(&self) -> Result<String> {
-        inspect_raftnode(&self.raw_node)
     }
 
     async fn handle_propose_request(
@@ -967,7 +967,7 @@ impl<
         Ok(())
     }
 
-    pub async fn handle_local_request_msg(
+    async fn handle_local_request_msg(
         &mut self,
         message: LocalRequestMsg<LogEntry, FSM>,
     ) -> Result<()> {
@@ -1086,7 +1086,7 @@ impl<
         Ok(())
     }
 
-    pub async fn handle_server_request_msg(&mut self, message: ServerRequestMsg) -> Result<()> {
+    async fn handle_server_request_msg(&mut self, message: ServerRequestMsg) -> Result<()> {
         match message {
             ServerRequestMsg::ChangeConfig { conf_change, chan } => {
                 self.handle_confchange_request(conf_change, ResponseSender::Server(chan))
