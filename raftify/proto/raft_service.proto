@@ -6,12 +6,14 @@ import "eraftpb.proto";
 service RaftService {
   rpc RequestId(RequestIdArgs) returns (RequestIdResponse) {}
   rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
-  rpc Propose(ProposeArgs) returns (Empty) {}
+  rpc Propose(ProposeArgs) returns (ProposeResponse) {}
   rpc SendMessage(eraftpb.Message) returns (Empty) {}
   rpc GetPeers(Empty) returns (GetPeersResponse) {}
   rpc DebugNode(Empty) returns (DebugNodeResponse) {}
   rpc CreateSnapshot(Empty) returns (Empty) {}
 }
+
+// Common
 
 message Empty {}
 
@@ -27,13 +29,17 @@ message ProposeArgs {
   bytes msg     = 1;
 }
 
+message ProposeResponse {
+  bytes error   = 1;
+}
+
 // Used in GetPeers
 
 message GetPeersResponse {
   string peers_json = 1;
 }
 
-// Used in Dynamic Member's Bootstrap
+// Used in Dynamic Membership Change
 
 message RequestIdArgs {
   string raft_addr = 1;
@@ -64,6 +70,8 @@ message ChangeConfigResponse {
   bytes peers                        = 3; // Used in JoinSuccess
   bytes error                        = 4; // Used in Handling error
 }
+
+// Debug Node
 
 message DebugNodeResponse {
   string result_json = 1;

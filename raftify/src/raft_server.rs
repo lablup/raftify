@@ -234,7 +234,7 @@ impl RaftService for RaftServer {
     async fn propose(
         &self,
         request: Request<raft_service::ProposeArgs>,
-    ) -> Result<Response<raft_service::Empty>, Status> {
+    ) -> Result<Response<raft_service::ProposeResponse>, Status> {
         let request_args = request.into_inner();
         let sender = self.snd.clone();
 
@@ -254,8 +254,14 @@ impl RaftService for RaftServer {
         match response {
             ServerResponseMsg::Propose { result } => {
                 match result {
-                    ResponseResult::Success => Ok(Response::new(raft_service::Empty {})),
-                    ResponseResult::Error(_) => Ok(Response::new(raft_service::Empty {})),
+                    ResponseResult::Success => Ok(Response::new(raft_service::ProposeResponse {
+                        ..Default::default()
+                    })),
+                    ResponseResult::Error(error) => {
+                        Ok(Response::new(raft_service::ProposeResponse {
+                            error: error.to_string().as_bytes().to_vec(),
+                        }))
+                    }
                     ResponseResult::WrongLeader { leader_addr, .. } => {
                         // TODO: Handle this kind of errors
                         let mut client = create_client(leader_addr).await.unwrap();
@@ -265,7 +271,9 @@ impl RaftService for RaftServer {
                             })
                             .await?;
 
-                        Ok(Response::new(raft_service::Empty {}))
+                        Ok(Response::new(raft_service::ProposeResponse {
+                            ..Default::default()
+                        }))
                     }
                 }
             }
