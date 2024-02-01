@@ -55,16 +55,16 @@ pub enum RequestIdResponseResult {
 
 #[derive(Debug)]
 pub enum ServerResponseMsg {
-    MemberBootstrapReady { result: ResponseResult },
-    ClusterBootstrapReady { result: ResponseResult },
-    Propose { result: ResponseResult },
-    ConfigChange { result: ConfChangeResponseResult },
-    RequestId { result: RequestIdResponseResult },
     ReportUnreachable { result: ResponseResult },
     DebugNode { result_json: String },
     GetPeers { peers: Peers },
     SendMessage { result: ResponseResult },
     CreateSnapshot {},
+
+    // Rerouting available
+    Propose { result: ResponseResult },
+    ConfigChange { result: ConfChangeResponseResult },
+    RequestId { result: RequestIdResponseResult },
 }
 
 pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
@@ -77,15 +77,16 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
     Store { store: FSM },
     Storage { storage: HeedStorage },
     GetClusterSize { size: usize },
-    ChangeConfig { result: ConfChangeResponseResult },
     Quit {},
     MakeSnapshot {},
-    Propose {},
-    DebugNode { result_json: String },
     JoinCluster {},
     SendMessage {},
-    SetBootstrapDone {},
+    DebugNode { result_json: String },
     _Phantom(PhantomData<LogEntry>),
+
+    // Rerouting available
+    Propose { result: ResponseResult },
+    ConfigChange { result: ConfChangeResponseResult },
 }
 
 impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> fmt::Debug

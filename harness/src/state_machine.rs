@@ -1,6 +1,5 @@
-use async_trait::async_trait;
 use bincode::{deserialize, serialize};
-use raftify::{AbstractLogEntry, AbstractStateMachine, Result};
+use raftify::{async_trait, AbstractLogEntry, AbstractStateMachine, Result};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,

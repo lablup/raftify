@@ -8,7 +8,7 @@ use std::{fs, time::Duration};
 use tokio::time::sleep;
 use toml;
 
-use crate::raft_server::Raft;
+use crate::{constant::ZERO_NODE_EXAMPLE, raft::Raft};
 
 pub fn build_logger() -> slog::Logger {
     let decorator = slog_term::TermDecorator::new().build();
@@ -43,8 +43,12 @@ pub struct TomlInnerRaftConfig {
     pub peers: Vec<TomlRaftPeer>,
 }
 
-pub async fn load_peers(filename: &str) -> Result<Peers, Box<dyn std::error::Error>> {
-    let path = Path::new("fixtures").join(filename);
+pub async fn load_peers(example_filename: &str) -> Result<Peers, Box<dyn std::error::Error>> {
+    if example_filename == ZERO_NODE_EXAMPLE {
+        return Ok(Peers::with_empty());
+    }
+
+    let path = Path::new("fixtures").join(example_filename);
     let config_str = fs::read_to_string(path)?;
 
     let raft_config: TomlRaftConfig = toml::from_str(&config_str)?;
@@ -60,7 +64,10 @@ pub async fn load_peers(filename: &str) -> Result<Peers, Box<dyn std::error::Err
 }
 
 pub async fn wait_for_until_cluster_size_increase(raft: Raft, target: usize) {
-    println!("Waiting for cluster size to increase to {}...", target);
+    raft.logger.debug(&format!(
+        "Waiting for cluster size to increase to... {}",
+        target
+    ));
 
     loop {
         let size = raft.cluster_size().await;
@@ -75,7 +82,10 @@ pub async fn wait_for_until_cluster_size_increase(raft: Raft, target: usize) {
 }
 
 pub async fn wait_for_until_cluster_size_decrease(raft: Raft, target: usize) {
-    println!("Waiting for cluster size to decrease to {}...", target);
+    raft.logger.debug(&format!(
+        "Waiting for cluster size to decrease to {}...",
+        target
+    ));
 
     loop {
         let size = raft.cluster_size().await;

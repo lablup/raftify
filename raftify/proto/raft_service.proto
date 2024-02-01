@@ -4,8 +4,6 @@ package raft_service;
 import "eraftpb.proto";
 
 service RaftService {
-  rpc MemberBootstrapReady(MemberBootstrapReadyArgs) returns (MemberBootstrapReadyResponse) {}
-  rpc ClusterBootstrapReady(Empty) returns (ClusterBootstrapReadyResponse) {}
   rpc RequestId(RequestIdArgs) returns (RequestIdResponse) {}
   rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
   rpc Propose(ProposeArgs) returns (Empty) {}
@@ -35,17 +33,6 @@ message GetPeersResponse {
   string peers_json = 1;
 }
 
-// Used in Static Member's Bootstrap
-message MemberBootstrapReadyArgs {
-  uint64 node_id                  = 1;
-}
-message MemberBootstrapReadyResponse {
-  ResultCode code                = 1;
-}
-message ClusterBootstrapReadyResponse {
-  ResultCode code                = 1;
-}
-
 // Used in Dynamic Member's Bootstrap
 
 message RequestIdArgs {
@@ -58,6 +45,7 @@ message RequestIdResponse{
   string leader_addr             = 3;
   uint64 reserved_id             = 4;
   bytes peers                    = 5;
+  bytes error                    = 6;
 }
 
 // Config Change
@@ -72,7 +60,9 @@ enum ChangeConfigResultType {
 
 message ChangeConfigResponse {
   ChangeConfigResultType result_type = 1;
-  bytes data                         = 2;
+  uint64 assigned_id                 = 2; // Used in JoinSuccess
+  bytes peers                        = 3; // Used in JoinSuccess
+  bytes error                        = 4; // Used in Handling error
 }
 
 message DebugNodeResponse {

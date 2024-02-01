@@ -1,31 +1,23 @@
-use raftify::{raft::logger::Slogger, AbstractLogEntry};
-use std::{sync::Arc, time::Duration};
+use raftify::AbstractLogEntry;
+use std::time::Duration;
 use tokio::time::sleep;
 
 use harness::{
     constant::{RAFT_ADDRS, THREE_NODE_EXAMPLE},
-    raft_server::{handle_bootstrap, run_rafts, spawn_extra_node, RAFTS},
+    raft::{build_raft_cluster, spawn_extra_node, RAFTS},
     state_machine::LogEntry,
-    utils::{build_logger, load_peers, wait_for_until_cluster_size_increase},
+    utils::{load_peers, wait_for_until_cluster_size_increase},
 };
 
 #[tokio::test]
 pub async fn test_data_replication() {
+    let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
+    let _raft_tasks = tokio::spawn(build_raft_cluster(peers.clone()));
+    sleep(Duration::from_secs(5)).await;
+
     {
-        let logger = Arc::new(Slogger {
-            slog: build_logger(),
-        });
-
-        let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
-        let _raft_tasks = tokio::spawn(run_rafts(peers.clone()));
-
-        sleep(Duration::from_secs(1)).await;
-
-        handle_bootstrap(peers, logger).await.unwrap();
-
         let mut rafts = RAFTS.lock().unwrap();
         let raft_1 = rafts.get(&1).unwrap();
-
         wait_for_until_cluster_size_increase(raft_1.clone(), 3).await;
 
         let entry = LogEntry::Insert {
@@ -35,10 +27,9 @@ pub async fn test_data_replication() {
         .encode()
         .unwrap();
 
-        raft_1.raft_node.propose(entry).await;
+        raft_1.raft_node.propose(entry).await.unwrap();
 
         sleep(Duration::from_secs(1)).await;
-
         // Data should be replicated to all nodes.
         for (_, raft) in rafts.iter_mut() {
             let store = raft.raft_node.store().await;
@@ -49,7 +40,7 @@ pub async fn test_data_replication() {
         sleep(Duration::from_secs(1)).await;
     }
 
-    tokio::spawn(spawn_extra_node(RAFT_ADDRS[0], "127.0.0.1:60064"));
+    tokio::spawn(spawn_extra_node("127.0.0.1:60064", RAFT_ADDRS[0]));
     sleep(Duration::from_secs(1)).await;
 
     {
@@ -75,8 +66,7 @@ pub async fn test_data_replication() {
         .encode()
         .unwrap();
 
-        raft_1.raft_node.propose(new_entry).await;
-
+        raft_1.raft_node.propose(new_entry).await.unwrap();
         sleep(Duration::from_secs(1)).await;
 
         // New entry data should be replicated to all nodes including new joined node.

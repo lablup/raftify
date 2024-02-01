@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, net::ToSocketAddrs};
+use std::{
+    collections::HashMap,
+    net::{SocketAddr, ToSocketAddrs},
+};
 
 use super::Peer;
+use crate::error::Result;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Peers {
@@ -11,6 +15,22 @@ pub struct Peers {
 impl Default for Peers {
     fn default() -> Self {
         Self::with_empty()
+    }
+}
+
+impl From<Peers> for HashMap<u64, SocketAddr> {
+    fn from(peers: Peers) -> Self {
+        peers.inner.into_iter().map(|(k, v)| (k, v.addr)).collect()
+    }
+}
+
+impl From<HashMap<u64, SocketAddr>> for Peers {
+    fn from(map: HashMap<u64, SocketAddr>) -> Self {
+        let inner = map
+            .into_iter()
+            .map(|(k, addr)| (k, Peer { addr, client: None }))
+            .collect();
+        Peers { inner }
     }
 }
 
@@ -66,6 +86,11 @@ impl Peers {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
         let peer = Peer::new(addr);
         self.inner.insert(id, peer);
+    }
+
+    pub async fn connect(&mut self, id: u64) -> Result<()> {
+        let peer = self.get_mut(&id).unwrap();
+        peer.connect().await
     }
 
     pub fn reserve_id(&mut self) -> u64 {

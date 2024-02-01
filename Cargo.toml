@@ -2,19 +2,19 @@
 resolver = "2"
 members = [
     "raftify",
+    "harness",
     "examples",
     "examples/memstore",
     "examples/memstore/dynamic-members",
     "examples/memstore/static-members",
-    "harness"
 ]
 default-members = [
     "raftify",
+    "harness",
     "examples",
     "examples/memstore",
     "examples/memstore/dynamic-members",
     "examples/memstore/static-members",
-    "harness"
 ]
 
 [workspace.package]

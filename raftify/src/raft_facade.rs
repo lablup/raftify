@@ -4,21 +4,18 @@ use std::{
     collections::HashMap,
     net::{SocketAddr, ToSocketAddrs},
     sync::Arc,
-    time::Duration,
 };
 use tokio::{
     signal,
     sync::{mpsc, oneshot},
-    time::sleep,
 };
-use tonic::Request;
 
 use super::{
     create_client,
     error::{Error, Result},
     raft_node::RaftNode,
     raft_server::RaftServer,
-    raft_service::{self, MemberBootstrapReadyArgs, ResultCode},
+    raft_service::{self, ResultCode},
     request_message::ServerRequestMsg,
     AbstractLogEntry, AbstractStateMachine, Config, LogStore, Peers,
 };
@@ -44,7 +41,7 @@ pub struct ClusterJoinTicket {
 impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync + 'static>
     Raft<LogEntry, FSM>
 {
-    pub fn bootstrap_cluster<A: ToSocketAddrs>(
+    pub fn bootstrap<A: ToSocketAddrs>(
         node_id: u64,
         raft_addr: A,
         fsm: FSM,
@@ -53,62 +50,20 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         logger: Arc<dyn Logger>,
     ) -> Result<Self> {
         let raft_addr = raft_addr.to_socket_addrs()?.next().unwrap();
-        let initial_peers = initial_peers.unwrap_or(Peers::new(node_id, raft_addr));
+        let should_be_leader = initial_peers.is_none();
+        let peers = initial_peers.unwrap_or(Peers::new(node_id, raft_addr));
 
         let (local_tx, local_rx) = mpsc::channel(100);
         let (server_tx, server_rx) = mpsc::channel(100);
-        let bootstrap_done = initial_peers.is_empty() || initial_peers.len() <= 1;
 
-        let raft_node = RaftNode::bootstrap_cluster(
+        let raft_node = RaftNode::bootstrap(
             node_id,
+            should_be_leader,
             fsm,
             config.clone(),
-            initial_peers,
+            peers,
             raft_addr,
             logger.clone(),
-            bootstrap_done,
-            server_rx,
-            server_tx.clone(),
-            local_rx,
-            local_tx.clone(),
-        )?;
-
-        let raft_server =
-            RaftServer::new(server_tx.clone(), raft_addr, config.clone(), logger.clone());
-
-        Ok(Self {
-            raft_addr,
-            server_tx: server_tx.clone(),
-            raft_node,
-            raft_server,
-            config,
-            logger,
-        })
-    }
-
-    pub fn new_follower<A: ToSocketAddrs>(
-        node_id: u64,
-        raft_addr: A,
-        fsm: FSM,
-        config: Config,
-        initial_peers: Option<Peers>,
-        logger: Arc<dyn Logger>,
-    ) -> Result<Self> {
-        let raft_addr = raft_addr.to_socket_addrs()?.next().unwrap();
-        let initial_peers = initial_peers.unwrap_or(Peers::new(node_id, raft_addr));
-
-        let (local_tx, local_rx) = mpsc::channel(100);
-        let (server_tx, server_rx) = mpsc::channel(100);
-        let bootstrap_done = initial_peers.is_empty() || initial_peers.len() <= 1;
-
-        let raft_node = RaftNode::new_follower(
-            node_id,
-            fsm,
-            config.clone(),
-            initial_peers,
-            raft_addr,
-            logger.clone(),
-            bootstrap_done,
             server_rx,
             server_tx.clone(),
             local_rx,
@@ -233,57 +188,6 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
                 ResultCode::Error => return Err(Error::JoinError),
             }
         }
-    }
-
-    pub async fn member_bootstrap_ready<A: ToSocketAddrs>(
-        leader_addr: A,
-        node_id: u64,
-        logger: Arc<dyn Logger>,
-    ) -> Result<()> {
-        let mut ctrl_c = Box::pin(signal::ctrl_c());
-
-        let mut leader_client = loop {
-            tokio::select! {
-                res = create_client(&leader_addr) => {
-                    match res {
-                        Ok(client) => break client,
-                        Err(e) => {
-                            logger.error(&format!(
-                                "Connection to the Leader node failed. Cause: \"{}\". Retry after 1s...",
-                                e
-                            ));
-                            sleep(Duration::from_secs(1)).await;
-                        }
-                    }
-                }
-                _ = ctrl_c.as_mut() => {
-                    logger.info("Ctrl+C signal detected. Shutting down...");
-                    return Err(Error::CtrlC)
-                }
-            }
-        };
-
-        let response = leader_client
-            .member_bootstrap_ready(Request::new(MemberBootstrapReadyArgs { node_id }))
-            .await?
-            .into_inner();
-
-        match response.code() {
-            ResultCode::Ok => {
-                logger.debug(&format!(
-                    "Node {} send the bootstrap ready request successfully.",
-                    node_id
-                ));
-            }
-            ResultCode::Error => {
-                logger.error("Failed to send the bootstrap ready request.");
-            }
-            ResultCode::WrongLeader => {
-                logger.error("Wrong leader address. Check leader changes while sending bootstrap ready request.");
-            }
-        }
-
-        Ok(())
     }
 
     pub async fn snapshot(&self) -> Result<()> {

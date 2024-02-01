@@ -25,7 +25,12 @@ use super::{
     response_message::{RequestIdResponseResult, ServerResponseMsg},
     Config, Error,
 };
-use crate::raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
+use crate::{
+    create_client,
+    raft::eraftpb::{ConfChangeV2, Message as RaftMessage},
+    raft_service::ProposeArgs,
+    response_message::{ConfChangeResponseResult, ResponseResult},
+};
 
 #[derive(Clone)]
 pub struct RaftServer {
@@ -92,7 +97,7 @@ impl RaftService for RaftServer {
         let (tx, rx) = oneshot::channel();
         sender
             .send(ServerRequestMsg::RequestId {
-                raft_addr: request_args.raft_addr,
+                raft_addr: request_args.raft_addr.clone(),
                 chan: tx,
             })
             .await
@@ -111,18 +116,21 @@ impl RaftService for RaftServer {
                     reserved_id,
                     leader_addr: self.addr.to_string(),
                     peers: serialize(&peers).unwrap(),
+                    ..Default::default()
                 })),
-                RequestIdResponseResult::WrongLeader {
-                    leader_id,
-                    leader_addr,
-                } => Ok(Response::new(raft_service::RequestIdResponse {
-                    code: raft_service::ResultCode::WrongLeader as i32,
-                    leader_id,
-                    leader_addr,
-                    reserved_id: 0,
-                    peers: vec![],
-                })),
-                _ => unreachable!(),
+                RequestIdResponseResult::Error(e) => {
+                    Ok(Response::new(raft_service::RequestIdResponse {
+                        code: raft_service::ResultCode::Error as i32,
+                        error: e.to_string().as_bytes().to_vec(),
+                        ..Default::default()
+                    }))
+                }
+                RequestIdResponseResult::WrongLeader { leader_addr, .. } => {
+                    let mut client = create_client(leader_addr).await.unwrap();
+                    let reply = client.request_id(request_args).await?.into_inner();
+
+                    Ok(Response::new(reply))
+                }
             },
             _ => unreachable!(),
         }
@@ -137,7 +145,7 @@ impl RaftService for RaftServer {
         let (tx, rx) = oneshot::channel();
 
         let message = ServerRequestMsg::ChangeConfig {
-            conf_change: request_args,
+            conf_change: request_args.clone(),
             chan: tx,
         };
 
@@ -155,16 +163,48 @@ impl RaftService for RaftServer {
         )
         .await
         {
-            Ok(Ok(_raft_response)) => {
+            Ok(Ok(raft_response)) => {
+                match raft_response {
+                    ServerResponseMsg::ConfigChange { result } => match result {
+                        ConfChangeResponseResult::JoinSuccess { assigned_id, peers } => {
+                            reply.result_type =
+                                raft_service::ChangeConfigResultType::ChangeConfigSuccess as i32;
+                            reply.assigned_id = assigned_id;
+                            reply.peers = serialize(&peers).unwrap();
+                        }
+                        ConfChangeResponseResult::RemoveSuccess {} => {
+                            reply.result_type =
+                                raft_service::ChangeConfigResultType::ChangeConfigSuccess as i32;
+                        }
+                        ConfChangeResponseResult::Error(e) => {
+                            reply.result_type =
+                                raft_service::ChangeConfigResultType::ChangeConfigUnknownError
+                                    as i32;
+                            reply.error = e.to_string().as_bytes().to_vec();
+                        }
+                        ConfChangeResponseResult::WrongLeader { leader_addr, .. } => {
+                            reply.result_type =
+                                raft_service::ChangeConfigResultType::ChangeConfigWrongLeader
+                                    as i32;
+
+                            let mut client = create_client(leader_addr).await.unwrap();
+                            reply = client.change_config(request_args).await?.into_inner();
+                        }
+                    },
+                    _ => unreachable!(),
+                }
                 reply.result_type =
                     raft_service::ChangeConfigResultType::ChangeConfigSuccess as i32;
-                reply.data = vec![];
             }
-            Ok(_) => (),
-            Err(_e) => {
+            Ok(Err(e)) => {
+                reply.result_type =
+                    raft_service::ChangeConfigResultType::ChangeConfigUnknownError as i32;
+                reply.error = e.to_string().as_bytes().to_vec();
+            }
+            Err(e) => {
                 reply.result_type =
                     raft_service::ChangeConfigResultType::ChangeConfigTimeoutError as i32;
-                reply.data = vec![];
+                reply.error = e.to_string().as_bytes().to_vec();
                 self.logger.error("timeout waiting for reply");
             }
         }
@@ -201,7 +241,7 @@ impl RaftService for RaftServer {
         let (tx, rx) = oneshot::channel();
         match sender
             .send(ServerRequestMsg::Propose {
-                proposal: request_args.msg,
+                proposal: request_args.msg.clone(),
                 chan: tx,
             })
             .await
@@ -212,8 +252,22 @@ impl RaftService for RaftServer {
 
         let response = rx.await.unwrap();
         match response {
-            ServerResponseMsg::Propose { result: _result } => {
-                Ok(Response::new(raft_service::Empty {}))
+            ServerResponseMsg::Propose { result } => {
+                match result {
+                    ResponseResult::Success => Ok(Response::new(raft_service::Empty {})),
+                    ResponseResult::Error(_) => Ok(Response::new(raft_service::Empty {})),
+                    ResponseResult::WrongLeader { leader_addr, .. } => {
+                        // TODO: Handle this kind of errors
+                        let mut client = create_client(leader_addr).await.unwrap();
+                        let _ = client
+                            .propose(ProposeArgs {
+                                msg: request_args.msg,
+                            })
+                            .await?;
+
+                        Ok(Response::new(raft_service::Empty {}))
+                    }
+                }
             }
             _ => unreachable!(),
         }
@@ -241,49 +295,6 @@ impl RaftService for RaftServer {
             }
             _ => unreachable!(),
         }
-    }
-
-    async fn member_bootstrap_ready(
-        &self,
-        request: Request<raft_service::MemberBootstrapReadyArgs>,
-    ) -> Result<Response<raft_service::MemberBootstrapReadyResponse>, Status> {
-        let request_args = request.into_inner();
-        let (tx, rx) = oneshot::channel();
-        let sender = self.snd.clone();
-        match sender
-            .send(ServerRequestMsg::MemberBootstrapReady {
-                node_id: request_args.node_id,
-                chan: tx,
-            })
-            .await
-        {
-            Ok(_) => (),
-            Err(_) => self.print_send_error(function_name!()),
-        }
-        let _response = rx.await.unwrap();
-        Ok(Response::new(raft_service::MemberBootstrapReadyResponse {
-            code: raft_service::ResultCode::Ok as i32,
-        }))
-    }
-
-    async fn cluster_bootstrap_ready(
-        &self,
-        request: Request<raft_service::Empty>,
-    ) -> Result<Response<raft_service::ClusterBootstrapReadyResponse>, Status> {
-        let _request_args = request.into_inner();
-        let (tx, rx) = oneshot::channel();
-        let sender = self.snd.clone();
-        match sender
-            .send(ServerRequestMsg::ClusterBootstrapReady { chan: tx })
-            .await
-        {
-            Ok(_) => (),
-            Err(_) => self.print_send_error(function_name!()),
-        }
-        let _response = rx.await.unwrap();
-        Ok(Response::new(raft_service::ClusterBootstrapReadyResponse {
-            code: raft_service::ResultCode::Ok as i32,
-        }))
     }
 
     async fn get_peers(
