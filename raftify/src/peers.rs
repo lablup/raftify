@@ -5,7 +5,7 @@ use std::{
 };
 
 use super::Peer;
-use crate::error::Result;
+use crate::{error::Result, InitialRole};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Peers {
@@ -28,7 +28,7 @@ impl From<HashMap<u64, SocketAddr>> for Peers {
     fn from(map: HashMap<u64, SocketAddr>) -> Self {
         let inner = map
             .into_iter()
-            .map(|(k, addr)| (k, Peer { addr, client: None }))
+            .map(|(k, addr)| (k, Peer::new(addr, InitialRole::Voter)))
             .collect();
         Peers { inner }
     }
@@ -37,7 +37,7 @@ impl From<HashMap<u64, SocketAddr>> for Peers {
 impl Peers {
     pub fn new<A: ToSocketAddrs>(self_id: u64, self_addr: A) -> Self {
         let mut inner = HashMap::new();
-        inner.insert(self_id, Peer::new(self_addr));
+        inner.insert(self_id, Peer::new(self_addr, InitialRole::Voter));
         Self { inner }
     }
 
@@ -82,15 +82,11 @@ impl Peers {
         self.inner.remove(id)
     }
 
-    pub fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) {
+    pub fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A, role: Option<InitialRole>) {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
-        let peer = Peer::new(addr);
+        let role = role.unwrap_or(InitialRole::Voter);
+        let peer = Peer::new(addr, role);
         self.inner.insert(id, peer);
-    }
-
-    pub async fn connect(&mut self, id: u64) -> Result<()> {
-        let peer = self.get_mut(&id).unwrap();
-        peer.connect().await
     }
 
     pub fn reserve_id(&mut self) -> u64 {
@@ -106,6 +102,11 @@ impl Peers {
             .iter()
             .find(|(_, peer)| peer.addr == addr)
             .map(|(id, _)| *id)
+    }
+
+    pub async fn connect(&mut self, id: u64) -> Result<()> {
+        let peer = self.get_mut(&id).unwrap();
+        peer.connect().await
     }
 }
 
@@ -137,28 +138,28 @@ mod tests {
     #[should_panic(expected = "invalid socket address")]
     fn test_add_wrong_peer_addr() {
         let mut peers = Peers::with_empty();
-        peers.add_peer(1, "wrong peer addr");
+        peers.add_peer(1, "wrong peer addr", None);
     }
 
     #[test]
     fn test_peers_serial_reserve_peer() {
         let mut peers = Peers::new(1, "127.0.0.1:8081");
         let next_id = peers.reserve_id();
-        peers.add_peer(next_id, "127.0.0.1:8082");
+        peers.add_peer(next_id, "127.0.0.1:8082", None);
         assert_eq!(next_id, 2);
 
         let next_id = peers.reserve_id();
-        peers.add_peer(next_id, "127.0.0.1:8083");
+        peers.add_peer(next_id, "127.0.0.1:8083", None);
         assert_eq!(next_id, 3);
 
         let next_id = peers.reserve_id();
-        peers.add_peer(next_id, "127.0.0.1:8084");
+        peers.add_peer(next_id, "127.0.0.1:8084", None);
         assert_eq!(next_id, 4);
 
         peers.remove(&2);
 
         let next_id = peers.reserve_id();
-        peers.add_peer(next_id, "127.0.0.1:8085");
+        peers.add_peer(next_id, "127.0.0.1:8085", None);
         assert_eq!(next_id, 5);
     }
 }

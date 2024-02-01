@@ -3,7 +3,6 @@ extern crate async_trait;
 
 mod config;
 mod error;
-mod follower_role;
 mod formatter;
 mod log_entry;
 mod peer;
@@ -29,13 +28,12 @@ pub use {
 pub use crate::{
     config::Config,
     error::{Error, Result},
-    follower_role::FollowerRole,
     log_entry::AbstractLogEntry,
     peer::Peer,
     peers::Peers,
     raft_client::create_client,
     raft_facade::{ClusterJoinTicket, Raft},
-    raft_node::RaftNode,
+    raft_node::{role::InitialRole, RaftNode},
     raft_service::raft_service_client::RaftServiceClient,
     state_machine::AbstractStateMachine,
     storage::heed::{HeedStorage, LogStore},

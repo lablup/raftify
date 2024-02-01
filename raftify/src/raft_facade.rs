@@ -10,6 +10,8 @@ use tokio::{
     sync::{mpsc, oneshot},
 };
 
+use crate::{InitialRole, Peers};
+
 use super::{
     create_client,
     error::{Error, Result},
@@ -17,7 +19,7 @@ use super::{
     raft_server::RaftServer,
     raft_service::{self, ResultCode},
     request_message::ServerRequestMsg,
-    AbstractLogEntry, AbstractStateMachine, Config, LogStore, Peers,
+    AbstractLogEntry, AbstractStateMachine, Config, LogStore,
 };
 
 #[derive(Clone)]
@@ -46,12 +48,25 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         raft_addr: A,
         fsm: FSM,
         config: Config,
-        initial_peers: Option<Peers>,
         logger: Arc<dyn Logger>,
     ) -> Result<Self> {
         let raft_addr = raft_addr.to_socket_addrs()?.next().unwrap();
-        let should_be_leader = initial_peers.is_none();
-        let peers = initial_peers.unwrap_or(Peers::new(node_id, raft_addr));
+        let mut should_be_leader = config.initial_peers.is_none();
+
+        if config.initial_peers.is_some() {
+            let leaders = config
+                .initial_peers
+                .clone()
+                .unwrap()
+                .inner
+                .into_iter()
+                .filter(|(_, peer)| peer.role == InitialRole::Leader)
+                .map(|(key, _)| key)
+                .collect::<Vec<_>>();
+
+            assert!(leaders.len() <= 2);
+            should_be_leader = leaders.contains(&node_id);
+        }
 
         let (local_tx, local_rx) = mpsc::channel(100);
         let (server_tx, server_rx) = mpsc::channel(100);
@@ -61,7 +76,6 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
             should_be_leader,
             fsm,
             config.clone(),
-            peers,
             raft_addr,
             logger.clone(),
             server_rx,
@@ -147,7 +161,6 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
     pub async fn request_id<A: ToSocketAddrs>(
         raft_addr: A,
         peer_addr: String,
-        logger: Arc<dyn Logger>,
     ) -> Result<ClusterJoinTicket> {
         let raft_addr = raft_addr
             .to_socket_addrs()
@@ -155,37 +168,26 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
             .next()
             .unwrap()
             .to_string();
-        let mut leader_addr = peer_addr.to_string();
 
-        loop {
-            logger.info(&format!(
-                "Attempting to get a node_id through \"{}\"...",
-                leader_addr
-            ));
+        let mut client = create_client(&peer_addr).await?;
+        let response = client
+            .request_id(raft_service::RequestIdArgs {
+                raft_addr: raft_addr.to_string(),
+            })
+            .await?
+            .into_inner();
 
-            let mut client = create_client(&leader_addr).await?;
-            let response = client
-                .request_id(raft_service::RequestIdArgs {
-                    raft_addr: raft_addr.to_string(),
-                })
-                .await?
-                .into_inner();
-
-            match response.code() {
-                ResultCode::WrongLeader => {
-                    leader_addr = response.leader_addr;
-                    logger.trace("Sent message to the wrong leader, retrying...");
-                    continue;
-                }
-                ResultCode::Ok => {
-                    return Ok(ClusterJoinTicket {
-                        reserved_id: response.reserved_id,
-                        leader_id: response.leader_id,
-                        leader_addr: response.leader_addr,
-                        peers: deserialize(&response.peers)?,
-                    });
-                }
-                ResultCode::Error => return Err(Error::JoinError),
+        let peers: Peers = deserialize(&response.peers)?;
+        match response.code() {
+            ResultCode::Ok => Ok(ClusterJoinTicket {
+                reserved_id: response.reserved_id,
+                leader_id: response.leader_id,
+                leader_addr: response.leader_addr,
+                peers: peers.into(),
+            }),
+            ResultCode::Error => Err(Error::JoinError),
+            ResultCode::WrongLeader => {
+                unreachable!();
             }
         }
     }

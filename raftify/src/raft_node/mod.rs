@@ -1,5 +1,6 @@
 mod bootstrap;
 mod response_sender;
+pub mod role;
 pub mod utils;
 
 use bincode::{deserialize, serialize};
@@ -46,7 +47,7 @@ use crate::{
         utils::{clear_storage_path, ensure_directory_exist, get_data_mdb_path, get_storage_path},
     },
     utils::{to_confchange_v2, OneShotMutex},
-    AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket, Config, Error, Peers,
+    AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket, Config, Error, InitialRole, Peers,
     RaftServiceClient,
 };
 
@@ -72,7 +73,6 @@ impl<
         should_be_leader: bool,
         fsm: FSM,
         config: Config,
-        initial_peers: Peers,
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
@@ -85,7 +85,6 @@ impl<
             should_be_leader,
             fsm,
             config,
-            initial_peers,
             raft_addr,
             logger,
             server_rcv,
@@ -155,11 +154,16 @@ impl<
         }
     }
 
-    pub async fn add_peer<A: ToSocketAddrs>(&self, id: u64, addr: A) {
+    pub async fn add_peer<A: ToSocketAddrs>(&self, id: u64, addr: A, role: Option<InitialRole>) {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap().to_string();
         let (tx, rx) = oneshot::channel();
         self.local_sender
-            .send(LocalRequestMsg::AddPeer { id, addr, chan: tx })
+            .send(LocalRequestMsg::AddPeer {
+                id,
+                addr,
+                role,
+                chan: tx,
+            })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -423,7 +427,6 @@ impl<
         should_be_leader: bool,
         fsm: FSM,
         mut config: Config,
-        initial_peers: Peers,
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
@@ -445,10 +448,30 @@ impl<
         let mut snapshot = storage.snapshot(0, storage.last_index()?)?;
         let conf_state = snapshot.mut_metadata().mut_conf_state();
 
-        let voters = initial_peers.inner.clone().into_keys().collect::<Vec<_>>();
+        let peers = config
+            .initial_peers
+            .clone()
+            .unwrap_or(Peers::new(node_id, raft_addr));
+
+        let voters = peers
+            .clone()
+            .inner
+            .into_iter()
+            .filter(|(_, peer)| peer.role == InitialRole::Voter)
+            .map(|(key, _)| key)
+            .collect::<Vec<_>>();
+
+        let learners = peers
+            .clone()
+            .inner
+            .into_iter()
+            .filter(|(_, peer)| peer.role == InitialRole::Learner)
+            .map(|(key, _)| key)
+            .collect::<Vec<_>>();
 
         if conf_state.voters.is_empty() {
             conf_state.set_voters(voters);
+            conf_state.set_learners(learners);
         }
 
         match (config.restore_wal_from, config.restore_wal_snapshot_from) {
@@ -499,7 +522,7 @@ impl<
             logger,
             last_snapshot_created,
             should_exit: false,
-            peers: Arc::new(Mutex::new(initial_peers)),
+            peers: Arc::new(Mutex::new(peers)),
             response_senders: HashMap::new(),
             server_rcv,
             server_snd,
@@ -527,15 +550,20 @@ impl<
         self.peers.lock().await.to_owned()
     }
 
-    pub async fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A) -> Result<()> {
+    pub async fn add_peer<A: ToSocketAddrs>(
+        &mut self,
+        id: u64,
+        addr: A,
+        role: Option<InitialRole>,
+    ) -> Result<()> {
         let mut peers = self.peers.lock().await;
-        peers.add_peer(id, addr);
+        peers.add_peer(id, addr, role);
         peers.connect(id).await
     }
 
     pub async fn add_peers(&mut self, peers: HashMap<u64, SocketAddr>) -> Result<()> {
         for (id, peer_addr) in peers.iter() {
-            self.add_peer(id.to_owned(), *peer_addr).await?;
+            self.add_peer(id.to_owned(), *peer_addr, None).await?;
         }
         Ok(())
     }
@@ -708,11 +736,29 @@ impl<
             let change_type = conf_change.get_change_type();
 
             match change_type {
-                ConfChangeType::AddNode | ConfChangeType::AddLearnerNode => {
+                ConfChangeType::AddNode => {
                     let addr = addrs[cc_idx];
-                    self.logger
-                        .info(&format!("Node {} ({}) joined the cluster.", node_id, addr));
-                    self.peers.lock().await.add_peer(node_id, &addr.to_string());
+                    self.logger.info(&format!(
+                        "Node {} ({}) joined the cluster as voter.",
+                        node_id, addr
+                    ));
+                    self.peers.lock().await.add_peer(
+                        node_id,
+                        &addr.to_string(),
+                        Some(InitialRole::Voter),
+                    );
+                }
+                ConfChangeType::AddLearnerNode => {
+                    let addr = addrs[cc_idx];
+                    self.logger.info(&format!(
+                        "Node {} ({}) joined the cluster as learner.",
+                        node_id, addr
+                    ));
+                    self.peers.lock().await.add_peer(
+                        node_id,
+                        &addr.to_string(),
+                        Some(InitialRole::Learner),
+                    );
                 }
                 ConfChangeType::RemoveNode => {
                     if node_id == self.get_id() {
@@ -939,8 +985,13 @@ impl<
                 })
                 .unwrap();
             }
-            LocalRequestMsg::AddPeer { id, addr, chan } => {
-                self.add_peer(id, addr).await?;
+            LocalRequestMsg::AddPeer {
+                id,
+                addr,
+                role,
+                chan,
+            } => {
+                self.add_peer(id, addr, role).await?;
                 chan.send(LocalResponseMsg::AddPeer {}).unwrap();
             }
             LocalRequestMsg::AddPeers { peers, chan } => {
@@ -1064,13 +1115,19 @@ impl<
                     let reserved_id =
                         if let Some(existing_node_id) = peers.get_node_id_by_addr(raft_addr) {
                             self.logger
-                                .info(&format!("Node {} restored", existing_node_id));
+                                .info(&format!("Node {} connection restored", existing_node_id));
                             existing_node_id
                         } else {
                             let reserved = peers.reserve_id();
-                            self.logger.info(&format!("Reserved node id, {}", reserved));
+                            self.logger.info(&format!(
+                                "Node {} reserved new node id {}",
+                                self.get_id(),
+                                reserved
+                            ));
                             reserved
                         };
+
+                    // println!("peers!! {:?}", peers.clone());
 
                     chan.send(ServerResponseMsg::RequestId {
                         result: RequestIdResponseResult::Success {

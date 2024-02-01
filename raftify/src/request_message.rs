@@ -6,7 +6,10 @@ use super::{
     response_message::{LocalResponseMsg, ServerResponseMsg},
     AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket,
 };
-use crate::raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
+use crate::{
+    raft::eraftpb::{ConfChangeV2, Message as RaftMessage},
+    InitialRole,
+};
 
 /// Request type processed through network calls (gRPC)
 pub enum ServerRequestMsg {
@@ -54,6 +57,7 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
         id: u64,
         addr: String,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
+        role: Option<InitialRole>,
     },
     AddPeers {
         peers: HashMap<u64, SocketAddr>,

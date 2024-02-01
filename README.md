@@ -8,7 +8,7 @@ It uses [tikv/raft-rs](https://github.com/tikv/raft-rs) and gRPC for the network
 
 ## Quick guide
 
-I strongly recommend to read the basic [memstore example code](https://github.com/lablup/raftify/blob/main/examples/memstore/dynamic-members/src/main.rs) to get how to use this library for starters, but here's a quick guide.
+I strongly recommend to read the [basic memstore example code](https://github.com/lablup/raftify/blob/main/examples/memstore/static-members/src/main.rs) to get how to use this library for starters, but here's a quick guide.
 
 ### Define your own log entry
 
@@ -100,7 +100,7 @@ First bootstrap the cluster that contains the leader node.
 let raft_addr = "127.0.0.1:60062".to_owned();
 let node_id = 1;
 
-let raft = Raft::bootstrap_cluster(
+let raft = Raft::bootstrap(
     node_id,
     raft_addr,
     store.clone(),
@@ -126,7 +126,7 @@ let raft_addr = "127.0.0.1:60062".to_owned();
 let peer_addr = "127.0.0.1:60061".to_owned();
 let join_ticket = Raft::request_id(raft_addr, peer_addr, logger.clone()).await;
 
-let raft = Raft::new_follower(
+let raft = Raft::bootstrap(
     join_ticket.reserved_id,
     raft_addr,
     store.clone(),

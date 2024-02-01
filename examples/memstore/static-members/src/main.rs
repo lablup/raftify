@@ -59,6 +59,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let initial_peers = load_peers().await?;
 
     let mut cfg = build_config();
+    cfg.initial_peers = Some(initial_peers.clone());
     cfg.restore_wal_from = options.restore_wal_from;
     cfg.restore_wal_snapshot_from = options.restore_wal_snapshot_from;
 
@@ -71,7 +72,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         options.raft_addr,
         store.clone(),
         cfg.clone(),
-        Some(initial_peers.clone()),
         logger.clone(),
     )?;
 

@@ -1,13 +1,15 @@
-use raftify::Peers;
+use raftify::{InitialRole, Peers};
 use serde::Deserialize;
 use std::fs;
 use std::net::SocketAddr;
 use std::path::Path;
+use std::str::FromStr;
 use toml;
 
 #[derive(Deserialize, Debug)]
 pub struct TomlRaftPeer {
     pub ip: String,
+    pub role: String,
     pub port: u16,
     pub node_id: u64,
 }
@@ -37,7 +39,8 @@ pub async fn load_peers() -> Result<Peers, Box<dyn std::error::Error>> {
 
     for peer_info in raft_config.raft.peers {
         let addr = SocketAddr::new(peer_info.ip.parse().unwrap(), peer_info.port);
-        peers.add_peer(peer_info.node_id, addr);
+        let role = InitialRole::from_str(&peer_info.role).expect("Invalid role!");
+        peers.add_peer(peer_info.node_id, addr, Some(role));
     }
 
     Ok(peers)

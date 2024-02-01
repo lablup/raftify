@@ -22,22 +22,21 @@ pub static RAFTS: Lazy<Mutex<HashMap<u64, Raft>>> = Lazy::new(|| Mutex::new(Hash
 
 fn run_raft(node_id: &u64, peers: Peers, should_be_leader: bool) -> Result<JoinHandle<Result<()>>> {
     let peer = peers.get(node_id).unwrap();
-    let cfg = build_config();
-    let store = HashStore::new();
-    let logger = build_logger();
-
-    let peers = if should_be_leader {
+    let mut cfg = build_config();
+    cfg.initial_peers = if should_be_leader {
         None
     } else {
         Some(peers.clone())
     };
+
+    let store = HashStore::new();
+    let logger = build_logger();
 
     let raft = Raft::bootstrap(
         *node_id,
         peer.addr,
         store,
         cfg,
-        peers,
         Arc::new(Slogger {
             slog: logger.clone(),
         }),
@@ -84,23 +83,16 @@ pub async fn spawn_extra_node(raft_addr: &str, peer_addr: &str) -> Result<JoinHa
     let logger = Arc::new(Slogger {
         slog: build_logger(),
     });
-    let join_ticket = Raft::request_id(raft_addr.to_owned(), peer_addr.to_owned(), logger.clone())
+    let join_ticket = Raft::request_id(raft_addr.to_owned(), peer_addr.to_owned())
         .await
         .unwrap();
 
     let node_id = join_ticket.reserved_id;
-    let cfg = build_config();
+    let mut cfg = build_config();
+    cfg.initial_peers = Some(join_ticket.peers.clone().into());
     let store = HashStore::new();
 
-    let raft = Raft::bootstrap(
-        node_id,
-        raft_addr,
-        store,
-        cfg,
-        Some(join_ticket.peers.clone().into()),
-        logger,
-    )
-    .expect("Raft build failed!");
+    let raft = Raft::bootstrap(node_id, raft_addr, store, cfg, logger).expect("Raft build failed!");
 
     RAFTS.lock().unwrap().insert(node_id, raft.clone());
 

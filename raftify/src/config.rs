@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{error::Error, raft::Config as RaftConfig, Result};
+use crate::{error::Error, raft::Config as RaftConfig, Peers, Result};
 
 #[derive(Clone)]
 pub struct Config {
@@ -16,6 +16,7 @@ pub struct Config {
     pub cluster_id: String,
     pub conf_change_request_timeout: f32,
 
+    pub initial_peers: Option<Peers>,
     pub snapshot_interval: Option<f32>,
     pub restore_wal_from: Option<u64>,
     pub restore_wal_snapshot_from: Option<u64>,
@@ -33,6 +34,7 @@ impl Config {
         lmdb_map_size: u64,
         cluster_id: String,
         conf_change_request_timeout: f32,
+        initial_peers: Option<Peers>,
         snapshot_interval: Option<f32>,
         restore_wal_from: Option<u64>,
         restore_wal_snapshot_from: Option<u64>,
@@ -46,6 +48,7 @@ impl Config {
             snapshot_interval,
             tick_interval,
             lmdb_map_size,
+            initial_peers,
             cluster_id,
             conf_change_request_timeout,
             restore_wal_from,
@@ -80,6 +83,7 @@ impl Default for Config {
             lmdb_map_size: 1024 * 1024 * 1024,
             cluster_id: String::from("default"),
             conf_change_request_timeout: 2.0,
+            initial_peers: None,
             snapshot_interval: None,
             restore_wal_from: None,
             restore_wal_snapshot_from: None,
@@ -116,6 +120,7 @@ impl fmt::Debug for Config {
                 compacted_log_size_threshold: {compacted_log_size_threshold}, \
                 snapshot_interval: {snapshot_interval:?}, \
                 tick_interval: {tick_interval}, \
+                initial_peers: {initial_peers:?}, \
                 lmdb_map_size: {lmdb_map_size}, \
                 cluster_id: {cluster_id}, \
                 conf_change_request_timeout: {conf_change_request_timeout}, \
@@ -145,6 +150,7 @@ impl fmt::Debug for Config {
             snapshot_interval = self.snapshot_interval,
             tick_interval = self.tick_interval,
             lmdb_map_size = self.lmdb_map_size,
+            initial_peers = self.initial_peers,
             cluster_id = self.cluster_id,
             conf_change_request_timeout = self.conf_change_request_timeout,
             restore_wal_from = self.restore_wal_from,
