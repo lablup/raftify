@@ -205,7 +205,10 @@ impl RaftService for RaftServer {
                 reply.result_type =
                     raft_service::ChangeConfigResultType::ChangeConfigTimeoutError as i32;
                 reply.error = e.to_string().as_bytes().to_vec();
-                self.logger.error("timeout waiting for reply");
+                self.logger.error(&format!(
+                    "Confchange request timeout. current conf_change_request_timeout is {}",
+                    self.config.conf_change_request_timeout
+                ));
             }
         }
 
