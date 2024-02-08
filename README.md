@@ -180,7 +180,6 @@ You can use a collection of CLI commands that let you inspect the data persisted
 ```
 ❯ raftify-cli debug persisted ./logs/node-1
 ---- Persisted entries ----
-Key: 0, "Entry { context: [], data: [], entry_type: EntryNormal, index: 0, sync_log: false, term: 0 }"
 Key: 1, "Entry { context: [], data: [], entry_type: EntryNormal, index: 1, sync_log: false, term: 1 }"
 Key: 2, "Entry { context: [], data: ConfChange { change_type: AddNode, node_id: 2, context: [127.0.0.1:60062], id: 0 }, entry_type: EntryConfChange, index: 2, sync_log: false, term: 1 }"
 Key: 3, "Entry { context: [], data: ConfChange { change_type: AddNode, node_id: 3, context: [127.0.0.1:60063], id: 0 }, entry_type: EntryConfChange, index: 3, sync_log: false, term: 1 }"
