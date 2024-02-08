@@ -362,10 +362,6 @@ impl HeedStorageCore {
             config: config.clone(),
         };
 
-        let mut writer = storage.env.write_txn()?;
-        storage.append(&mut writer, &[Entry::default()])?;
-        writer.commit()?;
-
         Ok(storage)
     }
 
@@ -487,12 +483,14 @@ impl HeedStorageCore {
     }
 
     fn first_index(&self, reader: &heed::RoTxn) -> Result<u64> {
-        let first_entry = self
-            .entries_db
-            .first(reader)?
-            .expect("There should always be at least one entry in the db");
-
-        Ok(first_entry.0.parse::<u64>().unwrap() + 1)
+        match self.entries_db.first(reader)? {
+            Some((index, _first_entry)) => Ok(index.parse::<u64>().unwrap()),
+            None => {
+                // TODO: Pass proper arguments after handling snapshot's `request_index` and `to`
+                let snapshot = self.snapshot(reader, 0, 0)?;
+                Ok(snapshot.get_metadata().get_index() + 1)
+            }
+        }
     }
 
     fn entry(&self, reader: &heed::RoTxn, index: u64) -> Result<Option<Entry>> {
