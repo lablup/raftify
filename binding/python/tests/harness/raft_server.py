@@ -1,6 +1,4 @@
 import asyncio
-import os
-from typing import Any
 from harness.state_machine import HashStore
 from raftify import Config, Peers, Raft, RaftConfig, Slogger
 
@@ -8,7 +6,7 @@ from raftify import Config, Peers, Raft, RaftConfig, Slogger
 RAFTS: dict[int, Raft] = {}
 
 
-def build_config() -> Config:
+def build_config(initial_peers: Peers) -> Config:
     raft_cfg = RaftConfig(
         election_tick=10,
         heartbeat_tick=3,
@@ -17,22 +15,19 @@ def build_config() -> Config:
         raft_cfg,
         log_dir="./logs",
         compacted_log_dir="./logs",
+        initial_peers=initial_peers,
     )
 
     return cfg
 
 
-async def run_raft(node_id: int, peers: Peers):
-    peer = peers.get(node_id)
-    cfg = build_config()
+async def run_raft(node_id: int, initial_peers: Peers):
+    peer = initial_peers.get(node_id)
+    cfg = build_config(initial_peers)
 
     store = HashStore()
     logger = Slogger.default()
-
-    if node_id == 1:
-        raft = Raft.bootstrap_cluster(node_id, peer, store, cfg, logger, peers)
-    else:
-        raft = Raft.new_follower(node_id, peer, store, cfg, logger, peers)
+    raft = Raft.bootstrap(node_id, peer, store, cfg, logger)
 
     RAFTS[node_id] = raft
 
@@ -40,19 +35,8 @@ async def run_raft(node_id: int, peers: Peers):
 
 
 async def run_rafts(peers: Peers):
-    # TODO: This should be configurable
-    os.environ["RUST_LOG"] = "debug"
-
     tasks = []
     for node_id, _ in peers.items():
         tasks.append(run_raft(node_id, peers))
 
     await asyncio.gather(*tasks)
-
-
-async def handle_bootstrap(peers: Peers, logger: Any):
-    leader_addr = peers.get(1)
-
-    for (node_id, _) in peers.items():
-        if node_id != 1:
-            await Raft.member_bootstrap_ready(leader_addr, node_id, logger)

@@ -6,7 +6,7 @@ use pyo3::{
 use raftify::Peers;
 use std::{collections::HashMap, hash::BuildHasherDefault};
 
-use super::utils::new_py_list;
+use super::{peer::PyPeer, role::PyInitialRole, utils::new_py_list};
 
 #[derive(Clone)]
 #[pyclass(dict, name = "Peers")]
@@ -19,13 +19,13 @@ impl PyPeers {
     #[new]
     pub fn new(peers: &PyDict) -> Self {
         let peers = peers
-            .extract::<HashMap<u64, String, BuildHasherDefault<FxHasher>>>()
+            .extract::<HashMap<u64, PyPeer, BuildHasherDefault<FxHasher>>>()
             .unwrap();
 
         let mut inner = Peers::with_empty();
 
-        for (node_id, addr) in peers.iter() {
-            inner.add_peer(*node_id, addr);
+        for (node_id, peer) in peers.iter() {
+            inner.add_peer(*node_id, peer.inner.addr, Some(peer.inner.role.clone()));
         }
 
         Self { inner }
@@ -43,7 +43,10 @@ impl PyPeers {
         let dict = PyDict::new(py);
 
         for (node_id, peer) in self.inner.iter() {
-            dict.set_item(node_id, peer.addr.to_string())?;
+            let peer = PyPeer {
+                inner: peer.clone(),
+            };
+            dict.set_item(node_id, peer.into_py(py))?;
         }
 
         Ok(dict.to_object(py))
@@ -65,8 +68,9 @@ impl PyPeers {
             .map(|peer| peer.addr.to_owned().to_string())
     }
 
-    pub fn add_peer(&mut self, node_id: u64, addr: &PyString) {
-        self.inner.add_peer(node_id, addr.to_str().unwrap());
+    pub fn add_peer(&mut self, node_id: u64, addr: &PyString, role: &PyInitialRole) {
+        self.inner
+            .add_peer(node_id, addr.to_str().unwrap(), Some(role.0.clone()));
     }
 
     pub fn remove(&mut self, node_id: u64) {

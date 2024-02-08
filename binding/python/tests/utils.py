@@ -1,7 +1,7 @@
 from asyncio import sleep
 import tomli
 from pathlib import Path
-from raftify import Peers, Raft
+from raftify import InitialRole, Peer, Peers, Raft
 
 
 def load_peers(filename: str) -> Peers:
@@ -9,7 +9,13 @@ def load_peers(filename: str) -> Peers:
     cfg = tomli.loads(path.read_text())["raft"]["peers"]
 
     return Peers(
-        {int(entry["node_id"]): f"{entry['ip']}:{entry['port']}" for entry in cfg}
+        {
+            int(entry["node_id"]): Peer(
+                addr=f"{entry['ip']}:{entry['port']}",
+                role=InitialRole.from_str(entry["role"]),
+            )
+            for entry in cfg
+        }
     )
 
 

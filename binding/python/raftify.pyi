@@ -86,35 +86,17 @@ class Raft:
     def __init__(self) -> None:
         """ """
     @staticmethod
-    def bootstrap_cluster(
+    def bootstrap(
         node_id: int,
         raft_addr: str,
         fsm: "AbstractStateMachine",
         config: "Config",
         logger: "AbstractLogger",
-        initial_peers: Optional["Peers"] = None,
     ) -> "Raft":
         """ """
     @staticmethod
-    def new_follower(
-        node_id: int,
-        raft_addr: str,
-        fsm: "AbstractStateMachine",
-        config: "Config",
-        logger: "AbstractLogger",
-        initial_peers: Optional["Peers"] = None,
-    ) -> "Raft":
-        """ """
-    @staticmethod
-    async def request_id(
-        raft_addr: str, peer_addr: str, logger: "AbstractLogger"
-    ) -> "ClusterJoinTicket":
+    async def request_id(raft_addr: str, peer_addr: str) -> "ClusterJoinTicket":
         """"""
-    @staticmethod
-    async def member_bootstrap_ready(
-        leader_addr: str, node_id: int, logger: "AbstractLogger"
-    ) -> None:
-        """ """
     async def join(self, join_ticket: "ClusterJoinTicket") -> None:
         """ """
     async def run(self) -> None:
@@ -163,22 +145,26 @@ class ClusterJoinTicket:
     def get_reserved_id(self) -> int:
         """ """
 
+class Peer:
+    """ """
+
+    def __init__(self, addr: str, role: "InitialRole") -> None: ...
+    async def connect(self) -> None: ...
+
 class Peers:
     """ """
 
-    def __init__(self, peers: dict) -> None: ...
-    def to_dict(self) -> dict[int, str]: ...
+    def __init__(self, peers: dict[int, "Peer"]) -> None: ...
+    def to_dict(self) -> dict[int, "Peer"]: ...
     def is_empty(self) -> bool: ...
     def items(self) -> list[tuple[int, str]]: ...
     def get(self, node_id: int) -> str: ...
-    def add_peer(self, node_id: int, addr: str) -> None: ...
+    def add_peer(self, node_id: int, addr: str, role: "InitialRole") -> None: ...
     def remove(self, node_id: int) -> None: ...
     def get_node_id_by_addr(self, addr: str) -> int: ...
 
 class RaftConfig:
-    """
-    Config contains the parameters to start a raft.
-    """
+    """ """
 
     def __init__(
         self,
@@ -274,6 +260,7 @@ class Config:
         tick_interval: Optional[float] = None,
         lmdb_map_size: Optional[int] = None,
         cluster_id: Optional[int] = None,
+        initial_peers: Optional["Peers"] = None,
         conf_change_request_timeout: Optional[float] = None,
         restore_wal_from: Optional[int] = None,
         restore_wal_snapshot_from: Optional[int] = None,
@@ -550,6 +537,21 @@ class ConfChangeV2:
         This is the case if the ConfChangeV2 is zero, with the possible exception of
         the Context field.
         """
+
+class InitialRole:
+    """ """
+
+    LEADER: Final[Any]
+    """
+    """
+    VOTER: Final[Any]
+    """
+    """
+    LEARNER: Final[Any]
+    """
+    """
+    @staticmethod
+    def from_str(v: str) -> "InitialRole": ...
 
 class Message:
     def get_commit(self) -> int:

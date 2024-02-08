@@ -7,7 +7,6 @@ use super::{
     cluster_join_ticket::PyClusterJoinTicket,
     config::PyConfig,
     logger::PyLogger,
-    peers::PyPeers,
     raft_node::PyRaftNode,
     state_machine::{PyFSM, PyLogEntry},
 };
@@ -21,50 +20,21 @@ pub struct PyRaftFacade {
 #[pymethods]
 impl PyRaftFacade {
     #[staticmethod]
-    pub fn bootstrap_cluster(
+    pub fn bootstrap(
         node_id: u64,
         addr: &PyString,
         fsm: PyObject,
         config: PyConfig,
         logger: PyObject,
-        initial_peers: Option<PyPeers>,
     ) -> PyResult<Self> {
         let fsm = PyFSM::new(fsm);
         let addr = addr.to_string();
-        let initial_peers = initial_peers.map(|peers| peers.inner);
 
-        let raft = Raft::bootstrap_cluster(
+        let raft = Raft::bootstrap(
             node_id,
             addr,
             fsm,
             config.into(),
-            initial_peers,
-            Arc::new(PyLogger::new(logger)),
-        )
-        .unwrap();
-
-        Ok(Self { inner: raft })
-    }
-
-    #[staticmethod]
-    pub fn new_follower(
-        node_id: u64,
-        addr: &PyString,
-        fsm: PyObject,
-        config: PyConfig,
-        logger: PyObject,
-        initial_peers: Option<PyPeers>,
-    ) -> PyResult<Self> {
-        let fsm = PyFSM::new(fsm);
-        let addr = addr.to_string();
-        let initial_peers = initial_peers.map(|peers| peers.inner);
-
-        let raft = Raft::new_follower(
-            node_id,
-            addr,
-            fsm,
-            config.into(),
-            initial_peers,
             Arc::new(PyLogger::new(logger)),
         )
         .unwrap();
@@ -76,37 +46,13 @@ impl PyRaftFacade {
     pub fn request_id<'a>(
         raft_addr: String,
         peer_addr: String,
-        logger: PyObject,
         py: Python<'a>,
     ) -> PyResult<&'a PyAny> {
         future_into_py(py, async move {
-            let ticket = Raft::<PyLogEntry, PyFSM>::request_id(
-                raft_addr,
-                peer_addr.to_owned(),
-                Arc::new(PyLogger::new(logger)),
-            )
-            .await
-            .unwrap();
+            let ticket = Raft::<PyLogEntry, PyFSM>::request_id(raft_addr, peer_addr.to_owned())
+                .await
+                .unwrap();
             Ok(PyClusterJoinTicket { inner: ticket })
-        })
-    }
-
-    #[staticmethod]
-    pub fn member_bootstrap_ready<'a>(
-        leader_addr: String,
-        node_id: u64,
-        logger: PyObject,
-        py: Python<'a>,
-    ) -> PyResult<&'a PyAny> {
-        future_into_py(py, async move {
-            Raft::<PyLogEntry, PyFSM>::member_bootstrap_ready(
-                leader_addr,
-                node_id,
-                Arc::new(PyLogger::new(logger)),
-            )
-            .await
-            .map(|_| ())
-            .map_err(|e| PyException::new_err(e.to_string()))
         })
     }
 

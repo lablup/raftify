@@ -5,6 +5,7 @@ use raftify::RaftNode;
 use super::{
     peers::PyPeers,
     raft_rs::eraftpb::{conf_change_v2::PyConfChangeV2, message::PyMessage},
+    role::PyInitialRole,
     state_machine::{PyFSM, PyLogEntry},
 };
 
@@ -46,12 +47,19 @@ impl PyRaftNode {
         })
     }
 
-    pub fn add_peer<'a>(&'a self, id: u64, addr: &PyString, py: Python<'a>) -> PyResult<&'a PyAny> {
+    pub fn add_peer<'a>(
+        &'a self,
+        id: u64,
+        addr: &PyString,
+        role: &PyInitialRole,
+        py: Python<'a>,
+    ) -> PyResult<&'a PyAny> {
         let raft_node = self.inner.clone();
         let addr = addr.to_string();
+        let role = role.0.clone();
 
         future_into_py(py, async move {
-            raft_node.add_peer(id, addr).await;
+            raft_node.add_peer(id, addr, Some(role)).await;
             Ok(())
         })
     }

@@ -22,7 +22,7 @@ impl PyRaftServiceClient {
         })
     }
 
-    // TODO: Defines the return type
+    // TODO: Defines the return type properly
     pub fn change_config<'a>(
         &'a mut self,
         conf_change: PyConfChangeV2,
@@ -36,7 +36,8 @@ impl PyRaftServiceClient {
                 .await
                 .unwrap()
                 .into_inner();
-            Ok((result.result_type, result.data))
+
+            Ok(result.result_type)
         })
     }
 

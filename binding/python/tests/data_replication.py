@@ -1,21 +1,15 @@
 import asyncio
 import pytest
-from raftify import Slogger
 from utils import load_peers, wait_for_until_cluster_size_increase
 from constant import THREE_NODE_EXAMPLE
-from harness.raft_server import RAFTS, handle_bootstrap, run_rafts
+from harness.raft_server import RAFTS, run_rafts
 from harness.state_machine import SetCommand
-from harness.logger import Logger
 
 
 @pytest.mark.asyncio
 async def test_data_replication():
     peers = load_peers(THREE_NODE_EXAMPLE)
     asyncio.create_task(run_rafts(peers))
-    await asyncio.sleep(2)
-
-    logger = Logger(Slogger.default())
-    await handle_bootstrap(peers, logger)
     await asyncio.sleep(2)
 
     raft_1 = RAFTS.get(1)

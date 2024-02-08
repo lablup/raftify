@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use raftify::Config;
 
-use super::raft_rs::config::PyRaftConfig;
+use super::{peers::PyPeers, raft_rs::config::PyRaftConfig};
 
 #[derive(Clone)]
 #[pyclass(get_all, set_all, name = "Config")]
@@ -15,6 +15,7 @@ pub struct PyConfig {
     pub lmdb_map_size: u64,
     pub cluster_id: String,
     pub conf_change_request_timeout: f32,
+    pub initial_peers: Option<PyPeers>,
     pub snapshot_interval: Option<f32>,
     pub restore_wal_from: Option<u64>,
     pub restore_wal_snapshot_from: Option<u64>,
@@ -33,6 +34,7 @@ impl PyConfig {
         lmdb_map_size: Option<u64>,
         cluster_id: Option<String>,
         conf_change_request_timeout: Option<f32>,
+        initial_peers: Option<PyPeers>,
         snapshot_interval: Option<f32>,
         restore_wal_from: Option<u64>,
         restore_wal_snapshot_from: Option<u64>,
@@ -52,6 +54,7 @@ impl PyConfig {
         let cluster_id = cluster_id.unwrap_or(cfg.cluster_id);
         let conf_change_request_timeout =
             conf_change_request_timeout.unwrap_or(cfg.conf_change_request_timeout);
+        let initial_peers = initial_peers;
         let snapshot_interval = snapshot_interval;
         let restore_wal_from = restore_wal_from;
         let restore_wal_snapshot_from = restore_wal_snapshot_from;
@@ -66,6 +69,7 @@ impl PyConfig {
             lmdb_map_size,
             cluster_id,
             conf_change_request_timeout,
+            initial_peers,
             snapshot_interval,
             restore_wal_from,
             restore_wal_snapshot_from,
@@ -85,6 +89,7 @@ impl From<PyConfig> for Config {
             lmdb_map_size: config.lmdb_map_size,
             cluster_id: config.cluster_id,
             conf_change_request_timeout: config.conf_change_request_timeout,
+            initial_peers: config.initial_peers.map(|peers| peers.inner),
             raft_config: config.raft_config.inner,
             restore_wal_from: config.restore_wal_from,
             restore_wal_snapshot_from: config.restore_wal_snapshot_from,

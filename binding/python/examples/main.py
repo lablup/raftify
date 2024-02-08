@@ -12,6 +12,8 @@ from aiohttp import web
 from aiohttp.web import AbstractRouteDef, RouteTableDef
 from raftify import (
     Config,
+    InitialRole,
+    Peer,
     Peers,
     Raft,
     RaftConfig,
@@ -29,11 +31,17 @@ def load_peers() -> Peers:
     cfg = tomli.loads(path.read_text())["raft"]["peers"]
 
     return Peers(
-        {int(entry["node_id"]): f"{entry['ip']}:{entry['port']}" for entry in cfg}
+        {
+            int(entry["node_id"]): Peer(
+                addr=f"{entry['ip']}:{entry['port']}",
+                role=InitialRole.from_str(entry["role"]),
+            )
+            for entry in cfg
+        }
     )
 
 
-def build_config() -> Config:
+def build_config(initial_peers: Peers) -> Config:
     raft_cfg = RaftConfig(
         election_tick=10,
         heartbeat_tick=3,
@@ -42,6 +50,7 @@ def build_config() -> Config:
         raft_cfg,
         log_dir="./logs",
         compacted_log_dir="./logs",
+        initial_peers=initial_peers,
     )
 
     return cfg
@@ -222,44 +231,24 @@ def setup_logger() -> logging.Logger:
 async def main():
     register_custom_deserializer()
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--ignore-static-bootstrap", action=argparse.BooleanOptionalAction, default=None
-    )
     parser.add_argument("--raft-addr", default=None)
-    parser.add_argument("--peer-addr", default=None)
     parser.add_argument("--web-server", default=None)
     args = parser.parse_args()
 
     raft_addr = args.raft_addr
-    peer_addr = args.peer_addr
     web_server_addr = args.web_server
-    ignore_static_bootstrap = args.ignore_static_bootstrap
 
-    peers = load_peers() if not ignore_static_bootstrap else None
+    initial_peers = load_peers()
 
-    cfg = build_config()
+    cfg = build_config(initial_peers)
     logger = Logger(setup_logger())
     store = HashStore()
+
+    node_id = initial_peers.get_node_id_by_addr(raft_addr)
+
     tasks = []
-
-    if peer_addr:
-        if not peers:
-            join_ticket = await Raft.request_id(raft_addr, peer_addr, logger)
-            node_id = join_ticket.get_reserved_id()
-        else:
-            node_id = peers.get_node_id_by_addr(raft_addr)
-
-        raft = Raft.new_follower(node_id, raft_addr, store, cfg, logger, peers)
-        tasks.append(raft.run())
-
-        if not peers:
-            await raft.join(join_ticket)
-        else:
-            leader_addr = peers.get(1)
-            await Raft.member_bootstrap_ready(leader_addr, node_id, logger)
-    else:
-        raft = Raft.bootstrap_cluster(1, raft_addr, store, cfg, logger, peers)
-        tasks.append(raft.run())
+    raft = Raft.bootstrap(node_id, raft_addr, store, cfg, logger)
+    tasks.append(raft.run())
 
     async with WebServer(web_server_addr, routes, {"raft": raft, "store": store}):
         await asyncio.gather(*tasks)
