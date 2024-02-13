@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{error::Error, raft::Config as RaftConfig, Peers, Result};
+use crate::{error::Error, raft::Config as RaftConfig, InitialRole, Peers, Result};
 
 #[derive(Clone)]
 pub struct Config {
@@ -59,6 +59,24 @@ impl Config {
 
 impl Config {
     pub fn validate(&self) -> Result<()> {
+        if self.initial_peers.is_some() {
+            let leaders = self
+                .initial_peers
+                .clone()
+                .unwrap()
+                .inner
+                .into_iter()
+                .filter(|(_, peer)| peer.role == InitialRole::Leader)
+                .map(|(key, _)| key)
+                .collect::<Vec<_>>();
+
+            if leaders.len() > 1 {
+                return Err(Error::ConfigInvalid(
+                    "initial_peers should contain at most 1 leaders".to_owned(),
+                ));
+            }
+        }
+
         self.raft_config.validate()?;
         if self.restore_wal_from.is_some() && self.restore_wal_snapshot_from.is_some() {
             return Err(Error::ConfigInvalid(

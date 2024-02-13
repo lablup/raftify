@@ -2,9 +2,7 @@ from typing import Any, Iterable
 
 from aiohttp import web
 from aiohttp.web import AbstractRouteDef, RouteTableDef
-from raftify import (
-    Raft,
-)
+from raftify import Raft
 
 from .state_machine import HashStore, SetCommand
 

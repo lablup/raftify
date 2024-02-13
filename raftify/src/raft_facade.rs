@@ -43,6 +43,9 @@ pub struct ClusterJoinTicket {
 impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync + 'static>
     Raft<LogEntry, FSM>
 {
+    /// Creates a new Raft instance.
+    /// Cloning a Raft instance does not bootstrap a new Raft instance.
+    /// To bootstrap a new Raft instance, call this associated function.
     pub fn bootstrap<A: ToSocketAddrs>(
         node_id: u64,
         raft_addr: A,
@@ -64,7 +67,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
                 .map(|(key, _)| key)
                 .collect::<Vec<_>>();
 
-            assert!(leaders.len() <= 2);
+            assert!(leaders.len() < 2);
             should_be_leader = leaders.contains(&node_id);
         }
 
@@ -97,6 +100,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         })
     }
 
+    /// Starts the RaftNode and RaftServer.
     pub async fn run(self) -> Result<()> {
         self.logger
             .info(&format!("Start to run RaftNode. {:?}", self.config));
@@ -158,6 +162,8 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         }
     }
 
+    /// Requests a cluster join ticket from the peer.
+    /// You can use this to dynamically add members in addition to initial_peers.
     pub async fn request_id<A: ToSocketAddrs>(
         raft_addr: A,
         peer_addr: String,
@@ -192,6 +198,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         }
     }
 
+    /// Compacts the logs up to the last index persisted in Log Storage as a snapshot.
     pub async fn capture_snapshot(&self) -> Result<()> {
         let storage = self.raft_node.storage().await;
 
@@ -201,6 +208,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         Ok(())
     }
 
+    /// Joins the cluster with the given ticket.
     pub async fn join(&self, ticket: ClusterJoinTicket) {
         self.raft_node.join_cluster(ticket).await;
     }
