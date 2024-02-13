@@ -482,9 +482,6 @@ impl<
                         get_data_mdb_path(config.log_dir.as_str(), node_id),
                     )?;
                 }
-
-                let meta = snapshot.mut_metadata();
-                meta.set_index(storage.entries_last_index()?);
             }
             (None, Some(restore_wal_snapshot_from)) => {
                 if restore_wal_snapshot_from != node_id {
@@ -493,14 +490,15 @@ impl<
                         get_data_mdb_path(config.log_dir.as_str(), node_id),
                     )?;
                 }
+                storage.apply_snapshot(snapshot)?;
             }
             (Some(_), Some(_)) => {
                 unreachable!()
             }
-            _ => {}
+            _ => {
+                storage.apply_snapshot(snapshot)?;
+            }
         }
-
-        storage.apply_snapshot(snapshot)?;
 
         let mut raw_node = RawNode::new(&config.raft_config, storage, logger.clone())?;
         let response_seq = AtomicU64::new(0);
