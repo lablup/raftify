@@ -82,10 +82,15 @@ impl Peers {
         self.inner.remove(id)
     }
 
-    pub fn add_peer<A: ToSocketAddrs>(&mut self, id: u64, addr: A, role: Option<InitialRole>) {
+    pub fn add_peer<A: ToSocketAddrs>(
+        &mut self,
+        id: u64,
+        addr: A,
+        initial_role: Option<InitialRole>,
+    ) {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
-        let role = role.unwrap_or(InitialRole::Voter);
-        let peer = Peer::new(addr, role);
+        let initial_role = initial_role.unwrap_or(InitialRole::Voter);
+        let peer = Peer::new(addr, initial_role);
         self.inner.insert(id, peer);
     }
 
@@ -110,6 +115,12 @@ impl Peers {
     }
 }
 
+pub struct SortedPeersIter<'a> {
+    keys: Vec<u64>,
+    peers: &'a HashMap<u64, Peer>,
+    index: usize,
+}
+
 impl<'a> Iterator for SortedPeersIter<'a> {
     type Item = (u64, &'a Peer);
 
@@ -122,12 +133,6 @@ impl<'a> Iterator for SortedPeersIter<'a> {
             None
         }
     }
-}
-
-pub struct SortedPeersIter<'a> {
-    keys: Vec<u64>,
-    peers: &'a HashMap<u64, Peer>,
-    index: usize,
 }
 
 #[cfg(test)]

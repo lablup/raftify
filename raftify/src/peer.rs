@@ -15,11 +15,11 @@ pub struct Peer {
 }
 
 impl Peer {
-    pub fn new<A: ToSocketAddrs>(addr: A, role: InitialRole) -> Self {
+    pub fn new<A: ToSocketAddrs>(addr: A, initial_role: InitialRole) -> Self {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
         Peer {
             addr,
-            role,
+            role: initial_role,
             client: None,
         }
     }
