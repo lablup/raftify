@@ -16,6 +16,7 @@ from raftify import (
 )
 
 
+# TODO: Find a way to import these types from the superdirectory instead of copying it here.
 class SetCommand:
     """
     Represent simple key-value command.

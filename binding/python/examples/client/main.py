@@ -1,27 +1,10 @@
 import asyncio
-import pickle
 from raftify import RaftServiceClient
 
-
-class SetCommand:
-    """
-    Represent simple key-value command.
-    Use pickle to serialize the data.
-    """
-
-    def __init__(self, key: str, value: str) -> None:
-        self.key = key
-        self.value = value
-
-    def encode(self) -> bytes:
-        return pickle.dumps(self.__dict__)
-
-    @classmethod
-    def decode(cls, packed: bytes) -> "SetCommand":
-        unpacked = pickle.loads(packed)
-        return cls(unpacked["key"], unpacked["value"])
+from ..state_machine import SetCommand
 
 
+# Run "python -m examples.client.main" to execute this script.
 async def main() -> None:
     """
     A simple set of commands to test and show usage of RaftServiceClient.
