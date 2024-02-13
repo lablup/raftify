@@ -38,7 +38,6 @@ pub trait LogStore: Storage {
     fn last_index(&self) -> Result<u64>;
     fn compact(&mut self, index: u64) -> Result<()>;
     fn all_entries(&self) -> raft::Result<Vec<Entry>>;
-    fn entries_last_index(&self) -> Result<u64>;
 }
 
 #[derive(Eq, PartialEq)]
@@ -216,13 +215,6 @@ impl LogStore for HeedStorage {
         let store = self.rl();
         let reader = store.env.read_txn()?;
         let last_index = store.last_index(&reader)?;
-        Ok(last_index)
-    }
-
-    fn entries_last_index(&self) -> Result<u64> {
-        let store = self.rl();
-        let reader = store.env.read_txn()?;
-        let last_index = store.entries_last_index(&reader)?;
         Ok(last_index)
     }
 
@@ -463,17 +455,6 @@ impl HeedStorageCore {
             }
             None => Ok(0),
         }
-    }
-
-    /// Actual last index of the all entries.
-    /// This could be different from the last_index.
-    fn entries_last_index(&self, reader: &heed::RoTxn) -> Result<u64> {
-        let last_entry = self
-            .entries_db
-            .last(reader)?
-            .expect("There should always be at least one entry in the db");
-
-        Ok(last_entry.0.parse::<u64>().unwrap())
     }
 
     fn set_last_index(&self, writer: &mut heed::RwTxn, index: u64) -> Result<()> {
