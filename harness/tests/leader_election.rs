@@ -1,21 +1,26 @@
-use std::time::Duration;
+use std::{sync::mpsc, time::Duration};
 use tokio::time::{sleep, timeout};
 
 use harness::{
     constant::{FIVE_NODE_EXAMPLE, THREE_NODE_EXAMPLE},
-    raft::{build_raft_cluster, RAFTS},
+    raft::{build_raft_cluster, wait_until_rafts_ready, Raft},
     utils::{
-        load_peers, wait_for_until_cluster_size_decrease, wait_for_until_cluster_size_increase,
+        kill_previous_raft_processes, load_peers, wait_for_until_cluster_size_decrease, wait_for_until_cluster_size_increase
     },
 };
 
 #[tokio::test]
 pub async fn test_leader_election_in_three_node_example() {
+    kill_previous_raft_processes();
+
+    let (raft_tx, raft_rx) = mpsc::channel::<(u64, Raft)>();
+
     let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
-    let _raft_tasks = tokio::spawn(build_raft_cluster(peers.clone()));
+    let _raft_tasks = tokio::spawn(build_raft_cluster(raft_tx, peers.clone()));
     sleep(Duration::from_secs(1)).await;
 
-    let mut rafts = RAFTS.lock().unwrap();
+    let mut rafts = wait_until_rafts_ready(None, raft_rx, 3).await;
+
     let raft_1 = rafts.get_mut(&1).unwrap();
 
     wait_for_until_cluster_size_increase(raft_1.clone(), 3).await;
@@ -55,12 +60,16 @@ pub async fn test_leader_election_in_three_node_example() {
 #[tokio::test]
 #[ignore]
 pub async fn test_leader_election_in_five_node_example() {
+    kill_previous_raft_processes();
+
+    let (raft_tx, raft_rx) = mpsc::channel::<(u64, Raft)>();
     let peers = load_peers(FIVE_NODE_EXAMPLE).await.unwrap();
-    let _raft_tasks = tokio::spawn(build_raft_cluster(peers.clone()));
+    let _raft_tasks = tokio::spawn(build_raft_cluster(raft_tx, peers.clone()));
 
     sleep(Duration::from_secs(1)).await;
 
-    let mut rafts = RAFTS.lock().unwrap();
+    let mut rafts = wait_until_rafts_ready(None, raft_rx, 5).await;
+
     let raft_1 = rafts.get_mut(&1).unwrap();
 
     wait_for_until_cluster_size_increase(raft_1.clone(), 5).await;

@@ -1,26 +1,55 @@
 use futures::future;
-use once_cell::sync::Lazy;
 use raftify::{
     raft::{formatter::set_custom_formatter, logger::Slogger},
     CustomFormatter, Peers, Raft as Raft_, Result,
 };
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{mpsc, Arc},
 };
 use tokio::task::JoinHandle;
 
 use crate::{
     config::build_config,
+    logger::get_logger,
     state_machine::{HashStore, LogEntry},
     utils::build_logger,
 };
 
 pub type Raft = Raft_<LogEntry, HashStore>;
 
-pub static RAFTS: Lazy<Mutex<HashMap<u64, Raft>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+pub async fn wait_until_rafts_ready(
+    rafts: Option<HashMap<u64, Raft>>,
+    initialized_raft_rcv: mpsc::Receiver<(u64, Raft)>,
+    size: u64,
+) -> HashMap<u64, Raft> {
+    let logger = get_logger();
+    let mut rafts = rafts.unwrap_or_default();
 
-fn run_raft(node_id: &u64, peers: Peers, should_be_leader: bool) -> Result<JoinHandle<Result<()>>> {
+    loop {
+        slog::info!(logger, "Waiting for raft instances to be ready...");
+        tokio::task::yield_now().await;
+
+        let (node_id, raft) = initialized_raft_rcv
+            .recv()
+            .expect("All tx dropped before receiving all raft instances");
+
+        rafts.insert(node_id, raft);
+
+        if rafts.len() >= size as usize {
+            break;
+        }
+    }
+
+    return rafts;
+}
+
+fn run_raft(
+    initialized_raft_snd: mpsc::Sender<(u64, Raft)>,
+    node_id: &u64,
+    peers: Peers,
+    should_be_leader: bool,
+) -> Result<JoinHandle<Result<()>>> {
     let peer = peers.get(node_id).unwrap();
     let mut cfg = build_config();
     cfg.initial_peers = if should_be_leader {
@@ -43,31 +72,45 @@ fn run_raft(node_id: &u64, peers: Peers, should_be_leader: bool) -> Result<JoinH
     )
     .expect("Raft build failed!");
 
-    RAFTS.lock().unwrap().insert(*node_id, raft.clone());
+    initialized_raft_snd
+        .send((node_id.to_owned(), raft.clone()))
+        .expect("Failed to send raft to the channel");
 
     let raft_handle = tokio::spawn(raft.clone().run());
 
     Ok(raft_handle)
 }
 
-pub async fn build_raft_cluster(peers: Peers) -> Result<()> {
+pub async fn build_raft_cluster(
+    initialized_raft_snd: mpsc::Sender<(u64, Raft)>,
+    peers: Peers,
+) -> Result<()> {
+    let logger = get_logger();
+
     set_custom_formatter(CustomFormatter::<LogEntry, HashStore>::new());
 
     let mut raft_handles = vec![];
     let should_be_leader = peers.len() <= 1;
 
     for (node_id, _) in peers.iter() {
-        let raft_handle = run_raft(&node_id, peers.clone(), should_be_leader)?;
+        let raft_handle = run_raft(
+            initialized_raft_snd.clone(),
+            &node_id,
+            peers.clone(),
+            should_be_leader,
+        )?;
         raft_handles.push(raft_handle);
-        println!("Node {} starting...", node_id);
+
+        slog::info!(logger, "Node {} starting...", node_id);
     }
 
     let results = future::join_all(raft_handles).await;
 
     for (result_idx, result) in results.iter().enumerate() {
         match result {
-            Ok(_) => println!("All tasks completed successfully"),
-            Err(e) => println!(
+            Ok(_) => slog::info!(logger, "All tasks completed successfully"),
+            Err(e) => slog::error!(
+                logger,
                 "Error occurred while running node {}. Error: {:?}",
                 result_idx + 1,
                 e
@@ -78,8 +121,11 @@ pub async fn build_raft_cluster(peers: Peers) -> Result<()> {
     Ok(())
 }
 
-// NOTE: this function lock RAFTS, so it should not be called while holding RAFTS lock.
-pub async fn spawn_extra_node(raft_addr: &str, peer_addr: &str) -> Result<JoinHandle<Result<()>>> {
+pub async fn spawn_extra_node(
+    initialized_raft_snd: mpsc::Sender<(u64, Raft)>,
+    raft_addr: &str,
+    peer_addr: &str,
+) -> Result<JoinHandle<Result<()>>> {
     let logger = Arc::new(Slogger {
         slog: build_logger(),
     });
@@ -94,7 +140,9 @@ pub async fn spawn_extra_node(raft_addr: &str, peer_addr: &str) -> Result<JoinHa
 
     let raft = Raft::bootstrap(node_id, raft_addr, store, cfg, logger).expect("Raft build failed!");
 
-    RAFTS.lock().unwrap().insert(node_id, raft.clone());
+    initialized_raft_snd
+        .send((node_id, raft.clone()))
+        .expect("Failed to send raft to the channel");
 
     let raft_handle = tokio::spawn(raft.clone().run());
 
