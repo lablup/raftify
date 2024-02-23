@@ -138,7 +138,12 @@ class ClusterJoinTicket:
     """ """
 
     def __init__(
-        self, reserved_id: int, leader_id: int, leader_addr: str, peers: "Peers"
+        self,
+        reserved_id: int,
+        raft_addr: str,
+        leader_id: int,
+        leader_addr: str,
+        peers: "Peers",
     ) -> None: ...
     def get_reserved_id(self) -> int:
         """ """
