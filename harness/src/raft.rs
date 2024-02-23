@@ -147,7 +147,7 @@ pub async fn spawn_extra_node(
     let raft_handle = tokio::spawn(raft.clone().run());
 
     raft.raft_node.add_peers(join_ticket.peers.clone()).await;
-    raft.join(join_ticket).await;
+    raft.join(vec![join_ticket]).await;
 
     Ok(raft_handle)
 }

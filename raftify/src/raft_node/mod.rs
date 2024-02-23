@@ -10,6 +10,7 @@ use std::{
     collections::HashMap,
     marker::PhantomData,
     net::{SocketAddr, ToSocketAddrs},
+    str::FromStr,
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc,
@@ -366,10 +367,10 @@ impl<
         }
     }
 
-    pub async fn join_cluster(&self, ticket: ClusterJoinTicket) {
+    pub async fn join_cluster(&self, tickets: Vec<ClusterJoinTicket>) {
         let (tx, rx) = oneshot::channel();
         self.local_sender
-            .send(LocalRequestMsg::JoinCluster { ticket, chan: tx })
+            .send(LocalRequestMsg::JoinCluster { tickets, chan: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -652,21 +653,29 @@ impl<
         Ok(())
     }
 
-    async fn handle_join(&mut self, ticket: ClusterJoinTicket) -> Result<()> {
-        let reserved_id = ticket.reserved_id;
+    async fn handle_join(&mut self, tickets: Vec<ClusterJoinTicket>) -> Result<()> {
+        let mut cc_v2 = ConfChangeV2::default();
+        let mut changes = vec![];
+        let mut addrs = vec![];
+        // TODO: Find more wise way to do this.
+        let peer_addr = tickets[0].leader_addr.clone();
 
-        let mut change = ConfChangeV2::default();
-        let mut cs = ConfChangeSingle::default();
-        cs.set_node_id(reserved_id);
-        cs.set_change_type(ConfChangeType::AddNode);
-        change.set_changes(vec![cs]);
-        change.set_context(serialize(&vec![self.raft_addr])?);
+        for ticket in tickets {
+            let mut cs = ConfChangeSingle::default();
+            cs.set_change_type(ConfChangeType::AddNode);
+            cs.set_node_id(ticket.reserved_id);
+            changes.push(cs);
+            addrs.push(
+                SocketAddr::from_str(ticket.raft_addr.as_str()).expect("Invalid socket address!"),
+            );
+        }
 
-        let peer_addr = ticket.leader_addr;
+        cc_v2.set_changes(changes);
+        cc_v2.set_context(serialize(&addrs)?);
 
         let mut leader_client = RaftServiceClient::connect(format!("http://{}", peer_addr)).await?;
         let response = leader_client
-            .change_config(change.clone())
+            .change_config(cc_v2.clone())
             .await?
             .into_inner();
 
@@ -674,7 +683,7 @@ impl<
             ChangeConfigResultType::ChangeConfigSuccess => Ok(()),
             ChangeConfigResultType::ChangeConfigUnknownError => Err(Error::JoinError),
             ChangeConfigResultType::ChangeConfigRejected => {
-                Err(Error::Rejected("Join request rejected".to_string()))
+                Err(Error::Rejected("Confchange request rejected".to_string()))
             }
             ChangeConfigResultType::ChangeConfigTimeoutError => Err(Error::Timeout),
             ChangeConfigResultType::ChangeConfigWrongLeader => {
@@ -1053,8 +1062,8 @@ impl<
                 self.make_snapshot(index, term).await?;
                 chan.send(LocalResponseMsg::MakeSnapshot {}).unwrap();
             }
-            LocalRequestMsg::JoinCluster { ticket, chan } => {
-                self.handle_join(ticket).await?;
+            LocalRequestMsg::JoinCluster { tickets, chan } => {
+                self.handle_join(tickets).await?;
                 chan.send(LocalResponseMsg::JoinCluster {}).unwrap();
             }
             LocalRequestMsg::SendMessage { message, chan } => {
@@ -1136,8 +1145,6 @@ impl<
                             ));
                             reserved
                         };
-
-                    // println!("peers!! {:?}", peers.clone());
 
                     chan.send(ServerResponseMsg::RequestId {
                         result: RequestIdResponseResult::Success {

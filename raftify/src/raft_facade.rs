@@ -35,6 +35,7 @@ pub struct Raft<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine 
 #[derive(Debug, Clone)]
 pub struct ClusterJoinTicket {
     pub reserved_id: u64,
+    pub raft_addr: String,
     pub leader_id: u64,
     pub leader_addr: String,
     pub peers: HashMap<u64, SocketAddr>,
@@ -186,6 +187,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         let peers: Peers = deserialize(&response.peers)?;
         match response.code() {
             ResultCode::Ok => Ok(ClusterJoinTicket {
+                raft_addr: raft_addr,
                 reserved_id: response.reserved_id,
                 leader_id: response.leader_id,
                 leader_addr: response.leader_addr,
@@ -208,8 +210,8 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         Ok(())
     }
 
-    /// Joins the cluster with the given ticket.
-    pub async fn join(&self, ticket: ClusterJoinTicket) {
-        self.raft_node.join_cluster(ticket).await;
+    /// Joins the cluster with the given tickets.
+    pub async fn join(&self, tickets: Vec<ClusterJoinTicket>) {
+        self.raft_node.join_cluster(tickets).await;
     }
 }

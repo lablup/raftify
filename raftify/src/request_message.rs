@@ -99,7 +99,7 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     JoinCluster {
-        ticket: ClusterJoinTicket,
+        tickets: Vec<ClusterJoinTicket>,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
 }
