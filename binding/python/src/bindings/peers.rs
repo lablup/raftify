@@ -6,7 +6,7 @@ use pyo3::{
 use raftify::Peers;
 use std::{collections::HashMap, hash::BuildHasherDefault};
 
-use super::{peer::PyPeer, role::PyInitialRole, utils::new_py_list};
+use super::{peer::PyPeer, role::PyInitialRole};
 
 #[derive(Clone)]
 #[pyclass(dict, name = "Peers")]
@@ -52,20 +52,14 @@ impl PyPeers {
         Ok(dict.to_object(py))
     }
 
-    pub fn items(&self, py: Python) -> PyResult<PyObject> {
-        let peer_items = self
-            .inner
-            .iter()
-            .map(|(id, peer)| (id, peer.addr.to_string()))
-            .collect::<Vec<_>>();
-
-        Ok(new_py_list::<(u64, String), _>(py, peer_items)?.to_object(py))
+    pub fn keys(&self) -> Vec<u64> {
+        self.inner.iter().map(|(id, _)| id).collect()
     }
 
-    pub fn get(&self, node_id: u64) -> Option<String> {
+    pub fn get(&self, node_id: u64) -> Option<PyPeer> {
         self.inner
             .get(&node_id)
-            .map(|peer| peer.addr.to_owned().to_string())
+            .map(|peer| PyPeer { inner: peer.clone() })
     }
 
     pub fn add_peer(&mut self, node_id: u64, addr: &PyString, role: &PyInitialRole) {

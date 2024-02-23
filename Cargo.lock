@@ -944,7 +944,6 @@ dependencies = [
  "const_format",
  "futures",
  "log",
- "once_cell",
  "raftify",
  "serde",
  "slog",

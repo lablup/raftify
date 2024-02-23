@@ -23,6 +23,14 @@ impl PyPeer {
         format!("{:?}", self.inner)
     }
 
+    pub fn get_addr(&self) -> String {
+        self.inner.addr.to_string()
+    }
+
+    pub fn get_role(&self) -> PyInitialRole {
+        PyInitialRole(self.inner.role.clone())
+    }
+
     pub fn connect<'a>(&'a self, py: Python<'a>) -> PyResult<&'a PyAny> {
         let mut peer = self.inner.clone();
         future_into_py(py, async move {

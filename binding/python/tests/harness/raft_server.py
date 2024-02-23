@@ -27,7 +27,7 @@ async def run_raft(node_id: int, initial_peers: Peers):
 
     store = HashStore()
     logger = Slogger.default()
-    raft = Raft.bootstrap(node_id, peer, store, cfg, logger)
+    raft = Raft.bootstrap(node_id, peer.get_addr(), store, cfg, logger)
 
     RAFTS[node_id] = raft
 
@@ -36,7 +36,7 @@ async def run_raft(node_id: int, initial_peers: Peers):
 
 async def run_rafts(peers: Peers):
     tasks = []
-    for node_id, _ in peers.items():
+    for node_id in peers.keys():
         tasks.append(run_raft(node_id, peers))
 
     await asyncio.gather(*tasks)
