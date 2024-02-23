@@ -85,7 +85,7 @@ node_id = join_ticket.get_reserved_id()
 raft = Raft.new_follower(node_id, raft_addr, store, cfg, logger, peers)
 tasks = []
 tasks.append(raft.run())
-await raft.join(join_ticket)
+await raft.join([join_ticket])
 ```
 
 ### Manipulate FSM by RaftServiceClient

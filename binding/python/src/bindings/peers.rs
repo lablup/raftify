@@ -57,9 +57,9 @@ impl PyPeers {
     }
 
     pub fn get(&self, node_id: u64) -> Option<PyPeer> {
-        self.inner
-            .get(&node_id)
-            .map(|peer| PyPeer { inner: peer.clone() })
+        self.inner.get(&node_id).map(|peer| PyPeer {
+            inner: peer.clone(),
+        })
     }
 
     pub fn add_peer(&mut self, node_id: u64, addr: &PyString, role: &PyInitialRole) {
