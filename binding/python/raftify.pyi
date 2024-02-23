@@ -391,7 +391,24 @@ class EntryType:
     def from_int(v: int) -> "EntryType": ...
     def __int__(self) -> int: ...
 
+class InitialRole:
+    """ """
+
+    LEADER: Final[Any]
+    """
+    """
+    VOTER: Final[Any]
+    """
+    """
+    LEARNER: Final[Any]
+    """
+    """
+    @staticmethod
+    def from_str(v: str) -> "InitialRole": ...
+    def __int__(self) -> int: ...
+
 class Entry:
+    def __init__(self) -> None: ...
     def get_context(self) -> bytes:
         """ """
     def set_context(self, context: bytes) -> None:
@@ -499,6 +516,7 @@ class SnapshotMetadata:
         """
 
 class ConfChangeSingle:
+    def __init__(self) -> None: ...
     def get_node_id(self) -> int:
         """ """
     def set_node_id(self, node_id: int):
@@ -509,6 +527,7 @@ class ConfChangeSingle:
         """ """
 
 class ConfChangeV2:
+    def __init__(self) -> None: ...
     def get_changes(self) -> list["ConfChangeSingle"]:
         """ """
     def set_changes(self, changes: list["ConfChangeSingle"]) -> None:
@@ -538,22 +557,8 @@ class ConfChangeV2:
         the Context field.
         """
 
-class InitialRole:
-    """ """
-
-    LEADER: Final[Any]
-    """
-    """
-    VOTER: Final[Any]
-    """
-    """
-    LEARNER: Final[Any]
-    """
-    """
-    @staticmethod
-    def from_str(v: str) -> "InitialRole": ...
-
 class Message:
+    def __init__(self) -> None: ...
     def get_commit(self) -> int:
         """ """
     def set_commit(self, commit: int) -> None:

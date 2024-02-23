@@ -26,6 +26,10 @@ impl PyInitialRole {
         }
     }
 
+    pub fn __int__(&self) -> u64 {
+        self.0.clone() as u64
+    }
+
     #[staticmethod]
     pub fn from_str(role: String) -> PyResult<Self> {
         match role.to_lowercase().as_str() {
