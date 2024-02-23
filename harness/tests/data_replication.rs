@@ -4,7 +4,10 @@ use tokio::time::sleep;
 
 use harness::{
     constant::{RAFT_ADDRS, THREE_NODE_EXAMPLE},
-    raft::{build_raft_cluster, spawn_extra_node, wait_until_rafts_ready, Raft},
+    raft::{
+        build_raft_cluster, spawn_and_join_extra_node, spawn_extra_node, wait_until_rafts_ready,
+        Raft,
+    },
     state_machine::LogEntry,
     utils::{kill_previous_raft_processes, load_peers, wait_for_until_cluster_size_increase},
 };
@@ -45,7 +48,11 @@ pub async fn test_data_replication() {
     sleep(Duration::from_secs(1)).await;
 
     let (raft_tx, raft_rx) = mpsc::channel::<(u64, Raft)>();
-    tokio::spawn(spawn_extra_node(raft_tx, "127.0.0.1:60064", RAFT_ADDRS[0]));
+    tokio::spawn(spawn_and_join_extra_node(
+        raft_tx,
+        "127.0.0.1:60064",
+        RAFT_ADDRS[0],
+    ));
     sleep(Duration::from_secs(1)).await;
 
     let mut rafts = wait_until_rafts_ready(Some(rafts), raft_rx, 4).await;

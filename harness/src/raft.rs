@@ -123,6 +123,28 @@ pub async fn build_raft_cluster(
 
 pub async fn spawn_extra_node(
     initialized_raft_snd: mpsc::Sender<(u64, Raft)>,
+    node_id: u64,
+    raft_addr: &str,
+) -> Result<JoinHandle<Result<()>>> {
+    let logger = Arc::new(Slogger {
+        slog: build_logger(),
+    });
+
+    let cfg = build_config();
+    let store = HashStore::new();
+    let raft = Raft::bootstrap(node_id, raft_addr, store, cfg, logger).expect("Raft build failed!");
+
+    initialized_raft_snd
+        .send((node_id, raft.clone()))
+        .expect("Failed to send raft to the channel");
+
+    let raft_handle = tokio::spawn(raft.clone().run());
+
+    Ok(raft_handle)
+}
+
+pub async fn spawn_and_join_extra_node(
+    initialized_raft_snd: mpsc::Sender<(u64, Raft)>,
     raft_addr: &str,
     peer_addr: &str,
 ) -> Result<JoinHandle<Result<()>>> {
@@ -150,4 +172,18 @@ pub async fn spawn_extra_node(
     raft.join(vec![join_ticket]).await;
 
     Ok(raft_handle)
+}
+
+pub async fn join_nodes(rafts: Vec<&Raft>, raft_addrs: Vec<&str>, peer_addr: &str) {
+    let mut tickets = vec![];
+    for (raft, raft_addr) in rafts.iter().zip(raft_addrs.into_iter()) {
+        let join_ticket = Raft::request_id(raft_addr.to_owned(), peer_addr.to_owned())
+            .await
+            .unwrap();
+
+        raft.raft_node.add_peers(join_ticket.peers.clone()).await;
+        tickets.push(join_ticket);
+    }
+
+    rafts[0].join(tickets).await;
 }
