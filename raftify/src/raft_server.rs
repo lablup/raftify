@@ -166,10 +166,13 @@ impl RaftService for RaftServer {
             Ok(Ok(raft_response)) => {
                 match raft_response {
                     ServerResponseMsg::ConfigChange { result } => match result {
-                        ConfChangeResponseResult::JoinSuccess { assigned_id, peers } => {
+                        ConfChangeResponseResult::JoinSuccess {
+                            assigned_ids,
+                            peers,
+                        } => {
                             reply.result_type =
                                 raft_service::ChangeConfigResultType::ChangeConfigSuccess as i32;
-                            reply.assigned_id = assigned_id;
+                            reply.assigned_ids = assigned_ids;
                             reply.peers = serialize(&peers).unwrap();
                         }
                         ConfChangeResponseResult::RemoveSuccess {} => {

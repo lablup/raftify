@@ -280,7 +280,7 @@ impl<
                         == raft_service::ChangeConfigResultType::ChangeConfigSuccess as i32
                     {
                         ConfChangeResponseResult::JoinSuccess {
-                            assigned_id: result.assigned_id,
+                            assigned_ids: result.assigned_ids,
                             peers: deserialize(result.peers.as_slice()).unwrap(),
                         }
                     } else {
@@ -806,11 +806,8 @@ impl<
                 cc.get_change_type() == ConfChangeType::AddNode
                     || cc.get_change_type() == ConfChangeType::AddLearnerNode
             }) {
-                // TODO: Add support for multiple nodes joining.
-                assert_eq!(conf_changes.len(), 1);
-
                 response = ConfChangeResponseResult::JoinSuccess {
-                    assigned_id: conf_changes[0].get_node_id(),
+                    assigned_ids: conf_changes.iter().map(|cc| cc.get_node_id()).collect(),
                     peers: self.peers.lock().await.clone(),
                 };
             } else if conf_changes
