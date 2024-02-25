@@ -21,7 +21,7 @@ pub mod cli;
 pub mod raft_service;
 
 pub use {
-    async_trait::async_trait, formatter::CustomFormatter, jopemachine_raft as raft,
+    async_trait::async_trait, bincode, formatter::CustomFormatter, jopemachine_raft as raft,
     raft::Config as RaftConfig, tonic, tonic::transport::Channel,
 };
 

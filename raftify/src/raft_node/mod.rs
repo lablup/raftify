@@ -334,6 +334,17 @@ impl<
         }
     }
 
+    pub async fn leave_joint(&self) {
+        self.local_sender
+            .send(LocalRequestMsg::LeaveJoint {})
+            .await
+            .unwrap();
+
+        // match resp {
+            // _ => unreachable!(),
+        // }
+    }
+
     pub async fn send_message(&self, message: RaftMessage) {
         let (tx, rx) = oneshot::channel();
         self.local_sender
@@ -733,6 +744,14 @@ impl<
             return Ok(());
         }
 
+        // // TODO: Write documents to clarify when to use entry with empty data.
+        // if entry.get_data().is_empty() {
+        //     // let cs = self.raw_node.apply_conf_change(&ConfChangeV2::default())?;
+        //     // let store = self.raw_node.mut_store();
+        //     // store.set_conf_state(&cs)?;
+        //     // self.make_snapshot(entry.get_index(), entry.get_term()).await?;
+        // }
+
         let conf_change_v2 = match entry.get_entry_type() {
             EntryType::EntryConfChange => to_confchange_v2(ConfChange::decode(entry.get_data())?),
             EntryType::EntryConfChangeV2 => ConfChangeV2::decode(entry.get_data())?,
@@ -1074,6 +1093,12 @@ impl<
                 ));
                 self.raw_node.step(*message)?;
                 chan.send(LocalResponseMsg::SendMessage {}).unwrap();
+            }
+            LocalRequestMsg::LeaveJoint {} => {
+                let zero = ConfChange::default();
+                let cs = self.raw_node.apply_conf_change(&zero)?;
+                let store = self.raw_node.mut_store();
+                store.set_conf_state(&cs)?;
             }
         }
 

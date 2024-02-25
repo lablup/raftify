@@ -115,6 +115,15 @@ impl PyRaftNode {
         })
     }
 
+    pub fn leave_joint<'a>(&'a self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+
+        future_into_py(py, async move {
+            raft_node.leave_joint().await;
+            Ok(())
+        })
+    }
+
     pub fn quit<'a>(&'a mut self, py: Python<'a>) -> PyResult<&'a PyAny> {
         let raft_node = self.inner.clone();
 

@@ -5,8 +5,7 @@ extern crate slog_term;
 
 use actix_web::{web, App, HttpServer};
 use raftify::{
-    raft::{formatter::set_custom_formatter, logger::Slogger},
-    CustomFormatter, Raft as Raft_,
+    raft::{formatter::set_custom_formatter, logger::Slogger}, ClusterJoinTicket, CustomFormatter, Raft as Raft_
 };
 use slog::Drain;
 use slog_envlogger::LogBuilder;
@@ -16,7 +15,7 @@ use structopt::StructOpt;
 use example_harness::config::build_config;
 use memstore_example_harness::{
     state_machine::{HashStore, LogEntry},
-    web_server_api::{debug, get, leader_id, leave, peers, put, snapshot},
+    web_server_api::{debug, get, join_test, leader_id, leave, leave_joint, peers, put, snapshot},
 };
 use memstore_static_members::utils::load_peers;
 
@@ -32,6 +31,7 @@ struct Options {
     restore_wal_from: Option<u64>,
     #[structopt(long)]
     restore_wal_snapshot_from: Option<u64>,
+
 }
 
 #[actix_rt::main]
@@ -59,7 +59,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let initial_peers = load_peers().await?;
 
     let mut cfg = build_config();
-    cfg.initial_peers = Some(initial_peers.clone());
+    // cfg.initial_peers = Some(initial_peers.clone());
     cfg.restore_wal_from = options.restore_wal_from;
     cfg.restore_wal_snapshot_from = options.restore_wal_snapshot_from;
 
@@ -69,7 +69,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let raft = Raft::bootstrap(
         node_id,
-        options.raft_addr,
+        options.raft_addr.clone(),
         store.clone(),
         cfg.clone(),
         logger.clone(),
@@ -89,6 +89,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .service(peers)
                     .service(snapshot)
                     .service(leader_id)
+                    .service(join_test)
+                    .service(leave_joint)
             })
             .bind(addr)
             .unwrap()

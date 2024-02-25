@@ -102,6 +102,8 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
         tickets: Vec<ClusterJoinTicket>,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
+    LeaveJoint {
+    },
 }
 
 /// Request type sent from a RaftNode to itself (RaftNode).
@@ -142,5 +144,6 @@ impl_debug_for_enum!(
     Propose,
     ChangeConfig,
     SendMessage,
-    JoinCluster
+    JoinCluster,
+    LeaveJoint
 );
