@@ -6,7 +6,7 @@ extern crate slog_term;
 use actix_web::{web, App, HttpServer};
 use raftify::{
     raft::{formatter::set_custom_formatter, logger::Slogger},
-    CustomFormatter, Raft as Raft_,
+    ClusterJoinTicket, CustomFormatter, Raft as Raft_,
 };
 use slog::Drain;
 use slog_envlogger::LogBuilder;
@@ -36,6 +36,8 @@ struct Options {
 
 #[actix_rt::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    color_backtrace::install();
+
     let decorator = slog_term::TermDecorator::new().build();
     let drain = slog_term::FullFormat::new(decorator).build().fuse();
     let drain = slog_async::Async::new(drain).build().fuse();

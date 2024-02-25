@@ -542,6 +542,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "color-backtrace"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "150fd80a270c0671379f388c8204deb6a746bb4eac8a6c03fe2460b2c0127ea0"
+dependencies = [
+ "backtrace",
+ "termcolor",
+]
+
+[[package]]
 name = "const_format"
 version = "0.2.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1321,6 +1331,7 @@ dependencies = [
  "actix-web",
  "async-trait",
  "bincode",
+ "color-backtrace",
  "example-harness",
  "log",
  "memstore-example-harness",
@@ -1344,6 +1355,7 @@ dependencies = [
  "actix-web",
  "async-trait",
  "bincode",
+ "color-backtrace",
  "log",
  "raftify",
  "serde",
@@ -1359,6 +1371,7 @@ dependencies = [
  "actix-web",
  "async-trait",
  "bincode",
+ "color-backtrace",
  "example-harness",
  "log",
  "memstore-example-harness",
