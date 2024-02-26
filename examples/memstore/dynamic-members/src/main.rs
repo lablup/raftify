@@ -16,7 +16,10 @@ use structopt::StructOpt;
 use example_harness::config::build_config;
 use memstore_example_harness::{
     state_machine::{HashStore, LogEntry},
-    web_server_api::{debug, get, leader_id, leave, peers, put, snapshot},
+    web_server_api::{
+        campaign, debug, demote, get, leader_id, leave, leave_joint, peers, put, snapshot,
+        transfer_leader,
+    },
 };
 
 type Raft = Raft_<LogEntry, HashStore>;
@@ -102,6 +105,10 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .service(peers)
                     .service(snapshot)
                     .service(leader_id)
+                    .service(leave_joint)
+                    .service(transfer_leader)
+                    .service(campaign)
+                    .service(demote)
             })
             .bind(addr)
             .unwrap()

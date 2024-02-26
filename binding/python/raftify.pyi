@@ -127,6 +127,12 @@ class RaftNode:
         """ """
     async def leave(self) -> None:
         """ """
+    async def leave_joint(self) -> None:
+        """ """
+    async def demote(self, term: int, leader_id: int) -> None:
+        """ """
+    async def transfer_leader(self, leader_id: int) -> None:
+        """ """
     async def quit(self) -> None:
         """ """
     async def get_cluster_size(self) -> int:
@@ -285,6 +291,10 @@ class RaftServiceClient:
     async def propose(self, proposal: bytes) -> None:
         """ """
     async def get_peers(self) -> str:
+        """ """
+    async def set_peers(self, peers: "Peers") -> None:
+        """ """
+    async def leave_joint(self) -> None:
         """ """
     async def debug_node(self) -> str:
         """ """

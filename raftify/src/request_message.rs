@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     raft::eraftpb::{ConfChangeV2, Message as RaftMessage},
-    InitialRole,
+    InitialRole, Peers,
 };
 
 /// Request type processed through network calls (gRPC)
@@ -32,6 +32,13 @@ pub enum ServerRequestMsg {
         message: Box<RaftMessage>,
     },
     GetPeers {
+        chan: Sender<ServerResponseMsg>,
+    },
+    SetPeers {
+        chan: Sender<ServerResponseMsg>,
+        peers: Peers,
+    },
+    LeaveJoint {
         chan: Sender<ServerResponseMsg>,
     },
     CreateSnapshot {
@@ -78,6 +85,18 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
     Quit {
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
+    Campaign {
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
+    },
+    Demote {
+        term: u64,
+        leader_id: u64,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
+    },
+    TransferLeader {
+        node_id: u64,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
+    },
     Leave {
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
@@ -102,6 +121,7 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
         tickets: Vec<ClusterJoinTicket>,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
+    LeaveJoint {},
 }
 
 /// Request type sent from a RaftNode to itself (RaftNode).
@@ -137,10 +157,14 @@ impl_debug_for_enum!(
     Storage,
     GetClusterSize,
     Quit,
+    Campaign,
+    Demote,
+    TransferLeader,
     Leave,
     MakeSnapshot,
     Propose,
     ChangeConfig,
     SendMessage,
-    JoinCluster
+    JoinCluster,
+    LeaveJoint
 );

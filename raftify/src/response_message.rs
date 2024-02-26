@@ -64,8 +64,10 @@ pub enum ServerResponseMsg {
     ReportUnreachable { result: ResponseResult },
     DebugNode { result_json: String },
     GetPeers { peers: Peers },
+    SetPeers {},
     SendMessage { result: ResponseResult },
     CreateSnapshot {},
+    LeaveJoint {},
 
     // Rerouting available
     Propose { result: ResponseResult },
@@ -84,9 +86,13 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
     Storage { storage: HeedStorage },
     GetClusterSize { size: usize },
     Quit {},
+    Campaign {},
     MakeSnapshot {},
     JoinCluster {},
     SendMessage {},
+    Demote {},
+    LeaveJoint {},
+    TransferLeader {},
     DebugNode { result_json: String },
     _Phantom(PhantomData<LogEntry>),
 

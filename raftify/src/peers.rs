@@ -47,6 +47,10 @@ impl Peers {
         }
     }
 
+    pub fn replace(&mut self, peers: Peers) {
+        self.inner = peers.inner;
+    }
+
     pub fn iter(&self) -> SortedPeersIter {
         let mut keys: Vec<_> = self.inner.keys().cloned().collect();
         keys.sort();

@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use actix_web::{get, web, Responder};
-use raftify::{AbstractLogEntry, Raft as Raft_};
+use raftify::{
+    create_client, raft_service, AbstractLogEntry, ClusterJoinTicket, Peers, Raft as Raft_,
+};
 use serde_json::Value;
 
 use super::state_machine::{HashStore, LogEntry};
@@ -64,5 +66,38 @@ async fn peers(data: web::Data<(HashStore, Raft)>) -> impl Responder {
 async fn snapshot(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
     raft.1.capture_snapshot().await.unwrap();
+    "OK".to_string()
+}
+
+#[get("/leave_joint")]
+async fn leave_joint(data: web::Data<(HashStore, Raft)>) -> impl Responder {
+    let raft = data.clone();
+    raft.1.raft_node.leave_joint().await;
+    "OK".to_string()
+}
+
+#[get("/transfer_leader/{id}")]
+async fn transfer_leader(
+    data: web::Data<(HashStore, Raft)>,
+    path: web::Path<u64>,
+) -> impl Responder {
+    let raft = data.clone();
+    let node_id: u64 = path.into_inner();
+    raft.1.raft_node.transfer_leader(node_id).await;
+    "OK".to_string()
+}
+
+#[get("/campaign")]
+async fn campaign(data: web::Data<(HashStore, Raft)>) -> impl Responder {
+    let raft = data.clone();
+    raft.1.raft_node.campaign().await;
+    "OK".to_string()
+}
+
+#[get("/demote/{term}/{leader_id}")]
+async fn demote(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, u64)>) -> impl Responder {
+    let raft = data.clone();
+    let (term, leader_id_) = path.into_inner();
+    raft.1.raft_node.demote(term, leader_id_).await;
     "OK".to_string()
 }

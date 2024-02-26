@@ -4,7 +4,7 @@ pub mod role;
 pub mod utils;
 
 use bincode::{deserialize, serialize};
-use jopemachine_raft::logger::Logger;
+use jopemachine_raft::{eraftpb::ConfChangeTransition, logger::Logger};
 use prost::Message as PMessage;
 use std::{
     collections::HashMap,
@@ -321,6 +321,49 @@ impl<
         }
     }
 
+    pub async fn transfer_leader(&self, node_id: u64) {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::TransferLeader { node_id, chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
+            LocalResponseMsg::TransferLeader {} => (),
+            _ => unreachable!(),
+        }
+    }
+
+    pub async fn campaign(&self) {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::Campaign { chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
+            LocalResponseMsg::Campaign {} => (),
+            _ => unreachable!(),
+        }
+    }
+
+    pub async fn demote(&self, term: u64, leader_id: u64) {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::Demote {
+                term,
+                leader_id,
+                chan: tx,
+            })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
+            LocalResponseMsg::Demote {} => (),
+            _ => unreachable!(),
+        }
+    }
+
     pub async fn leave(&self) {
         let (tx, rx) = oneshot::channel();
         self.local_sender
@@ -332,6 +375,13 @@ impl<
             LocalResponseMsg::ConfigChange { result: _result } => (),
             _ => unreachable!(),
         }
+    }
+
+    pub async fn leave_joint(&self) {
+        self.local_sender
+            .send(LocalRequestMsg::LeaveJoint {})
+            .await
+            .unwrap();
     }
 
     pub async fn send_message(&self, message: RaftMessage) {
@@ -637,12 +687,12 @@ impl<
 
     async fn handle_committed_entries(&mut self, committed_entries: Vec<Entry>) -> Result<()> {
         for entry in committed_entries {
-            if entry.get_data().is_empty() {
-                continue;
-            }
-
             match entry.get_entry_type() {
                 EntryType::EntryNormal => {
+                    if entry.get_data().is_empty() {
+                        continue;
+                    }
+
                     self.handle_committed_normal_entry(&entry).await?;
                 }
                 EntryType::EntryConfChange | EntryType::EntryConfChangeV2 => {
@@ -659,6 +709,10 @@ impl<
         let mut addrs = vec![];
         // TODO: Find more wise way to do this.
         let peer_addr = tickets[0].leader_addr.clone();
+
+        if tickets.len() > 1 {
+            cc_v2.set_transition(ConfChangeTransition::Explicit);
+        }
 
         for ticket in tickets {
             let mut cs = ConfChangeSingle::default();
@@ -728,8 +782,18 @@ impl<
     }
 
     async fn handle_committed_config_change_entry(&mut self, entry: &Entry) -> Result<()> {
-        // Block already applied entries (* Used in static bootstrap)
         if entry.get_context().is_empty() {
+            let conf_change_v2 = match entry.get_entry_type() {
+                EntryType::EntryConfChange => {
+                    to_confchange_v2(ConfChange::decode(entry.get_data())?)
+                }
+                EntryType::EntryConfChangeV2 => ConfChangeV2::decode(entry.get_data())?,
+                _ => unreachable!(),
+            };
+
+            let cs = self.raw_node.apply_conf_change(&conf_change_v2)?;
+            let store = self.raw_node.mut_store();
+            store.set_conf_state(&cs)?;
             return Ok(());
         }
 
@@ -1042,6 +1106,18 @@ impl<
                 self.should_exit = true;
                 chan.send(LocalResponseMsg::Quit {}).unwrap();
             }
+            LocalRequestMsg::Campaign { chan } => {
+                self.raw_node.campaign()?;
+                chan.send(LocalResponseMsg::Campaign {}).unwrap();
+            }
+            LocalRequestMsg::Demote {
+                chan,
+                term,
+                leader_id,
+            } => {
+                self.raw_node.raft.become_follower(term, leader_id);
+                chan.send(LocalResponseMsg::Demote {}).unwrap();
+            }
             LocalRequestMsg::Leave { chan } => {
                 let mut conf_change = ConfChange::default();
                 conf_change.set_node_id(self.get_id());
@@ -1074,6 +1150,14 @@ impl<
                 ));
                 self.raw_node.step(*message)?;
                 chan.send(LocalResponseMsg::SendMessage {}).unwrap();
+            }
+            LocalRequestMsg::LeaveJoint {} => {
+                let zero = ConfChangeV2::default();
+                self.raw_node.propose_conf_change(vec![], zero)?;
+            }
+            LocalRequestMsg::TransferLeader { node_id, chan } => {
+                self.raw_node.transfer_leader(node_id);
+                chan.send(LocalResponseMsg::TransferLeader {}).unwrap();
             }
         }
 
@@ -1156,6 +1240,11 @@ impl<
                     .unwrap();
                 }
             }
+            ServerRequestMsg::LeaveJoint { chan } => {
+                self.raw_node
+                    .propose_conf_change(vec![], ConfChangeV2::default())?;
+                chan.send(ServerResponseMsg::LeaveJoint {}).unwrap();
+            }
             ServerRequestMsg::DebugNode { chan } => {
                 chan.send(ServerResponseMsg::DebugNode {
                     result_json: self.inspect().await?,
@@ -1173,6 +1262,10 @@ impl<
                 let last_term = self.raw_node.store().hard_state()?.term;
                 self.make_snapshot(last_index, last_term).await?;
                 chan.send(ServerResponseMsg::CreateSnapshot {}).unwrap();
+            }
+            ServerRequestMsg::SetPeers { chan, peers } => {
+                self.peers.lock().await.replace(peers);
+                chan.send(ServerResponseMsg::SetPeers {}).unwrap();
             }
         }
 
