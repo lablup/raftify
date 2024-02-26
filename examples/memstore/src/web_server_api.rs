@@ -74,6 +74,17 @@ async fn leave_joint(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     "OK".to_string()
 }
 
+#[get("/transfer_leader/{id}")]
+async fn transfer_leader(
+    data: web::Data<(HashStore, Raft)>,
+    path: web::Path<u64>,
+) -> impl Responder {
+    let raft = data.clone();
+    let node_id: u64 = path.into_inner();
+    raft.1.raft_node.transfer_leader(node_id).await;
+    "OK".to_string()
+}
+
 // TODO: Investigate why auto type joint consensus is not closed.
 #[get("/join_test")]
 async fn join_test(data: web::Data<(HashStore, Raft)>) -> impl Responder {
@@ -81,30 +92,32 @@ async fn join_test(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let mut initial_peers = Peers::with_empty();
     initial_peers.add_peer(1, "127.0.0.1:60061", None);
     initial_peers.add_peer(2, "127.0.0.1:60062", None);
-    initial_peers.add_peer(3, "127.0.0.1:60063", None);
-    initial_peers.add_peer(4, "127.0.0.1:60064", None);
-    initial_peers.add_peer(5, "127.0.0.1:60065", None);
+    // initial_peers.add_peer(3, "127.0.0.1:60063", None);
+    // initial_peers.add_peer(4, "127.0.0.1:60064", None);
+    // initial_peers.add_peer(5, "127.0.0.1:60065", None);
 
     let ticket = ClusterJoinTicket {
-        reserved_id: 4,
-        raft_addr: "127.0.0.1:60064".to_owned(),
+        reserved_id: 2,
+        raft_addr: "127.0.0.1:60062".to_owned(),
         leader_id: 1,
         leader_addr: "127.0.0.1:60061".to_owned(),
         peers: initial_peers.clone().into(),
     };
 
-    let ticket2 = ClusterJoinTicket {
-        reserved_id: 5,
-        raft_addr: "127.0.0.1:60065".to_owned(),
-        leader_id: 1,
-        leader_addr: "127.0.0.1:60061".to_owned(),
-        peers: initial_peers.clone().into(),
-    };
+    // let ticket2 = ClusterJoinTicket {
+    //     reserved_id: 5,
+    //     raft_addr: "127.0.0.1:60065".to_owned(),
+    //     leader_id: 1,
+    //     leader_addr: "127.0.0.1:60061".to_owned(),
+    //     peers: initial_peers.clone().into(),
+    // };
 
-    raft.1.join(vec![
-        ticket,
-        ticket2,
-    ]).await;
+    raft.1
+        .join(vec![
+            ticket,
+            // ticket2,
+        ])
+        .await;
 
     raft.1.raft_node.add_peers(initial_peers.into()).await;
 
