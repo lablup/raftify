@@ -97,7 +97,7 @@ class Raft:
     @staticmethod
     async def request_id(raft_addr: str, peer_addr: str) -> "ClusterJoinTicket":
         """"""
-    async def join(self, join_ticket: "ClusterJoinTicket") -> None:
+    async def join(self, tickets: list["ClusterJoinTicket"]) -> None:
         """ """
     async def run(self) -> None:
         """ """
