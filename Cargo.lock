@@ -1765,6 +1765,7 @@ dependencies = [
  "heed",
  "heed-traits",
  "jopemachine-raft",
+ "lazy_static",
  "log",
  "parking_lot",
  "prost",
