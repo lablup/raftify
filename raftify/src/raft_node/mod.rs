@@ -321,6 +321,19 @@ impl<
         }
     }
 
+    pub async fn transfer_leader(&self, node_id: u64) {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::TransferLeader { node_id, chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
+            LocalResponseMsg::TransferLeader {} => (),
+            _ => unreachable!(),
+        }
+    }
+
     pub async fn leave(&self) {
         let (tx, rx) = oneshot::channel();
         self.local_sender
@@ -341,7 +354,7 @@ impl<
             .unwrap();
 
         // match resp {
-            // _ => unreachable!(),
+        // _ => unreachable!(),
         // }
     }
 
@@ -1099,6 +1112,10 @@ impl<
                 let cs = self.raw_node.apply_conf_change(&zero)?;
                 let store = self.raw_node.mut_store();
                 store.set_conf_state(&cs)?;
+            }
+            LocalRequestMsg::TransferLeader { node_id, chan } => {
+                self.raw_node.transfer_leader(node_id);
+                chan.send(LocalResponseMsg::TransferLeader {}).unwrap();
             }
         }
 

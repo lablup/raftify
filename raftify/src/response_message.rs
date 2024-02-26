@@ -88,6 +88,7 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
     JoinCluster {},
     SendMessage {},
     LeaveJoint {},
+    TransferLeader {},
     DebugNode { result_json: String },
     _Phantom(PhantomData<LogEntry>),
 
