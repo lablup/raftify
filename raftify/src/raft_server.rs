@@ -151,8 +151,10 @@ impl RaftService for RaftServer {
 
         // TODO: Handle this kind of errors
         match sender.send(message).await {
-            Ok(_) => (),
-            Err(_) => self.print_send_error(function_name!()),
+            Ok(_) => {}
+            Err(_) => {
+                self.print_send_error(function_name!());
+            }
         }
 
         let mut reply = raft_service::ChangeConfigResponse::default();
@@ -209,7 +211,7 @@ impl RaftService for RaftServer {
                     raft_service::ChangeConfigResultType::ChangeConfigTimeoutError as i32;
                 reply.error = e.to_string().as_bytes().to_vec();
                 self.logger.error(&format!(
-                    "Confchange request timeout. current conf_change_request_timeout is {}",
+                    "Confchange request timeout! (\"conf_change_request_timeout\" = {})",
                     self.config.conf_change_request_timeout
                 ));
             }

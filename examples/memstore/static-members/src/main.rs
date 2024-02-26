@@ -5,7 +5,8 @@ extern crate slog_term;
 
 use actix_web::{web, App, HttpServer};
 use raftify::{
-    raft::{formatter::set_custom_formatter, logger::Slogger}, ClusterJoinTicket, CustomFormatter, Raft as Raft_
+    raft::{formatter::set_custom_formatter, logger::Slogger},
+    ClusterJoinTicket, CustomFormatter, Raft as Raft_,
 };
 use slog::Drain;
 use slog_envlogger::LogBuilder;
@@ -31,7 +32,6 @@ struct Options {
     restore_wal_from: Option<u64>,
     #[structopt(long)]
     restore_wal_snapshot_from: Option<u64>,
-
 }
 
 #[actix_rt::main]
