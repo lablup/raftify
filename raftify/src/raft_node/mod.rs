@@ -794,18 +794,8 @@ impl<
             let cs = self.raw_node.apply_conf_change(&conf_change_v2)?;
             let store = self.raw_node.mut_store();
             store.set_conf_state(&cs)?;
-            // conf_change_v2
             return Ok(());
         }
-
-        // TODO: Write documents to clarify when to use entry with empty data.
-
-        // if entry.get_data().is_empty() {
-        //     // let cs = self.raw_node.apply_conf_change(&ConfChangeV2::default())?;
-        //     // let store = self.raw_node.mut_store();
-        //     // store.set_conf_state(&cs)?;
-        //     // self.make_snapshot(entry.get_index(), entry.get_term()).await?;
-        // }
 
         let conf_change_v2 = match entry.get_entry_type() {
             EntryType::EntryConfChange => to_confchange_v2(ConfChange::decode(entry.get_data())?),
