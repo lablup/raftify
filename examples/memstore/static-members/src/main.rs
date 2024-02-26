@@ -17,7 +17,8 @@ use example_harness::config::build_config;
 use memstore_example_harness::{
     state_machine::{HashStore, LogEntry},
     web_server_api::{
-        debug, get, join_test, leader_id, leave, leave_joint, peers, put, snapshot, transfer_leader,
+        campaign, debug, demote, get, join_test, leader_id, leave, leave_joint, peers, put,
+        snapshot, transfer_leader,
     },
 };
 use memstore_static_members::utils::load_peers;
@@ -94,6 +95,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .service(join_test)
                     .service(leave_joint)
                     .service(transfer_leader)
+                    .service(campaign)
+                    .service(demote)
             })
             .bind(addr)
             .unwrap()

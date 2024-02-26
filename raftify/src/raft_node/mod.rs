@@ -334,6 +334,36 @@ impl<
         }
     }
 
+    pub async fn campaign(&self) {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::Campaign { chan: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
+            LocalResponseMsg::Campaign {} => (),
+            _ => unreachable!(),
+        }
+    }
+
+    pub async fn demote(&self, term: u64, leader_id: u64) {
+        let (tx, rx) = oneshot::channel();
+        self.local_sender
+            .send(LocalRequestMsg::Demote {
+                term,
+                leader_id,
+                chan: tx,
+            })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+        match resp {
+            LocalResponseMsg::Demote {} => (),
+            _ => unreachable!(),
+        }
+    }
+
     pub async fn leave(&self) {
         let (tx, rx) = oneshot::channel();
         self.local_sender
@@ -1073,6 +1103,18 @@ impl<
             LocalRequestMsg::Quit { chan } => {
                 self.should_exit = true;
                 chan.send(LocalResponseMsg::Quit {}).unwrap();
+            }
+            LocalRequestMsg::Campaign { chan } => {
+                self.raw_node.campaign()?;
+                chan.send(LocalResponseMsg::Campaign {}).unwrap();
+            }
+            LocalRequestMsg::Demote {
+                chan,
+                term,
+                leader_id,
+            } => {
+                self.raw_node.raft.become_follower(term, leader_id);
+                chan.send(LocalResponseMsg::Demote {}).unwrap();
             }
             LocalRequestMsg::Leave { chan } => {
                 let mut conf_change = ConfChange::default();

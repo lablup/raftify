@@ -78,6 +78,14 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
     Quit {
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
+    Campaign {
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
+    },
+    Demote {
+        term: u64,
+        leader_id: u64,
+        chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
+    },
     TransferLeader {
         node_id: u64,
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
@@ -142,6 +150,8 @@ impl_debug_for_enum!(
     Storage,
     GetClusterSize,
     Quit,
+    Campaign,
+    Demote,
     TransferLeader,
     Leave,
     MakeSnapshot,

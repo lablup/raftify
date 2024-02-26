@@ -85,6 +85,21 @@ async fn transfer_leader(
     "OK".to_string()
 }
 
+#[get("/campaign")]
+async fn campaign(data: web::Data<(HashStore, Raft)>) -> impl Responder {
+    let raft = data.clone();
+    raft.1.raft_node.campaign().await;
+    "OK".to_string()
+}
+
+#[get("/demote/{term}/{leader_id}")]
+async fn demote(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, u64)>) -> impl Responder {
+    let raft = data.clone();
+    let (term, leader_id_) = path.into_inner();
+    raft.1.raft_node.demote(term, leader_id_).await;
+    "OK".to_string()
+}
+
 // TODO: Investigate why auto type joint consensus is not closed.
 #[get("/join_test")]
 async fn join_test(data: web::Data<(HashStore, Raft)>) -> impl Responder {
