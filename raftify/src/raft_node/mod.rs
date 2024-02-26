@@ -2,6 +2,7 @@ mod bootstrap;
 mod response_sender;
 pub mod role;
 pub mod utils;
+pub mod error;
 
 use bincode::{deserialize, serialize};
 use jopemachine_raft::logger::Logger;
@@ -25,6 +26,7 @@ use tonic::Request;
 
 use response_sender::ResponseSender;
 use utils::inspect_raftnode;
+use error::{SEND_ERROR_MSG, RECEIVE_ERROR_MSG};
 
 use crate::{
     create_client,
@@ -104,8 +106,8 @@ impl<
         self.local_sender
             .send(LocalRequestMsg::IsLeader { chan: tx })
             .await
-            .unwrap();
-        let resp = rx.await.unwrap();
+            .expect(SEND_ERROR_MSG);
+        let resp = rx.await.expect(RECEIVE_ERROR_MSG);
 
         match resp {
             LocalResponseMsg::IsLeader { is_leader } => is_leader,
