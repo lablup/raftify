@@ -2,23 +2,11 @@ use std::{fmt, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-use crate::raft::eraftpb::ConfChangeType;
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum InitialRole {
     Leader,
     Voter,
     Learner,
-}
-
-impl InitialRole {
-    pub fn to_confchange_type(&self) -> ConfChangeType {
-        match self {
-            InitialRole::Voter => ConfChangeType::AddNode,
-            InitialRole::Learner => ConfChangeType::AddLearnerNode,
-            _ => panic!("Invalid follower role"),
-        }
-    }
 }
 
 impl fmt::Display for InitialRole {
