@@ -72,9 +72,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
             should_be_leader = leaders.contains(&node_id);
         }
 
-        let (local_tx, local_rx) = mpsc::channel(100);
         let (server_tx, server_rx) = mpsc::channel(100);
-
         let raft_node = RaftNode::bootstrap(
             node_id,
             should_be_leader,
@@ -84,8 +82,6 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
             logger.clone(),
             server_rx,
             server_tx.clone(),
-            local_rx,
-            local_tx.clone(),
         )?;
 
         let raft_server =

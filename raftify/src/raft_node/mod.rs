@@ -78,9 +78,9 @@ impl<
         logger: Arc<dyn Logger>,
         server_rcv: mpsc::Receiver<ServerRequestMsg>,
         server_snd: mpsc::Sender<ServerRequestMsg>,
-        local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
-        local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
+        let (local_snd, local_rcv) = mpsc::channel(100);
+
         RaftNodeCore::<LogEntry, FSM>::bootstrap(
             node_id,
             should_be_leader,
