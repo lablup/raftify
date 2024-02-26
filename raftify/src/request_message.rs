@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     raft::eraftpb::{ConfChangeV2, Message as RaftMessage},
-    InitialRole,
+    InitialRole, Peers,
 };
 
 /// Request type processed through network calls (gRPC)
@@ -33,6 +33,10 @@ pub enum ServerRequestMsg {
     },
     GetPeers {
         chan: Sender<ServerResponseMsg>,
+    },
+    SetPeers {
+        chan: Sender<ServerResponseMsg>,
+        peers: Peers,
     },
     CreateSnapshot {
         chan: Sender<ServerResponseMsg>,

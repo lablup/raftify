@@ -64,6 +64,7 @@ pub enum ServerResponseMsg {
     ReportUnreachable { result: ResponseResult },
     DebugNode { result_json: String },
     GetPeers { peers: Peers },
+    SetPeers {},
     SendMessage { result: ResponseResult },
     CreateSnapshot {},
 

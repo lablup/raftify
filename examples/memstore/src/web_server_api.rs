@@ -1,7 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, os::unix::net::SocketAddr};
 
 use actix_web::{get, web, Responder};
-use raftify::{AbstractLogEntry, ClusterJoinTicket, Peers, Raft as Raft_};
+use raftify::{
+    create_client, raft_service, AbstractLogEntry, ClusterJoinTicket, Peers, Raft as Raft_,
+    RaftServiceClient,
+};
 use serde_json::Value;
 
 use super::state_machine::{HashStore, LogEntry};
@@ -107,7 +110,7 @@ async fn join_test(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let mut initial_peers = Peers::with_empty();
     initial_peers.add_peer(1, "127.0.0.1:60061", None);
     initial_peers.add_peer(2, "127.0.0.1:60062", None);
-    // initial_peers.add_peer(3, "127.0.0.1:60063", None);
+    initial_peers.add_peer(3, "127.0.0.1:60063", None);
     // initial_peers.add_peer(4, "127.0.0.1:60064", None);
     // initial_peers.add_peer(5, "127.0.0.1:60065", None);
 
@@ -119,22 +122,37 @@ async fn join_test(data: web::Data<(HashStore, Raft)>) -> impl Responder {
         peers: initial_peers.clone().into(),
     };
 
-    // let ticket2 = ClusterJoinTicket {
-    //     reserved_id: 5,
-    //     raft_addr: "127.0.0.1:60065".to_owned(),
-    //     leader_id: 1,
-    //     leader_addr: "127.0.0.1:60061".to_owned(),
-    //     peers: initial_peers.clone().into(),
-    // };
+    let ticket2 = ClusterJoinTicket {
+        reserved_id: 3,
+        raft_addr: "127.0.0.1:60063".to_owned(),
+        leader_id: 1,
+        leader_addr: "127.0.0.1:60061".to_owned(),
+        peers: initial_peers.clone().into(),
+    };
 
-    raft.1
-        .join(vec![
-            ticket,
-            // ticket2,
-        ])
-        .await;
+    raft.1.join(vec![ticket, ticket2]).await;
 
-    raft.1.raft_node.add_peers(initial_peers.into()).await;
+    let mut client_2 = create_client(&"127.0.0.1:60062").await.unwrap();
+
+    client_2.set_peers(raft_service::Peers {
+        peers: vec![
+            raft_service::Peer { node_id: 1, addr: "127.0.0.1:60061".to_owned() },
+            raft_service::Peer { node_id: 2, addr: "127.0.0.1:60062".to_owned() },
+            raft_service::Peer { node_id: 3, addr: "127.0.0.1:60063".to_owned() },
+        ],
+    }).await.unwrap();
+
+    let mut client_3 = create_client(&"127.0.0.1:60063").await.unwrap();
+
+    client_3.set_peers(raft_service::Peers {
+        peers: vec![
+            raft_service::Peer { node_id: 1, addr: "127.0.0.1:60061".to_owned() },
+            raft_service::Peer { node_id: 2, addr: "127.0.0.1:60062".to_owned() },
+            raft_service::Peer { node_id: 3, addr: "127.0.0.1:60063".to_owned() },
+        ],
+    }).await.unwrap();
+
+    // raft.1.raft_node.add_peers(initial_peers.into()).await;
 
     "OK".to_string()
 }

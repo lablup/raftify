@@ -6,7 +6,7 @@ extern crate slog_term;
 use actix_web::{web, App, HttpServer};
 use raftify::{
     raft::{formatter::set_custom_formatter, logger::Slogger},
-    ClusterJoinTicket, CustomFormatter, Raft as Raft_,
+    CustomFormatter, Raft as Raft_,
 };
 use slog::Drain;
 use slog_envlogger::LogBuilder;

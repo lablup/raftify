@@ -4,7 +4,7 @@ pub mod role;
 pub mod utils;
 
 use bincode::{deserialize, serialize};
-use jopemachine_raft::logger::Logger;
+use jopemachine_raft::{eraftpb::ConfChangeTransition, logger::Logger};
 use prost::Message as PMessage;
 use std::{
     collections::HashMap,
@@ -691,12 +691,12 @@ impl<
 
     async fn handle_committed_entries(&mut self, committed_entries: Vec<Entry>) -> Result<()> {
         for entry in committed_entries {
-            if entry.get_data().is_empty() {
-                continue;
-            }
-
             match entry.get_entry_type() {
                 EntryType::EntryNormal => {
+                    if entry.get_data().is_empty() {
+                        continue;
+                    }
+
                     self.handle_committed_normal_entry(&entry).await?;
                 }
                 EntryType::EntryConfChange | EntryType::EntryConfChangeV2 => {
@@ -714,6 +714,10 @@ impl<
         // TODO: Find more wise way to do this.
         let peer_addr = tickets[0].leader_addr.clone();
 
+        if tickets.len() > 1 {
+            cc_v2.set_transition(ConfChangeTransition::Explicit);
+        }
+
         for ticket in tickets {
             let mut cs = ConfChangeSingle::default();
             cs.set_change_type(ConfChangeType::AddNode);
@@ -726,6 +730,7 @@ impl<
 
         cc_v2.set_changes(changes);
         cc_v2.set_context(serialize(&addrs)?);
+        // cc_v2.set_transition(ConfChangeTransition::Explicit);
 
         let mut leader_client = RaftServiceClient::connect(format!("http://{}", peer_addr)).await?;
         let response = leader_client
@@ -782,9 +787,19 @@ impl<
     }
 
     async fn handle_committed_config_change_entry(&mut self, entry: &Entry) -> Result<()> {
-        // Block already applied entries (* Used in static bootstrap)
         if entry.get_context().is_empty() {
-            return Ok(());
+            println!("Empty context!");
+            let conf_change_v2 = match entry.get_entry_type() {
+                EntryType::EntryConfChange => to_confchange_v2(ConfChange::decode(entry.get_data())?),
+                EntryType::EntryConfChangeV2 => ConfChangeV2::decode(entry.get_data())?,
+                _ => unreachable!(),
+            };
+
+            let cs = self.raw_node.apply_conf_change(&conf_change_v2)?;
+            let store = self.raw_node.mut_store();
+            store.set_conf_state(&cs)?;
+            // conf_change_v2
+            return Ok(())
         }
 
         // // TODO: Write documents to clarify when to use entry with empty data.
@@ -1150,10 +1165,11 @@ impl<
                 chan.send(LocalResponseMsg::SendMessage {}).unwrap();
             }
             LocalRequestMsg::LeaveJoint {} => {
-                let zero = ConfChange::default();
-                let cs = self.raw_node.apply_conf_change(&zero)?;
-                let store = self.raw_node.mut_store();
-                store.set_conf_state(&cs)?;
+                let zero = ConfChangeV2::default();
+                self.raw_node.propose_conf_change(vec![], zero)?;
+                // let cs = self.raw_node.apply_conf_change(&zero)?;
+                // let store = self.raw_node.mut_store();
+                // store.set_conf_state(&cs)?;
             }
             LocalRequestMsg::TransferLeader { node_id, chan } => {
                 self.raw_node.transfer_leader(node_id);
@@ -1257,6 +1273,10 @@ impl<
                 let last_term = self.raw_node.store().hard_state()?.term;
                 self.make_snapshot(last_index, last_term).await?;
                 chan.send(ServerResponseMsg::CreateSnapshot {}).unwrap();
+            }
+            ServerRequestMsg::SetPeers { chan, peers } => {
+                self.peers.lock().await.replace(peers);
+                chan.send(ServerResponseMsg::SetPeers {}).unwrap();
             }
         }
 

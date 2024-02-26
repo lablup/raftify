@@ -30,6 +30,7 @@ use crate::{
     raft::eraftpb::{ConfChangeV2, Message as RaftMessage},
     raft_service::ProposeArgs,
     response_message::{ConfChangeResponseResult, ResponseResult},
+    InitialRole, Peer, Peers,
 };
 
 #[derive(Clone)]
@@ -332,6 +333,34 @@ impl RaftService for RaftServer {
                     peers_json: peers.to_json(),
                 }))
             }
+            _ => unreachable!(),
+        }
+    }
+
+    async fn set_peers(
+        &self,
+        request: Request<raft_service::Peers>,
+    ) -> Result<Response<raft_service::Empty>, Status> {
+        let request_args = request.into_inner();
+
+        let mut peers = Peers::with_empty();
+        for peer in request_args.peers {
+            peers.add_peer(peer.node_id, peer.addr, Some(InitialRole::Voter));
+        }
+
+        let (tx, rx) = oneshot::channel();
+        let sender = self.snd.clone();
+        match sender
+            .send(ServerRequestMsg::SetPeers { peers, chan: tx })
+            .await
+        {
+            Ok(_) => (),
+            Err(_) => self.print_send_error(function_name!()),
+        }
+        let response = rx.await.unwrap();
+
+        match response {
+            ServerResponseMsg::SetPeers {} => Ok(Response::new(raft_service::Empty {})),
             _ => unreachable!(),
         }
     }

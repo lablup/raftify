@@ -9,6 +9,7 @@ service RaftService {
   rpc Propose(ProposeArgs) returns (ProposeResponse) {}
   rpc SendMessage(eraftpb.Message) returns (Empty) {}
   rpc GetPeers(Empty) returns (GetPeersResponse) {}
+  rpc SetPeers(Peers) returns (Empty) {}
   rpc DebugNode(Empty) returns (DebugNodeResponse) {}
   rpc CreateSnapshot(Empty) returns (Empty) {}
 }
@@ -21,6 +22,17 @@ enum ResultCode {
   Ok            = 0;
   Error         = 1;
   WrongLeader   = 2;
+}
+
+// Used in AddPeers
+
+message Peers {
+  repeated Peer peers = 1;
+}
+
+message Peer {
+  uint64 node_id = 1;
+  string addr    = 2;
 }
 
 // Used in Propose
