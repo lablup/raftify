@@ -337,6 +337,25 @@ impl RaftService for RaftServer {
         }
     }
 
+    async fn leave_joint(
+        &self,
+        request: Request<raft_service::Empty>,
+    ) -> Result<Response<raft_service::Empty>, Status> {
+        let _request_args = request.into_inner();
+        let (tx, rx) = oneshot::channel();
+        let sender = self.snd.clone();
+        match sender.send(ServerRequestMsg::LeaveJoint { chan: tx }).await {
+            Ok(_) => (),
+            Err(_) => self.print_send_error(function_name!()),
+        }
+        let response = rx.await.unwrap();
+
+        match response {
+            ServerResponseMsg::LeaveJoint {} => Ok(Response::new(raft_service::Empty {})),
+            _ => unreachable!(),
+        }
+    }
+
     async fn set_peers(
         &self,
         request: Request<raft_service::Peers>,

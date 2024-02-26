@@ -38,6 +38,9 @@ pub enum ServerRequestMsg {
         chan: Sender<ServerResponseMsg>,
         peers: Peers,
     },
+    LeaveJoint {
+        chan: Sender<ServerResponseMsg>,
+    },
     CreateSnapshot {
         chan: Sender<ServerResponseMsg>,
     },

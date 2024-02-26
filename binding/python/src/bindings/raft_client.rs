@@ -2,7 +2,10 @@ use pyo3::prelude::*;
 use pyo3_asyncio::tokio::future_into_py;
 use raftify::{create_client, Channel, RaftServiceClient};
 
-use super::raft_rs::eraftpb::{conf_change_v2::PyConfChangeV2, message::PyMessage};
+use super::{
+    peers::PyPeers,
+    raft_rs::eraftpb::{conf_change_v2::PyConfChangeV2, message::PyMessage},
+};
 
 #[derive(Clone)]
 #[pyclass(name = "RaftServiceClient")]
@@ -94,6 +97,41 @@ impl PyRaftServiceClient {
                 .unwrap()
                 .into_inner();
             Ok(response.peers_json)
+        })
+    }
+
+    pub fn set_peers<'a>(&'a mut self, peers: &PyPeers, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let mut client = self.inner.clone();
+        let peers = peers
+            .inner
+            .inner
+            .iter()
+            .map(|(k, v)| raftify::raft_service::Peer {
+                node_id: *k,
+                addr: v.addr.to_string(),
+            })
+            .collect::<Vec<_>>();
+
+        future_into_py(py, async move {
+            let _ = client
+                .set_peers(raftify::raft_service::Peers { peers })
+                .await
+                .unwrap()
+                .into_inner();
+            Ok(())
+        })
+    }
+
+    pub fn leave_joint<'a>(&'a mut self, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let mut client = self.inner.clone();
+
+        future_into_py(py, async move {
+            let _ = client
+                .leave_joint(raftify::raft_service::Empty {})
+                .await
+                .unwrap()
+                .into_inner();
+            Ok(())
         })
     }
 }

@@ -10,6 +10,7 @@ service RaftService {
   rpc SendMessage(eraftpb.Message) returns (Empty) {}
   rpc GetPeers(Empty) returns (GetPeersResponse) {}
   rpc SetPeers(Peers) returns (Empty) {}
+  rpc LeaveJoint(Empty) returns (Empty) {}
   rpc DebugNode(Empty) returns (DebugNodeResponse) {}
   rpc CreateSnapshot(Empty) returns (Empty) {}
 }
@@ -24,7 +25,7 @@ enum ResultCode {
   WrongLeader   = 2;
 }
 
-// Used in AddPeers
+// Used in SetPeers
 
 message Peers {
   repeated Peer peers = 1;

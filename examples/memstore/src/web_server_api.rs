@@ -140,23 +140,47 @@ async fn join_test(data: web::Data<(HashStore, Raft)>) -> impl Responder {
 
     let mut client_2 = create_client(&"127.0.0.1:60062").await.unwrap();
 
-    client_2.set_peers(raft_service::Peers {
-        peers: vec![
-            raft_service::Peer { node_id: 1, addr: "127.0.0.1:60061".to_owned() },
-            raft_service::Peer { node_id: 2, addr: "127.0.0.1:60062".to_owned() },
-            raft_service::Peer { node_id: 3, addr: "127.0.0.1:60063".to_owned() },
-        ],
-    }).await.unwrap();
+    client_2
+        .set_peers(raft_service::Peers {
+            peers: vec![
+                raft_service::Peer {
+                    node_id: 1,
+                    addr: "127.0.0.1:60061".to_owned(),
+                },
+                raft_service::Peer {
+                    node_id: 2,
+                    addr: "127.0.0.1:60062".to_owned(),
+                },
+                raft_service::Peer {
+                    node_id: 3,
+                    addr: "127.0.0.1:60063".to_owned(),
+                },
+            ],
+        })
+        .await
+        .unwrap();
 
     let mut client_3 = create_client(&"127.0.0.1:60063").await.unwrap();
 
-    client_3.set_peers(raft_service::Peers {
-        peers: vec![
-            raft_service::Peer { node_id: 1, addr: "127.0.0.1:60061".to_owned() },
-            raft_service::Peer { node_id: 2, addr: "127.0.0.1:60062".to_owned() },
-            raft_service::Peer { node_id: 3, addr: "127.0.0.1:60063".to_owned() },
-        ],
-    }).await.unwrap();
+    client_3
+        .set_peers(raft_service::Peers {
+            peers: vec![
+                raft_service::Peer {
+                    node_id: 1,
+                    addr: "127.0.0.1:60061".to_owned(),
+                },
+                raft_service::Peer {
+                    node_id: 2,
+                    addr: "127.0.0.1:60062".to_owned(),
+                },
+                raft_service::Peer {
+                    node_id: 3,
+                    addr: "127.0.0.1:60063".to_owned(),
+                },
+            ],
+        })
+        .await
+        .unwrap();
 
     "OK".to_string()
 }

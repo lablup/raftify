@@ -124,6 +124,24 @@ impl PyRaftNode {
         })
     }
 
+    pub fn demote<'a>(&'a self, term: u64, leader_id: u64, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+
+        future_into_py(py, async move {
+            raft_node.demote(term, leader_id).await;
+            Ok(())
+        })
+    }
+
+    pub fn transfer_leader<'a>(&'a self, leader_id: u64, py: Python<'a>) -> PyResult<&'a PyAny> {
+        let raft_node = self.inner.clone();
+
+        future_into_py(py, async move {
+            raft_node.transfer_leader(leader_id).await;
+            Ok(())
+        })
+    }
+
     pub fn quit<'a>(&'a mut self, py: Python<'a>) -> PyResult<&'a PyAny> {
         let raft_node = self.inner.clone();
 

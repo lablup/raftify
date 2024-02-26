@@ -382,10 +382,6 @@ impl<
             .send(LocalRequestMsg::LeaveJoint {})
             .await
             .unwrap();
-
-        // match resp {
-        // _ => unreachable!(),
-        // }
     }
 
     pub async fn send_message(&self, message: RaftMessage) {
@@ -730,7 +726,6 @@ impl<
 
         cc_v2.set_changes(changes);
         cc_v2.set_context(serialize(&addrs)?);
-        // cc_v2.set_transition(ConfChangeTransition::Explicit);
 
         let mut leader_client = RaftServiceClient::connect(format!("http://{}", peer_addr)).await?;
         let response = leader_client
@@ -788,9 +783,10 @@ impl<
 
     async fn handle_committed_config_change_entry(&mut self, entry: &Entry) -> Result<()> {
         if entry.get_context().is_empty() {
-            println!("Empty context!");
             let conf_change_v2 = match entry.get_entry_type() {
-                EntryType::EntryConfChange => to_confchange_v2(ConfChange::decode(entry.get_data())?),
+                EntryType::EntryConfChange => {
+                    to_confchange_v2(ConfChange::decode(entry.get_data())?)
+                }
                 EntryType::EntryConfChangeV2 => ConfChangeV2::decode(entry.get_data())?,
                 _ => unreachable!(),
             };
@@ -799,10 +795,11 @@ impl<
             let store = self.raw_node.mut_store();
             store.set_conf_state(&cs)?;
             // conf_change_v2
-            return Ok(())
+            return Ok(());
         }
 
-        // // TODO: Write documents to clarify when to use entry with empty data.
+        // TODO: Write documents to clarify when to use entry with empty data.
+
         // if entry.get_data().is_empty() {
         //     // let cs = self.raw_node.apply_conf_change(&ConfChangeV2::default())?;
         //     // let store = self.raw_node.mut_store();
@@ -1167,9 +1164,6 @@ impl<
             LocalRequestMsg::LeaveJoint {} => {
                 let zero = ConfChangeV2::default();
                 self.raw_node.propose_conf_change(vec![], zero)?;
-                // let cs = self.raw_node.apply_conf_change(&zero)?;
-                // let store = self.raw_node.mut_store();
-                // store.set_conf_state(&cs)?;
             }
             LocalRequestMsg::TransferLeader { node_id, chan } => {
                 self.raw_node.transfer_leader(node_id);
@@ -1255,6 +1249,11 @@ impl<
                     })
                     .unwrap();
                 }
+            }
+            ServerRequestMsg::LeaveJoint { chan } => {
+                self.raw_node
+                    .propose_conf_change(vec![], ConfChangeV2::default())?;
+                chan.send(ServerResponseMsg::LeaveJoint {}).unwrap();
             }
             ServerRequestMsg::DebugNode { chan } => {
                 chan.send(ServerResponseMsg::DebugNode {

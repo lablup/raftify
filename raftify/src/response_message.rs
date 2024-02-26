@@ -67,6 +67,7 @@ pub enum ServerResponseMsg {
     SetPeers {},
     SendMessage { result: ResponseResult },
     CreateSnapshot {},
+    LeaveJoint {},
 
     // Rerouting available
     Propose { result: ResponseResult },
