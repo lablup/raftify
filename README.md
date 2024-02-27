@@ -137,7 +137,7 @@ let raft_handle = tokio::spawn(raft.clone().run());
 raft.join(vec![join_ticket]).await;
 
 // ...
-tokio::try_join!(join_ticket)?;
+tokio::try_join!(raft_handle)?;
 ```
 
 ### Manipulate FSM by RaftServiceClient
