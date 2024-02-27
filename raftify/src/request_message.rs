@@ -12,6 +12,7 @@ use crate::{
 };
 
 /// Request type processed through network calls (gRPC)
+#[derive(Debug)]
 pub enum ServerRequestMsg {
     RequestId {
         raft_addr: String,
@@ -47,6 +48,7 @@ pub enum ServerRequestMsg {
 }
 
 /// Request type used for communication (method calls) between user side and RaftNode
+#[derive(Debug)]
 pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
     IsLeader {
         chan: Sender<LocalResponseMsg<LogEntry, FSM>>,
@@ -126,45 +128,8 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
 
 /// Request type sent from a RaftNode to itself (RaftNode).
 /// Used for accessing the RaftNode from a future created by RaftNode asynchronous methods
+#[derive(Debug)]
 pub enum SelfMessage {
     ReportUnreachable { node_id: u64 },
 }
 
-macro_rules! impl_debug_for_enum {
-    ($enum_name:ident, $($variant:ident),*) => {
-        impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> std::fmt::Debug for $enum_name<LogEntry, FSM> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                match self {
-                    $(
-                        $enum_name::$variant { .. } => write!(f, stringify!($variant)),
-                    )*
-                }
-            }
-        }
-    };
-}
-
-impl_debug_for_enum!(
-    LocalRequestMsg,
-    IsLeader,
-    GetId,
-    GetLeaderId,
-    GetPeers,
-    AddPeer,
-    AddPeers,
-    DebugNode,
-    Store,
-    Storage,
-    GetClusterSize,
-    Quit,
-    Campaign,
-    Demote,
-    TransferLeader,
-    Leave,
-    MakeSnapshot,
-    Propose,
-    ChangeConfig,
-    SendMessage,
-    JoinCluster,
-    LeaveJoint
-);

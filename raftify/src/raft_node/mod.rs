@@ -863,11 +863,7 @@ impl<
             }
         }
 
-        let response_seq = if entry.get_context().is_empty() {
-            AtomicU64::new(0)
-        } else {
-            deserialize(entry.get_context())?
-        };
+        let response_seq: AtomicU64 = deserialize(entry.get_context())?;
 
         let response_seq_value = response_seq.load(Ordering::Relaxed);
 
