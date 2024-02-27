@@ -5,8 +5,7 @@ extern crate slog_term;
 
 use actix_web::{web, App, HttpServer};
 use raftify::{
-    raft::{formatter::set_custom_formatter, logger::Slogger},
-    ClusterJoinTicket, CustomFormatter, Raft as Raft_,
+    custom_callbacks::set_on_member_changed, raft::{formatter::set_custom_formatter, logger::{Logger, Slogger}}, CustomFormatter, Raft as Raft_
 };
 use slog::Drain;
 use slog_envlogger::LogBuilder;
@@ -56,6 +55,11 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let logger = Arc::new(Slogger {
         slog: slog::Logger::root(drain, o!()),
     });
+
+    set_on_member_changed(Box::new(|peers_| Box::pin(async move {
+        let peers_ = peers_.lock().await;
+        println!("Peers changed: {:?}", peers_.inner);
+    }))).await;
 
     set_custom_formatter(CustomFormatter::<LogEntry, HashStore>::new());
 

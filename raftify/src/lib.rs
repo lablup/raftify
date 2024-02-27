@@ -18,6 +18,7 @@ mod storage;
 mod utils;
 
 pub mod cli;
+pub mod custom_callbacks;
 pub mod raft_service;
 
 pub use {

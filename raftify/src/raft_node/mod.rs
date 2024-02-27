@@ -28,6 +28,7 @@ use utils::inspect_raftnode;
 
 use crate::{
     create_client,
+    custom_callbacks::{set_on_member_changed, ON_MEMBER_CHANGED},
     error::{Result, SendMessageError},
     raft::{
         eraftpb::{
@@ -901,6 +902,11 @@ impl<
                         .unwrap();
                 }
             }
+        }
+
+        let mut on_member_changed = ON_MEMBER_CHANGED.lock().await;
+        if let Some(cb) = on_member_changed.as_mut() {
+            let _ = cb(self.peers.clone()).await;
         }
 
         Ok(())
