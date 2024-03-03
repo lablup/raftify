@@ -1,5 +1,5 @@
 use core::panic;
-use jopemachine_raft::logger::Slogger;
+use jopemachine_raft::{logger::Slogger, Storage};
 use serde_json::Value;
 use std::{collections::HashMap, fs, sync::Arc};
 

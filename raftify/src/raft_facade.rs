@@ -1,5 +1,5 @@
 use bincode::deserialize;
-use jopemachine_raft::logger::Logger;
+use jopemachine_raft::{logger::Logger, Storage};
 use std::{
     collections::HashMap,
     net::{SocketAddr, ToSocketAddrs},

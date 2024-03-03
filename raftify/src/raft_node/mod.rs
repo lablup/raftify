@@ -4,7 +4,7 @@ pub mod role;
 pub mod utils;
 
 use bincode::{deserialize, serialize};
-use jopemachine_raft::{eraftpb::ConfChangeTransition, logger::Logger};
+use jopemachine_raft::{eraftpb::ConfChangeTransition, logger::Logger, Storage};
 use prost::Message as PMessage;
 use std::{
     collections::HashMap,

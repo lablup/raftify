@@ -1,5 +1,4 @@
 use bincode::serialize;
-use jopemachine_raft::Storage;
 use prost::Message as PMessage;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -17,7 +16,7 @@ use crate::{
 /// Commit the configuration change to add all follower nodes to the cluster.
 #[deprecated]
 #[allow(dead_code)]
-pub async fn bootstrap_peers<T: LogStore + Storage>(
+pub async fn bootstrap_peers<T: LogStore>(
     peers: Arc<Mutex<Peers>>,
     raw_node: &mut RawNode<T>,
 ) -> Result<()> {
@@ -26,7 +25,7 @@ pub async fn bootstrap_peers<T: LogStore + Storage>(
     initial_peers.remove(&raw_node.raft.id);
 
     let storage = raw_node.store();
-    let last_index = LogStore::last_index(storage)?;
+    let last_index = storage.last_index()?;
     let last_term = storage.term(last_index)?;
 
     let mut entries = vec![];
@@ -65,7 +64,7 @@ pub async fn bootstrap_peers<T: LogStore + Storage>(
     {
         let last_applied = raw_node.raft.raft_log.applied;
         let store = raw_node.mut_store();
-        let snapshot = LogStore::snapshot(store, 0, commit_index)?;
+        let snapshot = store.snapshot(0, commit_index)?;
 
         store.compact(last_applied)?;
         store.create_snapshot(snapshot.get_data().to_vec(), last_applied, last_term)?;

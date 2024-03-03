@@ -92,7 +92,7 @@ pub fn dump_peers(path: &str, peers: HashMap<u64, SocketAddr>, logger: slog::Log
         new_cc_v2.set_context(serialize(&cc_addrs)?);
         new_cc_v2.set_changes(conf_changes);
 
-        let last_idx = LogStore::last_index(&storage)?;
+        let last_idx = storage.last_index()?;
         let last_term = storage.term(last_idx)?;
 
         let mut new_entry = Entry::default();
@@ -104,7 +104,7 @@ pub fn dump_peers(path: &str, peers: HashMap<u64, SocketAddr>, logger: slog::Log
 
         storage.append(vec![new_entry].as_slice())?;
 
-        let mut snapshot = LogStore::snapshot(&storage, 0, last_idx)?;
+        let mut snapshot = storage.snapshot(0, last_idx)?;
         let mut meta = snapshot.get_metadata().clone();
         meta.set_index(last_idx + 1);
         snapshot.set_metadata(meta);

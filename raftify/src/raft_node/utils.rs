@@ -137,7 +137,7 @@ pub fn inspect_raftnode<T: LogStore>(raw_node: &RawNode<T>) -> Result<String> {
 
     let hard_state = store.hard_state()?;
     let conf_state = store.conf_state()?;
-    let snapshot = LogStore::snapshot(store, 0, 0)?;
+    let snapshot = store.snapshot(0, 0)?;
     let last_index = raw_node.raft.raft_log.last_index();
 
     let last_applied = raw_node.raft.raft_log.applied;

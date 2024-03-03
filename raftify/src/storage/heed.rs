@@ -32,10 +32,8 @@ pub trait LogStore: Storage {
     fn set_hard_state_commit(&mut self, commit: u64) -> Result<()>;
     fn conf_state(&self) -> Result<ConfState>;
     fn set_conf_state(&mut self, conf_state: &ConfState) -> Result<()>;
-    fn snapshot(&self, request_index: u64, to: u64) -> Result<Snapshot>;
     fn create_snapshot(&mut self, data: Vec<u8>, index: u64, term: u64) -> Result<()>;
     fn apply_snapshot(&mut self, snapshot: Snapshot) -> Result<()>;
-    fn last_index(&self) -> Result<u64>;
     fn compact(&mut self, index: u64) -> Result<()>;
     fn all_entries(&self) -> raft::Result<Vec<Entry>>;
 }
@@ -168,13 +166,6 @@ impl LogStore for HeedStorage {
         Ok(())
     }
 
-    fn snapshot(&self, request_index: u64, to: u64) -> Result<Snapshot> {
-        let store = self.rl();
-        let reader = store.env.read_txn()?;
-        let snapshot = store.snapshot(&reader, request_index, to)?;
-        Ok(snapshot)
-    }
-
     fn create_snapshot(&mut self, data: Vec<u8>, index: u64, term: u64) -> Result<()> {
         let store = self.wl();
         let mut writer = store.env.write_txn()?;
@@ -209,13 +200,6 @@ impl LogStore for HeedStorage {
         store.set_snapshot(&mut writer, &snapshot)?;
         writer.commit()?;
         Ok(())
-    }
-
-    fn last_index(&self) -> Result<u64> {
-        let store = self.rl();
-        let reader = store.env.read_txn()?;
-        let last_index = store.last_index(&reader)?;
-        Ok(last_index)
     }
 
     fn all_entries(&self) -> raft::Result<Vec<Entry>> {
