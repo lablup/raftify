@@ -1,4 +1,3 @@
-pub mod constant;
 pub mod heed_storage;
 pub mod utils;
 

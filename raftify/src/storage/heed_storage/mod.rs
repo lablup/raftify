@@ -1,71 +1,30 @@
+mod codec;
+mod constant;
+
 use bincode::{deserialize, serialize};
+use constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_KEY};
 use heed::{
     types::{Bytes as HeedBytes, Str as HeedStr},
     Database, Env,
 };
-use heed_traits::{BoxedError, BytesDecode, BytesEncode};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use prost::Message as PMessage;
 use raft::{logger::Logger, util::limit_size};
 use std::{
-    borrow::Cow,
     cmp::max,
     fmt, fs,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
-use super::{
-    constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_KEY},
-    utils::{append_compacted_logs, format_entry_key_string},
-    StableStorage,
-};
+use self::codec::{format_entry_key_string, HeedEntry, HeedEntryKeyString};
+
+use super::{utils::append_compacted_logs, StableStorage};
 use crate::{
     config::Config,
     error::Result,
     raft::{self, prelude::*, GetEntriesContext},
 };
-
-#[derive(Eq, PartialEq)]
-pub struct HeedEntryKeyString(String);
-
-impl<'a> BytesEncode<'a> for HeedEntryKeyString {
-    type EItem = String;
-
-    fn bytes_encode(item: &'a Self::EItem) -> std::result::Result<Cow<'a, [u8]>, BoxedError> {
-        Ok(Cow::Owned(
-            format_entry_key_string(item).as_bytes().to_vec(),
-        ))
-    }
-}
-
-impl<'a> BytesDecode<'a> for HeedEntryKeyString {
-    type DItem = String;
-
-    fn bytes_decode(bytes: &'a [u8]) -> std::result::Result<Self::DItem, BoxedError> {
-        Ok(String::from_utf8_lossy(bytes).into_owned())
-    }
-}
-
-enum HeedEntry {}
-
-impl BytesEncode<'_> for HeedEntry {
-    type EItem = Entry;
-
-    fn bytes_encode(item: &Self::EItem) -> std::result::Result<Cow<'_, [u8]>, BoxedError> {
-        let mut bytes = vec![];
-        item.encode(&mut bytes)?;
-        Ok(Cow::Owned(bytes))
-    }
-}
-
-impl BytesDecode<'_> for HeedEntry {
-    type DItem = Entry;
-
-    fn bytes_decode(bytes: &[u8]) -> std::result::Result<Self::DItem, BoxedError> {
-        Ok(Entry::decode(bytes)?)
-    }
-}
 
 #[derive(Clone)]
 pub struct HeedStorage(Arc<RwLock<HeedStorageCore>>);

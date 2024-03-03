@@ -2,13 +2,11 @@ use chrono::Utc;
 use jopemachine_raft::formatter::Bytes;
 use serde_json::{json, Value};
 use std::{
-    fmt::Write as StdWrite,
     fs::{self, File, OpenOptions},
     io::{self, Read, Seek, Write as StdIoWrite},
     path::Path,
 };
 
-use super::constant::ENTRY_KEY_LENGTH;
 use crate::{
     raft::{eraftpb::Entry, formatter::CUSTOM_FORMATTER},
     Result,
@@ -39,14 +37,6 @@ pub fn ensure_directory_exist(dir_pth: &str) -> Result<()> {
         fs::create_dir_all(dir_pth)?;
     }
     Ok(())
-}
-
-pub fn format_entry_key_string(entry_key: &str) -> String {
-    let entry_key: u64 = entry_key.parse().unwrap();
-
-    let mut result = String::new();
-    write!(result, "{:0width$}", entry_key, width = ENTRY_KEY_LENGTH).unwrap();
-    result
 }
 
 fn entry_type_to_str(entry_type: i32) -> &'static str {

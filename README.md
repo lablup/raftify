@@ -175,7 +175,7 @@ raft_node.propose(LogEntry::Insert {
 
 ## Debugging
 
-You can use a collection of CLI commands that let you inspect the data persisted in LMDB and the status of Raft Servers.
+You can use a collection of CLI commands that let you inspect the data persisted in stable storage and the status of Raft Servers.
 
 ```
 ❯ raftify-cli debug persisted ./logs/node-1
