@@ -9,14 +9,14 @@ use crate::{
         eraftpb::{ConfChange, ConfChangeType, Entry, EntryType},
         raw_node::RawNode,
     },
-    storage::LogStore,
+    storage::StableStorage,
     Peers,
 };
 
 /// Commit the configuration change to add all follower nodes to the cluster.
 #[deprecated]
 #[allow(dead_code)]
-pub async fn bootstrap_peers<T: LogStore>(
+pub async fn bootstrap_peers<T: StableStorage>(
     peers: Arc<Mutex<Peers>>,
     raw_node: &mut RawNode<T>,
 ) -> Result<()> {

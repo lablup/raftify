@@ -48,8 +48,8 @@ use crate::{
         utils::{clear_storage_path, ensure_directory_exist, get_data_mdb_path, get_storage_path},
     },
     utils::{to_confchange_v2, OneShotMutex},
-    AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket, Config, Error, InitialRole,
-    LogStore, Peers, RaftServiceClient,
+    AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket, Config, Error, InitialRole, Peers,
+    RaftServiceClient, StableStorage,
 };
 
 #[derive(Clone)]

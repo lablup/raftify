@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::{
     raft::{formatter::format_snapshot, RawNode},
-    LogStore, Result,
+    Result, StableStorage,
 };
 
 static EXPECTED_FORMAT_NOT_EXIST: &str = "Expected format not exist!";
@@ -102,7 +102,7 @@ pub fn format_debugging_info(hashmap: &HashMap<String, Value>) -> String {
     result
 }
 
-pub fn inspect_raftnode<T: LogStore>(raw_node: &RawNode<T>) -> Result<String> {
+pub fn inspect_raftnode<T: StableStorage>(raw_node: &RawNode<T>) -> Result<String> {
     let id = raw_node.raft.id;
     let leader_id = raw_node.raft.leader_id;
 

@@ -19,7 +19,7 @@ use super::{
     raft_server::RaftServer,
     raft_service::{self, ResultCode},
     request_message::ServerRequestMsg,
-    AbstractLogEntry, AbstractStateMachine, Config, LogStore,
+    AbstractLogEntry, AbstractStateMachine, Config, StableStorage,
 };
 
 #[derive(Clone)]

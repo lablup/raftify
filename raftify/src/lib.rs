@@ -37,7 +37,7 @@ pub use crate::{
     raft_service::raft_service_client::RaftServiceClient,
     state_machine::AbstractStateMachine,
     storage::heed_storage::HeedStorage,
-    storage::LogStore,
+    storage::StableStorage,
 };
 
 pub(crate) use utils::macro_utils;

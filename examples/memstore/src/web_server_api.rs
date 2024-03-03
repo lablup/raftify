@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
 use actix_web::{get, web, Responder};
-use raftify::{
-    create_client, raft_service, AbstractLogEntry, ClusterJoinTicket, Peers, Raft as Raft_,
-};
+use raftify::{AbstractLogEntry, Raft as Raft_};
 use serde_json::Value;
 
 use super::state_machine::{HashStore, LogEntry};

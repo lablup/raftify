@@ -7,7 +7,7 @@ use crate::{
     create_client,
     raft::formatter::{format_entry, format_snapshot},
     raft_node::utils::format_debugging_info,
-    raft_service, Config, HeedStorage, LogStore, Result,
+    raft_service, Config, HeedStorage, Result, StableStorage,
 };
 
 pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {

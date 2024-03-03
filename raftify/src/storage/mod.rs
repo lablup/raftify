@@ -7,7 +7,7 @@ use crate::{
     raft::{self, prelude::*},
 };
 
-pub trait LogStore: Storage {
+pub trait StableStorage: Storage {
     fn append(&mut self, entries: &[Entry]) -> Result<()>;
     fn hard_state(&self) -> Result<HardState>;
     fn set_hard_state(&mut self, hard_state: &HardState) -> Result<()>;

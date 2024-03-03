@@ -18,7 +18,7 @@ use std::{
 use super::{
     constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_KEY},
     utils::{append_compacted_logs, format_entry_key_string},
-    LogStore,
+    StableStorage,
 };
 use crate::{
     config::Config,
@@ -96,7 +96,7 @@ impl HeedStorage {
     }
 }
 
-impl LogStore for HeedStorage {
+impl StableStorage for HeedStorage {
     fn compact(&mut self, index: u64) -> Result<()> {
         let store = self.wl();
         let mut writer = store.env.write_txn()?;
