@@ -17,7 +17,8 @@ use std::{
 
 use super::{
     constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_KEY},
-    utils::{append_compacted_logs, format_entry_key_string}, LogStore,
+    utils::{append_compacted_logs, format_entry_key_string},
+    LogStore,
 };
 use crate::{
     config::Config,

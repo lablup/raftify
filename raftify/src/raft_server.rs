@@ -30,7 +30,7 @@ use crate::{
     raft::eraftpb::{ConfChangeV2, Message as RaftMessage},
     raft_service::ProposeArgs,
     response_message::{ConfChangeResponseResult, ResponseResult},
-    InitialRole, Peer, Peers,
+    InitialRole, Peers,
 };
 
 #[derive(Clone)]

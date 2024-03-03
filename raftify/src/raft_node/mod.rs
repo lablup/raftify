@@ -44,7 +44,7 @@ use crate::{
         ResponseResult, ServerResponseMsg,
     },
     storage::{
-        heed::HeedStorage,
+        heed_storage::HeedStorage,
         utils::{clear_storage_path, ensure_directory_exist, get_data_mdb_path, get_storage_path},
     },
     utils::{to_confchange_v2, OneShotMutex},

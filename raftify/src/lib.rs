@@ -36,7 +36,7 @@ pub use crate::{
     raft_node::{role::InitialRole, RaftNode},
     raft_service::raft_service_client::RaftServiceClient,
     state_machine::AbstractStateMachine,
-    storage::heed::HeedStorage,
+    storage::heed_storage::HeedStorage,
     storage::LogStore,
 };
 
