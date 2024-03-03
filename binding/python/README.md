@@ -31,7 +31,7 @@ class SetCommand:
 
 Essentially, the following three methods need to be implemented for the `Store`.
 
-- `apply`: applies a commited entry to the store.
+- `apply`: applies a committed entry to the store.
 - `snapshot`: returns snapshot data for the store.
 - `restore`: applies the snapshot passed as argument.
 
@@ -60,13 +60,15 @@ class HashStore:
 
 ### Bootstrap a raft cluster
 
-First bootstrap the cluster that contains the leader node.
+First, bootstrap the cluster that contains the leader node.
 
 ```py
 logger = Slogger.default()
 logger.info("Bootstrap new Raft Cluster")
+
 node_id = 1
-raft = Raft.bootstrap_cluster(node_id, raft_addr, store, cfg, logger, peers)
+raft_addr = "127.0.0.1:60061"
+raft = Raft.bootstrap(node_id, raft_addr, store, cfg, logger)
 await raft.run()
 ```
 
@@ -77,12 +79,13 @@ Then join the follower nodes.
 If peer specifies the configuration of the initial members, the cluster will operate after all member nodes are bootstrapped.
 
 ```py
-logger = Slogger.default()
+raft_addr = "127.0.0.1:60062"
+peer_addr = "127.0.0.1:60061"
 
-join_ticket = await Raft.request_id(raft_addr, peer_addr, logger)
+join_ticket = await Raft.request_id(raft_addr, peer_addr)
 node_id = join_ticket.get_reserved_id()
 
-raft = Raft.new_follower(node_id, raft_addr, store, cfg, logger, peers)
+raft = Raft.bootstrap(node_id, raft_addr, store, cfg, logger)
 tasks = []
 tasks.append(raft.run())
 await raft.join([join_ticket])
@@ -108,7 +111,7 @@ await raft_node.propose(message.encode())
 
 ### Debugging
 
-Raftify also provides a collection of CLI commands that let you check the data persisted in lmdb and the status of Raft Server.
+Raftify also provides a collection of CLI commands that let you check the data persisted in stable storage and the status of Raft Server.
 
 ```
 $ raftify_cli debug persisted ./logs/node-1
