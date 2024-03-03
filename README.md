@@ -97,7 +97,7 @@ impl AbstractStateMachine for HashStore {
 First bootstrap the cluster that contains the leader node.
 
 ```rust
-let raft_addr = "127.0.0.1:60062".to_owned();
+let raft_addr = "127.0.0.1:60061".to_owned();
 let node_id = 1;
 
 let raft = Raft::bootstrap(
