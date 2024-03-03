@@ -132,4 +132,3 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
 pub enum SelfMessage {
     ReportUnreachable { node_id: u64 },
 }
-

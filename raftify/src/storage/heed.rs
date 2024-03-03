@@ -17,26 +17,13 @@ use std::{
 
 use super::{
     constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_KEY},
-    utils::{append_compacted_logs, format_entry_key_string},
+    utils::{append_compacted_logs, format_entry_key_string}, LogStore,
 };
 use crate::{
     config::Config,
     error::Result,
     raft::{self, prelude::*, GetEntriesContext},
 };
-
-pub trait LogStore: Storage {
-    fn append(&mut self, entries: &[Entry]) -> Result<()>;
-    fn hard_state(&self) -> Result<HardState>;
-    fn set_hard_state(&mut self, hard_state: &HardState) -> Result<()>;
-    fn set_hard_state_commit(&mut self, commit: u64) -> Result<()>;
-    fn conf_state(&self) -> Result<ConfState>;
-    fn set_conf_state(&mut self, conf_state: &ConfState) -> Result<()>;
-    fn create_snapshot(&mut self, data: Vec<u8>, index: u64, term: u64) -> Result<()>;
-    fn apply_snapshot(&mut self, snapshot: Snapshot) -> Result<()>;
-    fn compact(&mut self, index: u64) -> Result<()>;
-    fn all_entries(&self) -> raft::Result<Vec<Entry>>;
-}
 
 #[derive(Eq, PartialEq)]
 pub struct HeedEntryKeyString(String);
@@ -82,7 +69,6 @@ impl BytesDecode<'_> for HeedEntry {
 #[derive(Clone)]
 pub struct HeedStorage(Arc<RwLock<HeedStorageCore>>);
 
-// TODO: Improve this.
 impl fmt::Debug for HeedStorage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("HeedStorage")

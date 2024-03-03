@@ -9,7 +9,7 @@ use crate::{
         eraftpb::{ConfChange, ConfChangeType, Entry, EntryType},
         raw_node::RawNode,
     },
-    storage::heed::LogStore,
+    storage::LogStore,
     Peers,
 };
 
