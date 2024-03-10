@@ -60,7 +60,7 @@ pub struct RaftNode<
     // The lock of RaftNodeCore is locked when RaftNode.run is called and is never released until program terminates.
     // However, to implement the Clone trait in RaftNode, Arc and Mutex are necessary. That's why we use OneShotMutex here.
     inner: Arc<OneShotMutex<RaftNodeCore<LogEntry, FSM>>>,
-    local_sender: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
+    tx_local: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
 }
 
 impl<
@@ -76,10 +76,10 @@ impl<
         config: Config,
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
-        server_rcv: mpsc::Receiver<ServerRequestMsg>,
-        server_snd: mpsc::Sender<ServerRequestMsg>,
+        tx_server: mpsc::Sender<ServerRequestMsg>,
+        rx_server: mpsc::Receiver<ServerRequestMsg>,
     ) -> Result<Self> {
-        let (local_snd, local_rcv) = mpsc::channel(100);
+        let (tx_local, rx_local) = mpsc::channel(100);
 
         RaftNodeCore::<LogEntry, FSM>::bootstrap(
             node_id,
@@ -88,21 +88,21 @@ impl<
             config,
             raft_addr,
             logger,
-            server_rcv,
-            server_snd,
-            local_rcv,
-            local_snd.clone(),
+            tx_server,
+            rx_server,
+            tx_local.clone(),
+            rx_local,
         )
         .map(|core| Self {
             inner: Arc::new(OneShotMutex::new(core)),
-            local_sender: local_snd.clone(),
+            tx_local: tx_local.clone(),
         })
     }
 
     pub async fn is_leader(&self) -> bool {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::IsLeader { chan: tx })
+        self.tx_local
+            .send(LocalRequestMsg::IsLeader { tx_msg: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -115,8 +115,8 @@ impl<
 
     pub async fn get_id(&self) -> u64 {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::GetId { chan: tx })
+        self.tx_local
+            .send(LocalRequestMsg::GetId { tx_msg: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -129,8 +129,8 @@ impl<
 
     pub async fn get_leader_id(&self) -> u64 {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::GetLeaderId { chan: tx })
+        self.tx_local
+            .send(LocalRequestMsg::GetLeaderId { tx_msg: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -143,8 +143,8 @@ impl<
 
     pub async fn get_peers(&self) -> Peers {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::GetPeers { chan: tx })
+        self.tx_local
+            .send(LocalRequestMsg::GetPeers { tx_msg: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -158,12 +158,12 @@ impl<
     pub async fn add_peer<A: ToSocketAddrs>(&self, id: u64, addr: A, role: Option<InitialRole>) {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap().to_string();
         let (tx, rx) = oneshot::channel();
-        self.local_sender
+        self.tx_local
             .send(LocalRequestMsg::AddPeer {
                 id,
                 addr,
                 role,
-                chan: tx,
+                tx_msg: tx,
             })
             .await
             .unwrap();
@@ -177,8 +177,8 @@ impl<
 
     pub async fn add_peers(&self, peers: HashMap<u64, SocketAddr>) {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::AddPeers { peers, chan: tx })
+        self.tx_local
+            .send(LocalRequestMsg::AddPeers { peers, tx_msg: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -191,8 +191,8 @@ impl<
 
     pub async fn inspect(&self) -> Result<String> {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::DebugNode { chan: tx })
+        self.tx_local
+            .send(LocalRequestMsg::DebugNode { tx_msg: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -205,8 +205,8 @@ impl<
 
     pub async fn store(&self) -> FSM {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::Store { chan: tx })
+        self.tx_local
+            .send(LocalRequestMsg::Store { tx_msg: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -219,8 +219,8 @@ impl<
 
     pub async fn storage(&self) -> HeedStorage {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::Storage { chan: tx })
+        self.tx_local
+            .send(LocalRequestMsg::Storage { tx_msg: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -233,10 +233,10 @@ impl<
 
     pub async fn propose(&self, proposal: Vec<u8>) -> Result<()> {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
+        self.tx_local
             .send(LocalRequestMsg::Propose {
                 proposal: proposal.clone(),
-                chan: tx,
+                tx_msg: tx,
             })
             .await
             .unwrap();
@@ -260,10 +260,10 @@ impl<
 
     pub async fn change_config(&self, conf_change: ConfChangeV2) -> ConfChangeResponseResult {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
+        self.tx_local
             .send(LocalRequestMsg::ChangeConfig {
                 conf_change: conf_change.clone(),
-                chan: tx,
+                tx_msg: tx,
             })
             .await
             .unwrap();
@@ -296,8 +296,8 @@ impl<
 
     pub async fn get_cluster_size(&self) -> usize {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::GetClusterSize { chan: tx })
+        self.tx_local
+            .send(LocalRequestMsg::GetClusterSize { tx_msg: tx })
             .await
             .unwrap();
 
@@ -310,8 +310,8 @@ impl<
 
     pub async fn quit(&self) {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::Quit { chan: tx })
+        self.tx_local
+            .send(LocalRequestMsg::Quit { tx_msg: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -323,8 +323,11 @@ impl<
 
     pub async fn transfer_leader(&self, node_id: u64) {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::TransferLeader { node_id, chan: tx })
+        self.tx_local
+            .send(LocalRequestMsg::TransferLeader {
+                node_id,
+                tx_msg: tx,
+            })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -336,8 +339,8 @@ impl<
 
     pub async fn campaign(&self) {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::Campaign { chan: tx })
+        self.tx_local
+            .send(LocalRequestMsg::Campaign { tx_msg: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -349,11 +352,11 @@ impl<
 
     pub async fn demote(&self, term: u64, leader_id: u64) {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
+        self.tx_local
             .send(LocalRequestMsg::Demote {
                 term,
                 leader_id,
-                chan: tx,
+                tx_msg: tx,
             })
             .await
             .unwrap();
@@ -366,8 +369,8 @@ impl<
 
     pub async fn leave(&self) {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::Leave { chan: tx })
+        self.tx_local
+            .send(LocalRequestMsg::Leave { tx_msg: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -378,7 +381,7 @@ impl<
     }
 
     pub async fn leave_joint(&self) {
-        self.local_sender
+        self.tx_local
             .send(LocalRequestMsg::LeaveJoint {})
             .await
             .unwrap();
@@ -386,10 +389,10 @@ impl<
 
     pub async fn send_message(&self, message: RaftMessage) {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
+        self.tx_local
             .send(LocalRequestMsg::SendMessage {
                 message: Box::new(message),
-                chan: tx,
+                tx_msg: tx,
             })
             .await
             .unwrap();
@@ -402,11 +405,11 @@ impl<
 
     pub async fn make_snapshot(&self, index: u64, term: u64) {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
+        self.tx_local
             .send(LocalRequestMsg::MakeSnapshot {
                 index,
                 term,
-                chan: tx,
+                tx_msg: tx,
             })
             .await
             .unwrap();
@@ -419,8 +422,11 @@ impl<
 
     pub async fn join_cluster(&self, tickets: Vec<ClusterJoinTicket>) {
         let (tx, rx) = oneshot::channel();
-        self.local_sender
-            .send(LocalRequestMsg::JoinCluster { tickets, chan: tx })
+        self.tx_local
+            .send(LocalRequestMsg::JoinCluster {
+                tickets,
+                tx_msg: tx,
+            })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
@@ -455,14 +461,16 @@ pub struct RaftNodeCore<
     logger: Arc<dyn Logger>,
     response_senders: HashMap<u64, ResponseSender<LogEntry, FSM>>,
 
-    server_rcv: mpsc::Receiver<ServerRequestMsg>,
     #[allow(dead_code)]
-    server_snd: mpsc::Sender<ServerRequestMsg>,
-    local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
+    tx_server: mpsc::Sender<ServerRequestMsg>,
+    rx_server: mpsc::Receiver<ServerRequestMsg>,
+
     #[allow(dead_code)]
-    local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
-    self_snd: mpsc::Sender<SelfMessage>,
-    self_rcv: mpsc::Receiver<SelfMessage>,
+    tx_local: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
+    rx_local: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
+
+    tx_self: mpsc::Sender<SelfMessage>,
+    rx_self: mpsc::Receiver<SelfMessage>,
 
     _phantom_log_entry_typ: PhantomData<LogEntry>,
 }
@@ -480,10 +488,10 @@ impl<
         mut config: Config,
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
-        server_rcv: mpsc::Receiver<ServerRequestMsg>,
-        server_snd: mpsc::Sender<ServerRequestMsg>,
-        local_rcv: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
-        local_snd: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
+        tx_server: mpsc::Sender<ServerRequestMsg>,
+        rx_server: mpsc::Receiver<ServerRequestMsg>,
+        tx_local: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
+        rx_local: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
         config.raft_config.id = node_id;
         config.validate()?;
@@ -555,7 +563,7 @@ impl<
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now();
 
-        let (self_snd, self_rcv) = mpsc::channel(100);
+        let (tx_self, rx_self) = mpsc::channel(100);
 
         if should_be_leader {
             raw_node.raft.become_candidate();
@@ -573,12 +581,12 @@ impl<
             should_exit: false,
             peers: Arc::new(Mutex::new(peers)),
             response_senders: HashMap::new(),
-            server_rcv,
-            server_snd,
-            local_rcv,
-            local_snd,
-            self_snd,
-            self_rcv,
+            tx_server,
+            rx_server,
+            tx_local,
+            rx_local,
+            tx_self,
+            rx_self,
             _phantom_log_entry_typ: PhantomData,
         })
     }
@@ -635,7 +643,7 @@ impl<
     async fn send_message(
         message: RaftMessage,
         peers: Arc<Mutex<Peers>>,
-        snd: mpsc::Sender<SelfMessage>,
+        tx_self: mpsc::Sender<SelfMessage>,
         logger: Arc<dyn Logger>,
     ) {
         let node_id = message.get_to();
@@ -668,7 +676,8 @@ impl<
 
         if let Err(e) = ok {
             logger.debug(&format!("Error occurred while sending message: {}", e));
-            snd.send(SelfMessage::ReportUnreachable { node_id })
+            tx_self
+                .send(SelfMessage::ReportUnreachable { node_id })
                 .await
                 .unwrap();
         }
@@ -679,7 +688,7 @@ impl<
             tokio::spawn(RaftNodeCore::<LogEntry, FSM>::send_message(
                 message,
                 self.peers.clone(),
-                self.self_snd.clone(),
+                self.tx_self.clone(),
                 self.logger.clone(),
             ));
         }
@@ -753,15 +762,15 @@ impl<
 
         if let Some(sender) = self.response_senders.remove(&response_seq) {
             match sender {
-                ResponseSender::Local(sender) => {
-                    sender
+                ResponseSender::Local(tx_local) => {
+                    tx_local
                         .send(LocalResponseMsg::Propose {
                             result: ResponseResult::Success,
                         })
                         .unwrap();
                 }
-                ResponseSender::Server(sender) => {
-                    sender
+                ResponseSender::Server(tx_server) => {
+                    tx_server
                         .send(ServerResponseMsg::Propose {
                             result: ResponseResult::Success,
                         })
@@ -890,13 +899,13 @@ impl<
             }
 
             match sender {
-                ResponseSender::Local(sender) => {
-                    sender
+                ResponseSender::Local(tx_local) => {
+                    tx_local
                         .send(LocalResponseMsg::ConfigChange { result: response })
                         .unwrap();
                 }
-                ResponseSender::Server(sender) => {
-                    sender
+                ResponseSender::Server(tx_server) => {
+                    tx_server
                         .send(ServerResponseMsg::ConfigChange { result: response })
                         .unwrap();
                 }
@@ -909,7 +918,7 @@ impl<
     async fn handle_propose_request(
         &mut self,
         proposal: Vec<u8>,
-        chan: ResponseSender<LogEntry, FSM>,
+        tx_msg: ResponseSender<LogEntry, FSM>,
     ) -> Result<()> {
         if !self.is_leader() {
             let leader_id = self.get_leader_id();
@@ -929,7 +938,7 @@ impl<
                 .addr
                 .to_string();
 
-            let raft_response: ResponseMessage<LogEntry, FSM> = match chan {
+            let raft_response: ResponseMessage<LogEntry, FSM> = match tx_msg {
                 ResponseSender::Local(_) => LocalResponseMsg::Propose {
                     result: ResponseResult::WrongLeader {
                         leader_id,
@@ -946,17 +955,17 @@ impl<
                 .into(),
             };
 
-            chan.send(raft_response);
+            tx_msg.send(raft_response);
         } else {
             let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
-            match chan {
-                ResponseSender::Local(chan) => {
+            match tx_msg {
+                ResponseSender::Local(tx_msg) => {
                     self.response_senders
-                        .insert(response_seq, ResponseSender::Local(chan));
+                        .insert(response_seq, ResponseSender::Local(tx_msg));
                 }
-                ResponseSender::Server(chan) => {
+                ResponseSender::Server(tx_msg) => {
                     self.response_senders
-                        .insert(response_seq, ResponseSender::Server(chan));
+                        .insert(response_seq, ResponseSender::Server(tx_msg));
                 }
             };
 
@@ -969,7 +978,7 @@ impl<
     async fn handle_confchange_request(
         &mut self,
         conf_change: ConfChangeV2,
-        chan: ResponseSender<LogEntry, FSM>,
+        tx_msg: ResponseSender<LogEntry, FSM>,
     ) -> Result<()> {
         if self.raw_node.raft.has_pending_conf() {
             self.logger.warn(&format!("Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index));
@@ -992,13 +1001,13 @@ impl<
                 leader_addr,
             };
 
-            match chan {
-                ResponseSender::Local(chan) => chan
+            match tx_msg {
+                ResponseSender::Local(tx_msg) => tx_msg
                     .send(LocalResponseMsg::ConfigChange {
                         result: wrong_leader_result,
                     })
                     .unwrap(),
-                ResponseSender::Server(chan) => chan
+                ResponseSender::Server(tx_msg) => tx_msg
                     .send(ServerResponseMsg::ConfigChange {
                         result: wrong_leader_result,
                     })
@@ -1007,14 +1016,14 @@ impl<
         } else {
             let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
 
-            match chan {
-                ResponseSender::Local(chan) => {
+            match tx_msg {
+                ResponseSender::Local(tx_msg) => {
                     self.response_senders
-                        .insert(response_seq, ResponseSender::Local(chan));
+                        .insert(response_seq, ResponseSender::Local(tx_msg));
                 }
-                ResponseSender::Server(chan) => {
+                ResponseSender::Server(tx_msg) => {
                     self.response_senders
-                        .insert(response_seq, ResponseSender::Server(chan));
+                        .insert(response_seq, ResponseSender::Server(tx_msg));
                 }
             };
 
@@ -1036,85 +1045,93 @@ impl<
         message: LocalRequestMsg<LogEntry, FSM>,
     ) -> Result<()> {
         match message {
-            LocalRequestMsg::IsLeader { chan } => {
-                chan.send(LocalResponseMsg::IsLeader {
-                    is_leader: self.is_leader(),
-                })
-                .unwrap();
-            }
-            LocalRequestMsg::GetId { chan } => {
-                chan.send(LocalResponseMsg::GetId { id: self.get_id() })
+            LocalRequestMsg::IsLeader { tx_msg } => {
+                tx_msg
+                    .send(LocalResponseMsg::IsLeader {
+                        is_leader: self.is_leader(),
+                    })
                     .unwrap();
             }
-            LocalRequestMsg::GetLeaderId { chan } => {
-                chan.send(LocalResponseMsg::GetLeaderId {
-                    leader_id: self.get_leader_id(),
-                })
-                .unwrap();
+            LocalRequestMsg::GetId { tx_msg } => {
+                tx_msg
+                    .send(LocalResponseMsg::GetId { id: self.get_id() })
+                    .unwrap();
             }
-            LocalRequestMsg::GetPeers { chan } => {
-                chan.send(LocalResponseMsg::GetPeers {
-                    peers: self.get_peers().await,
-                })
-                .unwrap();
+            LocalRequestMsg::GetLeaderId { tx_msg } => {
+                tx_msg
+                    .send(LocalResponseMsg::GetLeaderId {
+                        leader_id: self.get_leader_id(),
+                    })
+                    .unwrap();
+            }
+            LocalRequestMsg::GetPeers { tx_msg } => {
+                tx_msg
+                    .send(LocalResponseMsg::GetPeers {
+                        peers: self.get_peers().await,
+                    })
+                    .unwrap();
             }
             LocalRequestMsg::AddPeer {
                 id,
                 addr,
                 role,
-                chan,
+                tx_msg,
             } => {
                 self.add_peer(id, addr, role).await?;
-                chan.send(LocalResponseMsg::AddPeer {}).unwrap();
+                tx_msg.send(LocalResponseMsg::AddPeer {}).unwrap();
             }
-            LocalRequestMsg::AddPeers { peers, chan } => {
+            LocalRequestMsg::AddPeers { peers, tx_msg } => {
                 self.add_peers(peers).await?;
-                chan.send(LocalResponseMsg::AddPeers {}).unwrap();
+                tx_msg.send(LocalResponseMsg::AddPeers {}).unwrap();
             }
-            LocalRequestMsg::Store { chan } => {
-                chan.send(LocalResponseMsg::Store {
-                    store: self.fsm.clone(),
-                })
-                .unwrap();
-            }
-            LocalRequestMsg::Storage { chan } => {
-                chan.send(LocalResponseMsg::Storage {
-                    storage: self.raw_node.store().clone(),
-                })
-                .unwrap();
-            }
-            LocalRequestMsg::DebugNode { chan } => {
-                chan.send(LocalResponseMsg::DebugNode {
-                    result_json: self.inspect().await?,
-                })
-                .unwrap();
-            }
-            LocalRequestMsg::Propose { proposal, chan } => {
-                self.handle_propose_request(proposal, ResponseSender::Local(chan))
-                    .await?;
-            }
-            LocalRequestMsg::GetClusterSize { chan } => {
-                let size = self.raw_node.raft.prs().iter().collect::<Vec<_>>().len();
-                chan.send(LocalResponseMsg::GetClusterSize { size })
+            LocalRequestMsg::Store { tx_msg } => {
+                tx_msg
+                    .send(LocalResponseMsg::Store {
+                        store: self.fsm.clone(),
+                    })
                     .unwrap();
             }
-            LocalRequestMsg::Quit { chan } => {
-                self.should_exit = true;
-                chan.send(LocalResponseMsg::Quit {}).unwrap();
+            LocalRequestMsg::Storage { tx_msg } => {
+                tx_msg
+                    .send(LocalResponseMsg::Storage {
+                        storage: self.raw_node.store().clone(),
+                    })
+                    .unwrap();
             }
-            LocalRequestMsg::Campaign { chan } => {
+            LocalRequestMsg::DebugNode { tx_msg } => {
+                tx_msg
+                    .send(LocalResponseMsg::DebugNode {
+                        result_json: self.inspect().await?,
+                    })
+                    .unwrap();
+            }
+            LocalRequestMsg::Propose { proposal, tx_msg } => {
+                self.handle_propose_request(proposal, ResponseSender::Local(tx_msg))
+                    .await?;
+            }
+            LocalRequestMsg::GetClusterSize { tx_msg } => {
+                let size = self.raw_node.raft.prs().iter().collect::<Vec<_>>().len();
+                tx_msg
+                    .send(LocalResponseMsg::GetClusterSize { size })
+                    .unwrap();
+            }
+            LocalRequestMsg::Quit { tx_msg } => {
+                self.should_exit = true;
+                tx_msg.send(LocalResponseMsg::Quit {}).unwrap();
+            }
+            LocalRequestMsg::Campaign { tx_msg } => {
                 self.raw_node.campaign()?;
-                chan.send(LocalResponseMsg::Campaign {}).unwrap();
+                tx_msg.send(LocalResponseMsg::Campaign {}).unwrap();
             }
             LocalRequestMsg::Demote {
-                chan,
+                tx_msg,
                 term,
                 leader_id,
             } => {
                 self.raw_node.raft.become_follower(term, leader_id);
-                chan.send(LocalResponseMsg::Demote {}).unwrap();
+                tx_msg.send(LocalResponseMsg::Demote {}).unwrap();
             }
-            LocalRequestMsg::Leave { chan } => {
+            LocalRequestMsg::Leave { tx_msg } => {
                 let mut conf_change = ConfChange::default();
                 conf_change.set_node_id(self.get_id());
                 conf_change.set_change_type(ConfChangeType::RemoveNode);
@@ -1122,38 +1139,45 @@ impl<
 
                 self.handle_confchange_request(
                     to_confchange_v2(conf_change),
-                    ResponseSender::Local(chan),
+                    ResponseSender::Local(tx_msg),
                 )
                 .await?;
             }
-            LocalRequestMsg::ChangeConfig { conf_change, chan } => {
-                self.handle_confchange_request(conf_change, ResponseSender::Local(chan))
+            LocalRequestMsg::ChangeConfig {
+                conf_change,
+                tx_msg,
+            } => {
+                self.handle_confchange_request(conf_change, ResponseSender::Local(tx_msg))
                     .await?;
             }
-            LocalRequestMsg::MakeSnapshot { index, term, chan } => {
+            LocalRequestMsg::MakeSnapshot {
+                index,
+                term,
+                tx_msg,
+            } => {
                 self.make_snapshot(index, term).await?;
-                chan.send(LocalResponseMsg::MakeSnapshot {}).unwrap();
+                tx_msg.send(LocalResponseMsg::MakeSnapshot {}).unwrap();
             }
-            LocalRequestMsg::JoinCluster { tickets, chan } => {
+            LocalRequestMsg::JoinCluster { tickets, tx_msg } => {
                 self.handle_join(tickets).await?;
-                chan.send(LocalResponseMsg::JoinCluster {}).unwrap();
+                tx_msg.send(LocalResponseMsg::JoinCluster {}).unwrap();
             }
-            LocalRequestMsg::SendMessage { message, chan } => {
+            LocalRequestMsg::SendMessage { message, tx_msg } => {
                 self.logger.debug(&format!(
                     "Node {} received Raft message from itself, Message: {}",
                     self.raw_node.raft.id,
                     format_message(&message)
                 ));
                 self.raw_node.step(*message)?;
-                chan.send(LocalResponseMsg::SendMessage {}).unwrap();
+                tx_msg.send(LocalResponseMsg::SendMessage {}).unwrap();
             }
             LocalRequestMsg::LeaveJoint {} => {
                 let zero = ConfChangeV2::default();
                 self.raw_node.propose_conf_change(vec![], zero)?;
             }
-            LocalRequestMsg::TransferLeader { node_id, chan } => {
+            LocalRequestMsg::TransferLeader { node_id, tx_msg } => {
                 self.raw_node.transfer_leader(node_id);
-                chan.send(LocalResponseMsg::TransferLeader {}).unwrap();
+                tx_msg.send(LocalResponseMsg::TransferLeader {}).unwrap();
             }
         }
 
@@ -1172,8 +1196,11 @@ impl<
 
     async fn handle_server_request_msg(&mut self, message: ServerRequestMsg) -> Result<()> {
         match message {
-            ServerRequestMsg::ChangeConfig { conf_change, chan } => {
-                self.handle_confchange_request(conf_change, ResponseSender::Server(chan))
+            ServerRequestMsg::ChangeConfig {
+                conf_change,
+                tx_msg,
+            } => {
+                self.handle_confchange_request(conf_change, ResponseSender::Server(tx_msg))
                     .await?;
             }
             ServerRequestMsg::SendMessage { message } => {
@@ -1185,11 +1212,11 @@ impl<
                 ));
                 self.raw_node.step(*message)?
             }
-            ServerRequestMsg::Propose { proposal, chan } => {
-                self.handle_propose_request(proposal, ResponseSender::Server(chan))
+            ServerRequestMsg::Propose { proposal, tx_msg } => {
+                self.handle_propose_request(proposal, ResponseSender::Server(tx_msg))
                     .await?;
             }
-            ServerRequestMsg::RequestId { raft_addr, chan } => {
+            ServerRequestMsg::RequestId { raft_addr, tx_msg } => {
                 if !self.is_leader() {
                     let leader_id = self.get_leader_id();
                     if leader_id == 0 {
@@ -1201,13 +1228,14 @@ impl<
                     let peers = self.peers.lock().await;
                     let leader_addr = peers.get(&leader_id).unwrap().addr.to_string();
 
-                    chan.send(ServerResponseMsg::RequestId {
-                        result: RequestIdResponseResult::WrongLeader {
-                            leader_id,
-                            leader_addr,
-                        },
-                    })
-                    .unwrap();
+                    tx_msg
+                        .send(ServerResponseMsg::RequestId {
+                            result: RequestIdResponseResult::WrongLeader {
+                                leader_id,
+                                leader_addr,
+                            },
+                        })
+                        .unwrap();
                 } else {
                     let mut peers = self.peers.lock().await;
 
@@ -1226,42 +1254,45 @@ impl<
                             reserved
                         };
 
-                    chan.send(ServerResponseMsg::RequestId {
-                        result: RequestIdResponseResult::Success {
-                            reserved_id,
-                            leader_id: self.get_id(),
-                            peers: peers.clone(),
-                        },
-                    })
-                    .unwrap();
+                    tx_msg
+                        .send(ServerResponseMsg::RequestId {
+                            result: RequestIdResponseResult::Success {
+                                reserved_id,
+                                leader_id: self.get_id(),
+                                peers: peers.clone(),
+                            },
+                        })
+                        .unwrap();
                 }
             }
-            ServerRequestMsg::LeaveJoint { chan } => {
+            ServerRequestMsg::LeaveJoint { tx_msg } => {
                 self.raw_node
                     .propose_conf_change(vec![], ConfChangeV2::default())?;
-                chan.send(ServerResponseMsg::LeaveJoint {}).unwrap();
+                tx_msg.send(ServerResponseMsg::LeaveJoint {}).unwrap();
             }
-            ServerRequestMsg::DebugNode { chan } => {
-                chan.send(ServerResponseMsg::DebugNode {
-                    result_json: self.inspect().await?,
-                })
-                .unwrap();
+            ServerRequestMsg::DebugNode { tx_msg } => {
+                tx_msg
+                    .send(ServerResponseMsg::DebugNode {
+                        result_json: self.inspect().await?,
+                    })
+                    .unwrap();
             }
-            ServerRequestMsg::GetPeers { chan } => {
-                chan.send(ServerResponseMsg::GetPeers {
-                    peers: self.get_peers().await,
-                })
-                .unwrap();
+            ServerRequestMsg::GetPeers { tx_msg } => {
+                tx_msg
+                    .send(ServerResponseMsg::GetPeers {
+                        peers: self.get_peers().await,
+                    })
+                    .unwrap();
             }
-            ServerRequestMsg::CreateSnapshot { chan } => {
+            ServerRequestMsg::CreateSnapshot { tx_msg } => {
                 let last_index = self.raw_node.store().last_index()?;
                 let last_term = self.raw_node.store().hard_state()?.term;
                 self.make_snapshot(last_index, last_term).await?;
-                chan.send(ServerResponseMsg::CreateSnapshot {}).unwrap();
+                tx_msg.send(ServerResponseMsg::CreateSnapshot {}).unwrap();
             }
-            ServerRequestMsg::SetPeers { chan, peers } => {
+            ServerRequestMsg::SetPeers { tx_msg, peers } => {
                 self.peers.lock().await.replace(peers);
-                chan.send(ServerResponseMsg::SetPeers {}).unwrap();
+                tx_msg.send(ServerResponseMsg::SetPeers {}).unwrap();
             }
         }
 
@@ -1281,17 +1312,17 @@ impl<
             }
 
             tokio::select! {
-                msg = timeout(fixed_tick_timer, self.self_rcv.recv()) => {
+                msg = timeout(fixed_tick_timer, self.rx_self.recv()) => {
                     if let Ok(Some(msg)) = msg {
                         self.handle_self_message(msg).await?;
                     }
                 }
-                msg = timeout(fixed_tick_timer, self.server_rcv.recv()) => {
+                msg = timeout(fixed_tick_timer, self.rx_server.recv()) => {
                     if let Ok(Some(msg)) = msg {
                         self.handle_server_request_msg(msg).await?;
                     }
                 }
-                msg = timeout(fixed_tick_timer, self.local_rcv.recv()) => {
+                msg = timeout(fixed_tick_timer, self.rx_local.recv()) => {
                     if let Ok(Some(msg)) = msg {
                         self.handle_local_request_msg(msg).await?;
                     }

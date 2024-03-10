@@ -35,43 +35,43 @@ use crate::{
 
 #[derive(Clone)]
 pub struct RaftServer {
-    snd: mpsc::Sender<ServerRequestMsg>,
-    addr: SocketAddr,
+    tx: mpsc::Sender<ServerRequestMsg>,
+    raft_addr: SocketAddr,
     config: Config,
     logger: Arc<dyn Logger>,
 }
 
 impl RaftServer {
     pub fn new<A: ToSocketAddrs>(
-        snd: mpsc::Sender<ServerRequestMsg>,
-        addr: A,
+        tx: mpsc::Sender<ServerRequestMsg>,
+        raft_addr: A,
         config: Config,
         logger: Arc<dyn Logger>,
     ) -> Self {
-        let addr = addr.to_socket_addrs().unwrap().next().unwrap();
+        let raft_addr = raft_addr.to_socket_addrs().unwrap().next().unwrap();
         RaftServer {
-            snd,
-            addr,
+            tx,
+            raft_addr,
             config,
             logger,
         }
     }
 
-    pub(crate) async fn run(self, quit_signal_rx: Receiver<()>) -> Result<(), Error> {
-        let addr = self.addr;
+    pub(crate) async fn run(self, rx_quit_signal: Receiver<()>) -> Result<(), Error> {
+        let raft_addr = self.raft_addr;
         let logger = self.logger.clone();
         logger.debug(&format!(
             "RaftServer starts to listen gRPC requests on \"{}\"...",
-            addr
+            raft_addr
         ));
 
-        let shutdown_signal = async {
-            quit_signal_rx.await.ok();
+        let quit_signal = async {
+            rx_quit_signal.await.ok();
         };
 
         Server::builder()
             .add_service(RaftServiceServer::new(self))
-            .serve_with_shutdown(addr, shutdown_signal)
+            .serve_with_shutdown(raft_addr, quit_signal)
             .await?;
 
         Ok(())
@@ -94,16 +94,16 @@ impl RaftService for RaftServer {
         request: Request<raft_service::RequestIdArgs>,
     ) -> Result<Response<raft_service::RequestIdResponse>, Status> {
         let request_args = request.into_inner();
-        let sender = self.snd.clone();
-        let (tx, rx) = oneshot::channel();
+        let sender = self.tx.clone();
+        let (tx_msg, rx_msg) = oneshot::channel();
         sender
             .send(ServerRequestMsg::RequestId {
                 raft_addr: request_args.raft_addr.clone(),
-                chan: tx,
+                tx_msg,
             })
             .await
             .unwrap();
-        let response = rx.await.unwrap();
+        let response = rx_msg.await.unwrap();
 
         match response {
             ServerResponseMsg::RequestId { result } => match result {
@@ -115,7 +115,7 @@ impl RaftService for RaftServer {
                     code: raft_service::ResultCode::Ok as i32,
                     leader_id,
                     reserved_id,
-                    leader_addr: self.addr.to_string(),
+                    leader_addr: self.raft_addr.to_string(),
                     peers: serialize(&peers).unwrap(),
                     ..Default::default()
                 })),
@@ -142,12 +142,12 @@ impl RaftService for RaftServer {
         request: Request<ConfChangeV2>,
     ) -> Result<Response<raft_service::ChangeConfigResponse>, Status> {
         let request_args = request.into_inner();
-        let sender = self.snd.clone();
-        let (tx, rx) = oneshot::channel();
+        let sender = self.tx.clone();
+        let (tx_msg, rx_msg) = oneshot::channel();
 
         let message = ServerRequestMsg::ChangeConfig {
             conf_change: request_args.clone(),
-            chan: tx,
+            tx_msg,
         };
 
         // TODO: Handle this kind of errors
@@ -162,7 +162,7 @@ impl RaftService for RaftServer {
 
         match timeout(
             Duration::from_secs_f32(self.config.conf_change_request_timeout),
-            rx,
+            rx_msg,
         )
         .await
         {
@@ -226,7 +226,7 @@ impl RaftService for RaftServer {
         request: Request<RaftMessage>,
     ) -> Result<Response<raft_service::Empty>, Status> {
         let request_args = request.into_inner();
-        let sender = self.snd.clone();
+        let sender = self.tx.clone();
         match sender
             .send(ServerRequestMsg::SendMessage {
                 message: Box::new(request_args),
@@ -245,13 +245,13 @@ impl RaftService for RaftServer {
         request: Request<raft_service::ProposeArgs>,
     ) -> Result<Response<raft_service::ProposeResponse>, Status> {
         let request_args = request.into_inner();
-        let sender = self.snd.clone();
+        let sender = self.tx.clone();
 
-        let (tx, rx) = oneshot::channel();
+        let (tx_msg, rx_msg) = oneshot::channel();
         match sender
             .send(ServerRequestMsg::Propose {
                 proposal: request_args.msg.clone(),
-                chan: tx,
+                tx_msg,
             })
             .await
         {
@@ -259,7 +259,7 @@ impl RaftService for RaftServer {
             Err(_) => self.print_send_error(function_name!()),
         }
 
-        let response = rx.await.unwrap();
+        let response = rx_msg.await.unwrap();
         match response {
             ServerResponseMsg::Propose { result } => {
                 match result {
@@ -295,15 +295,15 @@ impl RaftService for RaftServer {
         request: Request<Empty>,
     ) -> Result<Response<raft_service::DebugNodeResponse>, Status> {
         let _request_args = request.into_inner();
-        let sender = self.snd.clone();
-        let (tx, rx) = oneshot::channel();
+        let sender = self.tx.clone();
+        let (tx_msg, rx_msg) = oneshot::channel();
 
-        match sender.send(ServerRequestMsg::DebugNode { chan: tx }).await {
+        match sender.send(ServerRequestMsg::DebugNode { tx_msg }).await {
             Ok(_) => (),
             Err(_) => self.print_send_error(function_name!()),
         }
 
-        let response = rx.await.unwrap();
+        let response = rx_msg.await.unwrap();
         match response {
             ServerResponseMsg::DebugNode { result_json } => {
                 Ok(Response::new(raft_service::DebugNodeResponse {
@@ -319,13 +319,13 @@ impl RaftService for RaftServer {
         request: Request<raft_service::Empty>,
     ) -> Result<Response<raft_service::GetPeersResponse>, Status> {
         let _request_args = request.into_inner();
-        let (tx, rx) = oneshot::channel();
-        let sender = self.snd.clone();
-        match sender.send(ServerRequestMsg::GetPeers { chan: tx }).await {
+        let (tx_msg, rx_msg) = oneshot::channel();
+        let sender = self.tx.clone();
+        match sender.send(ServerRequestMsg::GetPeers { tx_msg }).await {
             Ok(_) => (),
             Err(_) => self.print_send_error(function_name!()),
         }
-        let response = rx.await.unwrap();
+        let response = rx_msg.await.unwrap();
 
         match response {
             ServerResponseMsg::GetPeers { peers } => {
@@ -342,13 +342,13 @@ impl RaftService for RaftServer {
         request: Request<raft_service::Empty>,
     ) -> Result<Response<raft_service::Empty>, Status> {
         let _request_args = request.into_inner();
-        let (tx, rx) = oneshot::channel();
-        let sender = self.snd.clone();
-        match sender.send(ServerRequestMsg::LeaveJoint { chan: tx }).await {
+        let (tx_msg, rx_msg) = oneshot::channel();
+        let sender = self.tx.clone();
+        match sender.send(ServerRequestMsg::LeaveJoint { tx_msg }).await {
             Ok(_) => (),
             Err(_) => self.print_send_error(function_name!()),
         }
-        let response = rx.await.unwrap();
+        let response = rx_msg.await.unwrap();
 
         match response {
             ServerResponseMsg::LeaveJoint {} => Ok(Response::new(raft_service::Empty {})),
@@ -367,16 +367,16 @@ impl RaftService for RaftServer {
             peers.add_peer(peer.node_id, peer.addr, Some(InitialRole::Voter));
         }
 
-        let (tx, rx) = oneshot::channel();
-        let sender = self.snd.clone();
+        let (tx_msg, rx_msg) = oneshot::channel();
+        let sender = self.tx.clone();
         match sender
-            .send(ServerRequestMsg::SetPeers { peers, chan: tx })
+            .send(ServerRequestMsg::SetPeers { peers, tx_msg })
             .await
         {
             Ok(_) => (),
             Err(_) => self.print_send_error(function_name!()),
         }
-        let response = rx.await.unwrap();
+        let response = rx_msg.await.unwrap();
 
         match response {
             ServerResponseMsg::SetPeers {} => Ok(Response::new(raft_service::Empty {})),
@@ -389,16 +389,16 @@ impl RaftService for RaftServer {
         request: Request<raft_service::Empty>,
     ) -> Result<Response<raft_service::Empty>, Status> {
         let _request_args = request.into_inner();
-        let (tx, rx) = oneshot::channel();
-        let sender = self.snd.clone();
+        let (tx_msg, rx_msg) = oneshot::channel();
+        let sender = self.tx.clone();
         match sender
-            .send(ServerRequestMsg::CreateSnapshot { chan: tx })
+            .send(ServerRequestMsg::CreateSnapshot { tx_msg })
             .await
         {
             Ok(_) => (),
             Err(_) => self.print_send_error(function_name!()),
         }
-        let response = rx.await.unwrap();
+        let response = rx_msg.await.unwrap();
 
         match response {
             ServerResponseMsg::CreateSnapshot {} => Ok(Response::new(raft_service::Empty {})),

@@ -13,16 +13,16 @@ pub(crate) enum ResponseSender<LogEntry: AbstractLogEntry, FSM: AbstractStateMac
 impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> ResponseSender<LogEntry, FSM> {
     pub fn send(self, response: ResponseMessage<LogEntry, FSM>) {
         match self {
-            ResponseSender::Local(sender) => {
+            ResponseSender::Local(tx_local) => {
                 if let ResponseMessage::Local(response) = response {
-                    sender.send(response).unwrap()
+                    tx_local.send(response).unwrap()
                 } else {
                     unreachable!()
                 }
             }
-            ResponseSender::Server(sender) => {
+            ResponseSender::Server(tx_server) => {
                 if let ResponseMessage::Server(response) = response {
-                    sender.send(response).unwrap()
+                    tx_server.send(response).unwrap()
                 } else {
                     unreachable!()
                 }

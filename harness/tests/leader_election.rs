@@ -14,13 +14,13 @@ use harness::{
 pub async fn test_leader_election_in_three_node_example() {
     kill_previous_raft_processes();
 
-    let (raft_tx, raft_rx) = mpsc::channel::<(u64, Raft)>();
+    let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
 
     let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
-    let _raft_tasks = tokio::spawn(build_raft_cluster(raft_tx, peers.clone()));
+    let _raft_tasks = tokio::spawn(build_raft_cluster(tx_raft, peers.clone()));
     sleep(Duration::from_secs(1)).await;
 
-    let mut rafts = wait_until_rafts_ready(None, raft_rx, 3).await;
+    let mut rafts = wait_until_rafts_ready(None, rx_raft, 3).await;
 
     let raft_1 = rafts.get_mut(&1).unwrap();
 
@@ -63,13 +63,13 @@ pub async fn test_leader_election_in_three_node_example() {
 pub async fn test_leader_election_in_five_node_example() {
     kill_previous_raft_processes();
 
-    let (raft_tx, raft_rx) = mpsc::channel::<(u64, Raft)>();
+    let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
     let peers = load_peers(FIVE_NODE_EXAMPLE).await.unwrap();
-    let _raft_tasks = tokio::spawn(build_raft_cluster(raft_tx, peers.clone()));
+    let _raft_tasks = tokio::spawn(build_raft_cluster(tx_raft, peers.clone()));
 
     sleep(Duration::from_secs(1)).await;
 
-    let mut rafts = wait_until_rafts_ready(None, raft_rx, 5).await;
+    let mut rafts = wait_until_rafts_ready(None, rx_raft, 5).await;
 
     let raft_1 = rafts.get_mut(&1).unwrap();
 

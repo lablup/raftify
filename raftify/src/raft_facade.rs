@@ -27,7 +27,7 @@ use super::{
 pub struct Raft<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + Clone + 'static> {
     pub raft_node: RaftNode<LogEntry, FSM>,
     pub raft_server: RaftServer,
-    pub server_tx: mpsc::Sender<ServerRequestMsg>,
+    pub tx_server: mpsc::Sender<ServerRequestMsg>,
     pub logger: Arc<dyn Logger>,
 }
 
@@ -83,7 +83,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
             should_be_leader = leaders.contains(&node_id);
         }
 
-        let (server_tx, server_rx) = mpsc::channel(100);
+        let (tx_server, rx_server) = mpsc::channel(100);
         let raft_node = RaftNode::bootstrap(
             node_id,
             should_be_leader,
@@ -91,15 +91,15 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
             config.clone(),
             raft_addr,
             logger.clone(),
-            server_rx,
-            server_tx.clone(),
+            tx_server.clone(),
+            rx_server,
         )?;
 
         let raft_server =
-            RaftServer::new(server_tx.clone(), raft_addr, config.clone(), logger.clone());
+            RaftServer::new(tx_server.clone(), raft_addr, config.clone(), logger.clone());
 
         Ok(Self {
-            server_tx: server_tx.clone(),
+            tx_server: tx_server.clone(),
             raft_node,
             raft_server,
             logger,
@@ -108,12 +108,12 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
 
     /// Starts the RaftNode and RaftServer.
     pub async fn run(self) -> Result<()> {
-        let (quit_signal_tx, quit_signal_rx) = oneshot::channel::<()>();
+        let (tx_quit_signal, rx_quit_signal) = oneshot::channel::<()>();
 
         let raft_node = self.raft_node.clone();
         let raft_node_handle = tokio::spawn(raft_node.run());
         let raft_server = self.raft_server.clone();
-        let raft_server_handle = tokio::spawn(raft_server.run(quit_signal_rx));
+        let raft_server_handle = tokio::spawn(raft_server.run(rx_quit_signal));
 
         tokio::select! {
             _ = signal::ctrl_c() => {
@@ -121,7 +121,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
                 Ok(())
             }
             result = raft_node_handle => {
-                quit_signal_tx.send(()).unwrap();
+                tx_quit_signal.send(()).unwrap();
 
                 match result {
                     Ok(raft_node_result) => {

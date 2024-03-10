@@ -14,12 +14,12 @@ pub async fn test_data_replication() {
     kill_previous_raft_processes();
 
     let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
-    let (raft_tx, raft_rx) = mpsc::channel::<(u64, Raft)>();
+    let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
 
-    let _raft_tasks = tokio::spawn(build_raft_cluster(raft_tx, peers.clone()));
+    let _raft_tasks = tokio::spawn(build_raft_cluster(tx_raft, peers.clone()));
     sleep(Duration::from_secs(1)).await;
 
-    let mut rafts = wait_until_rafts_ready(None, raft_rx, 3).await;
+    let mut rafts = wait_until_rafts_ready(None, rx_raft, 3).await;
 
     let raft_1 = rafts.get(&1).unwrap();
     wait_for_until_cluster_size_increase(raft_1.clone(), 3).await;
@@ -44,15 +44,15 @@ pub async fn test_data_replication() {
 
     sleep(Duration::from_secs(1)).await;
 
-    let (raft_tx, raft_rx) = mpsc::channel::<(u64, Raft)>();
+    let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
     tokio::spawn(spawn_and_join_extra_node(
-        raft_tx,
+        tx_raft,
         "127.0.0.1:60064",
         RAFT_ADDRS[0],
     ));
     sleep(Duration::from_secs(1)).await;
 
-    let mut rafts = wait_until_rafts_ready(Some(rafts), raft_rx, 4).await;
+    let mut rafts = wait_until_rafts_ready(Some(rafts), rx_raft, 4).await;
     sleep(Duration::from_secs(1)).await;
 
     let raft_1 = rafts.get(&1).unwrap();

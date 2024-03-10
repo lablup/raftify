@@ -20,17 +20,17 @@ pub type Raft = Raft_<LogEntry, HashStore>;
 
 pub async fn wait_until_rafts_ready(
     rafts: Option<HashMap<u64, Raft>>,
-    initialized_raft_rcv: mpsc::Receiver<(u64, Raft)>,
+    rx_initialized_raft: mpsc::Receiver<(u64, Raft)>,
     size: u64,
 ) -> HashMap<u64, Raft> {
     let logger = get_logger();
     let mut rafts = rafts.unwrap_or_default();
 
     loop {
-        slog::info!(logger, "Waiting for raft instances to be ready...");
+        slog::info!(logger, "Waiting for all raft instances to be ready...");
         tokio::task::yield_now().await;
 
-        let (node_id, raft) = initialized_raft_rcv
+        let (node_id, raft) = rx_initialized_raft
             .recv()
             .expect("All tx dropped before receiving all raft instances");
 
@@ -45,7 +45,7 @@ pub async fn wait_until_rafts_ready(
 }
 
 fn run_raft(
-    initialized_raft_snd: mpsc::Sender<(u64, Raft)>,
+    tx_initialized_raft: mpsc::Sender<(u64, Raft)>,
     node_id: &u64,
     peers: Peers,
     should_be_leader: bool,
@@ -72,7 +72,7 @@ fn run_raft(
     )
     .expect("Raft build failed!");
 
-    initialized_raft_snd
+    tx_initialized_raft
         .send((node_id.to_owned(), raft.clone()))
         .expect("Failed to send raft to the channel");
 
@@ -82,7 +82,7 @@ fn run_raft(
 }
 
 pub async fn build_raft_cluster(
-    initialized_raft_snd: mpsc::Sender<(u64, Raft)>,
+    tx_initialized_raft: mpsc::Sender<(u64, Raft)>,
     peers: Peers,
 ) -> Result<()> {
     let logger = get_logger();
@@ -94,7 +94,7 @@ pub async fn build_raft_cluster(
 
     for (node_id, _) in peers.iter() {
         let raft_handle = run_raft(
-            initialized_raft_snd.clone(),
+            tx_initialized_raft.clone(),
             &node_id,
             peers.clone(),
             should_be_leader,
@@ -122,7 +122,7 @@ pub async fn build_raft_cluster(
 }
 
 pub async fn spawn_extra_node(
-    initialized_raft_snd: mpsc::Sender<(u64, Raft)>,
+    tx_initialized_raft: mpsc::Sender<(u64, Raft)>,
     node_id: u64,
     raft_addr: &str,
 ) -> Result<JoinHandle<Result<()>>> {
@@ -134,7 +134,7 @@ pub async fn spawn_extra_node(
     let store = HashStore::new();
     let raft = Raft::bootstrap(node_id, raft_addr, store, cfg, logger).expect("Raft build failed!");
 
-    initialized_raft_snd
+    tx_initialized_raft
         .send((node_id, raft.clone()))
         .expect("Failed to send raft to the channel");
 
@@ -144,7 +144,7 @@ pub async fn spawn_extra_node(
 }
 
 pub async fn spawn_and_join_extra_node(
-    initialized_raft_snd: mpsc::Sender<(u64, Raft)>,
+    tx_initialized_raft: mpsc::Sender<(u64, Raft)>,
     raft_addr: &str,
     peer_addr: &str,
 ) -> Result<JoinHandle<Result<()>>> {
@@ -162,7 +162,7 @@ pub async fn spawn_and_join_extra_node(
 
     let raft = Raft::bootstrap(node_id, raft_addr, store, cfg, logger).expect("Raft build failed!");
 
-    initialized_raft_snd
+    tx_initialized_raft
         .send((node_id, raft.clone()))
         .expect("Failed to send raft to the channel");
 
