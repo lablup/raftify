@@ -47,7 +47,7 @@ use crate::{
         heed_storage::HeedStorage,
         utils::{clear_storage_path, ensure_directory_exist, get_data_mdb_path, get_storage_path},
     },
-    utils::{to_confchange_v2, OneShotMutex},
+    utils::{membership::to_confchange_v2, oneshot_mutex::OneShotMutex},
     AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket, Config, Error, InitialRole, Peers,
     RaftServiceClient, StableStorage,
 };
@@ -430,7 +430,7 @@ impl<
         }
     }
 
-    pub async fn run(self) -> Result<()> {
+    pub(crate) async fn run(self) -> Result<()> {
         self.inner
             .lock()
             .await

@@ -14,6 +14,5 @@ pub fn get_logger() -> Logger {
     }
     let drain = builder.build().fuse();
 
-    let logger = slog::Logger::root(drain, o!());
-    logger
+    slog::Logger::root(drain, o!())
 }

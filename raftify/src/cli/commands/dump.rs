@@ -7,7 +7,7 @@ use jopemachine_raft::{
 use prost::Message as _;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
-use crate::{utils::to_confchange_v2, Config, HeedStorage, Result, StableStorage};
+use crate::{utils::membership::to_confchange_v2, Config, HeedStorage, Result, StableStorage};
 
 /// Read all_entries and make the appropriate ConfChanges to make it peers compared to the peers given in json format.
 pub fn dump_peers(path: &str, peers: HashMap<u64, SocketAddr>, logger: slog::Logger) -> Result<()> {

@@ -57,7 +57,7 @@ impl RaftServer {
         }
     }
 
-    pub async fn run(self, quit_signal_rx: Receiver<()>) -> Result<(), Error> {
+    pub(crate) async fn run(self, quit_signal_rx: Receiver<()>) -> Result<(), Error> {
         let addr = self.addr;
         let logger = self.logger.clone();
         logger.debug(&format!(

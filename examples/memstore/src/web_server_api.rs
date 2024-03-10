@@ -14,11 +14,7 @@ async fn put(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, String)>)
         key: path.0,
         value: path.1.clone(),
     };
-    data.1
-        .raft_node
-        .propose(log_entry.encode().unwrap())
-        .await
-        .unwrap();
+    data.1.propose(log_entry.encode().unwrap()).await.unwrap();
 
     "OK".to_string()
 }
@@ -34,21 +30,21 @@ async fn get(data: web::Data<(HashStore, Raft)>, path: web::Path<u64>) -> impl R
 #[get("/leader")]
 async fn leader_id(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    let leader_id = raft.1.raft_node.get_leader_id().await.to_string();
+    let leader_id = raft.1.get_leader_id().await.to_string();
     format!("{:?}", leader_id)
 }
 
 #[get("/leave")]
 async fn leave(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    raft.1.raft_node.clone().leave().await;
+    raft.1.leave().await;
     "OK".to_string()
 }
 
 #[get("/debug")]
 async fn debug(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    let json = raft.1.raft_node.clone().inspect().await.unwrap();
+    let json = raft.1.inspect().await.unwrap();
     let parsed: HashMap<String, Value> = serde_json::from_str(&json).unwrap();
     format!("{:?}", parsed)
 }
@@ -56,7 +52,7 @@ async fn debug(data: web::Data<(HashStore, Raft)>) -> impl Responder {
 #[get("/peers")]
 async fn peers(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    let peers = raft.1.raft_node.clone().get_peers().await;
+    let peers = raft.1.get_peers().await;
     format!("{:?}", peers)
 }
 
@@ -70,7 +66,7 @@ async fn snapshot(data: web::Data<(HashStore, Raft)>) -> impl Responder {
 #[get("/leave_joint")]
 async fn leave_joint(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    raft.1.raft_node.leave_joint().await;
+    raft.1.leave_joint().await;
     "OK".to_string()
 }
 
@@ -81,14 +77,14 @@ async fn transfer_leader(
 ) -> impl Responder {
     let raft = data.clone();
     let node_id: u64 = path.into_inner();
-    raft.1.raft_node.transfer_leader(node_id).await;
+    raft.1.transfer_leader(node_id).await;
     "OK".to_string()
 }
 
 #[get("/campaign")]
 async fn campaign(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    raft.1.raft_node.campaign().await;
+    raft.1.campaign().await;
     "OK".to_string()
 }
 
@@ -96,6 +92,6 @@ async fn campaign(data: web::Data<(HashStore, Raft)>) -> impl Responder {
 async fn demote(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, u64)>) -> impl Responder {
     let raft = data.clone();
     let (term, leader_id_) = path.into_inner();
-    raft.1.raft_node.demote(term, leader_id_).await;
+    raft.1.demote(term, leader_id_).await;
     "OK".to_string()
 }

@@ -41,7 +41,7 @@ pub async fn wait_until_rafts_ready(
         }
     }
 
-    return rafts;
+    rafts
 }
 
 fn run_raft(
@@ -168,7 +168,7 @@ pub async fn spawn_and_join_extra_node(
 
     let raft_handle = tokio::spawn(raft.clone().run());
 
-    raft.raft_node.add_peers(join_ticket.peers.clone()).await;
+    raft.add_peers(join_ticket.peers.clone()).await;
     raft.join(vec![join_ticket]).await;
 
     Ok(raft_handle)
@@ -181,7 +181,7 @@ pub async fn join_nodes(rafts: Vec<&Raft>, raft_addrs: Vec<&str>, peer_addr: &st
             .await
             .unwrap();
 
-        raft.raft_node.add_peers(join_ticket.peers.clone()).await;
+        raft.add_peers(join_ticket.peers.clone()).await;
         tickets.push(join_ticket);
     }
 

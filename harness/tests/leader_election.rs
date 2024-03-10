@@ -28,7 +28,7 @@ pub async fn test_leader_election_in_three_node_example() {
 
     sleep(Duration::from_secs(1)).await;
 
-    raft_1.raft_node.leave().await;
+    raft_1.leave().await;
 
     sleep(Duration::from_secs(2)).await;
 
@@ -36,7 +36,7 @@ pub async fn test_leader_election_in_three_node_example() {
 
     wait_for_until_cluster_size_decrease(raft_2.clone(), 2).await;
 
-    let leader_id = raft_2.raft_node.get_leader_id().await;
+    let leader_id = raft_2.get_leader_id().await;
 
     let timer = timeout(Duration::from_secs(5), async {
         while leader_id == 0 {
@@ -52,9 +52,9 @@ pub async fn test_leader_election_in_three_node_example() {
         leader_id
     );
 
-    raft_2.raft_node.quit().await;
+    raft_2.quit().await;
     let raft_3 = rafts.get_mut(&3).unwrap();
-    raft_3.raft_node.quit().await;
+    raft_3.quit().await;
 }
 
 // TODO: Fix this test.
@@ -77,7 +77,7 @@ pub async fn test_leader_election_in_five_node_example() {
 
     sleep(Duration::from_secs(1)).await;
 
-    raft_1.raft_node.leave().await;
+    raft_1.leave().await;
 
     let raft_2 = rafts.get_mut(&2).unwrap();
 
@@ -85,7 +85,7 @@ pub async fn test_leader_election_in_five_node_example() {
 
     sleep(Duration::from_secs(2)).await;
 
-    let leader_id = raft_2.raft_node.get_leader_id().await;
+    let leader_id = raft_2.get_leader_id().await;
 
     assert!(
         [2, 3, 4, 5].contains(&leader_id),
@@ -94,7 +94,7 @@ pub async fn test_leader_election_in_five_node_example() {
     );
 
     let leader_raft = rafts.get_mut(&leader_id).unwrap();
-    leader_raft.raft_node.leave().await;
+    leader_raft.leave().await;
 
     let mut remaining_nodes = vec![2, 3, 4, 5];
     if let Some(pos) = remaining_nodes.iter().position(|&x| x == leader_id) {
@@ -106,15 +106,15 @@ pub async fn test_leader_election_in_five_node_example() {
     wait_for_until_cluster_size_decrease(raft_k.clone(), 3).await;
     sleep(Duration::from_secs(2)).await;
 
-    let leader_id = raft_k.raft_node.get_leader_id().await;
+    let leader_id = raft_k.get_leader_id().await;
 
     assert!(leader_id != 0);
-    assert_eq!(raft_k.raft_node.get_cluster_size().await, 3);
+    assert_eq!(raft_k.get_cluster_size().await, 3);
 
     sleep(Duration::from_secs(2)).await;
 
     for id in remaining_nodes {
         let raft = rafts.get_mut(&id).unwrap();
-        raft.raft_node.quit().await;
+        raft.quit().await;
     }
 }

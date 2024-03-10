@@ -3,6 +3,7 @@ use jopemachine_raft::{logger::Logger, Storage};
 use std::{
     collections::HashMap,
     net::{SocketAddr, ToSocketAddrs},
+    ops::Deref,
     sync::Arc,
 };
 use tokio::{
@@ -27,9 +28,17 @@ pub struct Raft<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine 
     pub raft_node: RaftNode<LogEntry, FSM>,
     pub raft_server: RaftServer,
     pub server_tx: mpsc::Sender<ServerRequestMsg>,
-    pub raft_addr: SocketAddr,
     pub logger: Arc<dyn Logger>,
-    pub config: Config,
+}
+
+impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + Clone + 'static> Deref
+    for Raft<LogEntry, FSM>
+{
+    type Target = RaftNode<LogEntry, FSM>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.raft_node
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -54,6 +63,8 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         config: Config,
         logger: Arc<dyn Logger>,
     ) -> Result<Self> {
+        logger.info(&format!("RaftNode bootstrapped. {:?}", config));
+
         let raft_addr = raft_addr.to_socket_addrs()?.next().unwrap();
         let mut should_be_leader = config.initial_peers.is_none();
 
@@ -88,20 +99,15 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
             RaftServer::new(server_tx.clone(), raft_addr, config.clone(), logger.clone());
 
         Ok(Self {
-            raft_addr,
             server_tx: server_tx.clone(),
             raft_node,
             raft_server,
-            config,
             logger,
         })
     }
 
     /// Starts the RaftNode and RaftServer.
     pub async fn run(self) -> Result<()> {
-        self.logger
-            .info(&format!("Start to run RaftNode. {:?}", self.config));
-
         let (quit_signal_tx, quit_signal_rx) = oneshot::channel::<()>();
 
         let raft_node = self.raft_node.clone();
@@ -183,7 +189,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         let peers: Peers = deserialize(&response.peers)?;
         match response.code() {
             ResultCode::Ok => Ok(ClusterJoinTicket {
-                raft_addr: raft_addr,
+                raft_addr,
                 reserved_id: response.reserved_id,
                 leader_id: response.leader_id,
                 leader_addr: response.leader_addr,
@@ -198,16 +204,15 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
 
     /// Compacts the logs up to the last index persisted in Log Storage as a snapshot.
     pub async fn capture_snapshot(&self) -> Result<()> {
-        let storage = self.raft_node.storage().await;
+        let storage = self.storage().await;
 
-        self.raft_node
-            .make_snapshot(storage.last_index()?, storage.hard_state()?.term)
+        self.make_snapshot(storage.last_index()?, storage.hard_state()?.term)
             .await;
         Ok(())
     }
 
     /// Joins the cluster with the given tickets.
     pub async fn join(&self, tickets: Vec<ClusterJoinTicket>) {
-        self.raft_node.join_cluster(tickets).await;
+        self.join_cluster(tickets).await;
     }
 }

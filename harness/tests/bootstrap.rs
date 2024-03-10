@@ -23,7 +23,7 @@ pub async fn test_static_bootstrap() {
     wait_for_until_cluster_size_increase(raft_1.clone(), 3).await;
 
     for (_, raft) in rafts.iter_mut() {
-        raft.raft_node.quit().await;
+        raft.quit().await;
     }
 
     sleep(Duration::from_secs(1)).await;
@@ -64,7 +64,7 @@ pub async fn test_dynamic_bootstrap() {
     wait_for_until_cluster_size_increase(raft_1.clone(), 3).await;
 
     for (_, raft) in rafts.iter_mut() {
-        raft.raft_node.quit().await;
+        raft.quit().await;
     }
 }
 
@@ -104,6 +104,6 @@ pub async fn test_dynamic_bootstrap() {
 //     wait_for_until_cluster_size_increase(raft_1.clone(), 3).await;
 
 //     for (_, raft) in rafts.iter_mut() {
-//         raft.raft_node.quit().await;
+//         raft.quit().await;
 //     }
 // }

@@ -4,10 +4,7 @@ use tokio::time::sleep;
 
 use harness::{
     constant::{RAFT_ADDRS, THREE_NODE_EXAMPLE},
-    raft::{
-        build_raft_cluster, spawn_and_join_extra_node, spawn_extra_node, wait_until_rafts_ready,
-        Raft,
-    },
+    raft::{build_raft_cluster, spawn_and_join_extra_node, wait_until_rafts_ready, Raft},
     state_machine::LogEntry,
     utils::{kill_previous_raft_processes, load_peers, wait_for_until_cluster_size_increase},
 };
@@ -34,13 +31,13 @@ pub async fn test_data_replication() {
     .encode()
     .unwrap();
 
-    raft_1.raft_node.propose(entry).await.unwrap();
+    raft_1.propose(entry).await.unwrap();
 
     sleep(Duration::from_secs(1)).await;
 
     // Data should be replicated to all nodes.
     for (_, raft) in rafts.iter_mut() {
-        let store = raft.raft_node.store().await;
+        let store = raft.store().await;
         let store_lk = store.0.read().unwrap();
         assert_eq!(store_lk.get(&1).unwrap(), "test");
     }
@@ -62,7 +59,7 @@ pub async fn test_data_replication() {
     wait_for_until_cluster_size_increase(raft_1.clone(), 4).await;
 
     let raft_4 = rafts.get(&4).unwrap();
-    let store = raft_4.raft_node.store().await;
+    let store = raft_4.store().await;
     let store_lk = store.0.read().unwrap();
 
     // Data should be replicated to new joined node.
@@ -78,17 +75,17 @@ pub async fn test_data_replication() {
     .encode()
     .unwrap();
 
-    raft_1.raft_node.propose(new_entry).await.unwrap();
+    raft_1.propose(new_entry).await.unwrap();
 
     // New entry data should be replicated to all nodes including new joined node.
     for (_, raft) in rafts.iter() {
         // stop
-        let store = raft.raft_node.store().await;
+        let store = raft.store().await;
         let store_lk = store.0.read().unwrap();
         assert_eq!(store_lk.get(&2).unwrap(), "test2");
     }
 
     for (_, raft) in rafts.iter_mut() {
-        raft.raft_node.quit().await;
+        raft.quit().await;
     }
 }

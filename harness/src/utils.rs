@@ -76,7 +76,7 @@ pub async fn wait_for_until_cluster_size_increase(raft: Raft, target: usize) {
     ));
 
     loop {
-        let size = raft.raft_node.get_cluster_size().await;
+        let size = raft.get_cluster_size().await;
         if size >= target {
             break;
         }
@@ -94,7 +94,7 @@ pub async fn wait_for_until_cluster_size_decrease(raft: Raft, target: usize) {
     ));
 
     loop {
-        let size = raft.raft_node.get_cluster_size().await;
+        let size = raft.get_cluster_size().await;
         if size <= target {
             break;
         }
