@@ -1772,6 +1772,7 @@ dependencies = [
  "serde_json",
  "slog",
  "slog-stdlog",
+ "tempfile",
  "thiserror",
  "tokio",
  "tonic",

@@ -136,6 +136,14 @@ impl StableStorage for HeedStorage {
         let metadata = snapshot.get_metadata();
         let conf_state = metadata.get_conf_state();
 
+        // TODO: Investigate if this is necessary. It broke the static bootstrap.
+        // let first_index = store.first_index(&writer)?;
+        // if first_index > metadata.index {
+        //     return Err(Error::RaftStorageError(
+        //         raft::StorageError::SnapshotOutOfDate,
+        //     ));
+        // }
+
         let mut hard_state = store.hard_state(&writer)?;
         hard_state.set_term(max(hard_state.term, metadata.term));
         hard_state.set_commit(metadata.index);
@@ -186,6 +194,14 @@ impl Storage for HeedStorage {
     ) -> raft::Result<Vec<Entry>> {
         let store = self.rl();
         let reader = store.env.read_txn().unwrap();
+
+        if low
+            < store
+                .first_index(&reader)
+                .map_err(|_| raft::Error::Store(raft::StorageError::Unavailable))?
+        {
+            return Err(raft::Error::Store(raft::StorageError::Compacted));
+        }
 
         let entries = store
             .entries(&reader, low, high, max_size, ctx)
@@ -249,6 +265,17 @@ impl Storage for HeedStorage {
         store
             .snapshot(&reader, request_index, to)
             .map_err(|_| raft::Error::Store(raft::StorageError::SnapshotTemporarilyUnavailable))
+    }
+}
+
+impl HeedStorage {
+    #[allow(dead_code)]
+    fn replace_entries(&mut self, entries: &[Entry]) -> raft::Result<()> {
+        let store = self.wl();
+        let mut writer = store.env.write_txn().unwrap();
+        store.replace_entries(&mut writer, entries).unwrap();
+        writer.commit().unwrap();
+        Ok(())
     }
 }
 
@@ -493,5 +520,433 @@ impl HeedStorageCore {
 
         append_compacted_logs(Path::new(&dest_path), entries)?;
         Ok(())
+    }
+
+    // Test only
+    #[allow(dead_code)]
+    fn replace_entries(&self, writer: &mut heed::RwTxn, entries: &[Entry]) -> Result<()> {
+        self.entries_db.clear(writer)?;
+        let mut last_index = self.last_index(writer)?;
+
+        for entry in entries {
+            let index = entry.index;
+            last_index = std::cmp::max(index, last_index);
+            // TODO: Handle MDBFullError.
+            self.entries_db.put(writer, &index.to_string(), entry)?;
+        }
+        self.set_last_index(writer, last_index)?;
+        Ok(())
+    }
+}
+
+// Ref: https://github.com/tikv/raft-rs/blob/master/src/storage.rs
+#[cfg(test)]
+mod test {
+    use std::fs;
+    use std::panic::{self, AssertUnwindSafe};
+    use std::sync::Arc;
+
+    use crate::raft::eraftpb::{Entry, Snapshot};
+    use crate::raft::Config as RaftConfig;
+    use crate::raft::{default_logger, GetEntriesContext};
+    use crate::raft::{Error as RaftError, StorageError};
+    use crate::{Config, HeedStorage, StableStorage};
+    use jopemachine_raft::logger::Slogger;
+    use jopemachine_raft::Storage;
+    use prost::Message;
+
+    fn new_entry(index: u64, term: u64) -> Entry {
+        let mut e = Entry::default();
+        e.term = term;
+        e.index = index;
+        e
+    }
+
+    fn size_of<T: Message>(m: &T) -> u32 {
+        m.encoded_len() as u32
+    }
+
+    fn new_snapshot(index: u64, term: u64, voters: Vec<u64>) -> Snapshot {
+        let mut s = Snapshot::default();
+        s.mut_metadata().index = index;
+        s.mut_metadata().term = term;
+        s.mut_metadata().mut_conf_state().voters = voters;
+        s
+    }
+
+    pub fn build_config(test_dir_pth: &str) -> Config {
+        let raft_config = RaftConfig {
+            election_tick: 10,
+            heartbeat_tick: 3,
+            ..Default::default()
+        };
+
+        Config {
+            log_dir: test_dir_pth.to_owned(),
+            save_compacted_logs: false,
+            compacted_log_dir: test_dir_pth.to_owned(),
+            compacted_log_size_threshold: 1024 * 1024 * 1024,
+            raft_config,
+            ..Default::default()
+        }
+    }
+
+    pub fn build_logger() -> slog::Logger {
+        default_logger()
+    }
+
+    fn setup() -> String {
+        let tempdir = tempfile::tempdir()
+            .expect("")
+            .path()
+            .to_str()
+            .unwrap()
+            .to_owned();
+        fs::create_dir_all(&tempdir).expect("Failed to create test directory");
+        tempdir
+    }
+
+    fn teardown(tempdir: String) {
+        fs::remove_dir_all(tempdir).expect("Failed to delete test directory");
+    }
+
+    #[test]
+    fn test_storage_term() {
+        let tempdir = setup();
+
+        let cfg: Config = build_config(&tempdir);
+        let ents = vec![new_entry(3, 3), new_entry(4, 4), new_entry(5, 5)];
+        let mut tests = vec![
+            (2u64, Err(RaftError::Store(StorageError::Compacted))),
+            (3u64, Ok(3)),
+            (4u64, Ok(4)),
+            (5u64, Ok(5)),
+            (6u64, Err(RaftError::Store(StorageError::Unavailable))),
+        ];
+
+        for (i, (idx, wterm)) in tests.drain(..).enumerate() {
+            let mut storage = HeedStorage::create(
+                &tempdir,
+                &cfg,
+                Arc::new(Slogger {
+                    slog: build_logger(),
+                }),
+            )
+            .unwrap();
+
+            storage.replace_entries(ents.as_slice()).unwrap();
+
+            let t = storage.term(idx);
+            if t != wterm {
+                panic!("#{}: expect res {:?}, got {:?}", i, wterm, t);
+            }
+        }
+
+        teardown(tempdir);
+    }
+
+    #[test]
+    fn test_storage_entries() {
+        let tempdir = setup();
+
+        let cfg = build_config(&tempdir);
+
+        let ents = vec![
+            new_entry(3, 3),
+            new_entry(4, 4),
+            new_entry(5, 5),
+            new_entry(6, 6),
+        ];
+        let max_u64 = u64::max_value();
+        let mut tests = vec![
+            (
+                2,
+                6,
+                max_u64,
+                Err(RaftError::Store(StorageError::Compacted)),
+            ),
+            (3, 4, max_u64, Ok(vec![new_entry(3, 3)])),
+            (4, 5, max_u64, Ok(vec![new_entry(4, 4)])),
+            (4, 6, max_u64, Ok(vec![new_entry(4, 4), new_entry(5, 5)])),
+            (
+                4,
+                7,
+                max_u64,
+                Ok(vec![new_entry(4, 4), new_entry(5, 5), new_entry(6, 6)]),
+            ),
+            // even if maxsize is zero, the first entry should be returned
+            (4, 7, 0, Ok(vec![new_entry(4, 4)])),
+            // limit to 2
+            (
+                4,
+                7,
+                u64::from(size_of(&ents[1]) + size_of(&ents[2])),
+                Ok(vec![new_entry(4, 4), new_entry(5, 5)]),
+            ),
+            (
+                4,
+                7,
+                u64::from(size_of(&ents[1]) + size_of(&ents[2]) + size_of(&ents[3]) / 2),
+                Ok(vec![new_entry(4, 4), new_entry(5, 5)]),
+            ),
+            (
+                4,
+                7,
+                u64::from(size_of(&ents[1]) + size_of(&ents[2]) + size_of(&ents[3]) - 1),
+                Ok(vec![new_entry(4, 4), new_entry(5, 5)]),
+            ),
+            // all
+            (
+                4,
+                7,
+                u64::from(size_of(&ents[1]) + size_of(&ents[2]) + size_of(&ents[3])),
+                Ok(vec![new_entry(4, 4), new_entry(5, 5), new_entry(6, 6)]),
+            ),
+        ];
+        for (i, (lo, hi, maxsize, wentries)) in tests.drain(..).enumerate() {
+            let mut storage = HeedStorage::create(
+                &tempdir,
+                &cfg,
+                Arc::new(Slogger {
+                    slog: build_logger(),
+                }),
+            )
+            .unwrap();
+
+            storage.replace_entries(&ents).unwrap();
+
+            let e = storage.entries(lo, hi, maxsize, GetEntriesContext::empty(false));
+            if e != wentries {
+                panic!("#{}: expect entries {:?}, got {:?}", i, wentries, e);
+            }
+        }
+
+        teardown(tempdir);
+    }
+
+    #[test]
+    fn test_storage_last_index() {
+        let tempdir = setup();
+
+        let cfg = build_config(&tempdir);
+        let logger = Arc::new(Slogger {
+            slog: build_logger(),
+        });
+        let ents = vec![new_entry(3, 3), new_entry(4, 4), new_entry(5, 5)];
+        let mut storage = HeedStorage::create(&tempdir, &cfg, logger).unwrap();
+        storage.replace_entries(&ents).unwrap();
+
+        let wresult = Ok(5);
+        let result = storage.last_index();
+        if result != wresult {
+            panic!("want {:?}, got {:?}", wresult, result);
+        }
+
+        storage.append([new_entry(6, 5)].as_ref()).unwrap();
+        let wresult = Ok(6);
+        let result = storage.last_index();
+        if result != wresult {
+            panic!("want {:?}, got {:?}", wresult, result);
+        }
+
+        teardown(tempdir);
+    }
+
+    #[test]
+    fn test_storage_first_index() {
+        let tempdir = setup();
+
+        let cfg = build_config(&tempdir);
+        let logger = Arc::new(Slogger {
+            slog: build_logger(),
+        });
+        let ents = vec![new_entry(3, 3), new_entry(4, 4), new_entry(5, 5)];
+        let mut storage = HeedStorage::create(&tempdir, &cfg, logger).unwrap();
+        storage.replace_entries(&ents).unwrap();
+
+        assert_eq!(storage.first_index(), Ok(3));
+        storage.compact(4).unwrap();
+        assert_eq!(storage.first_index(), Ok(4));
+
+        teardown(tempdir);
+    }
+
+    #[test]
+    fn test_storage_compact() {
+        let tempdir = setup();
+        let cfg = build_config(&tempdir);
+        let logger = Arc::new(Slogger {
+            slog: build_logger(),
+        });
+
+        let ents = vec![new_entry(3, 3), new_entry(4, 4), new_entry(5, 5)];
+        let mut tests = vec![(2, 3, 3, 3), (3, 3, 3, 3), (4, 4, 4, 2), (5, 5, 5, 1)];
+        for (i, (idx, windex, wterm, wlen)) in tests.drain(..).enumerate() {
+            let mut storage = HeedStorage::create(&tempdir, &cfg, logger.clone()).unwrap();
+            storage.replace_entries(&ents).unwrap();
+
+            storage.compact(idx).unwrap();
+            let index = storage.first_index().unwrap();
+            if index != windex {
+                panic!("#{}: want {}, index {}", i, windex, index);
+            }
+            let term = if let Ok(v) =
+                storage.entries(index, index + 1, 1, GetEntriesContext::empty(false))
+            {
+                v.first().map_or(0, |e| e.term)
+            } else {
+                0
+            };
+            if term != wterm {
+                panic!("#{}: want {}, term {}", i, wterm, term);
+            }
+            let last = storage.last_index().unwrap();
+            let len = storage
+                .entries(index, last + 1, 100, GetEntriesContext::empty(false))
+                .unwrap()
+                .len();
+            if len != wlen {
+                panic!("#{}: want {}, term {}", i, wlen, len);
+            }
+        }
+
+        teardown(tempdir);
+    }
+
+    // TODO: Support the below test case
+    // #[test]
+    // fn test_storage_create_snapshot() {
+    //     let tempdir = setup();
+    //     let cfg = build_config(&tempdir);
+    //     let logger = Arc::new(Slogger {
+    //         slog: build_logger(),
+    //     });
+
+    //     let ents = vec![new_entry(3, 3), new_entry(4, 4), new_entry(5, 5)];
+    //     let nodes = vec![1, 2, 3];
+    //     let mut conf_state = ConfState::default();
+    //     conf_state.voters = nodes.clone();
+
+    //     let unavailable = Err(RaftError::Store(
+    //         StorageError::SnapshotTemporarilyUnavailable,
+    //     ));
+    //     let mut tests = vec![
+    //         (4, Ok(new_snapshot(4, 4, nodes.clone())), 0),
+    //         (5, Ok(new_snapshot(5, 5, nodes.clone())), 5),
+    //         (5, Ok(new_snapshot(6, 5, nodes)), 6),
+    //         (5, unavailable, 6),
+    //     ];
+    //     for (i, (idx, wresult, windex)) in tests.drain(..).enumerate() {
+    //         let mut storage = HeedStorage::create(&tempdir, &cfg, logger.clone()).unwrap();
+    //         storage.wl().entries = ents.clone();
+    //         storage.wl().raft_state.hard_state.commit = idx;
+    //         storage.wl().raft_state.hard_state.term = idx;
+    //         storage.wl().raft_state.conf_state = conf_state.clone();
+
+    //         // if wresult.is_err() {
+    //         //     storage.wl().trigger_snap_unavailable();
+    //         // }
+
+    //         let result = storage.snapshot(windex, 0);
+    //         if result != wresult {
+    //             panic!("#{}: want {:?}, got {:?}", i, wresult, result);
+    //         }
+    //     }
+
+    //     teardown(tempdir);
+    // }
+
+    #[test]
+    fn test_storage_append() {
+        let tempdir = setup();
+        let cfg = build_config(&tempdir);
+        let logger = Arc::new(Slogger {
+            slog: build_logger(),
+        });
+        let ents = vec![new_entry(3, 3), new_entry(4, 4), new_entry(5, 5)];
+        let mut tests = vec![
+            (
+                vec![new_entry(3, 3), new_entry(4, 4), new_entry(5, 5)],
+                Some(vec![new_entry(3, 3), new_entry(4, 4), new_entry(5, 5)]),
+            ),
+            (
+                vec![new_entry(3, 3), new_entry(4, 6), new_entry(5, 6)],
+                Some(vec![new_entry(3, 3), new_entry(4, 6), new_entry(5, 6)]),
+            ),
+            (
+                vec![
+                    new_entry(3, 3),
+                    new_entry(4, 4),
+                    new_entry(5, 5),
+                    new_entry(6, 5),
+                ],
+                Some(vec![
+                    new_entry(3, 3),
+                    new_entry(4, 4),
+                    new_entry(5, 5),
+                    new_entry(6, 5),
+                ]),
+            ),
+            // TODO: Support the below test cases
+            // overwrite compacted raft logs is not allowed
+            // (
+            //     vec![new_entry(2, 3), new_entry(3, 3), new_entry(4, 5)],
+            //     None,
+            // ),
+            // truncate the existing entries and append
+            // (
+            //     vec![new_entry(4, 5)],
+            //     Some(vec![new_entry(3, 3), new_entry(4, 5)]),
+            // ),
+            // direct append
+            (
+                vec![new_entry(6, 6)],
+                Some(vec![
+                    new_entry(3, 3),
+                    new_entry(4, 4),
+                    new_entry(5, 5),
+                    new_entry(6, 6),
+                ]),
+            ),
+        ];
+        for (i, (entries, wentries)) in tests.drain(..).enumerate() {
+            let mut storage = HeedStorage::create(&tempdir, &cfg, logger.clone()).unwrap();
+            storage.replace_entries(&ents).unwrap();
+            let res = panic::catch_unwind(AssertUnwindSafe(|| storage.append(&entries)));
+            if let Some(wentries) = wentries {
+                let _ = res.unwrap();
+                let e = &storage.all_entries().unwrap();
+                if *e != wentries {
+                    panic!("#{}: want {:?}, entries {:?}", i, wentries, e);
+                }
+            } else {
+                res.unwrap_err();
+            }
+        }
+
+        teardown(tempdir);
+    }
+
+    #[test]
+    fn test_storage_apply_snapshot() {
+        let tempdir = setup();
+        let cfg = build_config(&tempdir);
+        let logger = Arc::new(Slogger {
+            slog: build_logger(),
+        });
+
+        let nodes = vec![1, 2, 3];
+        let mut storage = HeedStorage::create(&tempdir, &cfg, logger).unwrap();
+
+        // Apply snapshot successfully
+        let snap = new_snapshot(4, 4, nodes.clone());
+        storage.apply_snapshot(snap).unwrap();
+
+        // Apply snapshot fails due to StorageError::SnapshotOutOfDate
+        // TODO: Support the below test case
+        // let snap = new_snapshot(3, 3, nodes);
+        // storage.apply_snapshot(snap).unwrap_err();
+
+        teardown(tempdir);
     }
 }

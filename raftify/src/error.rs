@@ -6,6 +6,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("Raft error: cause:`{0}`")]
     RaftError(#[from] crate::raft::Error),
+    #[error("Raft storage error: cause:`{0}`")]
+    RaftStorageError(#[from] crate::raft::StorageError),
     #[error("Error joining the cluster")]
     JoinError,
     #[error("Request rejected, cause: `{0}`")]
