@@ -920,7 +920,7 @@ impl<
     async fn handle_propose_request(
         &mut self,
         proposal: Vec<u8>,
-        tx_msg: ResponseSender<LogEntry, FSM>,
+        response_sender: ResponseSender<LogEntry, FSM>,
     ) -> Result<()> {
         if !self.is_leader() {
             let leader_id = self.get_leader_id();
@@ -940,7 +940,7 @@ impl<
                 .addr
                 .to_string();
 
-            let raft_response: ResponseMessage<LogEntry, FSM> = match tx_msg {
+            let raft_response: ResponseMessage<LogEntry, FSM> = match response_sender {
                 ResponseSender::Local(_) => LocalResponseMsg::Propose {
                     result: ResponseResult::WrongLeader {
                         leader_id,
@@ -957,17 +957,17 @@ impl<
                 .into(),
             };
 
-            tx_msg.send(raft_response);
+            response_sender.send(raft_response);
         } else {
             let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
-            match tx_msg {
-                ResponseSender::Local(tx_msg) => {
+            match response_sender {
+                ResponseSender::Local(tx_local) => {
                     self.response_senders
-                        .insert(response_seq, ResponseSender::Local(tx_msg));
+                        .insert(response_seq, ResponseSender::Local(tx_local));
                 }
-                ResponseSender::Server(tx_msg) => {
+                ResponseSender::Server(tx_server) => {
                     self.response_senders
-                        .insert(response_seq, ResponseSender::Server(tx_msg));
+                        .insert(response_seq, ResponseSender::Server(tx_server));
                 }
             };
 
@@ -980,7 +980,7 @@ impl<
     async fn handle_confchange_request(
         &mut self,
         conf_change: ConfChangeV2,
-        tx_msg: ResponseSender<LogEntry, FSM>,
+        response_sender: ResponseSender<LogEntry, FSM>,
     ) -> Result<()> {
         if self.raw_node.raft.has_pending_conf() {
             self.logger.warn(&format!("Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index));
@@ -1003,13 +1003,13 @@ impl<
                 leader_addr,
             };
 
-            match tx_msg {
-                ResponseSender::Local(tx_msg) => tx_msg
+            match response_sender {
+                ResponseSender::Local(tx_local) => tx_local
                     .send(LocalResponseMsg::ConfigChange {
                         result: wrong_leader_result,
                     })
                     .unwrap(),
-                ResponseSender::Server(tx_msg) => tx_msg
+                ResponseSender::Server(tx_server) => tx_server
                     .send(ServerResponseMsg::ConfigChange {
                         result: wrong_leader_result,
                     })
@@ -1018,14 +1018,14 @@ impl<
         } else {
             let response_seq = self.response_seq.fetch_add(1, Ordering::Relaxed);
 
-            match tx_msg {
-                ResponseSender::Local(tx_msg) => {
+            match response_sender {
+                ResponseSender::Local(tx_local) => {
                     self.response_senders
-                        .insert(response_seq, ResponseSender::Local(tx_msg));
+                        .insert(response_seq, ResponseSender::Local(tx_local));
                 }
-                ResponseSender::Server(tx_msg) => {
+                ResponseSender::Server(tx_server) => {
                     self.response_senders
-                        .insert(response_seq, ResponseSender::Server(tx_msg));
+                        .insert(response_seq, ResponseSender::Server(tx_server));
                 }
             };
 
