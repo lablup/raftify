@@ -1,5 +1,4 @@
 use bincode::serialize;
-use jopemachine_raft::logger::Logger;
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     sync::Arc,
@@ -27,7 +26,10 @@ use super::{
 };
 use crate::{
     create_client,
-    raft::eraftpb::{ConfChangeV2, Message as RaftMessage},
+    raft::{
+        eraftpb::{ConfChangeV2, Message as RaftMessage},
+        logger::Logger,
+    },
     raft_service::ProposeArgs,
     response_message::{ConfChangeResponseResult, ResponseResult},
     InitialRole, Peers,

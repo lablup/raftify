@@ -4,7 +4,6 @@ pub mod role;
 pub mod utils;
 
 use bincode::{deserialize, serialize};
-use jopemachine_raft::{eraftpb::ConfChangeTransition, logger::Logger, Storage};
 use prost::Message as PMessage;
 use std::{
     collections::HashMap,
@@ -31,11 +30,13 @@ use crate::{
     error::{Result, SendMessageError},
     raft::{
         eraftpb::{
-            ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2, Entry, EntryType,
-            Message as RaftMessage, Snapshot,
+            ConfChange, ConfChangeSingle, ConfChangeTransition, ConfChangeType, ConfChangeV2,
+            Entry, EntryType, Message as RaftMessage, Snapshot,
         },
         formatter::{format_confchangev2, format_message},
+        logger::Logger,
         raw_node::RawNode,
+        Storage,
     },
     raft_service::{self, ChangeConfigResultType, ProposeArgs},
     request_message::{LocalRequestMsg, SelfMessage, ServerRequestMsg},

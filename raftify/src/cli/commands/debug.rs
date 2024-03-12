@@ -1,11 +1,14 @@
 use core::panic;
-use jopemachine_raft::{logger::Slogger, Storage};
 use serde_json::Value;
 use std::{collections::HashMap, fs, sync::Arc};
 
 use crate::{
     create_client,
-    raft::formatter::{format_entry, format_snapshot},
+    raft::{
+        formatter::{format_entry, format_snapshot},
+        logger::Slogger,
+        Storage,
+    },
     raft_node::utils::format_debugging_info,
     raft_service, Config, HeedStorage, Result, StableStorage,
 };

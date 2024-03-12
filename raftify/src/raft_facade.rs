@@ -1,5 +1,4 @@
 use bincode::deserialize;
-use jopemachine_raft::{logger::Logger, Storage};
 use std::{
     collections::HashMap,
     net::{SocketAddr, ToSocketAddrs},
@@ -11,7 +10,10 @@ use tokio::{
     sync::{mpsc, oneshot},
 };
 
-use crate::{InitialRole, Peers};
+use crate::{
+    raft::{logger::Logger, Storage},
+    InitialRole, Peers,
+};
 
 use super::{
     create_client,

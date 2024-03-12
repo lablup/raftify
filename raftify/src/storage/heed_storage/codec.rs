@@ -1,8 +1,9 @@
-use super::constant::ENTRY_KEY_LENGTH;
 use heed_traits::{BoxedError, BytesDecode, BytesEncode};
-use jopemachine_raft::eraftpb::Entry;
 use prost::Message;
-use std::{borrow::Cow, fmt::Write as StdWrite};
+use std::{borrow::Cow, fmt::Write};
+
+use super::constant::ENTRY_KEY_LENGTH;
+use crate::raft::eraftpb::Entry;
 
 pub fn format_entry_key_string(entry_key: &str) -> String {
     let entry_key: u64 = entry_key.parse().unwrap();

@@ -1,5 +1,4 @@
 use chrono::Utc;
-use jopemachine_raft::formatter::Bytes;
 use serde_json::{json, Value};
 use std::{
     fs::{self, File, OpenOptions},
@@ -8,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    raft::{eraftpb::Entry, formatter::CUSTOM_FORMATTER},
+    raft::{eraftpb::Entry, formatter::Bytes, formatter::CUSTOM_FORMATTER},
     Result,
 };
 

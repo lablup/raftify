@@ -1,9 +1,9 @@
-use bincode::{deserialize, serialize};
-use jopemachine_raft::{
+use crate::raft::{
     eraftpb::{ConfChange, ConfChangeSingle, ConfChangeType, ConfChangeV2, Entry, EntryType},
     logger::Slogger,
     Storage,
 };
+use bincode::{deserialize, serialize};
 use prost::Message as _;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
