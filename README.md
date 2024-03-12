@@ -134,7 +134,7 @@ let raft = Raft::bootstrap(
 )?;
 
 let raft_handle = tokio::spawn(raft.clone().run());
-raft.join(vec![join_ticket]).await;
+raft.join_cluster(vec![join_ticket]).await;
 
 // ...
 tokio::try_join!(raft_handle)?;
@@ -165,9 +165,7 @@ leader_client
 If you want to operate FSM locally, use the [RaftNode](https://docs.rs/raftify/latest/raftify/struct.RaftNode.html) type of the [Raft](https://docs.rs/raftify/latest/raftify/struct.Raft.html) object.
 
 ```rust
-let mut raft_node = raft.get_raft_node();
-
-raft_node.propose(LogEntry::Insert {
+raft.propose(LogEntry::Insert {
     key: 123,
     value: "test".to_string(),
 }.encode().unwrap()).await;
@@ -193,7 +191,7 @@ Last index: 3
 
 ## Bootstrapping from WAL
 
-raftify support bootstrapping cluster from WAL (Write Ahead Logs), and WAL's snapshot.
+You can bootstrap cluster from WAL (Write Ahead Logs), and WAL's snapshot.
 
 This feature is useful in cases where a failure occurs in more than the number of nodes in the quorum, requiring a restart of the cluster, or when there is a need to reboot the cluster after making a batch change to the cluster members.
 
