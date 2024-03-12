@@ -12,13 +12,12 @@ use prost::Message as PMessage;
 use raft::{logger::Logger, util::limit_size};
 use std::{
     cmp::max,
-    fmt, fs,
+    fs,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
 use self::codec::{format_entry_key_string, HeedEntry, HeedEntryKeyString};
-
 use super::{utils::append_compacted_logs, StableStorage};
 use crate::{
     config::Config,
@@ -28,14 +27,6 @@ use crate::{
 
 #[derive(Clone)]
 pub struct HeedStorage(Arc<RwLock<HeedStorageCore>>);
-
-impl fmt::Debug for HeedStorage {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("HeedStorage")
-            .field(&format_args!("..."))
-            .finish()
-    }
-}
 
 impl HeedStorage {
     pub fn create(log_dir_path: &str, config: &Config, logger: Arc<dyn Logger>) -> Result<Self> {
