@@ -169,7 +169,7 @@ pub async fn spawn_and_join_extra_node(
     let raft_handle = tokio::spawn(raft.clone().run());
 
     raft.add_peers(join_ticket.peers.clone()).await;
-    raft.join(vec![join_ticket]).await;
+    raft.join_cluster(vec![join_ticket]).await;
 
     Ok(raft_handle)
 }
@@ -185,5 +185,5 @@ pub async fn join_nodes(rafts: Vec<&Raft>, raft_addrs: Vec<&str>, peer_addr: &st
         tickets.push(join_ticket);
     }
 
-    rafts[0].join(tickets).await;
+    rafts[0].join_cluster(tickets).await;
 }

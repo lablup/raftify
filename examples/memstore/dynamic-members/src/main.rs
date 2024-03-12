@@ -81,7 +81,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
             let handle = tokio::spawn(raft.clone().run());
             raft.add_peers(ticket.peers.clone()).await;
-            raft.join(vec![ticket]).await;
+            raft.join_cluster(vec![ticket]).await;
 
             (raft, handle)
         }

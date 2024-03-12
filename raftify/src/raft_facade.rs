@@ -10,10 +10,7 @@ use tokio::{
     sync::{mpsc, oneshot},
 };
 
-use crate::{
-    raft::{logger::Logger, Storage},
-    InitialRole, Peers,
-};
+use crate::{raft::logger::Logger, InitialRole, Peers};
 
 use super::{
     create_client,
@@ -22,7 +19,7 @@ use super::{
     raft_server::RaftServer,
     raft_service::{self, ResultCode},
     request_message::ServerRequestMsg,
-    AbstractLogEntry, AbstractStateMachine, Config, StableStorage,
+    AbstractLogEntry, AbstractStateMachine, Config,
 };
 
 #[derive(Clone)]
@@ -202,19 +199,5 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
                 unreachable!();
             }
         }
-    }
-
-    /// Compacts the logs up to the last index persisted in Log Storage as a snapshot.
-    pub async fn capture_snapshot(&self) -> Result<()> {
-        let storage = self.storage().await;
-
-        self.make_snapshot(storage.last_index()?, storage.hard_state()?.term)
-            .await;
-        Ok(())
-    }
-
-    /// Joins the cluster with the given tickets.
-    pub async fn join(&self, tickets: Vec<ClusterJoinTicket>) {
-        self.join_cluster(tickets).await;
     }
 }

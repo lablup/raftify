@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use actix_web::{get, web, Responder};
-use raftify::{AbstractLogEntry, Raft as Raft_};
+use raftify::{raft::Storage, AbstractLogEntry, Raft as Raft_, StableStorage};
 use serde_json::Value;
 
 use super::state_machine::{HashStore, LogEntry};
@@ -59,7 +59,21 @@ async fn peers(data: web::Data<(HashStore, Raft)>) -> impl Responder {
 #[get("/snapshot")]
 async fn snapshot(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    raft.1.capture_snapshot().await.unwrap();
+    let last_index = raft
+        .1
+        .storage()
+        .await
+        .last_index()
+        .expect("Failed to get last index");
+
+    let hard_state = raft
+        .1
+        .storage()
+        .await
+        .hard_state()
+        .expect("Failed to get hard state");
+
+    raft.1.make_snapshot(last_index, hard_state.term).await;
     "OK".to_string()
 }
 
