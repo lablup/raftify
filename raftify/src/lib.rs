@@ -8,7 +8,7 @@ mod log_entry;
 mod peer;
 mod peers;
 mod raft_client;
-mod raft_facade;
+mod raft_bootstrapper;
 mod raft_node;
 mod raft_server;
 mod request_message;
@@ -32,7 +32,7 @@ pub use crate::{
     peer::Peer,
     peers::Peers,
     raft_client::create_client,
-    raft_facade::{ClusterJoinTicket, Raft},
+    raft_bootstrapper::{ClusterJoinTicket, Raft},
     raft_node::{role::InitialRole, RaftNode},
     raft_service::raft_service_client::RaftServiceClient,
     state_machine::AbstractStateMachine,
