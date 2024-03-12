@@ -546,13 +546,13 @@ mod test {
     use std::panic::{self, AssertUnwindSafe};
     use std::sync::Arc;
 
-    use crate::raft::eraftpb::{Entry, Snapshot};
-    use crate::raft::Config as RaftConfig;
-    use crate::raft::{default_logger, GetEntriesContext};
-    use crate::raft::{Error as RaftError, StorageError};
+    use crate::raft::{
+        default_logger,
+        eraftpb::{Entry, Snapshot},
+        logger::Slogger,
+        Config as RaftConfig, Error as RaftError, GetEntriesContext, Storage, StorageError,
+    };
     use crate::{Config, HeedStorage, StableStorage};
-    use jopemachine_raft::logger::Slogger;
-    use jopemachine_raft::Storage;
     use prost::Message;
 
     fn new_entry(index: u64, term: u64) -> Entry {
@@ -603,6 +603,7 @@ mod test {
             .unwrap()
             .to_owned();
         fs::create_dir_all(&tempdir).expect("Failed to create test directory");
+
         tempdir
     }
 
