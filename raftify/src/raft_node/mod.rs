@@ -60,6 +60,7 @@ pub struct RaftNode<
     // The lock of RaftNodeCore is locked when RaftNode.run is called and is never released until program terminates.
     // However, to implement the Clone trait in RaftNode, Arc and Mutex are necessary. That's why we use OneShotMutex here.
     inner: Arc<OneShotMutex<RaftNodeCore<LogEntry, FSM>>>,
+    // RaftNode.(method_call) >>> RaftNodeCore.run
     tx_local: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
 }
 
@@ -440,7 +441,7 @@ impl<
         self.inner
             .lock()
             .await
-            .expect("RaftNode mutex's owner should be only RaftNode.run!")
+            .expect("RaftNode oneshot mutex's owner should be only RaftNode.run!")
             .run()
             .await
     }
@@ -1164,7 +1165,7 @@ impl<
             }
             LocalRequestMsg::SendMessage { message, tx_msg } => {
                 self.logger.debug(&format!(
-                    "Node {} received Raft message from itself, Message: {}",
+                    ">>> Node {} received Raft message from itself, Message: {}",
                     self.raw_node.raft.id,
                     format_message(&message)
                 ));
@@ -1205,7 +1206,7 @@ impl<
             }
             ServerRequestMsg::SendMessage { message } => {
                 self.logger.debug(&format!(
-                    "Node {} received Raft message from the node {}, {}",
+                    ">>> Node {} received Raft message from the node {}, {}",
                     self.raw_node.raft.id,
                     message.from,
                     format_message(&message)

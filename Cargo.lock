@@ -1204,9 +1204,9 @@ dependencies = [
 
 [[package]]
 name = "jopemachine-raft"
-version = "0.7.5"
+version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e937c0cea414a86ea5280d7ce1e38c5bfd96e8efb6cc331bc9a96079d9da914e"
+checksum = "4326410d956002dc7adf04f299994c869a961d27d4fdec27a3310c4c209bd8fd"
 dependencies = [
  "bytes",
  "fxhash",
