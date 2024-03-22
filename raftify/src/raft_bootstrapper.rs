@@ -23,7 +23,7 @@ use super::{
 };
 
 /// This structure contains functions required for Raft bootstrap along with RaftNode and RaftServer instances.
-/// The bootstrap function returns an instance of the Raft type that deref to RaftNode type, 
+/// The bootstrap function returns an instance of the Raft type that deref to RaftNode type,
 /// allowing the use of functions necessary for interaction with the cluster.
 #[derive(Clone)]
 pub struct Raft<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + Clone + 'static> {

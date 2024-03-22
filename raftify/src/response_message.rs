@@ -82,8 +82,8 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
     GetPeers { peers: Peers },
     AddPeer {},
     AddPeers {},
-    Store { store: FSM },
-    Storage { storage: HeedStorage },
+    GetStateMachine { store: FSM },
+    GetStorage { storage: HeedStorage },
     GetClusterSize { size: usize },
     Quit {},
     Campaign {},
@@ -107,7 +107,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> fmt::Debug
     #[allow(clippy::recursive_format_impl)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LocalResponseMsg::Store { store: _store } => {
+            LocalResponseMsg::GetStateMachine { store: _store } => {
                 write!(f, "LocalResponseMsg::Store")
             }
             _ => {

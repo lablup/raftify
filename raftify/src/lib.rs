@@ -7,8 +7,8 @@ mod formatter;
 mod log_entry;
 mod peer;
 mod peers;
-mod raft_client;
 mod raft_bootstrapper;
+mod raft_client;
 mod raft_node;
 mod raft_server;
 mod request_message;
@@ -31,8 +31,8 @@ pub use crate::{
     log_entry::AbstractLogEntry,
     peer::Peer,
     peers::Peers,
-    raft_client::create_client,
     raft_bootstrapper::{ClusterJoinTicket, Raft},
+    raft_client::create_client,
     raft_node::{role::InitialRole, RaftNode},
     raft_service::raft_service_client::RaftServiceClient,
     state_machine::AbstractStateMachine,

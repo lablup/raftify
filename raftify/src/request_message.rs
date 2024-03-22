@@ -75,10 +75,10 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
     DebugNode {
         tx_msg: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
-    Store {
+    GetStateMachine {
         tx_msg: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
-    Storage {
+    GetStorage {
         tx_msg: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     GetClusterSize {

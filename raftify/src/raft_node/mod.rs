@@ -205,16 +205,16 @@ impl<
         }
     }
 
-    pub async fn store(&self) -> FSM {
+    pub async fn state_machine(&self) -> FSM {
         let (tx, rx) = oneshot::channel();
         self.tx_local
-            .send(LocalRequestMsg::Store { tx_msg: tx })
+            .send(LocalRequestMsg::GetStateMachine { tx_msg: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
 
         match resp {
-            LocalResponseMsg::Store { store } => store,
+            LocalResponseMsg::GetStateMachine { store } => store,
             _ => unreachable!(),
         }
     }
@@ -222,13 +222,13 @@ impl<
     pub async fn storage(&self) -> HeedStorage {
         let (tx, rx) = oneshot::channel();
         self.tx_local
-            .send(LocalRequestMsg::Storage { tx_msg: tx })
+            .send(LocalRequestMsg::GetStorage { tx_msg: tx })
             .await
             .unwrap();
         let resp = rx.await.unwrap();
 
         match resp {
-            LocalResponseMsg::Storage { storage } => storage,
+            LocalResponseMsg::GetStorage { storage } => storage,
             _ => unreachable!(),
         }
     }
@@ -1086,16 +1086,16 @@ impl<
                 self.add_peers(peers).await?;
                 tx_msg.send(LocalResponseMsg::AddPeers {}).unwrap();
             }
-            LocalRequestMsg::Store { tx_msg } => {
+            LocalRequestMsg::GetStateMachine { tx_msg } => {
                 tx_msg
-                    .send(LocalResponseMsg::Store {
+                    .send(LocalResponseMsg::GetStateMachine {
                         store: self.fsm.clone(),
                     })
                     .unwrap();
             }
-            LocalRequestMsg::Storage { tx_msg } => {
+            LocalRequestMsg::GetStorage { tx_msg } => {
                 tx_msg
-                    .send(LocalResponseMsg::Storage {
+                    .send(LocalResponseMsg::GetStorage {
                         storage: self.raw_node.store().clone(),
                     })
                     .unwrap();
