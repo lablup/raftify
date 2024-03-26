@@ -39,13 +39,15 @@ class HashStore:
         return self._store
 
     async def apply(self, msg: bytes) -> bytes:
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.4)
         message = SetCommand.decode(msg)
         self._store[message.key] = message.value
         return msg
 
-    def snapshot(self) -> bytes:
+    async def snapshot(self) -> bytes:
+        await asyncio.sleep(0.7)
         return pickle.dumps(self._store)
 
-    def restore(self, snapshot: bytes) -> None:
+    async def restore(self, snapshot: bytes) -> None:
+        await asyncio.sleep(0.1)
         self._store = pickle.loads(snapshot)

@@ -1,3 +1,4 @@
+import asyncio
 import pickle
 from typing import Optional
 
@@ -29,6 +30,7 @@ class HashStore:
 
     def __init__(self):
         self._store = dict()
+        self._loop = asyncio.get_running_loop()
 
     def get(self, key: str) -> Optional[str]:
         return self._store.get(key)

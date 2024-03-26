@@ -168,63 +168,65 @@ impl AbstractStateMachine for PyFSM {
                 .and_then(|py_result| py_result.extract::<Vec<u8>>(py).map(|res| res))
                 .map_err(|err| Error::Other(Box::new(SnapshotError::new_err(err.to_string()))))
         })
-
-        //             let locals = PyDict::new(py);
-        //             // let asyncio = py.import("asyncio").unwrap();
-
-        //             py.run(r#"
-        // def async_wrapper(loop, cb, args):
-        //     import inspect
-        //     from concurrent.futures import Future
-
-        //     def inner_wrapper(cb, args):
-        //         if inspect.iscoroutinefunction(cb):
-        //             print("Run async 1")
-        //             cor = cb(args)
-        //             print("Run async 2")
-        //             future = loop.create_task(cor)
-        //             print("Run async 3")
-        //         else:
-        //             future = Future()
-        //             print("Run sync")
-        //             fut = cb(args)
-        //             future.set_result(fut)
-
-        //     loop.call_soon_threadsafe(inner_wrapper, cb, args)
-        //     return future
-        //             "#, None, Some(locals)).unwrap();
-
-        //             let async_wrapper = locals.get_item("async_wrapper").unwrap().unwrap();
-
-        //             let py_event_loop = self.store.as_ref(py).getattr("_loop").expect("No event loop provided in the python!");
-        //             let apply_cb = self.store.as_ref(py).getattr("apply").expect("No apply method provided in the python!");
-
-        //             let py_fut = async_wrapper.call((py_event_loop, apply_cb, PyBytes::new(py, log_entry.as_slice())), None).unwrap();
-
-        //             // Wrong.
-        //             // let result = py_event_loop.call_method1("run_until_complete", (py_fut,));
-        //             let result = py_fut.call_method0("result");
-
-        //             result.and_then(|py_result| py_result.extract::<Vec<u8>>().map(|res| res))
-        //                 .map_err(|err| Error::Other(Box::new(ApplyError::new_err(err.to_string()))))
     }
 
     async fn snapshot(&self) -> Result<Vec<u8>> {
-        Python::with_gil(|py| {
-            // TODO: Make snapshot method call to async if possible
-            self.store
+        let fut = Python::with_gil(|py| {
+            let event_loop = self
+                .store
                 .as_ref(py)
-                .call_method("snapshot", (), None)
-                .and_then(|py_result| py_result.extract::<Vec<u8>>().map(|res| res))
+                .getattr("_loop")
+                .expect("No event loop provided in the python!");
+
+            let awaitable = event_loop.call_method1(
+                "create_task",
+                (self
+                    .store
+                    .as_ref(py)
+                    .call_method("snapshot", (), None)
+                    .unwrap(),),
+            )?;
+
+            let task_local = TaskLocals::new(event_loop);
+            pyo3_asyncio::into_future_with_locals(&task_local, awaitable)
+        })
+        .unwrap();
+
+        let result = fut.await;
+
+        Python::with_gil(|py| {
+            result
+                .and_then(|py_result| py_result.extract::<Vec<u8>>(py).map(|res| res))
                 .map_err(|err| Error::Other(Box::new(SnapshotError::new_err(err.to_string()))))
         })
     }
 
     async fn restore(&mut self, snapshot: Vec<u8>) -> Result<()> {
-        Python::with_gil(|py| {
-            self.store
+        let fut = Python::with_gil(|py| {
+            let event_loop = self
+                .store
                 .as_ref(py)
-                .call_method("restore", (PyBytes::new(py, snapshot.as_slice()),), None)
+                .getattr("_loop")
+                .expect("No event loop provided in the python!");
+
+            let awaitable = event_loop.call_method1(
+                "create_task",
+                (self
+                    .store
+                    .as_ref(py)
+                    .call_method("restore", (PyBytes::new(py, snapshot.as_slice()),), None)
+                    .unwrap(),),
+            )?;
+
+            let task_local = TaskLocals::new(event_loop);
+            pyo3_asyncio::into_future_with_locals(&task_local, awaitable)
+        })
+        .unwrap();
+
+        let result = fut.await;
+
+        Python::with_gil(|_| {
+            result
                 .and_then(|_| Ok(()))
                 .map_err(|err| Error::Other(Box::new(RestoreError::new_err(err.to_string()))))
         })
