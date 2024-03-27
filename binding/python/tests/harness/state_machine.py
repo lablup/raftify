@@ -38,13 +38,13 @@ class HashStore:
     def as_dict(self) -> dict:
         return self._store
 
-    def apply(self, msg: bytes) -> bytes:
+    async def apply(self, msg: bytes) -> bytes:
         message = SetCommand.decode(msg)
         self._store[message.key] = message.value
         return msg
 
-    def snapshot(self) -> bytes:
+    async def snapshot(self) -> bytes:
         return pickle.dumps(self._store)
 
-    def restore(self, snapshot: bytes) -> None:
+    async def restore(self, snapshot: bytes) -> None:
         self._store = pickle.loads(snapshot)
