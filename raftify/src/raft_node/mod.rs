@@ -78,8 +78,8 @@ impl<
         config: Config,
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
-        tx_server: mpsc::Sender<ServerRequestMsg>,
-        rx_server: mpsc::Receiver<ServerRequestMsg>,
+        tx_server: mpsc::Sender<ServerRequestMsg<LogEntry, FSM>>,
+        rx_server: mpsc::Receiver<ServerRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
         let (tx_local, rx_local) = mpsc::channel(100);
 
@@ -464,8 +464,8 @@ pub struct RaftNodeCore<
     response_senders: HashMap<u64, ResponseSender<LogEntry, FSM>>,
 
     #[allow(dead_code)]
-    tx_server: mpsc::Sender<ServerRequestMsg>,
-    rx_server: mpsc::Receiver<ServerRequestMsg>,
+    tx_server: mpsc::Sender<ServerRequestMsg<LogEntry, FSM>>,
+    rx_server: mpsc::Receiver<ServerRequestMsg<LogEntry, FSM>>,
 
     #[allow(dead_code)]
     tx_local: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
@@ -490,8 +490,8 @@ impl<
         mut config: Config,
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
-        tx_server: mpsc::Sender<ServerRequestMsg>,
-        rx_server: mpsc::Receiver<ServerRequestMsg>,
+        tx_server: mpsc::Sender<ServerRequestMsg<LogEntry, FSM>>,
+        rx_server: mpsc::Receiver<ServerRequestMsg<LogEntry, FSM>>,
         tx_local: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
         rx_local: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
     ) -> Result<Self> {
@@ -1196,7 +1196,10 @@ impl<
         Ok(())
     }
 
-    async fn handle_server_request_msg(&mut self, message: ServerRequestMsg) -> Result<()> {
+    async fn handle_server_request_msg(
+        &mut self,
+        message: ServerRequestMsg<LogEntry, FSM>,
+    ) -> Result<()> {
         match message {
             ServerRequestMsg::ChangeConfig {
                 conf_change,
@@ -1217,6 +1220,10 @@ impl<
             ServerRequestMsg::Propose { proposal, tx_msg } => {
                 self.handle_propose_request(proposal, ResponseSender::Server(tx_msg))
                     .await?;
+            }
+            ServerRequestMsg::JoinCluster { tickets, tx_msg } => {
+                self.handle_join(tickets).await?;
+                tx_msg.send(ServerResponseMsg::JoinCluster {}).unwrap();
             }
             ServerRequestMsg::RequestId { raft_addr, tx_msg } => {
                 if !self.is_leader() {
@@ -1296,6 +1303,8 @@ impl<
                 self.peers.lock().await.replace(peers);
                 tx_msg.send(ServerResponseMsg::SetPeers {}).unwrap();
             }
+            ServerRequestMsg::_Phantom(_) => unreachable!(),
+            ServerRequestMsg::_Phantom2(_) => unreachable!(),
         }
 
         Ok(())

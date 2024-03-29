@@ -68,6 +68,7 @@ pub enum ServerResponseMsg {
     SendMessage { result: ResponseResult },
     CreateSnapshot {},
     LeaveJoint {},
+    JoinCluster {},
 
     // Rerouting available
     Propose { result: ResponseResult },

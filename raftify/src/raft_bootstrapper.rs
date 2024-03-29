@@ -28,8 +28,8 @@ use super::{
 #[derive(Clone)]
 pub struct Raft<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + Clone + 'static> {
     pub raft_node: RaftNode<LogEntry, FSM>,
-    pub raft_server: RaftServer,
-    pub tx_server: mpsc::Sender<ServerRequestMsg>,
+    pub raft_server: RaftServer<LogEntry, FSM>,
+    pub tx_server: mpsc::Sender<ServerRequestMsg<LogEntry, FSM>>,
     pub logger: Arc<dyn Logger>,
 }
 

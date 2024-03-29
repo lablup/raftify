@@ -1,4 +1,5 @@
 use bincode::serialize;
+use log::Log;
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     sync::Arc,
@@ -32,20 +33,22 @@ use crate::{
     },
     raft_service::ProposeArgs,
     response_message::{ConfChangeResponseResult, ResponseResult},
-    InitialRole, Peers,
+    AbstractLogEntry, AbstractStateMachine, InitialRole, Peers,
 };
 
 #[derive(Clone)]
-pub struct RaftServer {
-    tx: mpsc::Sender<ServerRequestMsg>,
+pub struct RaftServer<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
+    tx: mpsc::Sender<ServerRequestMsg<LogEntry, FSM>>,
     raft_addr: SocketAddr,
     config: Config,
     logger: Arc<dyn Logger>,
 }
 
-impl RaftServer {
+impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + 'static>
+    RaftServer<LogEntry, FSM>
+{
     pub fn new<A: ToSocketAddrs>(
-        tx: mpsc::Sender<ServerRequestMsg>,
+        tx: mpsc::Sender<ServerRequestMsg<LogEntry, FSM>>,
         raft_addr: A,
         config: Config,
         logger: Arc<dyn Logger>,
@@ -80,7 +83,9 @@ impl RaftServer {
     }
 }
 
-impl RaftServer {
+impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + 'static>
+    RaftServer<LogEntry, FSM>
+{
     fn print_send_error(&self, function_name: &str) {
         self.logger.error(&format!(
             "Error occurred in sending message ('RaftServer --> RaftNode'). Function: '{}'",
@@ -90,7 +95,9 @@ impl RaftServer {
 }
 
 #[tonic::async_trait]
-impl RaftService for RaftServer {
+impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + 'static> RaftService
+    for RaftServer<LogEntry, FSM>
+{
     async fn request_id(
         &self,
         request: Request<raft_service::RequestIdArgs>,

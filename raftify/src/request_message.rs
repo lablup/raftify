@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::{collections::HashMap, marker::PhantomData, net::SocketAddr};
 
 use tokio::sync::oneshot::Sender;
 
@@ -13,7 +13,7 @@ use crate::{
 
 /// Request type processed through network calls (gRPC)
 #[derive(Debug)]
-pub enum ServerRequestMsg {
+pub enum ServerRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
     RequestId {
         raft_addr: String,
         tx_msg: Sender<ServerResponseMsg>,
@@ -45,6 +45,12 @@ pub enum ServerRequestMsg {
     CreateSnapshot {
         tx_msg: Sender<ServerResponseMsg>,
     },
+    JoinCluster {
+        tickets: Vec<ClusterJoinTicket>,
+        tx_msg: Sender<ServerResponseMsg>,
+    },
+    _Phantom(PhantomData<LogEntry>),
+    _Phantom2(PhantomData<FSM>),
 }
 
 /// Request type used for communication (method calls) between user side and RaftNode
