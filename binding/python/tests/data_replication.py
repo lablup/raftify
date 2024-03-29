@@ -23,8 +23,8 @@ async def test_data_replication():
 
     # Data should be replicated to all nodes.
     for raft in RAFTS.values():
-        store = await raft.get_raft_node().store()
-        assert store.get("1") == "test"
+        state_machine = await raft.get_raft_node().state_machine()
+        assert state_machine.get("1") == "test"
 
     for raft in RAFTS.values():
         await raft.get_raft_node().quit()

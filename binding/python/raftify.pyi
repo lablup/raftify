@@ -137,7 +137,7 @@ class RaftNode:
         """ """
     async def get_cluster_size(self) -> int:
         """ """
-    async def store(self) -> "AbstractStateMachine":
+    async def state_machine(self) -> "AbstractStateMachine":
         """ """
 
 class ClusterJoinTicket:
