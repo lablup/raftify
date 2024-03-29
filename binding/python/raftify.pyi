@@ -147,7 +147,6 @@ class ClusterJoinTicket:
         self,
         reserved_id: int,
         raft_addr: str,
-        leader_id: int,
         leader_addr: str,
         peers: "Peers",
     ) -> None: ...
@@ -434,7 +433,7 @@ class Entry:
         """ """
     def get_entry_type(self) -> "EntryType":
         """ """
-    def set_entry_type(self, typ: "EntryType") -> None:
+    def set_entry_type(self, type_: "EntryType") -> None:
         """ """
     def get_term(self) -> int:
         """ """
@@ -494,7 +493,7 @@ class Snapshot:
         """ """
     def get_metadata(self) -> "SnapshotMetadata":
         """ """
-    def set_metadata(self, meta_data: "SnapshotMetadata") -> None:
+    def set_metadata(self, metadata: "SnapshotMetadata") -> None:
         """ """
     def has_metadata(self) -> bool:
         """ """
@@ -538,7 +537,7 @@ class ConfChangeSingle:
         """ """
     def get_change_type(self) -> "ConfChangeType":
         """ """
-    def set_change_type(self, typ: "ConfChangeType") -> None:
+    def set_change_type(self, type_: "ConfChangeType") -> None:
         """ """
 
 class ConfChangeV2:
@@ -612,11 +611,11 @@ class Message:
         """ """
     def get_entries(self) -> list["Entry"]:
         """ """
-    def set_entries(self, ents: list["Entry"]) -> None:
+    def set_entries(self, entries: list["Entry"]) -> None:
         """ """
     def get_msg_type(self) -> "MessageType":
         """ """
-    def set_msg_type(self, typ: "MessageType") -> None:
+    def set_msg_type(self, type_: "MessageType") -> None:
         """ """
     def get_reject(self) -> bool:
         """ """
@@ -638,7 +637,7 @@ class Message:
         """ """
     def get_deprecated_priority(self) -> int:
         """ """
-    def set_deprecated_priority(self, v: int) -> None:
+    def set_deprecated_priority(self, deprecated_priority: int) -> None:
         """ """
 
 async def cli_main(argv: list[str]) -> None:
