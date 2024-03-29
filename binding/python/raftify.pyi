@@ -154,6 +154,9 @@ class ClusterJoinTicket:
         """ """
     def to_dict(self) -> dict[str, Any]:
         """ """
+    @staticmethod
+    def from_dict(v: dict[str, Any]) -> "ClusterJoinTicket":
+        """ """
 
 class Peer:
     """ """
