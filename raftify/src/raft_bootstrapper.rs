@@ -1,4 +1,6 @@
+use crate::{raft::logger::Logger, InitialRole, Peers};
 use bincode::deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     net::{SocketAddr, ToSocketAddrs},
@@ -9,8 +11,6 @@ use tokio::{
     signal,
     sync::{mpsc, oneshot},
 };
-
-use crate::{raft::logger::Logger, InitialRole, Peers};
 
 use super::{
     create_client,
@@ -43,7 +43,7 @@ impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + Clone + '
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ClusterJoinTicket {
     pub reserved_id: u64,
     pub raft_addr: String,
