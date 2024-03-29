@@ -1,9 +1,6 @@
 use async_trait::async_trait;
 use once_cell::sync::Lazy;
-use pyo3::{
-    prelude::*,
-    types::{PyBytes, PyDict},
-};
+use pyo3::{prelude::*, types::PyBytes};
 use pyo3_asyncio::TaskLocals;
 use raftify::{AbstractLogEntry, AbstractStateMachine, Error, Result};
 use std::{fmt, sync::Mutex};
@@ -166,7 +163,7 @@ impl AbstractStateMachine for PyFSM {
         Python::with_gil(|py| {
             result
                 .and_then(|py_result| py_result.extract::<Vec<u8>>(py).map(|res| res))
-                .map_err(|err| Error::Other(Box::new(SnapshotError::new_err(err.to_string()))))
+                .map_err(|err| Error::Other(Box::new(ApplyError::new_err(err.to_string()))))
         })
     }
 

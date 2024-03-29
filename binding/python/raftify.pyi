@@ -18,13 +18,13 @@ class AbstractStateMachine(metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    def apply(self, message: bytes) -> bytes:
+    async def apply(self, message: bytes) -> bytes:
         raise NotImplementedError
     @abc.abstractmethod
-    def snapshot(self) -> bytes:
+    async def snapshot(self) -> bytes:
         raise NotImplementedError
     @abc.abstractmethod
-    def restore(self, snapshot: bytes) -> None:
+    async def restore(self, snapshot: bytes) -> None:
         raise NotImplementedError
     @abc.abstractmethod
     def encode(self) -> bytes:

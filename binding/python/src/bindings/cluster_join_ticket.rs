@@ -13,13 +13,7 @@ pub struct PyClusterJoinTicket {
 #[pymethods]
 impl PyClusterJoinTicket {
     #[new]
-    pub fn new(
-        reserved_id: u64,
-        raft_addr: String,
-        leader_id: u64,
-        leader_addr: String,
-        peers: PyPeers,
-    ) -> Self {
+    pub fn new(reserved_id: u64, raft_addr: String, leader_addr: String, peers: PyPeers) -> Self {
         let peers = peers
             .inner
             .inner
@@ -31,7 +25,6 @@ impl PyClusterJoinTicket {
             inner: ClusterJoinTicket {
                 reserved_id,
                 raft_addr,
-                leader_id,
                 leader_addr,
                 peers,
             },

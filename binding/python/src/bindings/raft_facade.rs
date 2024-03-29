@@ -60,7 +60,7 @@ impl PyRaftFacade {
         PyRaftNode::new(self.inner.clone().raft_node.clone())
     }
 
-    pub fn join<'a>(
+    pub fn join_cluster<'a>(
         &'a self,
         tickets: Vec<PyClusterJoinTicket>,
         py: Python<'a>,
@@ -69,7 +69,7 @@ impl PyRaftFacade {
         let tickets = tickets.into_iter().map(|t| t.inner).collect();
 
         future_into_py(py, async move {
-            raft_facade.inner.join(tickets).await;
+            raft_facade.inner.join_cluster(tickets).await;
             Ok(())
         })
     }
