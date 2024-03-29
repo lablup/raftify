@@ -47,7 +47,6 @@ impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + Clone + '
 pub struct ClusterJoinTicket {
     pub reserved_id: u64,
     pub raft_addr: String,
-    pub leader_id: u64,
     pub leader_addr: String,
     pub peers: HashMap<u64, SocketAddr>,
 }
@@ -193,7 +192,6 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
             ResultCode::Ok => Ok(ClusterJoinTicket {
                 raft_addr,
                 reserved_id: response.reserved_id,
-                leader_id: response.leader_id,
                 leader_addr: response.leader_addr,
                 peers: peers.into(),
             }),
