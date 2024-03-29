@@ -1,6 +1,10 @@
 use async_trait::async_trait;
 use once_cell::sync::Lazy;
-use pyo3::{prelude::*, types::PyBytes};
+use pyo3::{
+    prelude::*,
+    types::{PyBytes, PyDict},
+};
+use pyo3_asyncio::TaskLocals;
 use raftify::{AbstractLogEntry, AbstractStateMachine, Error, Result};
 use std::{fmt, sync::Mutex};
 
@@ -136,31 +140,93 @@ impl PyFSM {
 #[async_trait]
 impl AbstractStateMachine for PyFSM {
     async fn apply(&mut self, log_entry: Vec<u8>) -> Result<Vec<u8>> {
-        Python::with_gil(|py| {
-            self.store
+        let fut = Python::with_gil(|py| {
+            let event_loop = self
+                .store
                 .as_ref(py)
-                .call_method("apply", (PyBytes::new(py, log_entry.as_slice()),), None)
-                .and_then(|py_result| py_result.extract::<Vec<u8>>().map(|res| res))
-                .map_err(|err| Error::Other(Box::new(ApplyError::new_err(err.to_string()))))
+                .getattr("_loop")
+                .expect("No event loop provided in the python!");
+
+            let awaitable = event_loop.call_method1(
+                "create_task",
+                (self
+                    .store
+                    .as_ref(py)
+                    .call_method("apply", (PyBytes::new(py, log_entry.as_slice()),), None)
+                    .unwrap(),),
+            )?;
+
+            let task_local = TaskLocals::new(event_loop);
+            pyo3_asyncio::into_future_with_locals(&task_local, awaitable)
+        })
+        .unwrap();
+
+        let result = fut.await;
+
+        Python::with_gil(|py| {
+            result
+                .and_then(|py_result| py_result.extract::<Vec<u8>>(py).map(|res| res))
+                .map_err(|err| Error::Other(Box::new(SnapshotError::new_err(err.to_string()))))
         })
     }
 
     async fn snapshot(&self) -> Result<Vec<u8>> {
-        Python::with_gil(|py| {
-            // TODO: Make snapshot method call to async if possible
-            self.store
+        let fut = Python::with_gil(|py| {
+            let event_loop = self
+                .store
                 .as_ref(py)
-                .call_method("snapshot", (), None)
-                .and_then(|py_result| py_result.extract::<Vec<u8>>().map(|res| res))
+                .getattr("_loop")
+                .expect("No event loop provided in the python!");
+
+            let awaitable = event_loop.call_method1(
+                "create_task",
+                (self
+                    .store
+                    .as_ref(py)
+                    .call_method("snapshot", (), None)
+                    .unwrap(),),
+            )?;
+
+            let task_local = TaskLocals::new(event_loop);
+            pyo3_asyncio::into_future_with_locals(&task_local, awaitable)
+        })
+        .unwrap();
+
+        let result = fut.await;
+
+        Python::with_gil(|py| {
+            result
+                .and_then(|py_result| py_result.extract::<Vec<u8>>(py).map(|res| res))
                 .map_err(|err| Error::Other(Box::new(SnapshotError::new_err(err.to_string()))))
         })
     }
 
     async fn restore(&mut self, snapshot: Vec<u8>) -> Result<()> {
-        Python::with_gil(|py| {
-            self.store
+        let fut = Python::with_gil(|py| {
+            let event_loop = self
+                .store
                 .as_ref(py)
-                .call_method("restore", (PyBytes::new(py, snapshot.as_slice()),), None)
+                .getattr("_loop")
+                .expect("No event loop provided in the python!");
+
+            let awaitable = event_loop.call_method1(
+                "create_task",
+                (self
+                    .store
+                    .as_ref(py)
+                    .call_method("restore", (PyBytes::new(py, snapshot.as_slice()),), None)
+                    .unwrap(),),
+            )?;
+
+            let task_local = TaskLocals::new(event_loop);
+            pyo3_asyncio::into_future_with_locals(&task_local, awaitable)
+        })
+        .unwrap();
+
+        let result = fut.await;
+
+        Python::with_gil(|_| {
+            result
                 .and_then(|_| Ok(()))
                 .map_err(|err| Error::Other(Box::new(RestoreError::new_err(err.to_string()))))
         })
