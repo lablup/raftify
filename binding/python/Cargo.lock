@@ -1335,6 +1335,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pythonize"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffd1c3ef39c725d63db5f9bc455461bafd80540cb7824c61afb823501921a850"
+dependencies = [
+ "pyo3",
+ "serde",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1357,9 +1367,9 @@ dependencies = [
 
 [[package]]
 name = "raftify"
-version = "0.1.58"
+version = "0.1.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c6a7180eceffb5f0c714559e6337c5137b167ddd3121e64d49420e8a990bd67"
+checksum = "e88eef2e32bf8b7fc7f14bd5e121728deb52b65e14c1004f99a97ad75f92d324"
 dependencies = [
  "async-trait",
  "bincode",
@@ -1385,7 +1395,7 @@ dependencies = [
 
 [[package]]
 name = "raftify-py"
-version = "0.1.58"
+version = "0.1.59"
 dependencies = [
  "async-trait",
  "bincode",
@@ -1395,7 +1405,9 @@ dependencies = [
  "prost",
  "pyo3",
  "pyo3-asyncio",
+ "pythonize",
  "raftify",
+ "serde",
  "slog",
  "slog-async",
  "slog-envlogger",

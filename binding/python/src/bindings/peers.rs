@@ -1,4 +1,5 @@
 use fxhash::FxHasher;
+use serde::{Serialize, Deserialize};
 use pyo3::{
     prelude::*,
     types::{PyDict, PyString},
@@ -8,7 +9,7 @@ use std::{collections::HashMap, hash::BuildHasherDefault};
 
 use super::{peer::PyPeer, role::PyInitialRole};
 
-#[derive(Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[pyclass(dict, name = "Peers")]
 pub struct PyPeers {
     pub inner: Peers,

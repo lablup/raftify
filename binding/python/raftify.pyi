@@ -152,6 +152,8 @@ class ClusterJoinTicket:
     ) -> None: ...
     def get_reserved_id(self) -> int:
         """ """
+    def to_dict(self) -> dict[str, Any]:
+        """ """
 
 class Peer:
     """ """
