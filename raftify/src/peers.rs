@@ -5,7 +5,7 @@ use std::{
 };
 
 use super::Peer;
-use crate::{error::Result, InitialRole};
+use crate::{error::Result, raft_service, InitialRole};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Peers {
@@ -15,6 +15,16 @@ pub struct Peers {
 impl Default for Peers {
     fn default() -> Self {
         Self::with_empty()
+    }
+}
+
+impl From<raft_service::Peers> for Peers {
+    fn from(raft_service_peers: raft_service::Peers) -> Self {
+        let mut peers = Peers::with_empty();
+        for peer in raft_service_peers.peers {
+            peers.add_peer(peer.node_id, peer.addr, Some(InitialRole::Voter));
+        }
+        peers
     }
 }
 

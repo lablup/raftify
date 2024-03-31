@@ -14,6 +14,16 @@ pub struct Peer {
     pub client: Option<RaftServiceClient<Channel>>,
 }
 
+// TODO: Implement From<Peer> for raft_service::Peer
+// impl From<Peer> for raft_service::Peer {
+//     fn from(peer: Peer) -> Self {
+//         raft_service::Peer {
+//             addr: peer.addr.to_string(),
+//             role: peer.role.into(),
+//         }
+//     }
+// }
+
 impl Peer {
     pub fn new<A: ToSocketAddrs>(addr: A, initial_role: InitialRole) -> Self {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
