@@ -28,6 +28,21 @@ impl From<raft_service::Peers> for Peers {
     }
 }
 
+impl From<Peers> for raft_service::Peers {
+    fn from(peers: Peers) -> Self {
+        let peers = peers
+            .inner
+            .into_iter()
+            .map(|(id, peer)| raft_service::Peer {
+                node_id: id,
+                addr: peer.addr.to_string(),
+            })
+            .collect();
+
+        Self { peers }
+    }
+}
+
 impl From<Peers> for HashMap<u64, SocketAddr> {
     fn from(peers: Peers) -> Self {
         peers.inner.into_iter().map(|(k, v)| (k, v.addr)).collect()

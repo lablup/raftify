@@ -1,5 +1,4 @@
 use bincode::serialize;
-use log::Log;
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     sync::Arc,
@@ -21,8 +20,6 @@ use super::{
         raft_service_server::{RaftService, RaftServiceServer},
         Empty,
     },
-    request_message::ServerRequestMsg,
-    response_message::{RequestIdResponseResult, ServerResponseMsg},
     Config, Error,
 };
 use crate::{
@@ -32,8 +29,11 @@ use crate::{
         logger::Logger,
     },
     raft_service::ProposeArgs,
-    response_message::{ConfChangeResponseResult, ResponseResult},
-    AbstractLogEntry, AbstractStateMachine, InitialRole, Peers,
+    request::server_request_message::ServerRequestMsg,
+    response::server_response_message::{
+        ConfChangeResponseResult, RequestIdResponseResult, ResponseResult, ServerResponseMsg,
+    },
+    AbstractLogEntry, AbstractStateMachine,
 };
 
 #[derive(Clone)]
@@ -370,11 +370,7 @@ impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + 'static> 
         request: Request<raft_service::Peers>,
     ) -> Result<Response<raft_service::Empty>, Status> {
         let request_args = request.into_inner();
-
-        let mut peers = Peers::with_empty();
-        for peer in request_args.peers {
-            peers.add_peer(peer.node_id, peer.addr, Some(InitialRole::Voter));
-        }
+        let peers = request_args.into();
 
         let (tx_msg, rx_msg) = oneshot::channel();
         let sender = self.tx.clone();

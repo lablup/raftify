@@ -1,12 +1,9 @@
-use crate::{raft::logger::Logger, InitialRole, Peers};
-use bincode::deserialize;
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    net::{SocketAddr, ToSocketAddrs},
-    ops::Deref,
-    sync::Arc,
+use crate::{
+    raft::logger::Logger, request::server_request_message::ServerRequestMsg, ClusterJoinTicket,
+    InitialRole, Peers,
 };
+use bincode::deserialize;
+use std::{net::ToSocketAddrs, ops::Deref, sync::Arc};
 use tokio::{
     signal,
     sync::{mpsc, oneshot},
@@ -18,7 +15,6 @@ use super::{
     raft_node::RaftNode,
     raft_server::RaftServer,
     raft_service::{self, ResultCode},
-    request_message::ServerRequestMsg,
     AbstractLogEntry, AbstractStateMachine, Config,
 };
 
@@ -41,14 +37,6 @@ impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + Clone + '
     fn deref(&self) -> &Self::Target {
         &self.raft_node
     }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ClusterJoinTicket {
-    pub reserved_id: u64,
-    pub raft_addr: String,
-    pub leader_addr: String,
-    pub peers: HashMap<u64, SocketAddr>,
 }
 
 impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync + 'static>

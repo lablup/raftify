@@ -1,57 +1,12 @@
-use std::{collections::HashMap, marker::PhantomData, net::SocketAddr};
+use std::{collections::HashMap, net::SocketAddr};
 
+use jopemachine_raft::eraftpb::{ConfChangeV2, Message as RaftMessage};
 use tokio::sync::oneshot::Sender;
 
-use super::{
-    response_message::{LocalResponseMsg, ServerResponseMsg},
-    AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket,
-};
 use crate::{
-    raft::eraftpb::{ConfChangeV2, Message as RaftMessage},
-    InitialRole, Peers,
+    response::local_response_message::LocalResponseMsg, AbstractLogEntry, AbstractStateMachine,
+    ClusterJoinTicket, InitialRole,
 };
-
-/// Request type processed through network calls (gRPC)
-#[derive(Debug)]
-pub enum ServerRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
-    RequestId {
-        raft_addr: String,
-        tx_msg: Sender<ServerResponseMsg>,
-    },
-    Propose {
-        proposal: Vec<u8>,
-        tx_msg: Sender<ServerResponseMsg>,
-    },
-    ChangeConfig {
-        conf_change: ConfChangeV2,
-        tx_msg: Sender<ServerResponseMsg>,
-    },
-    DebugNode {
-        tx_msg: Sender<ServerResponseMsg>,
-    },
-    SendMessage {
-        message: Box<RaftMessage>,
-    },
-    GetPeers {
-        tx_msg: Sender<ServerResponseMsg>,
-    },
-    SetPeers {
-        peers: Peers,
-        tx_msg: Sender<ServerResponseMsg>,
-    },
-    LeaveJoint {
-        tx_msg: Sender<ServerResponseMsg>,
-    },
-    CreateSnapshot {
-        tx_msg: Sender<ServerResponseMsg>,
-    },
-    JoinCluster {
-        tickets: Vec<ClusterJoinTicket>,
-        tx_msg: Sender<ServerResponseMsg>,
-    },
-    _Phantom(PhantomData<LogEntry>),
-    _Phantom2(PhantomData<FSM>),
-}
 
 /// Request type used for communication (method calls) between user side and RaftNode
 #[derive(Debug)]
@@ -130,11 +85,4 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
         tx_msg: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     LeaveJoint {},
-}
-
-/// Request type sent from a RaftNode to itself (RaftNode).
-/// Used for accessing the RaftNode from a future created by RaftNode asynchronous methods
-#[derive(Debug)]
-pub enum SelfMessage {
-    ReportUnreachable { node_id: u64 },
 }

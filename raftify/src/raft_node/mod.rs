@@ -39,10 +39,16 @@ use crate::{
         Storage,
     },
     raft_service::{self, ChangeConfigResultType, ProposeArgs},
-    request_message::{LocalRequestMsg, SelfMessage, ServerRequestMsg},
-    response_message::{
-        ConfChangeResponseResult, LocalResponseMsg, RequestIdResponseResult, ResponseMessage,
-        ResponseResult, ServerResponseMsg,
+    request::{
+        local_request_message::LocalRequestMsg, self_request_message::SelfMessage,
+        server_request_message::ServerRequestMsg,
+    },
+    response::{
+        local_response_message::LocalResponseMsg,
+        server_response_message::{
+            ConfChangeResponseResult, RequestIdResponseResult, ResponseResult, ServerResponseMsg,
+        },
+        ResponseMessage,
     },
     storage::{
         heed_storage::HeedStorage,
@@ -1220,10 +1226,6 @@ impl<
             ServerRequestMsg::Propose { proposal, tx_msg } => {
                 self.handle_propose_request(proposal, ResponseSender::Server(tx_msg))
                     .await?;
-            }
-            ServerRequestMsg::JoinCluster { tickets, tx_msg } => {
-                self.handle_join(tickets).await?;
-                tx_msg.send(ServerResponseMsg::JoinCluster {}).unwrap();
             }
             ServerRequestMsg::RequestId { raft_addr, tx_msg } => {
                 if !self.is_leader() {

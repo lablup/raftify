@@ -1,7 +1,10 @@
 use tokio::sync::oneshot;
 
 use crate::{
-    response_message::{LocalResponseMsg, ResponseMessage, ServerResponseMsg},
+    response::{
+        local_response_message::LocalResponseMsg, server_response_message::ServerResponseMsg,
+        ResponseMessage,
+    },
     AbstractLogEntry, AbstractStateMachine,
 };
 
