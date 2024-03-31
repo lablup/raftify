@@ -18,18 +18,16 @@ use super::{
     raft_service::{
         self,
         raft_service_server::{RaftService, RaftServiceServer},
-        Empty,
     },
     Config, Error,
 };
 use crate::{
     create_client,
-    raft::{
-        eraftpb::{ConfChangeV2, Message as RaftMessage},
-        logger::Logger,
-    },
+    raft::{eraftpb::Message as RaftMessage, logger::Logger},
     raft_service::ProposeArgs,
-    request::server_request_message::ServerRequestMsg,
+    request::{
+        common::confchange_request::ConfChangeRequest, server_request_message::ServerRequestMsg,
+    },
     response::server_response_message::{
         ConfChangeResponseResult, RequestIdResponseResult, ResponseResult, ServerResponseMsg,
     },
@@ -148,14 +146,16 @@ impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + 'static> 
 
     async fn change_config(
         &self,
-        request: Request<ConfChangeV2>,
+        request: Request<raft_service::ChangeConfigArgs>,
     ) -> Result<Response<raft_service::ChangeConfigResponse>, Status> {
         let request_args = request.into_inner();
         let sender = self.tx.clone();
         let (tx_msg, rx_msg) = oneshot::channel();
 
+        let conf_change_request: ConfChangeRequest = request_args.clone().into();
+
         let message = ServerRequestMsg::ChangeConfig {
-            conf_change: request_args.clone(),
+            conf_change: conf_change_request,
             tx_msg,
         };
 
@@ -301,7 +301,7 @@ impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + 'static> 
 
     async fn debug_node(
         &self,
-        request: Request<Empty>,
+        request: Request<raft_service::Empty>,
     ) -> Result<Response<raft_service::DebugNodeResponse>, Status> {
         let _request_args = request.into_inner();
         let sender = self.tx.clone();

@@ -40,8 +40,8 @@ use crate::{
     },
     raft_service::{self, ChangeConfigResultType, ProposeArgs},
     request::{
-        local_request_message::LocalRequestMsg, self_request_message::SelfMessage,
-        server_request_message::ServerRequestMsg,
+        common::confchange_request::ConfChangeRequest, local_request_message::LocalRequestMsg,
+        self_request_message::SelfMessage, server_request_message::ServerRequestMsg,
     },
     response::{
         local_response_message::LocalResponseMsg,
@@ -268,6 +268,7 @@ impl<
 
     pub async fn change_config(&self, conf_change: ConfChangeV2) -> ConfChangeResponseResult {
         let (tx, rx) = oneshot::channel();
+        let conf_change: ConfChangeRequest = conf_change.into();
         self.tx_local
             .send(LocalRequestMsg::ChangeConfig {
                 conf_change: conf_change.clone(),
@@ -281,7 +282,10 @@ impl<
             LocalResponseMsg::ConfigChange { result } => match result {
                 ConfChangeResponseResult::WrongLeader { leader_addr, .. } => {
                     let mut client = create_client(leader_addr).await.unwrap();
-                    let res = client.change_config(conf_change.clone()).await.unwrap();
+
+                    let conf_change: ConfChangeRequest = conf_change.into();
+                    let conf_change: raft_service::ChangeConfigArgs = conf_change.into();
+                    let res = client.change_config(conf_change).await.unwrap();
 
                     let result = res.into_inner();
 
@@ -744,6 +748,9 @@ impl<
         cc_v2.set_changes(changes);
         cc_v2.set_context(serialize(&addrs)?);
 
+        let cc_v2: ConfChangeRequest = cc_v2.clone().into();
+        let cc_v2: raft_service::ChangeConfigArgs = cc_v2.into();
+
         let mut leader_client = RaftServiceClient::connect(format!("http://{}", peer_addr)).await?;
         let response = leader_client
             .change_config(cc_v2.clone())
@@ -1155,6 +1162,7 @@ impl<
                 conf_change,
                 tx_msg,
             } => {
+                let conf_change: ConfChangeV2 = conf_change.into();
                 self.handle_confchange_request(conf_change, ResponseSender::Local(tx_msg))
                     .await?;
             }
@@ -1211,6 +1219,7 @@ impl<
                 conf_change,
                 tx_msg,
             } => {
+                let conf_change: ConfChangeV2 = conf_change.into();
                 self.handle_confchange_request(conf_change, ResponseSender::Server(tx_msg))
                     .await?;
             }

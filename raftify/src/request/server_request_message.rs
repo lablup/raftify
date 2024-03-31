@@ -3,10 +3,11 @@ use std::marker::PhantomData;
 use tokio::sync::oneshot::Sender;
 
 use crate::{
-    raft::eraftpb::{ConfChangeV2, Message as RaftMessage},
-    response::server_response_message::ServerResponseMsg,
+    raft::eraftpb::Message as RaftMessage, response::server_response_message::ServerResponseMsg,
     AbstractLogEntry, AbstractStateMachine, Peers,
 };
+
+use super::common::confchange_request::ConfChangeRequest;
 
 /// Request type processed through network calls (gRPC)
 #[derive(Debug)]
@@ -20,7 +21,7 @@ pub enum ServerRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
         tx_msg: Sender<ServerResponseMsg>,
     },
     ChangeConfig {
-        conf_change: ConfChangeV2,
+        conf_change: ConfChangeRequest,
         tx_msg: Sender<ServerResponseMsg>,
     },
     DebugNode {

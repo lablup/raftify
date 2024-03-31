@@ -1,4 +1,3 @@
-use crate::{raft_service, Peers};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::SocketAddr};
 

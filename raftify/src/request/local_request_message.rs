@@ -8,6 +8,8 @@ use crate::{
     ClusterJoinTicket, InitialRole,
 };
 
+use super::common::confchange_request::ConfChangeRequest;
+
 /// Request type used for communication (method calls) between user side and RaftNode
 #[derive(Debug)]
 pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
@@ -73,7 +75,7 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
         tx_msg: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     ChangeConfig {
-        conf_change: ConfChangeV2,
+        conf_change: ConfChangeRequest,
         tx_msg: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     SendMessage {

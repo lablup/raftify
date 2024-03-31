@@ -5,7 +5,7 @@ import "eraftpb.proto";
 
 service RaftService {
   rpc RequestId(RequestIdArgs) returns (RequestIdResponse) {}
-  rpc ChangeConfig(eraftpb.ConfChangeV2) returns (ChangeConfigResponse) {}
+  rpc ChangeConfig(ChangeConfigArgs) returns (ChangeConfigResponse) {}
   rpc Propose(ProposeArgs) returns (ProposeResponse) {}
   rpc SendMessage(eraftpb.Message) returns (Empty) {}
   rpc GetPeers(Empty) returns (GetPeersResponse) {}
@@ -23,6 +23,13 @@ enum ResultCode {
   Ok            = 0;
   Error         = 1;
   WrongLeader   = 2;
+}
+
+// Used in ChangeConfig
+
+message ChangeConfigArgs {
+  repeated string addrs = 1;
+  repeated eraftpb.ConfChangeSingle changes = 2;
 }
 
 // Used in SetPeers
