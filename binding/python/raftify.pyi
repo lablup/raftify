@@ -94,16 +94,12 @@ class Raft:
         logger: "AbstractLogger",
     ) -> "Raft":
         """ """
+    def get_raft_node(self) -> "RaftNode":
+        """ """
     @staticmethod
     async def request_id(raft_addr: str, peer_addr: str) -> "ClusterJoinTicket":
         """"""
-    async def join(self, tickets: list["ClusterJoinTicket"]) -> None:
-        """ """
     async def run(self) -> None:
-        """ """
-    async def snapshot(self) -> None:
-        """ """
-    def get_raft_node(self) -> "RaftNode":
         """ """
 
 class RaftNode:
@@ -134,6 +130,8 @@ class RaftNode:
     async def transfer_leader(self, leader_id: int) -> None:
         """ """
     async def quit(self) -> None:
+        """ """
+    async def join_cluster(self, tickets: list["ClusterJoinTicket"]) -> None:
         """ """
     async def get_cluster_size(self) -> int:
         """ """
@@ -282,13 +280,17 @@ class Config:
     ) -> None:
         """ """
 
+class ConfChangeRequest:
+    def __init__(self, changes: list["ConfChangeSingle"], addrs: list[str]) -> None:
+        """ """
+
 class RaftServiceClient:
     """ """
 
     @staticmethod
     async def build(addr: str) -> "RaftServiceClient":
         """ """
-    async def change_config(self, conf_change: "ConfChangeV2") -> None:
+    async def change_config(self, conf_change: "ConfChangeRequest") -> None:
         """ """
     async def send_message(self, message: "Message") -> None:
         """ """

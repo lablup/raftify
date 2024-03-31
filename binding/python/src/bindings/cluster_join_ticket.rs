@@ -1,9 +1,9 @@
-use pyo3::{exceptions::PyException, prelude::*, types::PyDict};
-use raftify::ClusterJoinTicket;
-use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 use super::peers::PyPeers;
-use pythonize::{pythonize, depythonize};
+use pyo3::{exceptions::PyException, prelude::*, types::PyDict};
+use pythonize::{depythonize, pythonize};
+use raftify::ClusterJoinTicket;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Clone)]
 #[pyclass(name = "ClusterJoinTicket")]
@@ -46,7 +46,8 @@ impl PyClusterJoinTicket {
 
     #[staticmethod]
     pub fn from_dict(dict: &PyDict) -> PyResult<PyClusterJoinTicket> {
-        let inner: ClusterJoinTicket = depythonize(dict).map_err(|e| PyException::new_err(e.to_string()))?;
+        let inner: ClusterJoinTicket =
+            depythonize(dict).map_err(|e| PyException::new_err(e.to_string()))?;
         Ok(PyClusterJoinTicket { inner })
     }
 }

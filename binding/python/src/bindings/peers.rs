@@ -1,10 +1,10 @@
 use fxhash::FxHasher;
-use serde::{Serialize, Deserialize};
 use pyo3::{
     prelude::*,
     types::{PyDict, PyString},
 };
 use raftify::Peers;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, hash::BuildHasherDefault};
 
 use super::{peer::PyPeer, role::PyInitialRole};

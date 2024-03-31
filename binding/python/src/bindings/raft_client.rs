@@ -3,8 +3,7 @@ use pyo3_asyncio::tokio::future_into_py;
 use raftify::{create_client, Channel, RaftServiceClient};
 
 use super::{
-    peers::PyPeers,
-    raft_rs::eraftpb::{conf_change_v2::PyConfChangeV2, message::PyMessage},
+    confchange_request::PyConfChangeRequest, peers::PyPeers, raft_rs::eraftpb::message::PyMessage,
 };
 
 #[derive(Clone)]
@@ -28,17 +27,14 @@ impl PyRaftServiceClient {
     // TODO: Defines the return type properly
     pub fn change_config<'a>(
         &'a mut self,
-        conf_change: PyConfChangeV2,
+        conf_change: PyConfChangeRequest,
         py: Python<'a>,
     ) -> PyResult<&'a PyAny> {
         let mut client = self.inner.clone();
+        let arg: raftify::raft_service::ChangeConfigArgs = conf_change.inner.into();
 
         future_into_py(py, async move {
-            let result = client
-                .change_config(conf_change.inner)
-                .await
-                .unwrap()
-                .into_inner();
+            let result = client.change_config(arg).await.unwrap().into_inner();
 
             Ok(result.result_type)
         })

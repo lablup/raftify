@@ -41,6 +41,7 @@ pub use crate::{
     state_machine::AbstractStateMachine,
     storage::heed_storage::HeedStorage,
     storage::StableStorage,
+    request::common::confchange_request::ConfChangeRequest,
 };
 
 pub(crate) use crate::utils::macros::macro_utils;

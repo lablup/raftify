@@ -8,13 +8,14 @@ mod bindings;
 #[pymodule]
 fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<bindings::cluster_join_ticket::PyClusterJoinTicket>()?;
+    m.add_class::<bindings::confchange_request::PyConfChangeRequest>()?;
     m.add_class::<bindings::config::PyConfig>()?;
     m.add_class::<bindings::slogger::PySlogger>()?;
     m.add_class::<bindings::slogger::PyOverflowStrategy>()?;
     m.add_class::<bindings::peers::PyPeers>()?;
     m.add_class::<bindings::peer::PyPeer>()?;
     m.add_class::<bindings::raft_client::PyRaftServiceClient>()?;
-    m.add_class::<bindings::raft_facade::PyRaftFacade>()?;
+    m.add_class::<bindings::raft_bootstrapper::PyRaftFacade>()?;
     m.add_class::<bindings::raft_node::PyRaftNode>()?;
     m.add_class::<bindings::raft_rs::config::PyRaftConfig>()?;
     m.add_class::<bindings::raft_rs::readonly_option::PyReadOnlyOption>()?;

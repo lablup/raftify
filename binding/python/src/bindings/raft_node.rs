@@ -3,6 +3,7 @@ use pyo3_asyncio::tokio::future_into_py;
 use raftify::RaftNode;
 
 use super::{
+    cluster_join_ticket::PyClusterJoinTicket,
     peers::PyPeers,
     raft_rs::eraftpb::{conf_change_v2::PyConfChangeV2, message::PyMessage},
     role::PyInitialRole,
@@ -77,7 +78,7 @@ impl PyRaftNode {
         let raft_node = self.inner.clone();
 
         future_into_py(py, async move {
-            raft_node.propose(proposal.clone()).await;
+            raft_node.propose(proposal.clone()).await.unwrap();
             Ok(())
         })
     }
@@ -159,5 +160,19 @@ impl PyRaftNode {
     pub fn state_machine<'a>(&'a mut self, py: Python<'a>) -> PyResult<&'a PyAny> {
         let raft_node = self.inner.clone();
         future_into_py(py, async move { Ok(raft_node.state_machine().await) })
+    }
+
+    pub fn join_cluster<'a>(
+        &'a self,
+        tickets: Vec<PyClusterJoinTicket>,
+        py: Python<'a>,
+    ) -> PyResult<&'a PyAny> {
+        let raft_node = self.clone();
+        let tickets = tickets.into_iter().map(|t| t.inner).collect();
+
+        future_into_py(py, async move {
+            raft_node.inner.join_cluster(tickets).await;
+            Ok(())
+        })
     }
 }
