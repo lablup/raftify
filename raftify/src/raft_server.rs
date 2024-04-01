@@ -15,16 +15,16 @@ use tonic::{transport::Server, Request, Response, Status};
 
 use super::{
     macro_utils::function_name,
-    raft_service::{
-        self,
-        raft_service_server::{RaftService, RaftServiceServer},
-    },
+    raft_service::{self},
     Config, Error,
 };
 use crate::{
     create_client,
     raft::{eraftpb::Message as RaftMessage, logger::Logger},
-    raft_service::ProposeArgs,
+    raft_service::{
+        raft_service_server::{RaftService, RaftServiceServer},
+        ProposeArgs,
+    },
     request::{
         common::confchange_request::ConfChangeRequest, server_request_message::ServerRequestMsg,
     },
@@ -33,6 +33,12 @@ use crate::{
     },
     AbstractLogEntry, AbstractStateMachine,
 };
+
+#[cfg(feature = "inspection_api")]
+use crate::raft_service::inspection_service::raft_inspection_service_server::RaftInspectionService;
+
+#[cfg(feature = "manipulation_api")]
+use crate::raft_service::manipulation_service::raft_manipulation_service_server::RaftManipulationService;
 
 #[derive(Clone)]
 pub struct RaftServer<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
@@ -409,5 +415,362 @@ impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + 'static> 
             ServerResponseMsg::CreateSnapshot {} => Ok(Response::new(raft_service::Empty {})),
             _ => unreachable!(),
         }
+    }
+}
+
+#[cfg(feature = "manipulation_api")]
+#[tonic::async_trait]
+impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + 'static>
+    RaftManipulationService for RaftServer<LogEntry, FSM>
+{
+    async fn become_follower(
+        &self,
+        request: tonic::Request<raft_service::manipulation_service::Empty>,
+    ) -> std::result::Result<
+        tonic::Response<raft_service::manipulation_service::Empty>,
+        tonic::Status,
+    > {
+        todo!()
+    }
+
+    async fn become_leader(
+        &self,
+        request: tonic::Request<raft_service::manipulation_service::Empty>,
+    ) -> std::result::Result<
+        tonic::Response<raft_service::manipulation_service::Empty>,
+        tonic::Status,
+    > {
+        todo!()
+    }
+
+    async fn become_candidate(
+        &self,
+        request: tonic::Request<raft_service::manipulation_service::Empty>,
+    ) -> std::result::Result<
+        tonic::Response<raft_service::manipulation_service::Empty>,
+        tonic::Status,
+    > {
+        todo!()
+    }
+
+    async fn become_pre_candidate(
+        &self,
+        request: tonic::Request<raft_service::manipulation_service::Empty>,
+    ) -> std::result::Result<
+        tonic::Response<raft_service::manipulation_service::Empty>,
+        tonic::Status,
+    > {
+        todo!()
+    }
+
+    async fn request_snapshot(
+        &self,
+        request: tonic::Request<raft_service::manipulation_service::Empty>,
+    ) -> std::result::Result<
+        tonic::Response<raft_service::manipulation_service::Empty>,
+        tonic::Status,
+    > {
+        todo!()
+    }
+
+    async fn create_snapshot(
+        &self,
+        request: tonic::Request<raft_service::manipulation_service::Empty>,
+    ) -> std::result::Result<
+        tonic::Response<raft_service::manipulation_service::Empty>,
+        tonic::Status,
+    > {
+        todo!()
+    }
+
+    async fn is_promotable(
+        &self,
+        request: tonic::Request<raft_service::manipulation_service::Empty>,
+    ) -> std::result::Result<
+        tonic::Response<raft_service::manipulation_service::Empty>,
+        tonic::Status,
+    > {
+        todo!()
+    }
+
+    async fn check_quorum_active(
+        &self,
+        request: tonic::Request<raft_service::manipulation_service::Empty>,
+    ) -> std::result::Result<
+        tonic::Response<raft_service::manipulation_service::Empty>,
+        tonic::Status,
+    > {
+        todo!()
+    }
+
+    async fn send_timeout_now(
+        &self,
+        request: tonic::Request<raft_service::manipulation_service::Empty>,
+    ) -> std::result::Result<
+        tonic::Response<raft_service::manipulation_service::Empty>,
+        tonic::Status,
+    > {
+        todo!()
+    }
+
+    async fn reset(
+        &self,
+        request: tonic::Request<raft_service::manipulation_service::Empty>,
+    ) -> std::result::Result<
+        tonic::Response<raft_service::manipulation_service::Empty>,
+        tonic::Status,
+    > {
+        todo!()
+    }
+
+    async fn campaign(
+        &self,
+        request: Request<raft_service::manipulation_service::Empty>,
+    ) -> Result<Response<raft_service::manipulation_service::Empty>, Status> {
+        todo!()
+    }
+
+    async fn transfer_leader(
+        &self,
+        request: Request<raft_service::manipulation_service::Empty>,
+    ) -> Result<Response<raft_service::manipulation_service::Empty>, Status> {
+        todo!()
+    }
+
+    async fn abort_transfer_leader(
+        &self,
+        request: Request<raft_service::manipulation_service::Empty>,
+    ) -> Result<Response<raft_service::manipulation_service::Empty>, Status> {
+        todo!()
+    }
+
+    async fn ping(
+        &self,
+        request: Request<raft_service::manipulation_service::Empty>,
+    ) -> Result<Response<raft_service::manipulation_service::Empty>, Status> {
+        todo!()
+    }
+}
+
+#[cfg(feature = "inspection_api")]
+#[tonic::async_trait]
+impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + 'static>
+    RaftInspectionService for RaftServer<LogEntry, FSM>
+{
+    async fn get_pending_conf_change(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_snapshot_report(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_peers(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_progress_matched(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_progress_next_idx(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_progress_paused(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_progress_pending_snapshot(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_progress_pending_request_snapshot(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_progress_recent_active(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_progress_commit_group_id(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    // Implement the remaining missing trait items here
+    async fn get_progress_inflights(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_progress_state(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_node_id(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_leader_id(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_term(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_hard_state_term(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_hard_state_vote(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_hard_state_commit(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_conf_state_voters(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_conf_state_learners(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_conf_state_voters_outgoing(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_conf_state_learners_next(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_conf_state_snapshot(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_conf_state_last_index(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_raft_log_committed(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_raft_log_applied(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
+    }
+
+    async fn get_raft_log_persisted(
+        &self,
+        request: tonic::Request<raft_service::inspection_service::Empty>,
+    ) -> std::result::Result<tonic::Response<raft_service::inspection_service::Empty>, tonic::Status>
+    {
+        todo!()
     }
 }
