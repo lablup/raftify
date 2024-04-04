@@ -153,7 +153,7 @@ impl AbstractStateMachine for PyFSM {
                     .unwrap(),),
             )?;
 
-            let task_local = TaskLocals::new(event_loop);
+            let task_local = TaskLocals::new(event_loop).copy_context(py)?;
             pyo3_asyncio::into_future_with_locals(&task_local, awaitable)
         })
         .unwrap();
@@ -184,7 +184,7 @@ impl AbstractStateMachine for PyFSM {
                     .unwrap(),),
             )?;
 
-            let task_local = TaskLocals::new(event_loop);
+            let task_local = TaskLocals::new(event_loop).copy_context(py)?;
             pyo3_asyncio::into_future_with_locals(&task_local, awaitable)
         })
         .unwrap();
@@ -215,7 +215,7 @@ impl AbstractStateMachine for PyFSM {
                     .unwrap(),),
             )?;
 
-            let task_local = TaskLocals::new(event_loop);
+            let task_local = TaskLocals::new(event_loop).copy_context(py)?;
             pyo3_asyncio::into_future_with_locals(&task_local, awaitable)
         })
         .unwrap();
