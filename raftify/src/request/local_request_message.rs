@@ -87,4 +87,7 @@ pub enum LocalRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> 
         tx_msg: Sender<LocalResponseMsg<LogEntry, FSM>>,
     },
     LeaveJoint {},
+    GetRawNode {
+        tx_msg: Sender<LocalResponseMsg<LogEntry, FSM>>,
+    },
 }

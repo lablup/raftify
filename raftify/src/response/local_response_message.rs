@@ -1,4 +1,7 @@
-use std::{fmt, marker::PhantomData};
+use std::{fmt, marker::PhantomData, sync::Arc};
+
+use jopemachine_raft::RawNode;
+use tokio::sync::Mutex;
 
 use crate::{AbstractLogEntry, AbstractStateMachine, HeedStorage, Peers};
 
@@ -8,15 +11,32 @@ use super::{
 };
 
 pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
-    IsLeader { is_leader: bool },
-    GetId { id: u64 },
-    GetLeaderId { leader_id: u64 },
-    GetPeers { peers: Peers },
+    IsLeader {
+        is_leader: bool,
+    },
+    GetId {
+        id: u64,
+    },
+    GetLeaderId {
+        leader_id: u64,
+    },
+    GetPeers {
+        peers: Peers,
+    },
     AddPeer {},
     AddPeers {},
-    GetStateMachine { store: FSM },
-    GetStorage { storage: HeedStorage },
-    GetClusterSize { size: usize },
+    GetStateMachine {
+        store: FSM,
+    },
+    GetStorage {
+        storage: HeedStorage,
+    },
+    GetClusterSize {
+        size: usize,
+    },
+    GetRawNode {
+        raw_node: Arc<Mutex<&'static RawNode<HeedStorage>>>,
+    },
     Quit {},
     Campaign {},
     MakeSnapshot {},
@@ -25,12 +45,18 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
     Demote {},
     // LeaveJoint {},
     TransferLeader {},
-    DebugNode { result_json: String },
+    DebugNode {
+        result_json: String,
+    },
     _Phantom(PhantomData<LogEntry>),
 
     // Rerouting available
-    Propose { result: ResponseResult },
-    ConfigChange { result: ConfChangeResponseResult },
+    Propose {
+        result: ResponseResult,
+    },
+    ConfigChange {
+        result: ConfChangeResponseResult,
+    },
 }
 
 impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> fmt::Debug

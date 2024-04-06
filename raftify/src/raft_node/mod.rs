@@ -448,6 +448,20 @@ impl<
         }
     }
 
+    pub async unsafe fn get_raw_node(&self) -> Arc<Mutex<&'static RawNode<HeedStorage>>> {
+        let (tx, rx) = oneshot::channel();
+        self.tx_local
+            .send(LocalRequestMsg::GetRawNode { tx_msg: tx })
+            .await
+            .unwrap();
+        let resp = rx.await.unwrap();
+
+        match resp {
+            LocalResponseMsg::GetRawNode { raw_node } => raw_node,
+            _ => unreachable!(),
+        }
+    }
+
     pub(crate) async fn run(self) -> Result<()> {
         self.inner
             .lock()
@@ -1128,6 +1142,15 @@ impl<
                 let size = self.raw_node.raft.prs().iter().collect::<Vec<_>>().len();
                 tx_msg
                     .send(LocalResponseMsg::GetClusterSize { size })
+                    .unwrap();
+            }
+            LocalRequestMsg::GetRawNode { tx_msg } => {
+                tx_msg
+                    .send(LocalResponseMsg::GetRawNode {
+                        raw_node: Arc::new(Mutex::new(unsafe {
+                            std::mem::transmute(&self.raw_node)
+                        })),
+                    })
                     .unwrap();
             }
             LocalRequestMsg::Quit { tx_msg } => {

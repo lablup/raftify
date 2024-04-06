@@ -1,6 +1,4 @@
-use raftify::{
-    create_client, raft_service, AbstractLogEntry
-};
+use raftify::{create_client, raft_service, AbstractLogEntry};
 
 use memstore_example_harness::state_machine::LogEntry;
 
@@ -32,7 +30,12 @@ async fn main() {
     println!("Peers: {:?}", peers.into_inner().peers_json);
 
     println!("---Debug node result---");
-    let result = leader_client.debug_node(raft_service::Empty {}).await.unwrap().into_inner().result_json;
+    let result = leader_client
+        .debug_node(raft_service::Empty {})
+        .await
+        .unwrap()
+        .into_inner()
+        .result_json;
 
     println!("Debug node result: {:?}", result);
 
@@ -68,5 +71,4 @@ async fn main() {
     //         },
     //     ],
     // }).await.expect("Change config failed!");
-
 }
