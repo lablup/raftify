@@ -13,4 +13,7 @@ layout {
         }
         pane name="Terminal" focus=true
     }
+    pane split_direction="vertical" size="2%" borderless=true {
+        plugin location="zellij:status-bar"
+    }
 }
