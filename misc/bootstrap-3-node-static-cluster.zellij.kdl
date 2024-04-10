@@ -1,0 +1,16 @@
+layout {
+    pane split_direction="vertical" {
+        pane command="fish" {
+            args "-c" "./target/debug/memstore-static-members --raft-addr=127.0.0.1:60061 --web-server=127.0.0.1:8001"
+        }
+        pane command="fish" {
+            args "-c" "./target/debug/memstore-static-members --raft-addr=127.0.0.1:60062 --web-server=127.0.0.1:8002"
+        }
+    }
+    pane split_direction="vertical" {
+        pane command="fish" {
+            args "-c" "./target/debug/memstore-static-members --raft-addr=127.0.0.1:60063 --web-server=127.0.0.1:8003"
+        }
+        pane focus=true
+    }
+}
