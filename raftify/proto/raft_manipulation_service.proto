@@ -1,0 +1,26 @@
+syntax = "proto3";
+package raft_manipulation_service;
+
+import "eraftpb.proto";
+
+// TODO: Implement each methods
+service RaftManipulationService {
+  rpc Campaign(Empty) returns (Empty) {}
+  rpc TransferLeader(Empty) returns (Empty) {}
+  rpc AbortTransferLeader(Empty) returns (Empty) {}
+  rpc Ping(Empty) returns (Empty) {}
+  rpc BecomeFollower(Empty) returns (Empty) {}
+  rpc BecomeLeader(Empty) returns (Empty) {}
+  rpc BecomeCandidate(Empty) returns (Empty) {}
+  rpc BecomePreCandidate(Empty) returns (Empty) {}
+  rpc RequestSnapshot(Empty) returns (Empty) {}
+  rpc CreateSnapshot(Empty) returns (Empty) {}
+  rpc IsPromotable(Empty) returns (Empty) {}
+  rpc CheckQuorumActive(Empty) returns (Empty) {}
+  rpc SendTimeoutNow(Empty) returns (Empty) {}
+  rpc Reset(Empty) returns (Empty) {}
+}
+
+// Common
+
+message Empty {}

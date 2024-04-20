@@ -1,0 +1,48 @@
+syntax = "proto3";
+package raft_inspection_service;
+
+import "eraftpb.proto";
+
+// TODO: Implement each methods
+service RaftInspectionService {
+  rpc GetPendingConfChange(Empty) returns (Empty) {}
+  rpc GetSnapshotReport(Empty) returns (Empty) {}
+  rpc GetPeers(Empty) returns (Empty) {}
+
+  // Progress
+  rpc GetProgressMatched(Empty) returns (Empty) {}
+  rpc GetProgressNextIdx(Empty) returns (Empty) {}
+  rpc GetProgressPaused(Empty) returns (Empty) {}
+  rpc GetProgressPendingSnapshot(Empty) returns (Empty) {}
+  rpc GetProgressPendingRequestSnapshot(Empty) returns (Empty) {}
+  rpc GetProgressRecentActive(Empty) returns (Empty) {}
+  rpc GetProgressCommitGroupId(Empty) returns (Empty) {}
+  rpc GetProgressInflights(Empty) returns (Empty) {}
+  rpc GetProgressState(Empty) returns (Empty) {}
+
+  rpc GetNodeId(Empty) returns (Empty) {}
+  rpc GetLeaderId(Empty) returns (Empty) {}
+  rpc GetTerm(Empty) returns (Empty) {}
+
+  // HardState
+  rpc GetHardStateTerm(Empty) returns (Empty) {}
+  rpc GetHardStateVote(Empty) returns (Empty) {}
+  rpc GetHardStateCommit(Empty) returns (Empty) {}
+
+  // ConfState
+  rpc GetConfStateVoters(Empty) returns (Empty) {}
+  rpc GetConfStateLearners(Empty) returns (Empty) {}
+  rpc GetConfStateVotersOutgoing(Empty) returns (Empty) {}
+  rpc GetConfStateLearnersNext(Empty) returns (Empty) {}
+  rpc GetConfStateSnapshot(Empty) returns (Empty) {}
+  rpc GetConfStateLastIndex(Empty) returns (Empty) {}
+
+  // RaftLog
+  rpc GetRaftLogCommitted(Empty) returns (Empty) {}
+  rpc GetRaftLogApplied(Empty) returns (Empty) {}
+  rpc GetRaftLogPersisted(Empty) returns (Empty) {}
+}
+
+// Common
+
+message Empty {}
