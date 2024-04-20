@@ -10,7 +10,7 @@ use heed::{
 };
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use prost::Message as PMessage;
-use raft::{logger::Logger, util::limit_size};
+use raft::{logger::Logger, util::limit_size, INVALID_INDEX};
 use std::{
     cmp::max,
     fs,
@@ -24,6 +24,7 @@ use crate::{
     config::Config,
     error::Result,
     raft::{self, prelude::*, GetEntriesContext},
+    Error,
 };
 
 #[derive(Clone)]
@@ -128,13 +129,12 @@ impl StableStorage for HeedStorage {
         let metadata = snapshot.get_metadata();
         let conf_state = metadata.get_conf_state();
 
-        // TODO: Investigate if this is necessary. It broke the static bootstrap.
-        // let first_index = store.first_index(&writer)?;
-        // if first_index > metadata.index {
-        //     return Err(Error::RaftStorageError(
-        //         raft::StorageError::SnapshotOutOfDate,
-        //     ));
-        // }
+        let first_index = store.first_index(&writer)?;
+        if metadata.index != INVALID_INDEX && first_index > metadata.index {
+            return Err(Error::RaftStorageError(
+                raft::StorageError::SnapshotOutOfDate,
+            ));
+        }
 
         let mut hard_state = store.hard_state(&writer)?;
         hard_state.set_term(max(hard_state.term, metadata.term));
@@ -938,9 +938,8 @@ mod test {
         storage.apply_snapshot(snap).unwrap();
 
         // Apply snapshot fails due to StorageError::SnapshotOutOfDate
-        // TODO: Support the below test case
-        // let snap = new_snapshot(3, 3, nodes);
-        // storage.apply_snapshot(snap).unwrap_err();
+        let snap = new_snapshot(3, 3, nodes);
+        storage.apply_snapshot(snap).unwrap_err();
 
         teardown(tempdir);
     }
