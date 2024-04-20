@@ -1,5 +1,6 @@
 mod codec;
 mod constant;
+pub mod utils;
 
 use bincode::{deserialize, serialize};
 use constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_KEY};

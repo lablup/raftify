@@ -51,8 +51,9 @@ use crate::{
         ResponseMessage,
     },
     storage::{
-        heed_storage::HeedStorage,
-        utils::{clear_storage_path, ensure_directory_exist, get_data_mdb_path, get_storage_path},
+        heed_storage::{utils::{get_data_mdb_path, get_storage_path}, HeedStorage},
+        inmemory_storage::MemStorage,
+        utils::{clear_storage_path, ensure_directory_exist},
     },
     utils::{membership::to_confchange_v2, oneshot_mutex::OneShotMutex},
     AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket, Config, Error, InitialRole, Peers,
@@ -478,7 +479,10 @@ pub struct RaftNodeCore<
     LogEntry: AbstractLogEntry + Send + 'static,
     FSM: AbstractStateMachine + Clone + 'static,
 > {
+    #[cfg(feature = "heed_storage")]
     pub raw_node: RawNode<HeedStorage>,
+    #[cfg(feature = "inmemory_storage")]
+    pub raw_node: RawNode<MemStorage>,
     pub fsm: FSM,
     pub peers: Arc<Mutex<Peers>>,
     response_seq: AtomicU64,
@@ -531,8 +535,14 @@ impl<
             ensure_directory_exist(storage_pth.as_str())?;
         };
 
+        #[cfg(feature = "heed_storage")]
         let mut storage = HeedStorage::create(storage_pth.as_str(), &config, logger.clone())?;
+
+        #[cfg(feature = "inmemory_storage")]
+        let mut storage = MemStorage::create();
+
         let mut snapshot = storage.snapshot(0, storage.last_index()?)?;
+
         let conf_state = snapshot.mut_metadata().mut_conf_state();
 
         let peers = config
@@ -1120,6 +1130,7 @@ impl<
                     .unwrap();
             }
             LocalRequestMsg::GetStorage { tx_msg } => {
+                #[cfg(feature = "heed_storage")]
                 tx_msg
                     .send(LocalResponseMsg::GetStorage {
                         storage: self.raw_node.store().clone(),
