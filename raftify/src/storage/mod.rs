@@ -1,4 +1,5 @@
 pub mod heed_storage;
+pub mod inmemory_storage;
 pub mod utils;
 
 use crate::{
