@@ -4,6 +4,7 @@ use crate::{
         self,
         eraftpb::{ConfState, Entry, HardState, Snapshot},
         storage::{MemStorage as MemStorageCore, Storage},
+        INVALID_INDEX,
     },
     StableStorage,
 };
@@ -71,6 +72,14 @@ impl StableStorage for MemStorage {
 
     fn apply_snapshot(&mut self, snapshot: Snapshot) -> Result<()> {
         let mut store = self.core.wl();
+
+        // Pass apply snapshot if the snapshot is empty
+        if snapshot.get_metadata().get_index() == INVALID_INDEX {
+            // Update conf states.
+            store.set_conf_state(snapshot.get_metadata().clone().take_conf_state());
+            return Ok(());
+        }
+
         store.apply_snapshot(snapshot)?;
         Ok(())
     }

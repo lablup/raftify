@@ -51,7 +51,10 @@ use crate::{
         ResponseMessage,
     },
     storage::{
-        heed_storage::{utils::{get_data_mdb_path, get_storage_path}, HeedStorage},
+        heed_storage::{
+            utils::{get_data_mdb_path, get_storage_path},
+            HeedStorage,
+        },
         inmemory_storage::MemStorage,
         utils::{clear_storage_path, ensure_directory_exist},
     },
