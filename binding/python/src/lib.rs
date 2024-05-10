@@ -36,42 +36,7 @@ fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bindings::cli::cli_main, m)?)?;
 
     m.add_function(wrap_pyfunction!(
-        bindings::state_machine::set_log_entry_deserializer,
-        m
-    )?)?;
-
-    m.add_function(wrap_pyfunction!(
-        bindings::state_machine::set_fsm_deserializer,
-        m
-    )?)?;
-
-    m.add_function(wrap_pyfunction!(
-        bindings::formatter::set_confchange_context_deserializer,
-        m
-    )?)?;
-
-    m.add_function(wrap_pyfunction!(
-        bindings::formatter::set_confchangev2_context_deserializer,
-        m
-    )?)?;
-
-    m.add_function(wrap_pyfunction!(
-        bindings::formatter::set_entry_context_deserializer,
-        m
-    )?)?;
-
-    m.add_function(wrap_pyfunction!(
-        bindings::formatter::set_entry_data_deserializer,
-        m
-    )?)?;
-
-    m.add_function(wrap_pyfunction!(
-        bindings::formatter::set_message_context_deserializer,
-        m
-    )?)?;
-
-    m.add_function(wrap_pyfunction!(
-        bindings::formatter::set_snapshot_data_deserializer,
+        bindings::formatter::set_custom_formatters,
         m
     )?)?;
 
