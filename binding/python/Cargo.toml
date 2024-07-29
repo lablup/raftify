@@ -1,6 +1,6 @@
 [package]
 name = "raftify-py"
-version = "0.1.65"
+version = "0.1.66"
 authors = ["Lablup Inc."]
 license = "Apache-2.0"
 repository = "https://github.com/lablup/raftify"
@@ -14,12 +14,12 @@ categories = ["distributed-systems", "database-implementations"]
 edition = "2021"
 
 [dependencies]
-pyo3 = { version = "0.20.2", features = ["extension-module", "multiple-pymethods"] }
+pyo3 = { version = "0.20.3", features = ["extension-module", "multiple-pymethods"] }
 pyo3-asyncio = { version = "0.20.0", features = ["tokio-runtime"] }
 pythonize = "0.20.0"
 tokio = { version = "1.4", features = ["full"] }
 async-trait = "0.1.48"
-raftify = { version = "0.1.65", default-features = false }
+raftify = { version = "0.1.66", default-features = false }
 slog = { version = "2.2", features = ["max_level_trace", "release_max_level_trace"] }
 slog-envlogger = "2.1.0"
 slog-term = "2.9.0"
