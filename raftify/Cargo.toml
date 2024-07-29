@@ -9,6 +9,11 @@ description.workspace = true
 keywords.workspace = true
 readme = "../README.md"
 
+[features]
+default = ["inspection_api", "manipulation_api"]
+inspection_api = []
+manipulation_api = []
+
 [dependencies]
 async-trait = "0.1.48"
 bincode = "1.3"
