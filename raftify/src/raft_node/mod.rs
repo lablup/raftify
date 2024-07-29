@@ -283,7 +283,7 @@ impl<
                 ConfChangeResponseResult::WrongLeader { leader_addr, .. } => {
                     let mut client = create_client(leader_addr).await.unwrap();
 
-                    let conf_change: ConfChangeRequest = conf_change.into();
+                    let conf_change: ConfChangeRequest = conf_change;
                     let conf_change: raft_service::ChangeConfigArgs = conf_change.into();
                     let res = client.change_config(conf_change).await.unwrap();
 
@@ -448,6 +448,8 @@ impl<
         }
     }
 
+    /// # Safety
+    /// TODO: Write this.
     pub async unsafe fn get_raw_node(&self) -> Arc<Mutex<&'static RawNode<HeedStorage>>> {
         let (tx, rx) = oneshot::channel();
         self.tx_local
@@ -857,7 +859,7 @@ impl<
                     ));
                     self.peers.lock().await.add_peer(
                         node_id,
-                        &addr.to_string(),
+                        addr.to_string(),
                         Some(InitialRole::Voter),
                     );
                 }
@@ -869,7 +871,7 @@ impl<
                     ));
                     self.peers.lock().await.add_peer(
                         node_id,
-                        &addr.to_string(),
+                        addr.to_string(),
                         Some(InitialRole::Learner),
                     );
                 }
@@ -1390,7 +1392,7 @@ impl<
     async fn on_ready(&mut self) -> Result<()> {
         // TODO: Improve this logic.
         // I'd like to move this logic into RaftNodeCore::bootstrap, but it's currently not possible because it is not async.
-        if let Some(_) = self.config.restore_wal_snapshot_from {
+        if self.config.restore_wal_snapshot_from.is_some() {
             self.logger.info("Restoring state machine from snapshot...");
             let store = self.raw_node.store();
             let snap = store.snapshot(0, store.last_index()?)?;

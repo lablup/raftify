@@ -280,10 +280,12 @@ pub struct HeedStorageCore {
 
 impl HeedStorageCore {
     pub fn create(log_dir_path: PathBuf, config: &Config, logger: Arc<dyn Logger>) -> Result<Self> {
-        let env = heed::EnvOpenOptions::new()
-            .map_size(config.lmdb_map_size as usize)
-            .max_dbs(3000)
-            .open(log_dir_path)?;
+        let env = unsafe {
+            heed::EnvOpenOptions::new()
+                .map_size(config.lmdb_map_size as usize)
+                .max_dbs(3000)
+                .open(log_dir_path)?
+        };
 
         let mut writer = env.write_txn()?;
 
