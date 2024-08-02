@@ -107,25 +107,59 @@ pub async fn wait_for_until_cluster_size_decrease(raft: Raft, target: usize) {
 
 pub fn kill_process_using_port(port: u16) {
     let port_str = port.to_string();
+    #[cfg(target_os = "windows")]
+    {
+        let output = Command::new("netstat")
+            .arg("-ano")
+            .output()
+            .expect("Failed to execute netstat command");
 
-    let output = Command::new("lsof")
-        .arg("-i")
-        .arg(format!(":{}", port_str))
-        .arg("-t")
-        .output()
-        .expect("Failed to execute lsof command");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut pid = String::new();
 
-    let pid = str::from_utf8(&output.stdout).unwrap().trim();
+        for line in stdout.lines() {
+            if line.contains(&port_str) {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if let Some(pid_part) = parts.last() {
+                    pid = pid_part.to_string();
+                    break;
+                }
+            }
+        }
 
-    if pid.is_empty() {
-        return;
+        if pid.is_empty() {
+            return;
+        }
+
+        Command::new("taskkill")
+            .arg("/PID")
+            .arg(&pid)
+            .arg("/F")
+            .output()
+            .expect("Failed to execute taskkill command");
     }
 
-    Command::new("kill")
-        .arg("-9")
-        .arg(pid)
-        .output()
-        .expect("Failed to execute kill command");
+    #[cfg(not(target_os = "windows"))]
+    {
+        let output = Command::new("lsof")
+            .arg("-i")
+            .arg(format!(":{}", port_str))
+            .arg("-t")
+            .output()
+            .expect("Failed to execute lsof command");
+
+        let pid = str::from_utf8(&output.stdout).unwrap().trim();
+
+        if pid.is_empty() {
+            return;
+        }
+
+        Command::new("kill")
+            .arg("-9")
+            .arg(pid)
+            .output()
+            .expect("Failed to execute kill command");
+    }
 }
 
 pub fn kill_previous_raft_processes() {
