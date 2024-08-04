@@ -1,28 +1,14 @@
 use async_trait::async_trait;
-use once_cell::sync::Lazy;
 use pyo3::{prelude::*, types::PyBytes};
 use pyo3_asyncio::TaskLocals;
 use raftify::{AbstractLogEntry, AbstractStateMachine, Error, Result};
-use std::{fmt, sync::Mutex};
+use std::fmt;
 
+use super::formatter::{ENTRY_FSM_DESERIALIZE_CB, ENTRY_LOG_ENTRY_DESERIALIZE_CB};
 use super::{
     errors::{ApplyError, RestoreError, SnapshotError},
     utils::get_python_repr,
 };
-
-pub static ENTRY_LOG_ENTRY_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> =
-    Lazy::new(|| Mutex::new(None));
-pub static ENTRY_FSM_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> = Lazy::new(|| Mutex::new(None));
-
-#[pyfunction]
-pub fn set_log_entry_deserializer(cb: PyObject) {
-    *ENTRY_LOG_ENTRY_DESERIALIZE_CB.lock().unwrap() = Some(cb);
-}
-
-#[pyfunction]
-pub fn set_fsm_deserializer(cb: PyObject) {
-    *ENTRY_FSM_DESERIALIZE_CB.lock().unwrap() = Some(cb);
-}
 
 #[derive(Clone)]
 #[pyclass]
