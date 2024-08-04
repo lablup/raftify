@@ -8,6 +8,7 @@ pub fn build_config() -> Config {
     };
 
     Config {
+        tick_interval: 0.2,
         log_dir: "./logs".to_owned(),
         save_compacted_logs: true,
         compacted_log_dir: "./logs".to_owned(),
