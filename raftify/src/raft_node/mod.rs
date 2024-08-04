@@ -704,10 +704,9 @@ impl<
 
         if let Err(e) = ok {
             logger.debug(&format!("Error occurred while sending message: {}", e));
-            tx_self
+            let _ = tx_self
                 .send(SelfMessage::ReportUnreachable { node_id })
-                .await
-                .unwrap();
+                .await;
         }
     }
 
@@ -878,8 +877,6 @@ impl<
                 ConfChangeType::RemoveNode => {
                     if node_id == self.get_id() {
                         self.should_exit = true;
-                        self.logger
-                            .info(&format!("Node {} quit the cluster.", node_id));
                     } else {
                         self.logger
                             .info(&format!("Node {} removed from the cluster.", node_id));
@@ -1209,7 +1206,7 @@ impl<
                     self.raw_node.raft.id,
                     format_message(&message)
                 ));
-                self.raw_node.step(*message)?;
+                let _ = self.raw_node.step(*message);
                 tx_msg.send(LocalResponseMsg::SendMessage {}).unwrap();
             }
             LocalRequestMsg::LeaveJoint {} => {
@@ -1255,7 +1252,7 @@ impl<
                     message.from,
                     format_message(&message)
                 ));
-                self.raw_node.step(*message)?
+                let _ = self.raw_node.step(*message);
             }
             ServerRequestMsg::Propose { proposal, tx_msg } => {
                 self.handle_propose_request(proposal, ResponseSender::Server(tx_msg))
