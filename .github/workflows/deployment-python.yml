@@ -2,13 +2,12 @@ name: PyPI Deployment
 
 on:
   push:
-  pull_request:
-  merge_group:
+    tags:
+      - "*"
 
 jobs:
   release-linux-x86_64:
-    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
@@ -18,7 +17,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12"]
     steps:
       - name: Checkout the source tree
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build the wheel
         uses: PyO3/maturin-action@v1
         env:
@@ -34,14 +33,13 @@ jobs:
           manylinux: ${{ matrix.manylinux }}
           target: ${{ matrix.target }}
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-x86_64
           path: binding/python/dist
 
   release-linux-aarch64:
-    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04-arm64
     strategy:
       fail-fast: false
       matrix:
@@ -49,10 +47,8 @@ jobs:
         manylinux: ["manylinux2014"]
         python-version: ["3.10", "3.11", "3.12"]
     steps:
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v1
       - name: Checkout the source tree
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build the wheel
         uses: PyO3/maturin-action@v1
         env:
@@ -69,21 +65,20 @@ jobs:
           manylinux: ${{ matrix.manylinux }}
           target: ${{ matrix.target }}
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-aarch64
           path: binding/python/dist
 
   release-macos:
-    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
-    runs-on: macos-latest
+    runs-on: macos-14
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
     steps:
       - name: Checkout the source tree
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install prerequisites
         run: |
           brew install protobuf
@@ -93,19 +88,19 @@ jobs:
           command: build
           args: --release -m binding/python/Cargo.toml -o dist -i python${{ matrix.python-version }}
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-macos
           path: binding/python/dist
 
   release-source:
     if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout the source tree
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Python as Runtime
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - name: Build the source distribution
@@ -113,29 +108,26 @@ jobs:
         run: |
           pip install -U pip setuptools
           pip install -U build
-          python -m build --sdist
+          python -m build --sdist binding/python
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-source
           path: binding/python/dist
 
   publish-to-pypi:
     needs: [release-linux-x86_64, release-linux-aarch64, release-macos, release-source]
-    environment: deploy-to-pypi
+    environment:
+      name: deploy-to-pypi
+      url: https://pypi.org/p/raftify
     permissions:
       id-token: write
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: wheels
-          path: binding/python/dist
+          pattern: wheels-*
+          path: dist
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: jopemachine
-          oidc: false
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          repository-url: https://pypi.org/project/raftify/
