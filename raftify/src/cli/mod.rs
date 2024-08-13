@@ -15,11 +15,7 @@ use crate::{
     AbstractLogEntry, AbstractStateMachine, CustomFormatter, Result,
 };
 
-/// It used nested subcommands struct, using clap 
-/// [`Commands`] -> represent functions
-/// [`DebugSubcommands`], [`Dump`] -> these parse additional factors for commands to use.
-/// if you enter the command like `raftify-cli debug persisted-all ./logs`
-/// it's expected [`App::command`] is debug, [`DebugSubcommands::PersistedAll::path`] is./logs
+/// CLI parser 
 #[derive(Parser)]
 #[command(name = "raftify")]
 #[command(version = PKG_VERSION)]
@@ -39,8 +35,6 @@ enum Commands {
     Debug(DebugSubcommands),
     /// Dump tools
     Dump(Dump),
-    /// plz, list the following functions
-    Nan,
 }
 
 #[derive(Subcommand)]
@@ -55,7 +49,7 @@ enum DebugSubcommands {
         /// The log directory path
         path: String,
     },
-    ///List all log entries
+    /// List all log entries
     Entries {
         /// The address of the RaftNode
         address: String,
@@ -79,10 +73,14 @@ pub async fn cli_handler<
     LogEntry: AbstractLogEntry + Debug + Send + 'static,
     FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
 >(
-    _custom_args: Option<Vec<String>>,
+    args: Option<Vec<String>>,
 ) -> Result<()> {
-    // using env::args without '_custom_args'
-    let app = App::parse();
+    let app: App = match args{
+        // using python side
+        Some(args) => App::parse_from(args),
+        // using env::args          
+        None => App::parse(),
+    };
     let logger = default_logger();
     set_custom_formatter(CustomFormatter::<LogEntry, FSM>::new());
 
@@ -107,9 +105,6 @@ pub async fn cli_handler<
                 parse_peers_json(x.peers.as_str()).unwrap(),
                 logger.clone(),
             )?;
-        }
-        _ => {
-            panic!("Command is not exist~");
         }
     }
 
