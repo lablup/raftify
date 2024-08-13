@@ -15,19 +15,16 @@ use crate::{
     AbstractLogEntry, AbstractStateMachine, CustomFormatter, Result,
 };
 
-/// CLI parser 
 #[derive(Parser)]
 #[command(name = "raftify")]
 #[command(version = PKG_VERSION)]
 #[command(author = PKG_AUTHORS)]
 #[command(about = PKG_DESCRIPTION)]
 struct App {
-    /// required main commands
     #[command(subcommand)]
     command: Commands,
 }
 
-// Subcommand Select
 #[derive(Subcommand)]
 enum Commands {
     /// Debug tools
@@ -75,10 +72,8 @@ pub async fn cli_handler<
 >(
     args: Option<Vec<String>>,
 ) -> Result<()> {
-    let app: App = match args{
-        // using python side
+    let app: App = match args {
         Some(args) => App::parse_from(args),
-        // using env::args          
         None => App::parse(),
     };
     let logger = default_logger();
