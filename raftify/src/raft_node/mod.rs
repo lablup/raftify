@@ -16,6 +16,7 @@ use std::{
     },
     time::{Duration, Instant},
 };
+use jopemachine_raft::eraftpb::MessageType;
 use tokio::{
     sync::{mpsc, oneshot, Mutex},
     time::timeout,
@@ -1246,12 +1247,17 @@ impl<
                     .await?;
             }
             ServerRequestMsg::SendMessage { message } => {
-                self.logger.debug(&format!(
-                    ">>> Node {} received Raft message from the node {}, {}",
-                    self.raw_node.raft.id,
-                    message.from,
-                    format_message(&message)
-                ));
+                let is_heartbeat_message = message.get_msg_type() == MessageType::MsgHeartbeat
+                    || message.get_msg_type() == MessageType::MsgHeartbeatResponse;
+
+                if !is_heartbeat_message || !self.config.omit_heartbeat_log {
+                    self.logger.debug(&format!(
+                        ">>> Node {} received Raft message from the node {}, {}",
+                        self.raw_node.raft.id,
+                        message.from,
+                        format_message(&message)
+                    ));
+                }
                 let _ = self.raw_node.step(*message);
             }
             ServerRequestMsg::Propose { proposal, tx_msg } => {

@@ -1,23 +1,27 @@
 #!/bin/bash
 
 if [ -z "$1" ]; then
-	echo "Usage: $0 <number-of-panels>"
+	echo "Usage: $0 <number-of-panels> [--omit-heartbeat-log]"
 	exit 1
 fi
 
 N=$1
+OMIT_HEARTBEAT_LOG="false"
+if [ "$2" == "--omit-heartbeat-log" ]; then
+    OMIT_HEARTBEAT_LOG="true"
+fi
 
 PANEL_NUM=1
 
 bootstrap() {
-	tmux send-keys "./target/debug/memstore-dynamic-members --raft-addr=127.0.0.1:60061 --web-server=127.0.0.1:8001" C-m
+	tmux send-keys "./target/debug/memstore-dynamic-members --raft-addr=127.0.0.1:60061 --web-server=127.0.0.1:8001 --omit-heartbeat-log=${OMIT_HEARTBEAT_LOG}" C-m
 }
 
 join_cluster() {
 	if [ $PANEL_NUM -ne $N ]
 	then
 		sleep 0.5
-		tmux send-keys "sleep 2; ./target/debug/memstore-dynamic-members --raft-addr=127.0.0.1:6006${PANEL_NUM} --web-server=127.0.0.1:800${PANEL_NUM} --peer-addr=127.0.0.1:60061" C-m
+		tmux send-keys "sleep 2; ./target/debug/memstore-dynamic-members --raft-addr=127.0.0.1:6006${PANEL_NUM} --web-server=127.0.0.1:800${PANEL_NUM} --peer-addr=127.0.0.1:60061 --omit-heartbeat-log=${OMIT_HEARTBEAT_LOG}" C-m
 	fi
 }
 
