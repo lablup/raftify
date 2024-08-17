@@ -35,7 +35,7 @@ pub use crate::{
     peer::Peer,
     peers::Peers,
     raft_bootstrapper::Raft,
-    raft_client::create_client,
+    raft_client::{create_client, create_client_with_ssl},
     raft_node::{role::InitialRole, RaftNode},
     raft_service::raft_service_client::RaftServiceClient,
     request::common::confchange_request::ConfChangeRequest,

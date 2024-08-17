@@ -1,4 +1,4 @@
-use raftify::{create_client, raft_service, AbstractLogEntry};
+use raftify::{create_client, create_client_with_ssl, raft_service, AbstractLogEntry};
 
 use memstore_example_harness::state_machine::LogEntry;
 
@@ -8,6 +8,7 @@ use memstore_example_harness::state_machine::LogEntry;
 async fn main() {
     println!("---Message propose---");
     let mut leader_client = create_client(&"127.0.0.1:60061").await.unwrap();
+    let mut leader_client2 = create_client_with_ssl(&"127.0.0.1:60061").await.unwrap();
 
     leader_client
         .propose(raft_service::ProposeArgs {
@@ -37,9 +38,17 @@ async fn main() {
         .into_inner()
         .result_json;
 
+    let result2 = leader_client2
+        .debug_node(raft_service::Empty {})
+        .await
+        .unwrap()
+        .into_inner()
+        .result_json;
+
+    assert_eq!(result, result2);
     println!("Debug node result: {:?}", result);
 
-    println!("---Change config example---");
+    // println!("---Change config example---");
     // leader_client.change_config(raft_service::ChangeConfigArgs {
     //     addrs: vec![
     //         "127.0.0.1:60061".to_owned(),
