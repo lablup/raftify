@@ -55,7 +55,7 @@ impl AbstractStateMachine for HashStore {
     }
 
     async fn restore(&mut self, snapshot: Vec<u8>) -> Result<()> {
-        let new: HashMap<u64, String> = deserialize(&snapshot[..]).unwrap();
+        let new: HashMap<u64, String> = deserialize(&snapshot[..]).expect("Failed to restore state from snapshot: Snapshot data might be corrupted or incomplete");
         let mut db = self.0.write().unwrap();
         let _ = std::mem::replace(&mut *db, new);
         Ok(())
