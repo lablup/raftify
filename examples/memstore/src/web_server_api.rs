@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use actix_web::{get, web, Responder};
+use actix_web::{get, put, web, Responder};
 use raftify::{raft::Storage, AbstractLogEntry, Raft as Raft_, StableStorage};
 use serde_json::Value;
 
@@ -8,7 +8,7 @@ use super::state_machine::{HashStore, LogEntry};
 
 type Raft = Raft_<LogEntry, HashStore>;
 
-#[get("/put/{id}/{value}")]
+#[put("/{id}/{value}")]
 async fn put(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, String)>) -> impl Responder {
     let log_entry = LogEntry::Insert {
         key: path.0,
