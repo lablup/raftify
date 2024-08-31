@@ -42,7 +42,7 @@ async def get(request: web.Request) -> web.Response:
     return web.Response(text=store.get(id))
 
 
-@routes.get("/put/{id}/{value}")
+@routes.put("/{id}/{value}")
 async def put(request: web.Request) -> web.Response:
     raft: Raft = request.app["state"]["raft"]
     id, value = request.match_info["id"], request.match_info["value"]
