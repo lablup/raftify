@@ -2,11 +2,13 @@ use raftify::{InitialRole, Peers};
 use serde::Deserialize;
 use slog::{o, Drain};
 use slog_envlogger::LogBuilder;
+use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::process::Command;
 use std::str;
 use std::str::FromStr;
+use std::time::Instant;
 use std::{fs, time::Duration};
 use tokio::time::sleep;
 use toml;
@@ -126,6 +128,22 @@ pub fn kill_process_using_port(port: u16) {
         .arg(pid)
         .output()
         .expect("Failed to execute kill command");
+}
+
+pub async fn count_voter(raft: &Raft) -> usize {
+    let mut hash_set = HashSet::new();
+    let start_time = Instant::now();
+    while start_time.elapsed() < Duration::from_secs(1) {
+        raft.get_peers()
+            .await
+            .inner
+            .iter()
+            .filter(|(_, role)| role.role == InitialRole::Voter)
+            .for_each(|(id, _)| {
+                hash_set.insert(*id);
+            });
+    }
+    hash_set.len()
 }
 
 pub fn kill_previous_raft_processes() {

@@ -1,12 +1,12 @@
 use std::{sync::mpsc, time::Duration};
+use raftify::StableStorage;
 use tokio::time::{sleep, timeout};
 
 use harness::{
     constant::{FIVE_NODE_EXAMPLE, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, wait_until_rafts_ready, Raft},
     utils::{
-        kill_previous_raft_processes, load_peers, wait_for_until_cluster_size_decrease,
-        wait_for_until_cluster_size_increase,
+        count_voter, kill_previous_raft_processes, load_peers, wait_for_until_cluster_size_decrease, wait_for_until_cluster_size_increase
     },
 };
 
@@ -59,62 +59,52 @@ pub async fn test_leader_election_in_three_node_example() {
 
 // TODO: Fix this test.
 #[tokio::test]
-#[ignore]
 pub async fn test_leader_election_in_five_node_example() {
+    // GIVEN
     kill_previous_raft_processes();
 
     let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
     let peers = load_peers(FIVE_NODE_EXAMPLE).await.unwrap();
     let _raft_tasks = tokio::spawn(build_raft_cluster(tx_raft, peers.clone()));
+    let mut raft_list: Vec<u64> = vec![1, 2, 3, 4, 5];
+    let mut current_node_cnt = raft_list.len();
 
     sleep(Duration::from_secs(1)).await;
 
     let mut rafts = wait_until_rafts_ready(None, rx_raft, 5).await;
 
-    let raft_1 = rafts.get_mut(&1).unwrap();
+    // WHEN
+    for expected_term in 1..3 {
+        let leader_id = rafts.get(&raft_list[0]).unwrap().get_leader_id().await;
+        raft_list.remove(raft_list.iter().position(|x| *x == leader_id).unwrap());
+        let arbitrary_follower_id = raft_list[0];
 
-    wait_for_until_cluster_size_increase(raft_1.clone(), 5).await;
+        let follower_raft = rafts.get(&arbitrary_follower_id).unwrap().clone();
+        let leader_raft = rafts.get_mut(&leader_id).unwrap();
 
-    sleep(Duration::from_secs(1)).await;
+        leader_raft.leave().await;
+        current_node_cnt -= 1;
+        sleep(Duration::from_secs(1)).await;
 
-    raft_1.leave().await;
+        let follower_term = follower_raft
+            .raft_node
+            .storage()
+            .await
+            .hard_state()
+            .unwrap()
+            .get_term();
 
-    let raft_2 = rafts.get_mut(&2).unwrap();
+        wait_for_until_cluster_size_decrease(follower_raft.clone(), current_node_cnt).await;
 
-    wait_for_until_cluster_size_decrease(raft_2.clone(), 4).await;
-
-    sleep(Duration::from_secs(2)).await;
-
-    let leader_id = raft_2.get_leader_id().await;
-
-    assert!(
-        [2, 3, 4, 5].contains(&leader_id),
-        "Actual leader_id: {}",
-        leader_id
-    );
-
-    let leader_raft = rafts.get_mut(&leader_id).unwrap();
-    leader_raft.leave().await;
-
-    let mut remaining_nodes = vec![2, 3, 4, 5];
-    if let Some(pos) = remaining_nodes.iter().position(|&x| x == leader_id) {
-        remaining_nodes.remove(pos);
+        // THEN
+        // Term must be increased after leader election
+        assert!(leader_id != 0);
+        assert!(!raft_list.contains(&leader_id));
+        assert_eq!(follower_term, expected_term);
+        assert_eq!(count_voter(&follower_raft).await, current_node_cnt);
+        assert_eq!(current_node_cnt, follower_raft.get_cluster_size().await);
     }
-
-    let raft_k = rafts.get_mut(&remaining_nodes[0]).unwrap();
-
-    wait_for_until_cluster_size_decrease(raft_k.clone(), 3).await;
-    sleep(Duration::from_secs(2)).await;
-
-    let leader_id = raft_k.get_leader_id().await;
-
-    assert!(leader_id != 0);
-    assert_eq!(raft_k.get_cluster_size().await, 3);
-
-    sleep(Duration::from_secs(2)).await;
-
-    for id in remaining_nodes {
-        let raft = rafts.get_mut(&id).unwrap();
-        raft.quit().await;
+    for raft_id in raft_list{
+        rafts.get_mut(&raft_id).unwrap().quit().await
     }
 }
