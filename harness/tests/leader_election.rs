@@ -1,12 +1,13 @@
-use std::{sync::mpsc, time::Duration};
 use raftify::StableStorage;
+use std::{sync::mpsc, time::Duration};
 use tokio::time::{sleep, timeout};
 
 use harness::{
     constant::{FIVE_NODE_EXAMPLE, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, wait_until_rafts_ready, Raft},
     utils::{
-        count_voter, kill_previous_raft_processes, load_peers, wait_for_until_cluster_size_decrease, wait_for_until_cluster_size_increase
+        count_voter, kill_previous_raft_processes, load_peers,
+        wait_for_until_cluster_size_decrease, wait_for_until_cluster_size_increase,
     },
 };
 
@@ -57,10 +58,8 @@ pub async fn test_leader_election_in_three_node_example() {
     raft_3.quit().await;
 }
 
-// TODO: Fix this test.
 #[tokio::test]
 pub async fn test_leader_election_in_five_node_example() {
-    // GIVEN
     kill_previous_raft_processes();
 
     let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
@@ -73,7 +72,6 @@ pub async fn test_leader_election_in_five_node_example() {
 
     let mut rafts = wait_until_rafts_ready(None, rx_raft, 5).await;
 
-    // WHEN
     for expected_term in 1..3 {
         let leader_id = rafts.get(&raft_list[0]).unwrap().get_leader_id().await;
         raft_list.remove(raft_list.iter().position(|x| *x == leader_id).unwrap());
@@ -96,7 +94,6 @@ pub async fn test_leader_election_in_five_node_example() {
 
         wait_for_until_cluster_size_decrease(follower_raft.clone(), current_node_cnt).await;
 
-        // THEN
         // Term must be increased after leader election
         assert!(leader_id != 0);
         assert!(!raft_list.contains(&leader_id));
@@ -104,7 +101,8 @@ pub async fn test_leader_election_in_five_node_example() {
         assert_eq!(count_voter(&follower_raft).await, current_node_cnt);
         assert_eq!(current_node_cnt, follower_raft.get_cluster_size().await);
     }
-    for raft_id in raft_list{
+
+    for raft_id in raft_list {
         rafts.get_mut(&raft_id).unwrap().quit().await
     }
 }
