@@ -8,7 +8,7 @@ use super::state_machine::{HashStore, LogEntry};
 
 type Raft = Raft_<LogEntry, HashStore>;
 
-#[put("/{id}/{value}")]
+#[put("/store/{id}/{value}")]
 async fn put(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, String)>) -> impl Responder {
     let log_entry = LogEntry::Insert {
         key: path.0,
@@ -19,7 +19,7 @@ async fn put(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, String)>)
     "OK".to_string()
 }
 
-#[get("/get/{id}")]
+#[get("/store/{id}")]
 async fn get(data: web::Data<(HashStore, Raft)>, path: web::Path<u64>) -> impl Responder {
     let id = path.into_inner();
 

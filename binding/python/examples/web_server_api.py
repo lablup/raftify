@@ -35,14 +35,14 @@ APIs of the web servers to interact with the RaftServers.
 """
 
 
-@routes.get("/get/{id}")
+@routes.get("/store/{id}")
 async def get(request: web.Request) -> web.Response:
     store: HashStore = request.app["state"]["store"]
     id = request.match_info["id"]
     return web.Response(text=store.get(id))
 
 
-@routes.get("/put/{id}/{value}")
+@routes.put("/store/{id}/{value}")
 async def put(request: web.Request) -> web.Response:
     raft: Raft = request.app["state"]["raft"]
     id, value = request.match_info["id"], request.match_info["value"]
