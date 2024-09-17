@@ -58,6 +58,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let options = Options::from_args();
     let store = HashStore::new();
+
     let mut cfg = build_config();
 
     let (raft, raft_handle) = match options.peer_addr {
