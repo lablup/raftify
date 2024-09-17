@@ -35,8 +35,6 @@ struct Options {
     restore_wal_from: Option<u64>,
     #[structopt(long)]
     restore_wal_snapshot_from: Option<u64>,
-    #[structopt(long)]
-    omit_heartbeat_log: bool,
 }
 
 #[actix_rt::main]
@@ -69,7 +67,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     cfg.initial_peers = Some(initial_peers.clone());
     cfg.restore_wal_from = options.restore_wal_from;
     cfg.restore_wal_snapshot_from = options.restore_wal_snapshot_from;
-    cfg.raft_config.omit_heartbeat_log = options.omit_heartbeat_log;
 
     let node_id = initial_peers
         .get_node_id_by_addr(options.raft_addr.clone())
