@@ -20,8 +20,6 @@ pub struct Config {
     pub snapshot_interval: Option<f32>,
     pub restore_wal_from: Option<u64>,
     pub restore_wal_snapshot_from: Option<u64>,
-
-    pub omit_heartbeat_log: bool,
 }
 
 impl Config {
@@ -40,7 +38,6 @@ impl Config {
         snapshot_interval: Option<f32>,
         restore_wal_from: Option<u64>,
         restore_wal_snapshot_from: Option<u64>,
-        omit_heartbeat_log: bool,
     ) -> Self {
         Self {
             raft_config,
@@ -56,7 +53,6 @@ impl Config {
             conf_change_request_timeout,
             restore_wal_from,
             restore_wal_snapshot_from,
-            omit_heartbeat_log,
         }
     }
 }
@@ -109,7 +105,6 @@ impl Default for Config {
             snapshot_interval: None,
             restore_wal_from: None,
             restore_wal_snapshot_from: None,
-            omit_heartbeat_log: false,
         }
     }
 }
@@ -149,7 +144,6 @@ impl fmt::Debug for Config {
                 conf_change_request_timeout: {conf_change_request_timeout}, \
                 restore_wal_from: {restore_wal_from:?}, \
                 restore_wal_snapshot_from: {restore_wal_snapshot_from:?}, \
-                omit_heartbeat_log: {omit_heartbeat_log:?}, \
             }}",
             id = self.raft_config.id,
             election_tick = self.raft_config.election_tick,
@@ -179,7 +173,6 @@ impl fmt::Debug for Config {
             conf_change_request_timeout = self.conf_change_request_timeout,
             restore_wal_from = self.restore_wal_from,
             restore_wal_snapshot_from = self.restore_wal_snapshot_from,
-            omit_heartbeat_log = self.omit_heartbeat_log,
         )
     }
 }
