@@ -69,7 +69,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     cfg.initial_peers = Some(initial_peers.clone());
     cfg.restore_wal_from = options.restore_wal_from;
     cfg.restore_wal_snapshot_from = options.restore_wal_snapshot_from;
-    cfg.omit_heartbeat_log = options.omit_heartbeat_log;
     cfg.raft_config.omit_heartbeat_log = options.omit_heartbeat_log;
 
     let node_id = initial_peers

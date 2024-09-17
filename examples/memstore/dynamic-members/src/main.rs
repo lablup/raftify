@@ -61,7 +61,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let options = Options::from_args();
     let store = HashStore::new();
     let mut cfg = build_config();
-    cfg.omit_heartbeat_log = options.omit_heartbeat_log;
     cfg.raft_config.omit_heartbeat_log = options.omit_heartbeat_log;
 
     let (raft, raft_handle) = match options.peer_addr {

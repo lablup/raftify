@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# @@ TODO: restore here.
 if [ -z "$1" ]; then
 	echo "Usage: $0 <number-of-panels> [--omit-heartbeat-log]"
 	exit 1
