@@ -31,7 +31,7 @@ use crate::{
     raft::{
         eraftpb::{
             ConfChange, ConfChangeSingle, ConfChangeTransition, ConfChangeType, ConfChangeV2,
-            Entry, EntryType, Message as RaftMessage, Snapshot,
+            Entry, EntryType, Message as RaftMessage, Snapshot, MessageType,
         },
         formatter::{format_confchangev2, format_message},
         logger::Logger,
@@ -1246,12 +1246,17 @@ impl<
                     .await?;
             }
             ServerRequestMsg::SendMessage { message } => {
-                self.logger.debug(&format!(
-                    ">>> Node {} received Raft message from the node {}, {}",
-                    self.raw_node.raft.id,
-                    message.from,
-                    format_message(&message)
-                ));
+                let is_heartbeat_message = message.get_msg_type() == MessageType::MsgHeartbeat
+                    || message.get_msg_type() == MessageType::MsgHeartbeatResponse;
+
+                if !is_heartbeat_message || !self.config.raft_config.omit_heartbeat_log {
+                    self.logger.debug(&format!(
+                        ">>> Node {} received Raft message from the node {}, {}",
+                        self.raw_node.raft.id,
+                        message.from,
+                        format_message(&message)
+                    ));
+                }
                 let _ = self.raw_node.step(*message);
             }
             ServerRequestMsg::Propose { proposal, tx_msg } => {

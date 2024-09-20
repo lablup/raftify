@@ -9,6 +9,9 @@ logs-*
 # Visual Studio Code
 .vscode
 
+# IntelliJ
+.idea
+
 # python-virtualenv
 venv
 
