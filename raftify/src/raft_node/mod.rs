@@ -31,7 +31,7 @@ use crate::{
     raft::{
         eraftpb::{
             ConfChange, ConfChangeSingle, ConfChangeTransition, ConfChangeType, ConfChangeV2,
-            Entry, EntryType, Message as RaftMessage, Snapshot, MessageType,
+            Entry, EntryType, Message as RaftMessage, MessageType, Snapshot,
         },
         formatter::{format_confchangev2, format_message},
         logger::Logger,

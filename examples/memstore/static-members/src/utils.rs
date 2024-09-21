@@ -1,6 +1,7 @@
 use raftify::{InitialRole, Peers};
 use serde::Deserialize;
 use std::fs;
+use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::str::FromStr;
@@ -31,7 +32,20 @@ pub async fn load_peers() -> Result<Peers, Box<dyn std::error::Error>> {
         .parent()
         .unwrap()
         .join("cluster_config.toml");
-    let config_str = fs::read_to_string(path)?;
+
+    let config_str = match fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(e) => {
+            if e.kind() == ErrorKind::NotFound {
+                let path = path.into_os_string().into_string().unwrap();
+                return Err(
+                    format!("Cluster configuration file not found at path: {}", path).into(),
+                );
+            } else {
+                return Err(e.into());
+            }
+        }
+    };
 
     let raft_config: TomlRaftConfig = toml::from_str(&config_str)?;
 
