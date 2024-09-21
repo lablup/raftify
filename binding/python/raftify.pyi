@@ -73,28 +73,28 @@ class ReadOnlyOption:
     """
 
 class Level:
-    DEBUG: Final
+    DEBUG: Final[Any]
     """
     Detailed information, typically only of interest to a developer trying to diagnose a problem.
     """
 
-    INFO: Final
+    INFO: Final[Any]
     """
     Confirmation that things are working as expected.
     """
 
-    WARNING: Final
+    WARNING: Final[Any]
     """ 
     An indication that something unexpected happened, or that a problem might occur in the near future (e.g. ‘disk space low’). 
     The software is still working as expected. 
     """
 
-    ERROR: Final
+    ERROR: Final[Any]
     """ 
     Due to a more serious problem, the software has not been able to perform some function.
     """
 
-    CRITICAL: Final
+    CRITICAL: Final[Any]
 
     """ 
     A serious error, indicating that the program itself may be unable to continue running.
