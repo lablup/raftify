@@ -10,7 +10,7 @@ use sloggers::{
 
 #[pyclass(name = "Level")]
 #[derive(Clone, Copy, Debug)]
-pub enum PyLevel {
+pub enum PySeverity {
     TRACE,
     DEBUG,
     INFO,
@@ -19,15 +19,15 @@ pub enum PyLevel {
     CRITICAL,
 }
 
-impl From<PyLevel> for Severity {
-    fn from(py_severity: PyLevel) -> Self {
+impl From<PySeverity> for Severity {
+    fn from(py_severity: PySeverity) -> Self {
         match py_severity {
-            PyLevel::TRACE => Severity::Trace,
-            PyLevel::DEBUG => Severity::Debug,
-            PyLevel::INFO => Severity::Info,
-            PyLevel::WARNING => Severity::Warning,
-            PyLevel::ERROR => Severity::Error,
-            PyLevel::CRITICAL => Severity::Critical,
+            PySeverity::TRACE => Severity::Trace,
+            PySeverity::DEBUG => Severity::Debug,
+            PySeverity::INFO => Severity::Info,
+            PySeverity::WARNING => Severity::Warning,
+            PySeverity::ERROR => Severity::Error,
+            PySeverity::CRITICAL => Severity::Critical,
         }
     }
 }
@@ -128,14 +128,14 @@ impl PySlogger {
     #[staticmethod]
     #[pyo3(signature = (
         log_path,
-        level = PyLevel::DEBUG,        
-        chan_size = 3000,               
-        rotate_size = 1024 * 1024 * 10, 
-        rotate_keep = 1                 
+        level,        
+        chan_size,               
+        rotate_size, 
+        rotate_keep = 1
     ))]
     pub fn new_file_logger(
         log_path: &PyString,
-        level: PyLevel,
+        level: PySeverity,
         chan_size: usize,
         rotate_size: u64,
         rotate_keep: usize,
