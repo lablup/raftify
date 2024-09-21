@@ -2,13 +2,17 @@ import abc
 from typing import Any, Callable, Final, Optional
 
 # TODO: Make these abstract types available in the Python side.
+
+
 class AbstractLogEntry(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def encode(self) -> bytes:
         raise NotImplementedError
+
     @classmethod
     def decode(cls, packed: bytes) -> "AbstractLogEntry":
         raise NotImplementedError
+
 
 class AbstractStateMachine(metaclass=abc.ABCMeta):
     """
@@ -20,38 +24,49 @@ class AbstractStateMachine(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def apply(self, message: bytes) -> bytes:
         raise NotImplementedError
+
     @abc.abstractmethod
     async def snapshot(self) -> bytes:
         raise NotImplementedError
+
     @abc.abstractmethod
     async def restore(self, snapshot: bytes) -> None:
         raise NotImplementedError
+
     @abc.abstractmethod
     def encode(self) -> bytes:
         raise NotImplementedError
+
     @classmethod
     def decode(cls, packed: bytes) -> "AbstractStateMachine":
         raise NotImplementedError
+
 
 class AbstractLogger(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def info(self, s: str) -> None:
         raise NotImplementedError
+
     @abc.abstractmethod
     def debug(self, s: str) -> None:
         raise NotImplementedError
+
     @abc.abstractmethod
     def trace(self, s: str) -> None:
         raise NotImplementedError
+
     @abc.abstractmethod
     def error(self, s: str) -> None:
         raise NotImplementedError
+
     @abc.abstractmethod
     def warn(self, s: str) -> None:
         raise NotImplementedError
+
     @abc.abstractmethod
     def fatal(self, s: str) -> None:
         raise NotImplementedError
+
 
 class ReadOnlyOption:
     """Determines the relative safety of and consistency of read only requests."""
@@ -71,16 +86,19 @@ class ReadOnlyOption:
     in that case.
     """
 
+
 class Slogger:
     """ """
 
     def __init__(self) -> None: ...
     @staticmethod
     def default() -> "Slogger": ...
+
     @staticmethod
     def new_file_logger(
-        log_path: str, chan_size: int, rotate_size: int, rotate_keep: int
+        level: int, log_path: str, chan_size: int, rotate_size: int, rotate_keep: int
     ): ...
+
 
 class Raft:
     def __init__(self) -> None:
@@ -94,49 +112,69 @@ class Raft:
         logger: "AbstractLogger",
     ) -> "Raft":
         """ """
+
     def get_raft_node(self) -> "RaftNode":
         """ """
     @staticmethod
     async def request_id(raft_addr: str, peer_addr: str) -> "ClusterJoinTicket":
         """"""
+
     async def run(self) -> None:
         """ """
+
 
 class RaftNode:
     async def is_leader(self) -> bool:
         """ """
+
     async def get_id(self) -> int:
         """ """
+
     async def get_leader_id(self) -> int:
         """ """
+
     async def get_peers(self) -> "Peers":
         """ """
+
     async def add_peer(self, id: int, addr: str) -> None:
         """ """
+
     async def inspect(self) -> str:
         """ """
+
     async def propose(self, message: bytes) -> None:
         """ """
+
     async def change_config(self, conf_change: "ConfChangeV2") -> None:
         """ """
+
     async def send_message(self, message: "Message") -> None:
         """ """
+
     async def leave(self) -> None:
         """ """
+
     async def leave_joint(self) -> None:
         """ """
+
     async def demote(self, term: int, leader_id: int) -> None:
         """ """
+
     async def transfer_leader(self, leader_id: int) -> None:
         """ """
+
     async def quit(self) -> None:
         """ """
+
     async def join_cluster(self, tickets: list["ClusterJoinTicket"]) -> None:
         """ """
+
     async def get_cluster_size(self) -> int:
         """ """
+
     async def state_machine(self) -> "AbstractStateMachine":
         """ """
+
 
 class ClusterJoinTicket:
     """ """
@@ -148,13 +186,16 @@ class ClusterJoinTicket:
         leader_addr: str,
         peers: "Peers",
     ) -> None: ...
+
     def get_reserved_id(self) -> int:
         """ """
+
     def to_dict(self) -> dict[str, Any]:
         """ """
     @staticmethod
     def from_dict(v: dict[str, Any]) -> "ClusterJoinTicket":
         """ """
+
 
 class Peer:
     """ """
@@ -164,6 +205,7 @@ class Peer:
     def get_role(self) -> "InitialRole": ...
     async def connect(self) -> None: ...
 
+
 class Peers:
     """ """
 
@@ -172,9 +214,12 @@ class Peers:
     def is_empty(self) -> bool: ...
     def keys(self) -> list[int]: ...
     def get(self, node_id: int) -> "Peer": ...
-    def add_peer(self, node_id: int, addr: str, role: "InitialRole") -> None: ...
+    def add_peer(self, node_id: int, addr: str,
+                 role: "InitialRole") -> None: ...
+
     def remove(self, node_id: int) -> None: ...
     def get_node_id_by_addr(self, addr: str) -> int: ...
+
 
 class RaftConfig:
     """ """
@@ -258,6 +303,7 @@ class RaftConfig:
         :param max_committed_size_per_ready: Max size for committed entries in a `Ready`.
         """
 
+
 class Config:
     """ """
 
@@ -280,9 +326,11 @@ class Config:
     ) -> None:
         """ """
 
+
 class ConfChangeRequest:
     def __init__(self, changes: list["ConfChangeSingle"], addrs: list[str]) -> None:
         """ """
+
 
 class RaftServiceClient:
     """ """
@@ -290,50 +338,66 @@ class RaftServiceClient:
     @staticmethod
     async def build(addr: str) -> "RaftServiceClient":
         """ """
+
     async def change_config(self, conf_change: "ConfChangeRequest") -> None:
         """ """
+
     async def send_message(self, message: "Message") -> None:
         """ """
+
     async def propose(self, proposal: bytes) -> None:
         """ """
+
     async def get_peers(self) -> str:
         """ """
+
     async def set_peers(self, peers: "Peers") -> None:
         """ """
+
     async def leave_joint(self) -> None:
         """ """
+
     async def debug_node(self) -> str:
         """ """
+
 
 def set_snapshot_data_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
     """ """
 
+
 def set_message_context_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
     """ """
+
 
 def set_confchange_context_deserializer(
     cb: Callable[[bytes], str | bytes | None]
 ) -> None:
     """ """
 
+
 def set_confchangev2_context_deserializer(
     cb: Callable[[bytes], str | bytes | None]
 ) -> None:
     """ """
 
+
 def set_entry_data_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
     """ """
 
+
 def set_entry_context_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
     """ """
+
 
 def set_fsm_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
     """ """
     ...
 
+
 def set_log_entry_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
     """ """
     ...
+
 
 class ConfChangeTransition:
     """ """
@@ -366,6 +430,7 @@ class ConfChangeTransition:
     def from_int(v: int) -> "ConfChangeTransition": ...
     def __int__(self) -> int: ...
 
+
 class MessageType:
     """ """
 
@@ -392,6 +457,7 @@ class MessageType:
     def from_int(v: int) -> "MessageType": ...
     def __int__(self) -> int: ...
 
+
 class ConfChangeType:
     """ """
 
@@ -402,6 +468,7 @@ class ConfChangeType:
     def from_int(v: int) -> "ConfChangeType": ...
     def __int__(self) -> int: ...
 
+
 class EntryType:
     """ """
 
@@ -411,6 +478,7 @@ class EntryType:
     @staticmethod
     def from_int(v: int) -> "EntryType": ...
     def __int__(self) -> int: ...
+
 
 class InitialRole:
     """ """
@@ -428,38 +496,52 @@ class InitialRole:
     def from_str(v: str) -> "InitialRole": ...
     def __int__(self) -> int: ...
 
+
 class Entry:
     def __init__(self) -> None: ...
+
     def get_context(self) -> bytes:
         """ """
+
     def set_context(self, context: bytes) -> None:
         """ """
+
     def get_data(self) -> bytes:
         """ """
+
     def set_data(self, data: bytes) -> None:
         """ """
+
     def get_entry_type(self) -> "EntryType":
         """ """
+
     def set_entry_type(self, type_: "EntryType") -> None:
         """ """
+
     def get_term(self) -> int:
         """ """
+
     def set_term(self, term: int) -> None:
         """ """
+
     def get_index(self) -> int:
         """ """
+
     def set_index(self, index: int) -> None:
         """ """
+
     def get_sync_log(self) -> bool:
         """
         Deprecated! It is kept for backward compatibility.
         TODO: remove it in the next major release.
         """
+
     def set_sync_log(self, sync_log: bool) -> None:
         """
         Deprecated! It is kept for backward compatibility.
         TODO: remove it in the next major release.
         """
+
 
 class ConfState:
     """ """
@@ -469,98 +551,135 @@ class ConfState:
     ) -> None: ...
     @staticmethod
     def default() -> "ConfState": ...
+
     def get_auto_leave(self) -> bool:
         """ """
+
     def set_auto_leave(self, auto_leave: bool) -> None:
         """ """
+
     def get_learners(self) -> list[int]:
         """ """
+
     def set_learners(self, learners: list[int]) -> None:
         """ """
+
     def get_learners_next(self) -> list[int]:
         """ """
+
     def set_learners_next(self, learners_next: list[int]) -> None:
         """ """
+
     def get_voters(self) -> list[int]:
         """ """
+
     def set_voters(self, voters: list[int]) -> None:
         """ """
+
     def get_voters_outgoing(self) -> list[int]:
         """ """
+
     def set_voters_outgoing(self, voters_outgoing: list[int]) -> None:
         """ """
+
 
 class Snapshot:
     """ """
 
     def __init__(self) -> None: ...
+
     def get_data(self) -> bytes:
         """ """
+
     def set_data(self, data: bytes) -> None:
         """ """
+
     def get_metadata(self) -> "SnapshotMetadata":
         """ """
+
     def set_metadata(self, metadata: "SnapshotMetadata") -> None:
         """ """
+
     def has_metadata(self) -> bool:
         """ """
 
+
 class SnapshotMetadata:
     def __init__(self) -> None: ...
+
     def get_index(self) -> int:
         """
         `index`: The applied index.
         """
+
     def set_index(self, index: int) -> None:
         """
         `index`: The applied index.
         """
+
     def get_term(self) -> int:
         """
         `term`: The term of the applied index.
         """
+
     def set_term(self, term: int) -> None:
         """
         `term`: The term of the applied index.
         """
+
     def get_conf_state(self) -> "ConfState":
         """
         `conf_state`: The current `ConfState`.
         """
+
     def set_conf_state(self, conf_state: "ConfState") -> None:
         """
         `conf_state`: The current `ConfState`.
         """
+
     def has_conf_state(self) -> bool:
         """
         `conf_state`: The current `ConfState`.
         """
 
+
 class ConfChangeSingle:
     def __init__(self) -> None: ...
+
     def get_node_id(self) -> int:
         """ """
+
     def set_node_id(self, node_id: int):
         """ """
+
     def get_change_type(self) -> "ConfChangeType":
         """ """
+
     def set_change_type(self, type_: "ConfChangeType") -> None:
         """ """
 
+
 class ConfChangeV2:
     def __init__(self) -> None: ...
+
     def get_changes(self) -> list["ConfChangeSingle"]:
         """ """
+
     def set_changes(self, changes: list["ConfChangeSingle"]) -> None:
         """ """
+
     def get_context(self) -> bytes:
         """ """
+
     def set_context(self, context: bytes) -> None:
         """ """
+
     def get_transition(self) -> "ConfChangeTransition":
         """ """
+
     def set_transition(self, transition: "ConfChangeTransition") -> None:
         """ """
+
     def enter_joint(self) -> Optional[bool]:
         """
         Checks if uses Joint Consensus.
@@ -570,6 +689,7 @@ class ConfChangeV2:
         Consensus was requested explicitly. The bool indicates whether the Joint State
         will be left automatically.
         """
+
     def leave_joint(self) -> bool:
         """
         Checks if the configuration change leaves a joint configuration.
@@ -578,74 +698,109 @@ class ConfChangeV2:
         the Context field.
         """
 
+
 class Message:
     def __init__(self) -> None: ...
+
     def get_commit(self) -> int:
         """ """
+
     def set_commit(self, commit: int) -> None:
         """ """
+
     def get_commit_term(self) -> int:
         """ """
+
     def set_commit_term(self, commit_term: int) -> None:
         """ """
+
     def get_from(self) -> int:
         """ """
+
     def set_from(self, from_: int) -> None:
         """ """
+
     def get_index(self) -> int:
         """ """
+
     def set_index(self, index: int) -> None:
         """ """
+
     def get_term(self) -> int:
         """ """
+
     def set_term(self, term: int) -> None:
         """ """
+
     def get_log_term(self) -> int:
         """ """
+
     def set_log_term(self, log_index: int) -> None:
         """ """
+
     def get_priority(self) -> int:
         """ """
+
     def set_priority(self, priority: int) -> None:
         """ """
+
     def get_context(self) -> bytes:
         """ """
+
     def set_context(self, context: bytes) -> None:
         """ """
+
     def get_reject_hint(self) -> int:
         """ """
+
     def set_reject_hint(self, reject_hint: int) -> None:
         """ """
+
     def get_entries(self) -> list["Entry"]:
         """ """
+
     def set_entries(self, entries: list["Entry"]) -> None:
         """ """
+
     def get_msg_type(self) -> "MessageType":
         """ """
+
     def set_msg_type(self, type_: "MessageType") -> None:
         """ """
+
     def get_reject(self) -> bool:
         """ """
+
     def set_reject(self, reject: bool) -> None:
         """ """
+
     def get_snapshot(self) -> "Snapshot":
         """ """
+
     def set_snapshot(self, snapshot: "Snapshot") -> None:
         """ """
+
     def get_to(self) -> int:
         """ """
+
     def set_to(self, to: int) -> None:
         """ """
+
     def get_request_snapshot(self) -> int:
         """ """
+
     def set_request_snapshot(self, request_snapshot: int) -> None:
         """ """
+
     def has_snapshot(self) -> bool:
         """ """
+
     def get_deprecated_priority(self) -> int:
         """ """
+
     def set_deprecated_priority(self, deprecated_priority: int) -> None:
         """ """
+
 
 async def cli_main(argv: list[str]) -> None:
     """ """

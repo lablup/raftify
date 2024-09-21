@@ -11,6 +11,7 @@ fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<bindings::confchange_request::PyConfChangeRequest>()?;
     m.add_class::<bindings::config::PyConfig>()?;
     m.add_class::<bindings::slogger::PySlogger>()?;
+    m.add_class::<bindings::slogger::PyLevel>()?;
     m.add_class::<bindings::slogger::PyOverflowStrategy>()?;
     m.add_class::<bindings::peers::PyPeers>()?;
     m.add_class::<bindings::peer::PyPeer>()?;
