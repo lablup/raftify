@@ -72,6 +72,34 @@ class ReadOnlyOption:
     in that case.
     """
 
+class Level:
+    DEBUG: Final
+    """
+    Detailed information, typically only of interest to a developer trying to diagnose a problem.
+    """
+
+    INFO: Final
+    """
+    Confirmation that things are working as expected.
+    """
+
+    WARNING: Final
+    """ 
+    An indication that something unexpected happened, or that a problem might occur in the near future (e.g. ‘disk space low’). 
+    The software is still working as expected. 
+    """
+
+    ERROR: Final
+    """ 
+    Due to a more serious problem, the software has not been able to perform some function.
+    """
+
+    CRITICAL: Final
+
+    """ 
+    A serious error, indicating that the program itself may be unable to continue running.
+    """
+
 class Slogger:
     """ """
 
@@ -80,7 +108,11 @@ class Slogger:
     def default() -> "Slogger": ...
     @staticmethod
     def new_file_logger(
-        level: int, log_path: str, chan_size: int, rotate_size: int, rotate_keep: int
+        log_path: str,
+        level: "Level" = Level.DEBUG,
+        chan_size: int = 3000,
+        rotate_size: int = 1024 * 1024 * 10,
+        rotate_keep: int = 1,
     ): ...
 
 class Raft:

@@ -126,9 +126,16 @@ impl PySlogger {
     }
 
     #[staticmethod]
+    #[pyo3(signature = (
+        log_path,
+        level = PyLevel::DEBUG,        
+        chan_size = 3000,               
+        rotate_size = 1024 * 1024 * 10, 
+        rotate_keep = 1                 
+    ))]
     pub fn new_file_logger(
-        level: PyLevel,
         log_path: &PyString,
+        level: PyLevel,
         chan_size: usize,
         rotate_size: u64,
         rotate_keep: usize,
