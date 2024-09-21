@@ -25,13 +25,15 @@ pub struct TomlInnerRaftConfig {
     pub peers: Vec<TomlRaftPeer>,
 }
 
-pub async fn load_peers() -> Result<Peers, Box<dyn std::error::Error>> {
+pub async fn load_peers(
+    cluster_config_filename: &str,
+) -> Result<Peers, Box<dyn std::error::Error>> {
     let path = Path::new(file!())
         .parent()
         .unwrap()
         .parent()
         .unwrap()
-        .join("cluster_config.toml");
+        .join(cluster_config_filename);
 
     let config_str = match fs::read_to_string(&path) {
         Ok(content) => content,
