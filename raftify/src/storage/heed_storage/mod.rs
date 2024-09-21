@@ -871,24 +871,24 @@ mod test {
                 vec![new_entry(3, 3), new_entry(4, 4), new_entry(5, 5)],
                 Some(vec![new_entry(3, 3), new_entry(4, 4), new_entry(5, 5)]),
             ),
-            // (
-            //     vec![new_entry(3, 3), new_entry(4, 6), new_entry(5, 6)],
-            //     Some(vec![new_entry(3, 3), new_entry(4, 6), new_entry(5, 6)]),
-            // ),
-            // (
-            //     vec![
-            //         new_entry(3, 3),
-            //         new_entry(4, 4),
-            //         new_entry(5, 5),
-            //         new_entry(6, 5),
-            //     ],
-            //     Some(vec![
-            //         new_entry(3, 3),
-            //         new_entry(4, 4),
-            //         new_entry(5, 5),
-            //         new_entry(6, 5),
-            //     ]),
-            // ),
+            (
+                vec![new_entry(3, 3), new_entry(4, 6), new_entry(5, 6)],
+                Some(vec![new_entry(3, 3), new_entry(4, 6), new_entry(5, 6)]),
+            ),
+            (
+                vec![
+                    new_entry(3, 3),
+                    new_entry(4, 4),
+                    new_entry(5, 5),
+                    new_entry(6, 5),
+                ],
+                Some(vec![
+                    new_entry(3, 3),
+                    new_entry(4, 4),
+                    new_entry(5, 5),
+                    new_entry(6, 5),
+                ]),
+            ),
             // TODO: Support the below test cases
             // overwrite compacted raft logs is not allowed
             (
@@ -901,15 +901,15 @@ mod test {
             //     Some(vec![new_entry(3, 3), new_entry(4, 5)]),
             // ),
             // direct append
-            // (
-            //     vec![new_entry(6, 6)],
-            //     Some(vec![
-            //         new_entry(3, 3),
-            //         new_entry(4, 4),
-            //         new_entry(5, 5),
-            //         new_entry(6, 6),
-            //     ]),
-            // ),
+            (
+                vec![new_entry(6, 6)],
+                Some(vec![
+                    new_entry(3, 3),
+                    new_entry(4, 4),
+                    new_entry(5, 5),
+                    new_entry(6, 6),
+                ]),
+            ),
         ];
         for (i, (entries, wentries)) in tests.drain(..).enumerate() {
             let mut storage = HeedStorage::create(&tempdir, &cfg, logger.clone()).unwrap();
