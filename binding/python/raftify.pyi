@@ -72,7 +72,7 @@ class ReadOnlyOption:
     in that case.
     """
 
-class Level:
+class Severity:
     DEBUG: Final[Any]
     """
     """
@@ -103,7 +103,7 @@ class Slogger:
     @staticmethod
     def new_file_logger(
         log_path: str,
-        level: "Level",
+        level: "Severity",
         chan_size: int,
         rotate_size: int,
         rotate_keep: int = 1,
