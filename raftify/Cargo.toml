@@ -18,7 +18,7 @@ heed-traits = "0.20"
 log = { version = "0.4", features = ["std"] }
 parking_lot = "0.12.3"
 prost = "0.11"
-raft = { path = "../raft-rs", features = ["prost-codec", "default-logger"], default-features = false }
+raft = { version = "0.7.9", features = ["prost-codec", "default-logger"], default-features = false, package = "jopemachine-raft" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 slog = "2"
@@ -36,3 +36,6 @@ tempfile = "3"
 [build-dependencies]
 tonic-build = "0.9.2"
 built = "0.5"
+
+[patch.crates-io]
+raft = { path = "../raft-rs" }
