@@ -36,6 +36,3 @@ tempfile = "3"
 [build-dependencies]
 tonic-build = "0.9.2"
 built = "0.5"
-
-[patch.crates-io]
-raft = { path = "../raft-rs" }

@@ -33,3 +33,6 @@ homepage = "https://github.com/lablup/raftify"
 raftify = { path = "raftify" }
 example-harness = { path = "examples" }
 memstore-example-harness = { path = "examples/memstore" }
+
+[patch.crates-io]
+jopemachine-raft = { path = "./raft-rs" }
