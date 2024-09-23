@@ -71,6 +71,38 @@ class ReadOnlyOption:
     in that case.
     """
 
+class Severity:
+    """
+    Setting the logger level for slog crate.
+
+    Note: Currently, it can only be applied to FileLogger.
+    """
+
+    TRACE: Final[Any]
+    """
+    """
+
+    DEBUG: Final[Any]
+    """
+    """
+
+    INFO: Final[Any]
+    """
+    """
+
+    WARNING: Final[Any]
+    """
+    """
+
+    ERROR: Final[Any]
+    """
+    """
+
+    CRITICAL: Final[Any]
+
+    """
+    """
+
 class Slogger:
     """ """
 
@@ -79,7 +111,11 @@ class Slogger:
     def default() -> "Slogger": ...
     @staticmethod
     def new_file_logger(
-        log_path: str, chan_size: int, rotate_size: int, rotate_keep: int
+        log_path: str,
+        level: "Severity",
+        chan_size: int,
+        rotate_size: int,
+        rotate_keep: int,
     ): ...
 
 class Raft:
