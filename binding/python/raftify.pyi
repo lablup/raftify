@@ -73,6 +73,12 @@ class ReadOnlyOption:
     """
 
 class Severity:
+    """
+    Setting the logger level for slog crate.
+
+    Note: Currently, it can only be applied to FileLogger.
+    """
+
     DEBUG: Final[Any]
     """
     """
@@ -82,16 +88,16 @@ class Severity:
     """
 
     WARNING: Final[Any]
-    """ 
+    """
     """
 
     ERROR: Final[Any]
-    """ 
+    """
     """
 
     CRITICAL: Final[Any]
 
-    """ 
+    """
     """
 
 class Slogger:

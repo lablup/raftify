@@ -20,8 +20,8 @@ pub enum PySeverity {
 }
 
 impl From<PySeverity> for Severity {
-    fn from(py_severity: PySeverity) -> Self {
-        match py_severity {
+    fn from(severity: PySeverity) -> Self {
+        match severity {
             PySeverity::TRACE => Severity::Trace,
             PySeverity::DEBUG => Severity::Debug,
             PySeverity::INFO => Severity::Info,
@@ -126,13 +126,6 @@ impl PySlogger {
     }
 
     #[staticmethod]
-    #[pyo3(signature = (
-        log_path,
-        level,        
-        chan_size,               
-        rotate_size, 
-        rotate_keep = 1
-    ))]
     pub fn new_file_logger(
         log_path: &PyString,
         level: PySeverity,
