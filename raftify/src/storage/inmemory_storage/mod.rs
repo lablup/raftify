@@ -127,3 +127,8 @@ impl Storage for MemStorage {
         Ok(self.snapshot.clone())
     }
 }
+
+// Ref: https://github.com/tikv/raft-rs/blob/master/src/storage.rs
+// TODO: Implement these tests for MemStorage
+#[cfg(test)]
+mod test {}

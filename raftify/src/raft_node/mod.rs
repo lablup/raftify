@@ -50,18 +50,20 @@ use crate::{
         },
         ResponseMessage,
     },
-    storage::{
-        heed_storage::{
-            utils::{get_data_mdb_path, get_storage_path},
-            HeedStorage,
-        },
-        inmemory_storage::MemStorage,
-        utils::{clear_storage_path, ensure_directory_exist},
-    },
+    storage::utils::{clear_storage_path, ensure_directory_exist},
     utils::{membership::to_confchange_v2, oneshot_mutex::OneShotMutex},
     AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket, Config, Error, InitialRole, Peers,
     RaftServiceClient, StableStorage,
 };
+
+#[cfg(feature = "heed_storage")]
+use crate::storage::heed_storage::{
+    utils::{get_data_mdb_path, get_storage_path},
+    HeedStorage,
+};
+
+#[cfg(feature = "inmemory_storage")]
+use crate::storage::inmemory_storage::MemStorage;
 
 #[derive(Clone)]
 pub struct RaftNode<
