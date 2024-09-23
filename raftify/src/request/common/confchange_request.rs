@@ -1,7 +1,6 @@
 use std::net::SocketAddr;
 
-use jopemachine_raft::eraftpb::{self, ConfChangeSingle, ConfChangeTransition, ConfChangeV2};
-
+use crate::raft::eraftpb::{self, ConfChangeSingle, ConfChangeTransition, ConfChangeV2};
 use crate::raft_service;
 
 #[derive(Debug, Clone)]

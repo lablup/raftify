@@ -1,6 +1,6 @@
 use std::{collections::HashMap, net::SocketAddr};
 
-use jopemachine_raft::eraftpb::Message as RaftMessage;
+use crate::raft::eraftpb::Message as RaftMessage;
 use tokio::sync::oneshot::Sender;
 
 use crate::{

@@ -1318,7 +1318,7 @@ dependencies = [
 
 [[package]]
 name = "jopemachine-raft"
-version = "0.7.7"
+version = "0.7.8"
 dependencies = [
  "bytes",
  "fxhash",
