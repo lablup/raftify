@@ -31,7 +31,7 @@ clap = { version = "4.5.18", features = ["derive"] }
 chrono = "0.4.38"
 
 [features]
-default = ["inmemory_storage"]
+default = ["heed_storage"]
 inmemory_storage = []
 heed_storage =[]
 

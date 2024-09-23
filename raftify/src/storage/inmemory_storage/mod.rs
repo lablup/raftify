@@ -75,7 +75,6 @@ impl StableStorage for MemStorage {
 
         // Pass apply snapshot if the snapshot is empty
         if snapshot.get_metadata().get_index() == INVALID_INDEX {
-            // Update conf states.
             store.set_conf_state(snapshot.get_metadata().clone().take_conf_state());
             return Ok(());
         }
