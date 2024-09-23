@@ -1317,24 +1317,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "jopemachine-raft"
-version = "0.7.8"
-dependencies = [
- "bytes",
- "fxhash",
- "getset",
- "lazy_static",
- "protobuf",
- "raft-proto",
- "rand",
- "slog",
- "slog-envlogger",
- "slog-stdlog",
- "slog-term",
- "thiserror",
-]
-
-[[package]]
 name = "js-sys"
 version = "0.3.70"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1869,6 +1851,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "raft"
+version = "0.7.8"
+dependencies = [
+ "bytes",
+ "fxhash",
+ "getset",
+ "lazy_static",
+ "protobuf",
+ "raft-proto",
+ "rand",
+ "slog",
+ "slog-envlogger",
+ "slog-stdlog",
+ "slog-term",
+ "thiserror",
+]
+
+[[package]]
 name = "raft-proto"
 version = "0.7.0"
 dependencies = [
@@ -1890,10 +1890,10 @@ dependencies = [
  "clap 4.5.17",
  "heed",
  "heed-traits",
- "jopemachine-raft",
  "log",
  "parking_lot",
  "prost",
+ "raft",
  "serde",
  "serde_json",
  "slog",
