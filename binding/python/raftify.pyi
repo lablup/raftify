@@ -2,7 +2,6 @@ import abc
 from typing import Any, Callable, Final, Optional
 
 # TODO: Make these abstract types available in the Python side.
-
 class AbstractLogEntry(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def encode(self) -> bytes:
@@ -112,7 +111,7 @@ class Slogger:
         level: "Severity",
         chan_size: int,
         rotate_size: int,
-        rotate_keep: int = 1,
+        rotate_keep: int,
     ): ...
 
 class Raft:

@@ -8,7 +8,7 @@ use sloggers::{
     Build,
 };
 
-#[pyclass(name = "Level")]
+#[pyclass(name = "Severity")]
 #[derive(Clone, Copy, Debug)]
 pub enum PySeverity {
     TRACE,
