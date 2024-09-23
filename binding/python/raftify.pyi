@@ -78,6 +78,10 @@ class Severity:
     Note: Currently, it can only be applied to FileLogger.
     """
 
+    TRACE: Final[Any]
+    """
+    """
+
     DEBUG: Final[Any]
     """
     """
