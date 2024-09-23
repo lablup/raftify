@@ -19,7 +19,7 @@ default-members = [
 exclude = ["raft-rs"]
 
 [workspace.package]
-version = "0.1.68"
+version = "0.1.69"
 authors = ["Lablup Inc."]
 edition = "2021"
 description = "Experimental High level Raft framework"
