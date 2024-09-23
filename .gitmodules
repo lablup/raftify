@@ -1,0 +1,3 @@
+[submodule "raft-rs"]
+	path = raft-rs
+	url = https://github.com/jopemachine/raft-rs

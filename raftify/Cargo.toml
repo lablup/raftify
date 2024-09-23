@@ -18,7 +18,7 @@ heed-traits = "0.20"
 log = { version = "0.4", features = ["std"] }
 parking_lot = "0.12.1"
 prost = "0.11"
-jopemachine-raft = { version = "0.7.8", features = ["prost-codec", "default-logger"], default-features = false }
+raft = { path = "../raft-rs", features = ["prost-codec", "default-logger"], default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 slog = "2"

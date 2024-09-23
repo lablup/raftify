@@ -28,6 +28,7 @@ jobs:
 
     - name: Build and Check Rust unit tests and harness tests all pass
       run: |
+        git submodule update --init
         make build
         make unit-test
         make integration-test

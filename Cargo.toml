@@ -16,6 +16,7 @@ default-members = [
     "examples/memstore/dynamic-members",
     "examples/memstore/static-members",
 ]
+exclude = ["raft-rs"]
 
 [workspace.package]
 version = "0.1.68"
