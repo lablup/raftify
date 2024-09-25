@@ -5,6 +5,7 @@ use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::str::FromStr;
+use tokio::net::lookup_host;
 use toml;
 
 #[derive(Deserialize, Debug)]
@@ -54,7 +55,14 @@ pub async fn load_peers(
     let mut peers = Peers::with_empty();
 
     for peer_info in raft_config.raft.peers {
-        let addr = SocketAddr::new(peer_info.ip.parse().unwrap(), peer_info.port);
+        let addr = match peer_info.ip.parse() {
+            Ok(ip) => SocketAddr::new(ip, peer_info.port),
+            Err(_) => {
+                let mut addrs = lookup_host((peer_info.ip.as_str(), peer_info.port)).await?;
+                addrs.next().expect("Hostname resolution failed!")
+            }
+        };
+
         let role = InitialRole::from_str(&peer_info.role).expect("Invalid role!");
         peers.add_peer(peer_info.node_id, addr, Some(role));
     }
