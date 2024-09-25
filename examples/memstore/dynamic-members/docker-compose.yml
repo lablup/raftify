@@ -4,7 +4,6 @@ services:
     build:
       context: ../../../
       dockerfile: ./Dockerfile
-    image: raftify_img
     container_name: node1
     command: ["./target/debug/memstore-dynamic-members", "--raft-addr=node1:60061", "--web-server=0.0.0.0:8001"]
     ports:
