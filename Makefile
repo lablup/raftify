@@ -30,5 +30,3 @@ publish-rs:
 publish-py:
 	cd binding/python && make publish && cd ../../
 
-zel:
-	zellij --layout misc/bootstrap-3-node-static-cluster.zellij.kdl
