@@ -29,4 +29,3 @@ publish-rs:
 
 publish-py:
 	cd binding/python && make publish && cd ../../
-
