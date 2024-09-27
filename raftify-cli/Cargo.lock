@@ -1239,26 +1239,13 @@ dependencies = [
 name = "raftify_cli"
 version = "0.1.0"
 dependencies = [
- "async-trait",
- "bincode",
  "built",
- "bytes",
- "chrono",
  "clap",
- "heed",
- "heed-traits",
- "jopemachine-raft",
  "log",
- "parking_lot",
- "prost",
  "raftify",
  "serde",
  "serde_json",
  "slog",
- "slog-stdlog",
- "thiserror",
- "tokio",
- "tonic",
  "tonic-build",
 ]
 
