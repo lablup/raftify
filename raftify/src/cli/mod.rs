@@ -9,9 +9,14 @@ use std::{fmt::Debug, sync::Arc};
 
 use crate::{
     raft::{default_logger, formatter::set_custom_formatter},
-    AbstractLogEntry, AbstractStateMachine, Config, CustomFormatter, HeedStorage, Result,
-    StableStorage,
+    AbstractLogEntry, AbstractStateMachine, Config, CustomFormatter, Result, StableStorage,
 };
+
+#[cfg(feature = "inmemory_storage")]
+use crate::MemStorage;
+
+#[cfg(feature = "heed_storage")]
+use crate::HeedStorage;
 
 #[derive(Parser)]
 #[command(name = "raftify")]

@@ -479,8 +479,7 @@ pub struct RaftNodeCore<
     FSM: AbstractStateMachine + Clone + 'static,
 > {
     pub raw_node: RawNode<LogStorage>,
-    pub log_storage: LogStorage,
-
+    // pub log_storage: LogStorage,
     pub fsm: FSM,
     pub peers: Arc<Mutex<Peers>>,
     response_seq: AtomicU64,
@@ -577,7 +576,6 @@ impl<
 
         Ok(RaftNodeCore {
             raw_node,
-            log_storage,
             fsm,
             response_seq,
             config,
@@ -594,6 +592,7 @@ impl<
             tx_self,
             rx_self,
             _phantom_log_entry_typ: PhantomData,
+            // log_storage,
         })
     }
 

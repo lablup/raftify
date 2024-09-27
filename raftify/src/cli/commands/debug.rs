@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[cfg(feature = "inmemory_storage")]
-use raftify::MemStorage;
+use crate::MemStorage;
 
 #[cfg(feature = "heed_storage")]
 use crate::HeedStorage;
