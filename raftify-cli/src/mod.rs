@@ -3,20 +3,13 @@ include!(concat!(env!("OUT_DIR"), "/built.rs"));
 mod commands;
 
 use clap::{Args, Parser, Subcommand};
-use commands::debug::{debug_entries, debug_node, debug_persisted, debug_persitsted_all};
-use raft::logger::Slogger;
-use std::{fmt::Debug, sync::Arc};
+use commands::debug::{debug_entries, debug_node, debug_persisted, debug_persisted_all};
+use std::fmt::Debug;
 
-use crate::{
+use raftify::{
     raft::{default_logger, formatter::set_custom_formatter},
-    AbstractLogEntry, AbstractStateMachine, Config, CustomFormatter, Result, StableStorage,
+    AbstractLogEntry, AbstractStateMachine, CustomFormatter, Result, StableStorage,
 };
-
-#[cfg(feature = "inmemory_storage")]
-use crate::MemStorage;
-
-#[cfg(feature = "heed_storage")]
-use crate::HeedStorage;
 
 #[derive(Parser)]
 #[command(name = "raftify")]
@@ -84,29 +77,10 @@ pub async fn cli_handler<
     match app.command {
         Commands::Debug(x) => match x {
             DebugSubcommands::Persisted { path } => {
-                #[cfg(feature = "heed_storage")]
-                {
-                    let config = Config {
-                        log_dir: path.to_string(),
-                        ..Default::default()
-                    };
-                    let storage = HeedStorage::create(
-                        config.log_dir.as_str(),
-                        &config,
-                        Arc::new(Slogger {
-                            slog: logger.clone(),
-                        }),
-                    )?;
-                    debug_persisted(storage)?;
-                }
-
-                #[cfg(feature = "inmemory_storage")]
-                {
-                    eprintln!("Inmemory storage does not support this feature");
-                }
+                debug_persisted::<LogStorage>(path.as_str(), logger.clone())?;
             }
             DebugSubcommands::PersistedAll { path } => {
-                debug_persitsted_all(path.as_str(), logger.clone())?;
+                debug_persisted_all::<LogStorage>(path.as_str(), logger.clone())?;
             }
             DebugSubcommands::Entries { address } => {
                 debug_entries(address.as_str()).await?;

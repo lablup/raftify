@@ -18,7 +18,7 @@ use std::{
 };
 
 use self::codec::{format_entry_key_string, HeedEntry, HeedEntryKeyString};
-use super::{utils::append_compacted_logs, StableStorage};
+use super::{utils::append_compacted_logs, StableStorage, StorageType};
 use crate::{
     config::Config,
     error::Result,
@@ -47,6 +47,8 @@ impl HeedStorage {
 }
 
 impl StableStorage for HeedStorage {
+    const STORAGE_TYPE: StorageType = StorageType::Heed;
+
     fn compact(&mut self, index: u64) -> Result<()> {
         let store = self.wl();
         let mut writer = store.env.write_txn()?;
@@ -433,7 +435,7 @@ impl HeedStorageCore {
         reader: &heed::RoTxn,
         low: u64,
         high: u64,
-        max_size: impl Into<Option<u64>>,
+        max_size: Option<u64>,
         _ctx: GetEntriesContext,
     ) -> Result<Vec<Entry>> {
         self.logger

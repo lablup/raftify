@@ -9,6 +9,8 @@ use crate::{
     StableStorage,
 };
 
+use super::StorageType;
+
 #[derive(Clone)]
 pub struct MemStorage {
     core: MemStorageCore,
@@ -24,6 +26,8 @@ impl MemStorage {
 }
 
 impl StableStorage for MemStorage {
+    const STORAGE_TYPE: StorageType = StorageType::InMemory;
+
     fn append(&mut self, entries: &[Entry]) -> Result<()> {
         let mut store = self.core.wl();
         store.append(entries)?;
@@ -104,10 +108,10 @@ impl Storage for MemStorage {
         &self,
         low: u64,
         high: u64,
-        max_size: impl Into<Option<u64>>,
+        max_size: Option<u64>,
         context: raft::GetEntriesContext,
     ) -> raft::Result<Vec<Entry>> {
-        let entries = self.core.entries(low, high, max_size, context)?;
+        let entries = self.core.entries(low, high, max_size.into(), context)?;
         Ok(entries)
     }
 

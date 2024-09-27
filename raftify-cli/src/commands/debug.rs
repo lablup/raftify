@@ -2,23 +2,41 @@ use core::panic;
 use serde_json::Value;
 use std::{collections::HashMap, fs, path::Path, sync::Arc};
 
-use crate::{
+use raftify::{
     create_client,
     raft::{
         formatter::{format_entry, format_snapshot},
         logger::Slogger,
+        Storage,
     },
     raft_node::utils::format_debugging_info,
     raft_service, Config, Result, StableStorage,
 };
 
-#[cfg(feature = "inmemory_storage")]
-use crate::MemStorage;
+use raftify::{HeedStorage, StorageType};
 
-#[cfg(feature = "heed_storage")]
-use crate::HeedStorage;
+pub fn debug_persisted<LogStorage: StableStorage>(path: &str, logger: slog::Logger) -> Result<()> {
+    let config = Config {
+        log_dir: path.to_string(),
+        ..Default::default()
+    };
 
-pub fn debug_persisted(storage: impl StableStorage) -> Result<()> {
+    let storage = match LogStorage::STORAGE_TYPE {
+        StorageType::Heed => HeedStorage::create(
+            config.log_dir.as_str(),
+            &config,
+            Arc::new(Slogger {
+                slog: logger.clone(),
+            }),
+        )?,
+        StorageType::InMemory => {
+            panic!("Inmemory storage does not support this feature");
+        }
+        _ => {
+            panic!("Unsupported storage type");
+        }
+    };
+
     let entries = storage.all_entries()?;
 
     if !entries.is_empty() {
@@ -43,7 +61,7 @@ pub fn debug_persisted(storage: impl StableStorage) -> Result<()> {
     Ok(())
 }
 
-pub fn debug_persitsted_all(path_str: &str, logger: slog::Logger) -> Result<()> {
+pub fn debug_persitsted_all<LogStorage: StableStorage>(path_str: &str, logger: slog::Logger) -> Result<()> {
     let path = match fs::canonicalize(Path::new(&path_str)) {
         Ok(absolute_path) => absolute_path,
         Err(e) => {
@@ -73,28 +91,7 @@ pub fn debug_persitsted_all(path_str: &str, logger: slog::Logger) -> Result<()> 
         dir_entries.sort();
 
         for name in dir_entries {
-            println!("*----- {name} -----*");
-            #[cfg(feature = "heed_storage")]
-            {
-                let config = Config {
-                    log_dir: path_str.to_string(),
-                    ..Default::default()
-                };
-                let storage = HeedStorage::create(
-                    format!("{}/{}", path_str, name).as_str(),
-                    &config,
-                    Arc::new(Slogger {
-                        slog: logger.clone(),
-                    }),
-                )?;
-                debug_persisted(storage)?;
-            }
-
-            #[cfg(feature = "inmemory_storage")]
-            {
-                eprintln!("Inmemory storage does not support this feature");
-            }
-
+            debug_persisted::<LogStorage>(&format!("{}/{}", path_str, name), logger.clone())?;
             println!();
         }
     } else {
