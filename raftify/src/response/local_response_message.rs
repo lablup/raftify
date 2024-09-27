@@ -1,16 +1,20 @@
 use std::{fmt, marker::PhantomData, sync::Arc};
 
-use crate::raft::RawNode;
+use crate::{raft::RawNode, StableStorage};
 use tokio::sync::Mutex;
 
-use crate::{AbstractLogEntry, AbstractStateMachine, HeedStorage, Peers};
+use crate::{AbstractLogEntry, AbstractStateMachine, Peers};
 
 use super::{
     server_response_message::{ConfChangeResponseResult, ResponseResult},
     ResponseMessage,
 };
 
-pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
+pub enum LocalResponseMsg<
+    LogEntry: AbstractLogEntry,
+    LogStorage: StableStorage + 'static,
+    FSM: AbstractStateMachine,
+> {
     IsLeader {
         is_leader: bool,
     },
@@ -29,13 +33,13 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
         store: FSM,
     },
     GetStorage {
-        storage: HeedStorage,
+        storage: LogStorage,
     },
     GetClusterSize {
         size: usize,
     },
     GetRawNode {
-        raw_node: Arc<Mutex<&'static RawNode<HeedStorage>>>,
+        raw_node: Arc<Mutex<&'static RawNode<LogStorage>>>,
     },
     Quit {},
     Campaign {},
@@ -59,8 +63,8 @@ pub enum LocalResponseMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
     },
 }
 
-impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> fmt::Debug
-    for LocalResponseMsg<LogEntry, FSM>
+impl<LogEntry: AbstractLogEntry, LogStorage: StableStorage, FSM: AbstractStateMachine> fmt::Debug
+    for LocalResponseMsg<LogEntry, LogStorage, FSM>
 {
     #[allow(clippy::recursive_format_impl)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -75,10 +79,11 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> fmt::Debug
     }
 }
 
-impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> From<LocalResponseMsg<LogEntry, FSM>>
-    for ResponseMessage<LogEntry, FSM>
+impl<LogEntry: AbstractLogEntry, LogStorage: StableStorage, FSM: AbstractStateMachine>
+    From<LocalResponseMsg<LogEntry, LogStorage, FSM>>
+    for ResponseMessage<LogEntry, LogStorage, FSM>
 {
-    fn from(msg: LocalResponseMsg<LogEntry, FSM>) -> Self {
+    fn from(msg: LocalResponseMsg<LogEntry, LogStorage, FSM>) -> Self {
         ResponseMessage::Local(msg)
     }
 }

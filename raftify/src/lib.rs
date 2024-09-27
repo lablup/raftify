@@ -37,8 +37,13 @@ pub use crate::{
     raft_service::raft_service_client::RaftServiceClient,
     request::common::confchange_request::ConfChangeRequest,
     state_machine::AbstractStateMachine,
-    storage::heed_storage::HeedStorage,
     storage::StableStorage,
 };
+
+#[cfg(feature = "heed_storage")]
+pub use storage::heed_storage::HeedStorage;
+
+#[cfg(feature = "inmemory_storage")]
+pub use storage::inmemory_storage::MemStorage;
 
 pub(crate) use crate::utils::macros::macro_utils;

@@ -7,26 +7,18 @@ use crate::{
     raft::{
         formatter::{format_entry, format_snapshot},
         logger::Slogger,
-        Storage,
     },
     raft_node::utils::format_debugging_info,
-    raft_service, Config, HeedStorage, Result, StableStorage,
+    raft_service, Config, Result, StableStorage,
 };
 
-pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
-    let config = Config {
-        log_dir: path.to_string(),
-        ..Default::default()
-    };
+#[cfg(feature = "inmemory_storage")]
+use raftify::MemStorage;
 
-    let storage = HeedStorage::create(
-        config.log_dir.as_str(),
-        &config,
-        Arc::new(Slogger {
-            slog: logger.clone(),
-        }),
-    )?;
+#[cfg(feature = "heed_storage")]
+use crate::HeedStorage;
 
+pub fn debug_persisted(storage: impl StableStorage) -> Result<()> {
     let entries = storage.all_entries()?;
 
     if !entries.is_empty() {
@@ -82,7 +74,27 @@ pub fn debug_persitsted_all(path_str: &str, logger: slog::Logger) -> Result<()> 
 
         for name in dir_entries {
             println!("*----- {name} -----*");
-            debug_persisted(&format!("{}/{}", path_str, name), logger.clone())?;
+            #[cfg(feature = "heed_storage")]
+            {
+                let config = Config {
+                    log_dir: path_str.to_string(),
+                    ..Default::default()
+                };
+                let storage = HeedStorage::create(
+                    format!("{}/{}", path_str, name).as_str(),
+                    &config,
+                    Arc::new(Slogger {
+                        slog: logger.clone(),
+                    }),
+                )?;
+                debug_persisted(storage)?;
+            }
+
+            #[cfg(feature = "inmemory_storage")]
+            {
+                eprintln!("Inmemory storage does not support this feature");
+            }
+
             println!();
         }
     } else {

@@ -7,6 +7,7 @@ pub struct Config {
     pub raft_config: RaftConfig,
     pub log_dir: String,
 
+    pub bootstrap_from_snapshot: bool,
     pub save_compacted_logs: bool,
     pub compacted_log_dir: String,
     pub compacted_log_size_threshold: u64,
@@ -18,8 +19,6 @@ pub struct Config {
 
     pub initial_peers: Option<Peers>,
     pub snapshot_interval: Option<f32>,
-    pub restore_wal_from: Option<u64>,
-    pub restore_wal_snapshot_from: Option<u64>,
 }
 
 impl Config {
@@ -33,11 +32,10 @@ impl Config {
         tick_interval: f32,
         lmdb_map_size: u64,
         cluster_id: String,
+        bootstrap_from_snapshot: bool,
         conf_change_request_timeout: f32,
         initial_peers: Option<Peers>,
         snapshot_interval: Option<f32>,
-        restore_wal_from: Option<u64>,
-        restore_wal_snapshot_from: Option<u64>,
     ) -> Self {
         Self {
             raft_config,
@@ -51,8 +49,7 @@ impl Config {
             initial_peers,
             cluster_id,
             conf_change_request_timeout,
-            restore_wal_from,
-            restore_wal_snapshot_from,
+            bootstrap_from_snapshot,
         }
     }
 }
@@ -78,13 +75,6 @@ impl Config {
         }
 
         self.raft_config.validate()?;
-        if self.restore_wal_from.is_some() && self.restore_wal_snapshot_from.is_some() {
-            return Err(Error::ConfigInvalid(
-                "restore_wal_from and restore_wal_snapshot_from cannot be set at the same time"
-                    .to_owned(),
-            ));
-        }
-
         Ok(())
     }
 }
@@ -103,8 +93,7 @@ impl Default for Config {
             conf_change_request_timeout: 2.0,
             initial_peers: None,
             snapshot_interval: None,
-            restore_wal_from: None,
-            restore_wal_snapshot_from: None,
+            bootstrap_from_snapshot: false,
         }
     }
 }
@@ -133,6 +122,7 @@ impl fmt::Debug for Config {
                     max_committed_size_per_ready: {max_committed_size_per_ready}, \
                 }}, \
                 log_dir: {log_dir}, \
+                bootstrap_from_snapshot: {bootstrap_from_snapshot}, \
                 save_compacted_logs: {save_compacted_logs}, \
                 compacted_log_dir: {compacted_log_dir}, \
                 compacted_log_size_threshold: {compacted_log_size_threshold}, \
@@ -142,8 +132,6 @@ impl fmt::Debug for Config {
                 lmdb_map_size: {lmdb_map_size}, \
                 cluster_id: {cluster_id}, \
                 conf_change_request_timeout: {conf_change_request_timeout}, \
-                restore_wal_from: {restore_wal_from:?}, \
-                restore_wal_snapshot_from: {restore_wal_snapshot_from:?}, \
             }}",
             id = self.raft_config.id,
             election_tick = self.raft_config.election_tick,
@@ -171,8 +159,7 @@ impl fmt::Debug for Config {
             initial_peers = self.initial_peers,
             cluster_id = self.cluster_id,
             conf_change_request_timeout = self.conf_change_request_timeout,
-            restore_wal_from = self.restore_wal_from,
-            restore_wal_snapshot_from = self.restore_wal_snapshot_from,
+            bootstrap_from_snapshot = self.bootstrap_from_snapshot,
         )
     }
 }

@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
 use actix_web::{get, put, web, Responder};
-use raftify::{raft::Storage, AbstractLogEntry, Raft as Raft_, StableStorage};
+use raftify::raft::Storage;
+use raftify::{AbstractLogEntry, StableStorage};
 use serde_json::Value;
 
-use super::state_machine::{HashStore, LogEntry};
-
-type Raft = Raft_<LogEntry, HashStore>;
+use crate::state_machine::{HashStore, LogEntry, Raft};
 
 #[put("/store/{id}/{value}")]
 async fn put(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, String)>) -> impl Responder {
@@ -58,23 +57,31 @@ async fn peers(data: web::Data<(HashStore, Raft)>) -> impl Responder {
 
 #[get("/snapshot")]
 async fn snapshot(data: web::Data<(HashStore, Raft)>) -> impl Responder {
-    let raft = data.clone();
-    let last_index = raft
-        .1
-        .storage()
-        .await
-        .last_index()
-        .expect("Failed to get last index");
+    #[cfg(feature = "inmemory_storage")]
+    {
+        return "Snapshot is not supported with inmemory storage".to_string();
+    }
 
-    let hard_state = raft
-        .1
-        .storage()
-        .await
-        .hard_state()
-        .expect("Failed to get hard state");
+    #[cfg(not(feature = "inmemory_storage"))]
+    {
+        let raft = data.clone();
+        let last_index = raft
+            .1
+            .storage()
+            .await
+            .last_index()
+            .expect("Failed to get last index");
 
-    raft.1.make_snapshot(last_index, hard_state.term).await;
-    "OK".to_string()
+        let hard_state = raft
+            .1
+            .storage()
+            .await
+            .hard_state()
+            .expect("Failed to get hard state");
+
+        raft.1.make_snapshot(last_index, hard_state.term).await;
+        "OK".to_string()
+    }
 }
 
 #[get("/leave_joint")]

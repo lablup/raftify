@@ -3,16 +3,14 @@ include!(concat!(env!("OUT_DIR"), "/built.rs"));
 mod commands;
 
 use clap::{Args, Parser, Subcommand};
-use commands::{
-    debug::{debug_entries, debug_node, debug_persisted, debug_persitsted_all},
-    dump::dump_peers,
-    utils::parse_peers_json,
-};
-use std::fmt::Debug;
+use commands::debug::{debug_entries, debug_node, debug_persisted, debug_persitsted_all};
+use raft::logger::Slogger;
+use std::{fmt::Debug, sync::Arc};
 
 use crate::{
     raft::{default_logger, formatter::set_custom_formatter},
-    AbstractLogEntry, AbstractStateMachine, CustomFormatter, Result,
+    AbstractLogEntry, AbstractStateMachine, Config, CustomFormatter, HeedStorage, Result,
+    StableStorage,
 };
 
 #[derive(Parser)]
@@ -30,8 +28,6 @@ enum Commands {
     /// Debug tools
     #[command(subcommand)]
     Debug(DebugSubcommands),
-    /// Dump tools
-    Dump(Dump),
 }
 
 #[derive(Subcommand)]
@@ -68,6 +64,7 @@ struct Dump {
 
 pub async fn cli_handler<
     LogEntry: AbstractLogEntry + Debug + Send + 'static,
+    LogStorage: StableStorage + Send + Sync + Clone + 'static,
     FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
 >(
     args: Option<Vec<String>>,
@@ -82,7 +79,26 @@ pub async fn cli_handler<
     match app.command {
         Commands::Debug(x) => match x {
             DebugSubcommands::Persisted { path } => {
-                debug_persisted(path.as_str(), logger.clone())?;
+                #[cfg(feature = "heed_storage")]
+                {
+                    let config = Config {
+                        log_dir: path.to_string(),
+                        ..Default::default()
+                    };
+                    let storage = HeedStorage::create(
+                        config.log_dir.as_str(),
+                        &config,
+                        Arc::new(Slogger {
+                            slog: logger.clone(),
+                        }),
+                    )?;
+                    debug_persisted(storage)?;
+                }
+
+                #[cfg(feature = "inmemory_storage")]
+                {
+                    eprintln!("Inmemory storage does not support this feature");
+                }
             }
             DebugSubcommands::PersistedAll { path } => {
                 debug_persitsted_all(path.as_str(), logger.clone())?;
@@ -94,13 +110,6 @@ pub async fn cli_handler<
                 debug_node(address.as_str()).await?;
             }
         },
-        Commands::Dump(x) => {
-            dump_peers(
-                x.path.as_str(),
-                parse_peers_json(x.peers.as_str()).unwrap(),
-                logger.clone(),
-            )?;
-        }
     }
 
     Ok(())

@@ -5,16 +5,22 @@ use crate::{
         local_response_message::LocalResponseMsg, server_response_message::ServerResponseMsg,
         ResponseMessage,
     },
-    AbstractLogEntry, AbstractStateMachine,
+    AbstractLogEntry, AbstractStateMachine, StableStorage,
 };
 
-pub(crate) enum ResponseSender<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
-    Local(oneshot::Sender<LocalResponseMsg<LogEntry, FSM>>),
+pub(crate) enum ResponseSender<
+    LogEntry: AbstractLogEntry,
+    LogStorage: StableStorage + 'static,
+    FSM: AbstractStateMachine,
+> {
+    Local(oneshot::Sender<LocalResponseMsg<LogEntry, LogStorage, FSM>>),
     Server(oneshot::Sender<ServerResponseMsg>),
 }
 
-impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> ResponseSender<LogEntry, FSM> {
-    pub fn send(self, response: ResponseMessage<LogEntry, FSM>) {
+impl<LogEntry: AbstractLogEntry, LogStorage: StableStorage, FSM: AbstractStateMachine>
+    ResponseSender<LogEntry, LogStorage, FSM>
+{
+    pub fn send(self, response: ResponseMessage<LogEntry, LogStorage, FSM>) {
         match self {
             ResponseSender::Local(tx_local) => {
                 if let ResponseMessage::Local(response) = response {

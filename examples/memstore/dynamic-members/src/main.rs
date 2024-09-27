@@ -6,23 +6,30 @@ extern crate slog_term;
 use actix_web::{web, App, HttpServer};
 use raftify::{
     raft::{formatter::set_custom_formatter, logger::Slogger},
-    CustomFormatter, Raft as Raft_,
+    CustomFormatter,
 };
 use slog::Drain;
 use slog_envlogger::LogBuilder;
 use std::sync::Arc;
 use structopt::StructOpt;
 
-use example_harness::config::build_config;
+use example_harness::{
+    config::build_config,
+    utils::{ensure_directory_exist, get_storage_path},
+};
 use memstore_example_harness::{
-    state_machine::{HashStore, LogEntry},
+    state_machine::{HashStore, LogEntry, Raft},
     web_server_api::{
         campaign, debug, demote, get, leader_id, leave, leave_joint, peers, put, snapshot,
         transfer_leader,
     },
 };
 
-type Raft = Raft_<LogEntry, HashStore>;
+#[cfg(feature = "inmemory_storage")]
+use raftify::MemStorage;
+
+#[cfg(feature = "heed_storage")]
+use raftify::HeedStorage;
 
 #[derive(Debug, StructOpt)]
 struct Options {
@@ -71,9 +78,20 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             let node_id = ticket.reserved_id;
             cfg.initial_peers = Some(ticket.peers.clone().into());
 
+            let storage_pth = get_storage_path(cfg.log_dir.as_str(), node_id);
+            ensure_directory_exist(storage_pth.as_str())?;
+
+            #[cfg(feature = "inmemory_storage")]
+            let log_storage = MemStorage::create();
+
+            #[cfg(feature = "heed_storage")]
+            let log_storage = HeedStorage::create(&storage_pth, &cfg.clone(), logger.clone())
+                .expect("Failed to create heed storage");
+
             let raft = Raft::bootstrap(
                 node_id,
                 options.raft_addr,
+                log_storage,
                 store.clone(),
                 cfg.clone(),
                 logger.clone(),
@@ -87,7 +105,25 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         }
         None => {
             log::info!("Bootstrap a Raft Cluster");
-            let raft = Raft::bootstrap(1, options.raft_addr, store.clone(), cfg, logger.clone())?;
+
+            let storage_pth = get_storage_path(cfg.log_dir.as_str(), 1);
+            ensure_directory_exist(storage_pth.as_str())?;
+
+            #[cfg(feature = "inmemory_storage")]
+            let log_storage = MemStorage::create();
+
+            #[cfg(feature = "heed_storage")]
+            let log_storage = HeedStorage::create(&storage_pth, &cfg.clone(), logger.clone())
+                .expect("Failed to create heed storage");
+
+            let raft = Raft::bootstrap(
+                1,
+                options.raft_addr,
+                log_storage,
+                store.clone(),
+                cfg,
+                logger.clone(),
+            )?;
             let handle = tokio::spawn(raft.clone().run());
             (raft, handle)
         }

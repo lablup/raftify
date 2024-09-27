@@ -1,34 +1,12 @@
 use chrono::Utc;
 use serde_json::{json, Value};
 use std::{
-    fs::{self, File, OpenOptions},
+    fs::{File, OpenOptions},
     io::{self, Read, Seek, Write as StdIoWrite},
     path::Path,
 };
 
-use crate::{
-    raft::{eraftpb::Entry, formatter::Bytes, formatter::CUSTOM_FORMATTER},
-    Result,
-};
-
-pub fn clear_storage_path(log_dir_path: &str) -> Result<()> {
-    let log_dir_path = Path::new(&log_dir_path);
-
-    if fs::metadata(log_dir_path).is_ok() {
-        fs::remove_dir_all(log_dir_path)?;
-    }
-
-    Ok(())
-}
-
-pub fn ensure_directory_exist(dir_pth: &str) -> Result<()> {
-    let dir_pth: &Path = Path::new(&dir_pth);
-
-    if fs::metadata(dir_pth).is_err() {
-        fs::create_dir_all(dir_pth)?;
-    }
-    Ok(())
-}
+use crate::raft::{eraftpb::Entry, formatter::Bytes, formatter::CUSTOM_FORMATTER};
 
 fn entry_type_to_str(entry_type: i32) -> &'static str {
     match entry_type {

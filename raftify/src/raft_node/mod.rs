@@ -36,7 +36,6 @@ use crate::{
         formatter::{format_confchangev2, format_message},
         logger::Logger,
         raw_node::RawNode,
-        Storage,
     },
     raft_service::{self, ChangeConfigResultType, ProposeArgs},
     request::{
@@ -50,54 +49,48 @@ use crate::{
         },
         ResponseMessage,
     },
-    storage::utils::{clear_storage_path, ensure_directory_exist},
     utils::{membership::to_confchange_v2, oneshot_mutex::OneShotMutex},
     AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket, Config, Error, InitialRole, Peers,
     RaftServiceClient, StableStorage,
 };
 
-#[cfg(feature = "heed_storage")]
-use crate::storage::heed_storage::{
-    utils::{get_data_mdb_path, get_storage_path},
-    HeedStorage,
-};
-
-#[cfg(feature = "inmemory_storage")]
-use crate::storage::inmemory_storage::MemStorage;
-
 #[derive(Clone)]
 pub struct RaftNode<
     LogEntry: AbstractLogEntry + Send + 'static,
+    LogStorage: StableStorage + Send + Clone + 'static,
     FSM: AbstractStateMachine + Clone + 'static,
 > {
     // The lock of RaftNodeCore is locked when RaftNode.run is called and is never released until program terminates.
     // However, to implement the Clone trait in RaftNode, Arc and Mutex are necessary. That's why we use OneShotMutex here.
-    inner: Arc<OneShotMutex<RaftNodeCore<LogEntry, FSM>>>,
+    inner: Arc<OneShotMutex<RaftNodeCore<LogEntry, LogStorage, FSM>>>,
     // RaftNode.(method_call) >>> RaftNodeCore.run
-    tx_local: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
+    tx_local: mpsc::Sender<LocalRequestMsg<LogEntry, LogStorage, FSM>>,
 }
 
 impl<
         LogEntry: AbstractLogEntry + Send + 'static,
+        LogStorage: StableStorage + Send + Clone + 'static,
         FSM: AbstractStateMachine + Clone + Send + 'static,
-    > RaftNode<LogEntry, FSM>
+    > RaftNode<LogEntry, LogStorage, FSM>
 {
     #[allow(clippy::too_many_arguments)]
     pub fn bootstrap(
         node_id: u64,
         should_be_leader: bool,
+        log_storage: LogStorage,
         fsm: FSM,
         config: Config,
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
-        tx_server: mpsc::Sender<ServerRequestMsg<LogEntry, FSM>>,
-        rx_server: mpsc::Receiver<ServerRequestMsg<LogEntry, FSM>>,
+        tx_server: mpsc::Sender<ServerRequestMsg<LogEntry, LogStorage, FSM>>,
+        rx_server: mpsc::Receiver<ServerRequestMsg<LogEntry, LogStorage, FSM>>,
     ) -> Result<Self> {
         let (tx_local, rx_local) = mpsc::channel(100);
 
-        RaftNodeCore::<LogEntry, FSM>::bootstrap(
+        RaftNodeCore::<LogEntry, LogStorage, FSM>::bootstrap(
             node_id,
             should_be_leader,
+            log_storage,
             fsm,
             config,
             raft_addr,
@@ -231,7 +224,7 @@ impl<
         }
     }
 
-    pub async fn storage(&self) -> HeedStorage {
+    pub async fn storage(&self) -> LogStorage {
         let (tx, rx) = oneshot::channel();
         self.tx_local
             .send(LocalRequestMsg::GetStorage { tx_msg: tx })
@@ -456,7 +449,7 @@ impl<
 
     /// # Safety
     /// TODO: Write this.
-    pub async unsafe fn get_raw_node(&self) -> Arc<Mutex<&'static RawNode<HeedStorage>>> {
+    pub async unsafe fn get_raw_node(&self) -> Arc<Mutex<&'static RawNode<LogStorage>>> {
         let (tx, rx) = oneshot::channel();
         self.tx_local
             .send(LocalRequestMsg::GetRawNode { tx_msg: tx })
@@ -482,12 +475,12 @@ impl<
 
 pub struct RaftNodeCore<
     LogEntry: AbstractLogEntry + Send + 'static,
+    LogStorage: StableStorage + Send + Clone + 'static,
     FSM: AbstractStateMachine + Clone + 'static,
 > {
-    #[cfg(feature = "heed_storage")]
-    pub raw_node: RawNode<HeedStorage>,
-    #[cfg(feature = "inmemory_storage")]
-    pub raw_node: RawNode<MemStorage>,
+    pub raw_node: RawNode<LogStorage>,
+    pub log_storage: LogStorage,
+
     pub fsm: FSM,
     pub peers: Arc<Mutex<Peers>>,
     response_seq: AtomicU64,
@@ -496,15 +489,15 @@ pub struct RaftNodeCore<
     should_exit: bool,
     last_snapshot_created: Instant,
     logger: Arc<dyn Logger>,
-    response_senders: HashMap<u64, ResponseSender<LogEntry, FSM>>,
+    response_senders: HashMap<u64, ResponseSender<LogEntry, LogStorage, FSM>>,
 
     #[allow(dead_code)]
-    tx_server: mpsc::Sender<ServerRequestMsg<LogEntry, FSM>>,
-    rx_server: mpsc::Receiver<ServerRequestMsg<LogEntry, FSM>>,
+    tx_server: mpsc::Sender<ServerRequestMsg<LogEntry, LogStorage, FSM>>,
+    rx_server: mpsc::Receiver<ServerRequestMsg<LogEntry, LogStorage, FSM>>,
 
     #[allow(dead_code)]
-    tx_local: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
-    rx_local: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
+    tx_local: mpsc::Sender<LocalRequestMsg<LogEntry, LogStorage, FSM>>,
+    rx_local: mpsc::Receiver<LocalRequestMsg<LogEntry, LogStorage, FSM>>,
 
     tx_self: mpsc::Sender<SelfMessage>,
     rx_self: mpsc::Receiver<SelfMessage>,
@@ -514,39 +507,30 @@ pub struct RaftNodeCore<
 
 impl<
         LogEntry: AbstractLogEntry + Send + 'static,
+        LogStorage: StableStorage + Send + Clone + 'static,
         FSM: AbstractStateMachine + Clone + Send + 'static,
-    > RaftNodeCore<LogEntry, FSM>
+    > RaftNodeCore<LogEntry, LogStorage, FSM>
 {
     #[allow(clippy::too_many_arguments)]
     pub fn bootstrap(
         node_id: u64,
         should_be_leader: bool,
+        mut log_storage: LogStorage,
         fsm: FSM,
         mut config: Config,
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
-        tx_server: mpsc::Sender<ServerRequestMsg<LogEntry, FSM>>,
-        rx_server: mpsc::Receiver<ServerRequestMsg<LogEntry, FSM>>,
-        tx_local: mpsc::Sender<LocalRequestMsg<LogEntry, FSM>>,
-        rx_local: mpsc::Receiver<LocalRequestMsg<LogEntry, FSM>>,
+        tx_server: mpsc::Sender<ServerRequestMsg<LogEntry, LogStorage, FSM>>,
+        rx_server: mpsc::Receiver<ServerRequestMsg<LogEntry, LogStorage, FSM>>,
+        tx_local: mpsc::Sender<LocalRequestMsg<LogEntry, LogStorage, FSM>>,
+        rx_local: mpsc::Receiver<LocalRequestMsg<LogEntry, LogStorage, FSM>>,
     ) -> Result<Self> {
         config.raft_config.id = node_id;
         config.validate()?;
 
-        let storage_pth = get_storage_path(config.log_dir.as_str(), node_id);
+        let mut snapshot = log_storage.snapshot(0, log_storage.last_index()?)?;
 
-        if let (None, None) = (config.restore_wal_from, config.restore_wal_snapshot_from) {
-            clear_storage_path(storage_pth.as_str())?;
-            ensure_directory_exist(storage_pth.as_str())?;
-        };
-
-        #[cfg(feature = "heed_storage")]
-        let mut storage = HeedStorage::create(storage_pth.as_str(), &config, logger.clone())?;
-
-        #[cfg(feature = "inmemory_storage")]
-        let mut storage = MemStorage::create();
-
-        let mut snapshot = storage.snapshot(0, storage.last_index()?)?;
+        let last_idx = log_storage.last_index()?;
 
         let conf_state = snapshot.mut_metadata().mut_conf_state();
 
@@ -576,33 +560,11 @@ impl<
             conf_state.set_learners(learners);
         }
 
-        match (config.restore_wal_from, config.restore_wal_snapshot_from) {
-            (Some(restore_wal_from), None) => {
-                if restore_wal_from != node_id {
-                    std::fs::copy(
-                        get_data_mdb_path(config.log_dir.as_str(), restore_wal_from),
-                        get_data_mdb_path(config.log_dir.as_str(), node_id),
-                    )?;
-                }
-            }
-            (None, Some(restore_wal_snapshot_from)) => {
-                if restore_wal_snapshot_from != node_id {
-                    std::fs::copy(
-                        get_data_mdb_path(config.log_dir.as_str(), restore_wal_snapshot_from),
-                        get_data_mdb_path(config.log_dir.as_str(), node_id),
-                    )?;
-                }
-                storage.apply_snapshot(snapshot)?;
-            }
-            (Some(_), Some(_)) => {
-                unreachable!()
-            }
-            _ => {
-                storage.apply_snapshot(snapshot)?;
-            }
+        if last_idx == 0 || config.bootstrap_from_snapshot {
+            log_storage.apply_snapshot(snapshot)?;
         }
 
-        let mut raw_node = RawNode::new(&config.raft_config, storage, logger.clone())?;
+        let mut raw_node = RawNode::new(&config.raft_config, log_storage.clone(), logger.clone())?;
         let response_seq = AtomicU64::new(0);
         let last_snapshot_created = Instant::now();
 
@@ -615,6 +577,7 @@ impl<
 
         Ok(RaftNodeCore {
             raw_node,
+            log_storage,
             fsm,
             response_seq,
             config,
@@ -727,7 +690,7 @@ impl<
 
     async fn send_messages(&mut self, messages: Vec<RaftMessage>) {
         for message in messages {
-            tokio::spawn(RaftNodeCore::<LogEntry, FSM>::send_message(
+            tokio::spawn(RaftNodeCore::<LogEntry, LogStorage, FSM>::send_message(
                 message,
                 self.peers.clone(),
                 self.tx_self.clone(),
@@ -961,7 +924,7 @@ impl<
     async fn handle_propose_request(
         &mut self,
         proposal: Vec<u8>,
-        response_sender: ResponseSender<LogEntry, FSM>,
+        response_sender: ResponseSender<LogEntry, LogStorage, FSM>,
     ) -> Result<()> {
         if !self.is_leader() {
             let leader_id = self.get_leader_id();
@@ -981,7 +944,7 @@ impl<
                 .addr
                 .to_string();
 
-            let raft_response: ResponseMessage<LogEntry, FSM> = match response_sender {
+            let raft_response: ResponseMessage<LogEntry, LogStorage, FSM> = match response_sender {
                 ResponseSender::Local(_) => LocalResponseMsg::Propose {
                     result: ResponseResult::WrongLeader {
                         leader_id,
@@ -1021,7 +984,7 @@ impl<
     async fn handle_confchange_request(
         &mut self,
         conf_change: ConfChangeV2,
-        response_sender: ResponseSender<LogEntry, FSM>,
+        response_sender: ResponseSender<LogEntry, LogStorage, FSM>,
     ) -> Result<()> {
         if self.raw_node.raft.has_pending_conf() {
             self.logger.warn(&format!("Reject the conf change because pending conf change exist! (pending_conf_index={}), try later...", self.raw_node.raft.pending_conf_index));
@@ -1085,7 +1048,7 @@ impl<
 
     async fn handle_local_request_msg(
         &mut self,
-        message: LocalRequestMsg<LogEntry, FSM>,
+        message: LocalRequestMsg<LogEntry, LogStorage, FSM>,
     ) -> Result<()> {
         match message {
             LocalRequestMsg::IsLeader { tx_msg } => {
@@ -1135,7 +1098,6 @@ impl<
                     .unwrap();
             }
             LocalRequestMsg::GetStorage { tx_msg } => {
-                #[cfg(feature = "heed_storage")]
                 tx_msg
                     .send(LocalResponseMsg::GetStorage {
                         storage: self.raw_node.store().clone(),
@@ -1254,7 +1216,7 @@ impl<
 
     async fn handle_server_request_msg(
         &mut self,
-        message: ServerRequestMsg<LogEntry, FSM>,
+        message: ServerRequestMsg<LogEntry, LogStorage, FSM>,
     ) -> Result<()> {
         match message {
             ServerRequestMsg::ChangeConfig {
@@ -1363,6 +1325,7 @@ impl<
             }
             ServerRequestMsg::_Phantom(_) => unreachable!(),
             ServerRequestMsg::_Phantom2(_) => unreachable!(),
+            ServerRequestMsg::_Phantom3(_) => unreachable!(),
         }
 
         Ok(())
@@ -1414,13 +1377,14 @@ impl<
     async fn on_ready(&mut self) -> Result<()> {
         // TODO: Improve this logic.
         // I'd like to move this logic into RaftNodeCore::bootstrap, but it's currently not possible because it is not async.
-        if self.config.restore_wal_snapshot_from.is_some() {
-            self.logger.info("Restoring state machine from snapshot...");
-            let store = self.raw_node.store();
-            let snap = store.snapshot(0, store.last_index()?)?;
-            self.fsm.restore(snap.get_data().to_vec()).await?;
-            self.config.restore_wal_snapshot_from = None;
-        }
+
+        // if self.config.restore_wal_snapshot_from.is_some() {
+        //     self.logger.info("Restoring state machine from snapshot...");
+        //     let store = self.raw_node.store();
+        //     let snap = store.snapshot(0, store.last_index()?)?;
+        //     self.fsm.restore(snap.get_data().to_vec()).await?;
+        //     self.config.restore_wal_snapshot_from = None;
+        // }
 
         if !self.raw_node.has_ready() {
             return Ok(());
@@ -1448,6 +1412,7 @@ impl<
         if !ready.entries().is_empty() {
             let entries = &ready.entries()[..];
             let store = self.raw_node.mut_store();
+            println!("Applying entries: {:?}", entries);
             store.append(entries)?;
         }
 

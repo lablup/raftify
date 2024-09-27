@@ -1,11 +1,19 @@
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
-use raftify::{AbstractLogEntry, AbstractStateMachine, Result};
+use raftify::{AbstractLogEntry, AbstractStateMachine, Raft as Raft_, Result};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
+
+#[cfg(feature = "inmemory_storage")]
+use raftify::MemStorage as StorageType;
+
+#[cfg(feature = "heed_storage")]
+use raftify::HeedStorage as StorageType;
+
+pub type Raft = Raft_<LogEntry, StorageType, HashStore>;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum LogEntry {

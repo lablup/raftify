@@ -2,6 +2,7 @@ use futures::future;
 use raftify::{
     raft::{formatter::set_custom_formatter, logger::Slogger},
     CustomFormatter, Peers, Raft as Raft_, Result,
+    HeedStorage,
 };
 use std::{
     collections::HashMap,
@@ -16,7 +17,7 @@ use crate::{
     utils::build_logger,
 };
 
-pub type Raft = Raft_<LogEntry, HashStore>;
+pub type Raft = Raft_<LogEntry, HeedStorage, HashStore>;
 
 pub async fn wait_until_rafts_ready(
     rafts: Option<HashMap<u64, Raft>>,
