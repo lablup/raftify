@@ -7,9 +7,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-#[cfg(feature = "inmemory_storage")]
-pub use raftify::MemStorage as StorageType;
-
 #[cfg(feature = "heed_storage")]
 pub use raftify::HeedStorage as StorageType;
 

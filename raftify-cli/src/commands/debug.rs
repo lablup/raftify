@@ -11,9 +11,8 @@ use raftify::{
     },
     raft_node::utils::format_debugging_info,
     raft_service, Config, Result, StableStorage,
+    HeedStorage, StorageType,
 };
-
-use raftify::{HeedStorage, StorageType};
 
 pub fn debug_persisted<LogStorage: StableStorage>(path: &str, logger: slog::Logger) -> Result<()> {
     let config = Config {
@@ -91,6 +90,7 @@ pub fn debug_persitsted_all<LogStorage: StableStorage>(path_str: &str, logger: s
         dir_entries.sort();
 
         for name in dir_entries {
+            println!("*----- {name} -----*");
             debug_persisted::<LogStorage>(&format!("{}/{}", path_str, name), logger.clone())?;
             println!();
         }
