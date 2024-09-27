@@ -1,0 +1,19 @@
+layout {
+    pane split_direction="vertical" {
+        pane command="sh" name="Node 1 (127.0.0.1:60061)" {
+            args "-c" "./target/debug/memstore-static-members --raft-addr=127.0.0.1:60061 --web-server=127.0.0.1:8001"
+        }
+        pane command="sh" name="Node 2 (127.0.0.1:60062)" {
+            args "-c" "./target/debug/memstore-static-members --raft-addr=127.0.0.1:60062 --web-server=127.0.0.1:8002"
+        }
+    }
+    pane split_direction="vertical" {
+        pane command="sh" name="Node 3 (127.0.0.1:60063)" {
+            args "-c" "./target/debug/memstore-static-members --raft-addr=127.0.0.1:60063 --web-server=127.0.0.1:8003"
+        }
+        pane name="Terminal" focus=true
+    }
+    pane split_direction="vertical" size="2%" borderless=true {
+        plugin location="zellij:status-bar"
+    }
+}

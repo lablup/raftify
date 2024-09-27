@@ -4,6 +4,7 @@ pub fn build_config() -> Config {
     let raft_config = RaftConfig {
         election_tick: 10,
         heartbeat_tick: 3,
+        omit_heartbeat_log: true,
         ..Default::default()
     };
 

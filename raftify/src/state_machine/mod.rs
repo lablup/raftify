@@ -1,3 +1,5 @@
+use tonic::async_trait;
+
 use crate::Result;
 
 #[async_trait]

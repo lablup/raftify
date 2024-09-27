@@ -31,7 +31,7 @@ use crate::{
     raft::{
         eraftpb::{
             ConfChange, ConfChangeSingle, ConfChangeTransition, ConfChangeType, ConfChangeV2,
-            Entry, EntryType, Message as RaftMessage, Snapshot,
+            Entry, EntryType, Message as RaftMessage, MessageType, Snapshot,
         },
         formatter::{format_confchangev2, format_message},
         logger::Logger,
@@ -704,10 +704,9 @@ impl<
 
         if let Err(e) = ok {
             logger.debug(&format!("Error occurred while sending message: {}", e));
-            tx_self
+            let _ = tx_self
                 .send(SelfMessage::ReportUnreachable { node_id })
-                .await
-                .unwrap();
+                .await;
         }
     }
 
@@ -878,8 +877,6 @@ impl<
                 ConfChangeType::RemoveNode => {
                     if node_id == self.get_id() {
                         self.should_exit = true;
-                        self.logger
-                            .info(&format!("Node {} quit the cluster.", node_id));
                     } else {
                         self.logger
                             .info(&format!("Node {} removed from the cluster.", node_id));
@@ -1209,7 +1206,7 @@ impl<
                     self.raw_node.raft.id,
                     format_message(&message)
                 ));
-                self.raw_node.step(*message)?;
+                let _ = self.raw_node.step(*message);
                 tx_msg.send(LocalResponseMsg::SendMessage {}).unwrap();
             }
             LocalRequestMsg::LeaveJoint {} => {
@@ -1249,13 +1246,18 @@ impl<
                     .await?;
             }
             ServerRequestMsg::SendMessage { message } => {
-                self.logger.debug(&format!(
-                    ">>> Node {} received Raft message from the node {}, {}",
-                    self.raw_node.raft.id,
-                    message.from,
-                    format_message(&message)
-                ));
-                self.raw_node.step(*message)?
+                let is_heartbeat_message = message.get_msg_type() == MessageType::MsgHeartbeat
+                    || message.get_msg_type() == MessageType::MsgHeartbeatResponse;
+
+                if !is_heartbeat_message || !self.config.raft_config.omit_heartbeat_log {
+                    self.logger.debug(&format!(
+                        ">>> Node {} received Raft message from the node {}, {}",
+                        self.raw_node.raft.id,
+                        message.from,
+                        format_message(&message)
+                    ));
+                }
+                let _ = self.raw_node.step(*message);
             }
             ServerRequestMsg::Propose { proposal, tx_msg } => {
                 self.handle_propose_request(proposal, ResponseSender::Server(tx_msg))

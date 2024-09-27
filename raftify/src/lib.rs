@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate async_trait;
-
 mod config;
 mod error;
 mod formatter;
@@ -23,7 +20,7 @@ pub mod cluster_join_ticket;
 pub mod raft_service;
 
 pub use {
-    async_trait::async_trait, bincode, formatter::CustomFormatter, jopemachine_raft as raft,
+    async_trait::async_trait, bincode, formatter::CustomFormatter, raft,
     raft::Config as RaftConfig, tonic, tonic::transport::Channel,
 };
 

@@ -2,7 +2,7 @@ include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
 mod commands;
 
-use clap::{App, Arg, SubCommand};
+use clap::{Args, Parser, Subcommand};
 use commands::{
     debug::{debug_entries, debug_node, debug_persisted, debug_persitsted_all},
     dump::dump_peers,
@@ -15,116 +15,93 @@ use crate::{
     AbstractLogEntry, AbstractStateMachine, CustomFormatter, Result,
 };
 
+#[derive(Parser)]
+#[command(name = "raftify")]
+#[command(version = PKG_VERSION)]
+#[command(author = PKG_AUTHORS)]
+#[command(about = PKG_DESCRIPTION)]
+struct App {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Debug tools
+    #[command(subcommand)]
+    Debug(DebugSubcommands),
+    /// Dump tools
+    Dump(Dump),
+}
+
+#[derive(Subcommand)]
+enum DebugSubcommands {
+    /// List persisted log entries and metadata
+    Persisted {
+        /// The log directory path
+        path: String,
+    },
+    /// List persisted log entries and metadata for all local nodes
+    PersistedAll {
+        /// The log directory path
+        path: String,
+    },
+    /// List all log entries
+    Entries {
+        /// The address of the RaftNode
+        address: String,
+    },
+    /// Inspect RaftNode
+    Node {
+        /// The address of the RaftNode
+        address: String,
+    },
+}
+
+#[derive(Args)]
+struct Dump {
+    /// The log directory path
+    path: String,
+    /// The peers to dump
+    peers: String,
+}
+
 pub async fn cli_handler<
     LogEntry: AbstractLogEntry + Debug + Send + 'static,
     FSM: AbstractStateMachine + Debug + Clone + Send + Sync + 'static,
 >(
-    custom_args: Option<Vec<String>>,
+    args: Option<Vec<String>>,
 ) -> Result<()> {
-    let app = App::new("raftify")
-        .version(PKG_VERSION)
-        .author(PKG_AUTHORS)
-        .about(PKG_DESCRIPTION)
-        .subcommand(
-            SubCommand::with_name("debug")
-                .about("Debug tools")
-                .subcommand(
-                    SubCommand::with_name("persisted")
-                        .about("List persisted log entries and metadata")
-                        .arg(
-                            Arg::with_name("path")
-                                .help("The log directory path")
-                                .required(true)
-                                .index(1),
-                        ),
-                )
-                .subcommand(
-                    SubCommand::with_name("persisted-all")
-                        .about("List persisted log entries and metadata for all local nodes")
-                        .arg(
-                            Arg::with_name("path")
-                                .help("The log directory path")
-                                .required(true)
-                                .index(1),
-                        ),
-                )
-                .subcommand(
-                    SubCommand::with_name("entries")
-                        .about("List all log entries")
-                        .arg(
-                            Arg::with_name("address")
-                                .help("The address of the RaftNode")
-                                .required(true)
-                                .index(1),
-                        ),
-                )
-                .subcommand(
-                    SubCommand::with_name("node").about("Inspect RaftNode").arg(
-                        Arg::with_name("address")
-                            .help("The address of the RaftNode")
-                            .required(true)
-                            .index(1),
-                    ),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("dump")
-                .arg(
-                    Arg::with_name("path")
-                        .help("The log directory path")
-                        .required(true)
-                        .index(1),
-                )
-                .arg(
-                    Arg::with_name("peers")
-                        .help("The peers to dump")
-                        .required(true)
-                        .index(2),
-                )
-                .about(""),
-        );
-
-    let matches = match custom_args {
-        Some(args) => app.get_matches_from(args),
-        None => app.get_matches(),
+    let app: App = match args {
+        Some(args) => App::parse_from(args),
+        None => App::parse(),
     };
-
     let logger = default_logger();
     set_custom_formatter(CustomFormatter::<LogEntry, FSM>::new());
 
-    if let Some(("debug", debug_matches)) = matches.subcommand() {
-        match debug_matches.subcommand() {
-            Some(("entries", entries_matches)) => {
-                if let Some(address) = entries_matches.value_of("address") {
-                    debug_entries(address).await?;
-                }
+    match app.command {
+        Commands::Debug(x) => match x {
+            DebugSubcommands::Persisted { path } => {
+                debug_persisted(path.as_str(), logger.clone())?;
             }
-            Some(("node", node_matches)) => {
-                if let Some(address) = node_matches.value_of("address") {
-                    debug_node(address).await?;
-                }
+            DebugSubcommands::PersistedAll { path } => {
+                debug_persitsted_all(path.as_str(), logger.clone())?;
             }
-            Some(("persisted", persisted_matches)) => {
-                if let Some(path) = persisted_matches.value_of("path") {
-                    debug_persisted(path, logger.clone())?;
-                }
+            DebugSubcommands::Entries { address } => {
+                debug_entries(address.as_str()).await?;
             }
-            Some(("persisted-all", persisted_all_matches)) => {
-                if let Some(path) = persisted_all_matches.value_of("path") {
-                    debug_persitsted_all(path, logger.clone())?;
-                }
+            DebugSubcommands::Node { address } => {
+                debug_node(address.as_str()).await?;
             }
-            _ => {}
+        },
+        Commands::Dump(x) => {
+            dump_peers(
+                x.path.as_str(),
+                parse_peers_json(x.peers.as_str()).unwrap(),
+                logger.clone(),
+            )?;
         }
-    };
-
-    if let Some(("dump", dump_matches)) = matches.subcommand() {
-        if let Some(path) = dump_matches.value_of("path") {
-            if let Some(peers) = dump_matches.value_of("peers") {
-                dump_peers(path, parse_peers_json(peers).unwrap(), logger.clone())?;
-            }
-        }
-    };
+    }
 
     Ok(())
 }

@@ -1,6 +1,6 @@
 use std::{fmt, marker::PhantomData, sync::Arc};
 
-use jopemachine_raft::RawNode;
+use crate::raft::RawNode;
 use tokio::sync::Mutex;
 
 use crate::{AbstractLogEntry, AbstractStateMachine, HeedStorage, Peers};

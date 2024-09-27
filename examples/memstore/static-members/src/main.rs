@@ -61,7 +61,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let options = Options::from_args();
     let store = HashStore::new();
-    let initial_peers = load_peers().await?;
+    let initial_peers = load_peers("cluster_config.toml").await?;
 
     let mut cfg = build_config();
     cfg.initial_peers = Some(initial_peers.clone());

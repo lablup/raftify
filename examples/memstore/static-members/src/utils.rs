@@ -1,9 +1,11 @@
 use raftify::{InitialRole, Peers};
 use serde::Deserialize;
 use std::fs;
+use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::str::FromStr;
+use tokio::net::lookup_host;
 use toml;
 
 #[derive(Deserialize, Debug)]
@@ -24,21 +26,43 @@ pub struct TomlInnerRaftConfig {
     pub peers: Vec<TomlRaftPeer>,
 }
 
-pub async fn load_peers() -> Result<Peers, Box<dyn std::error::Error>> {
+pub async fn load_peers(
+    cluster_config_filename: &str,
+) -> Result<Peers, Box<dyn std::error::Error>> {
     let path = Path::new(file!())
         .parent()
         .unwrap()
         .parent()
         .unwrap()
-        .join("cluster_config.toml");
-    let config_str = fs::read_to_string(path)?;
+        .join(cluster_config_filename);
+
+    let config_str = match fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(e) => {
+            if e.kind() == ErrorKind::NotFound {
+                let path = path.into_os_string().into_string().unwrap();
+                return Err(
+                    format!("Cluster configuration file not found at path: {}", path).into(),
+                );
+            } else {
+                return Err(e.into());
+            }
+        }
+    };
 
     let raft_config: TomlRaftConfig = toml::from_str(&config_str)?;
 
     let mut peers = Peers::with_empty();
 
     for peer_info in raft_config.raft.peers {
-        let addr = SocketAddr::new(peer_info.ip.parse().unwrap(), peer_info.port);
+        let addr = match peer_info.ip.parse() {
+            Ok(ip) => SocketAddr::new(ip, peer_info.port),
+            Err(_) => {
+                let mut addrs = lookup_host((peer_info.ip.as_str(), peer_info.port)).await?;
+                addrs.next().expect("Hostname resolution failed!")
+            }
+        };
+
         let role = InitialRole::from_str(&peer_info.role).expect("Invalid role!");
         peers.add_peer(peer_info.node_id, addr, Some(role));
     }

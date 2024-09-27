@@ -16,9 +16,10 @@ default-members = [
     "examples/memstore/dynamic-members",
     "examples/memstore/static-members",
 ]
+exclude = ["raft-rs"]
 
 [workspace.package]
-version = "0.1.66"
+version = "0.1.69"
 authors = ["Lablup Inc."]
 edition = "2021"
 description = "Experimental High level Raft framework"
@@ -32,3 +33,6 @@ homepage = "https://github.com/lablup/raftify"
 raftify = { path = "raftify" }
 example-harness = { path = "examples" }
 memstore-example-harness = { path = "examples/memstore" }
+
+[patch.crates-io]
+jopemachine-raft = { path = "./raft-rs" }

@@ -8,6 +8,30 @@ use sloggers::{
     Build,
 };
 
+#[pyclass(name = "Severity")]
+#[derive(Clone, Copy, Debug)]
+pub enum PySeverity {
+    TRACE,
+    DEBUG,
+    INFO,
+    WARNING,
+    ERROR,
+    CRITICAL,
+}
+
+impl From<PySeverity> for Severity {
+    fn from(severity: PySeverity) -> Self {
+        match severity {
+            PySeverity::TRACE => Severity::Trace,
+            PySeverity::DEBUG => Severity::Debug,
+            PySeverity::INFO => Severity::Info,
+            PySeverity::WARNING => Severity::Warning,
+            PySeverity::ERROR => Severity::Error,
+            PySeverity::CRITICAL => Severity::Critical,
+        }
+    }
+}
+
 #[pyclass(name = "OverflowStrategy")]
 pub struct PyOverflowStrategy(pub OverflowStrategy);
 
@@ -104,6 +128,7 @@ impl PySlogger {
     #[staticmethod]
     pub fn new_file_logger(
         log_path: &PyString,
+        level: PySeverity,
         chan_size: usize,
         rotate_size: u64,
         rotate_keep: usize,
@@ -111,8 +136,7 @@ impl PySlogger {
         let log_path = log_path.to_str().unwrap();
 
         let logger = FileLoggerBuilder::new(log_path)
-            // TODO: Implement this
-            .level(Severity::Debug)
+            .level(level.into())
             .source_location(SourceLocation::LocalFileAndLine)
             .channel_size(chan_size)
             .rotate_size(rotate_size)
