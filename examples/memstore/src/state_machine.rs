@@ -8,10 +8,10 @@ use std::{
 };
 
 #[cfg(feature = "inmemory_storage")]
-use raftify::MemStorage as StorageType;
+pub use raftify::MemStorage as StorageType;
 
 #[cfg(feature = "heed_storage")]
-use raftify::HeedStorage as StorageType;
+pub use raftify::HeedStorage as StorageType;
 
 pub type Raft = Raft_<LogEntry, StorageType, HashStore>;
 

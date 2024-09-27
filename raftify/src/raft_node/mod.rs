@@ -1375,17 +1375,6 @@ impl<
     }
 
     async fn on_ready(&mut self) -> Result<()> {
-        // TODO: Improve this logic.
-        // I'd like to move this logic into RaftNodeCore::bootstrap, but it's currently not possible because it is not async.
-
-        // if self.config.restore_wal_snapshot_from.is_some() {
-        //     self.logger.info("Restoring state machine from snapshot...");
-        //     let store = self.raw_node.store();
-        //     let snap = store.snapshot(0, store.last_index()?)?;
-        //     self.fsm.restore(snap.get_data().to_vec()).await?;
-        //     self.config.restore_wal_snapshot_from = None;
-        // }
-
         if !self.raw_node.has_ready() {
             return Ok(());
         }
