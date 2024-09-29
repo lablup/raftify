@@ -20,7 +20,7 @@ fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<bindings::raft_node::PyRaftNode>()?;
     m.add_class::<bindings::raft_rs::config::PyRaftConfig>()?;
     m.add_class::<bindings::raft_rs::readonly_option::PyReadOnlyOption>()?;
-    m.add_class::<bindings::role::PyInitialRole>()?;
+    m.add_class::<bindings::initial_role::PyInitialRole>()?;
 
     m.add_class::<bindings::raft_rs::eraftpb::conf_change_single::PyConfChangeSingle>()?;
     m.add_class::<bindings::raft_rs::eraftpb::conf_change_transition::PyConfChangeTransition>()?;
@@ -37,12 +37,12 @@ fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bindings::cli::cli_main, m)?)?;
 
     m.add_function(wrap_pyfunction!(
-        bindings::state_machine::set_log_entry_deserializer,
+        bindings::abstract_types::set_log_entry_deserializer,
         m
     )?)?;
 
     m.add_function(wrap_pyfunction!(
-        bindings::state_machine::set_fsm_deserializer,
+        bindings::abstract_types::set_fsm_deserializer,
         m
     )?)?;
 

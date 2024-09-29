@@ -29,7 +29,7 @@ pub fn debug_persisted<LogStorage: StableStorage>(path: &str, logger: slog::Logg
             }),
         )?,
         StorageType::InMemory => {
-            panic!("Inmemory storage does not support this feature");
+            panic!("InMemory storage does not support this feature");
         }
         _ => {
             panic!("Unsupported storage type");

@@ -15,10 +15,9 @@ pub struct PyConfig {
     pub lmdb_map_size: u64,
     pub cluster_id: String,
     pub conf_change_request_timeout: f32,
+    pub bootstrap_from_snapshot: bool,
     pub initial_peers: Option<PyPeers>,
     pub snapshot_interval: Option<f32>,
-    pub restore_wal_from: Option<u64>,
-    pub restore_wal_snapshot_from: Option<u64>,
 }
 
 #[pymethods]
@@ -36,8 +35,7 @@ impl PyConfig {
         conf_change_request_timeout: Option<f32>,
         initial_peers: Option<PyPeers>,
         snapshot_interval: Option<f32>,
-        restore_wal_from: Option<u64>,
-        restore_wal_snapshot_from: Option<u64>,
+        bootstrap_from_snapshot: Option<bool>,
     ) -> Self {
         let cfg = Config::default();
 
@@ -56,8 +54,8 @@ impl PyConfig {
             conf_change_request_timeout.unwrap_or(cfg.conf_change_request_timeout);
         let initial_peers = initial_peers;
         let snapshot_interval = snapshot_interval;
-        let restore_wal_from = restore_wal_from;
-        let restore_wal_snapshot_from = restore_wal_snapshot_from;
+        let bootstrap_from_snapshot =
+            bootstrap_from_snapshot.unwrap_or(cfg.bootstrap_from_snapshot);
 
         Self {
             raft_config,
@@ -71,8 +69,7 @@ impl PyConfig {
             conf_change_request_timeout,
             initial_peers,
             snapshot_interval,
-            restore_wal_from,
-            restore_wal_snapshot_from,
+            bootstrap_from_snapshot,
         }
     }
 }
@@ -91,8 +88,7 @@ impl From<PyConfig> for Config {
             conf_change_request_timeout: config.conf_change_request_timeout,
             initial_peers: config.initial_peers.map(|peers| peers.inner),
             raft_config: config.raft_config.inner,
-            restore_wal_from: config.restore_wal_from,
-            restore_wal_snapshot_from: config.restore_wal_snapshot_from,
+            bootstrap_from_snapshot: config.bootstrap_from_snapshot,
         }
     }
 }

@@ -1049,7 +1049,7 @@ version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80e04d1dcff3aae0704555fe5fee3bcfaf3d1fdf8a7e521d5b9d2b42acb52cec"
 dependencies = [
- "hermit-abi 0.3.9",
+ "hermit-abi",
  "libc",
  "wasi",
  "windows-sys 0.52.0",
@@ -1490,7 +1490,7 @@ dependencies = [
 
 [[package]]
 name = "raftify-py"
-version = "0.1.67"
+version = "0.1.78"
 dependencies = [
  "async-trait",
  "bincode",
@@ -1502,6 +1502,7 @@ dependencies = [
  "pyo3-asyncio",
  "pythonize",
  "raftify",
+ "raftify_cli",
  "serde",
  "slog",
  "slog-async",
@@ -1510,6 +1511,22 @@ dependencies = [
  "slog-term",
  "sloggers",
  "tokio",
+]
+
+[[package]]
+name = "raftify_cli"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89fca418beb04ff1d175598c386db1d8bc40b20b0f2a1e645fe9d5bb0789a7d6"
+dependencies = [
+ "built",
+ "clap",
+ "log",
+ "raftify",
+ "serde",
+ "serde_json",
+ "slog",
+ "tonic-build",
 ]
 
 [[package]]
