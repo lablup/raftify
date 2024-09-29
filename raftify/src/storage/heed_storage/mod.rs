@@ -180,7 +180,7 @@ impl Storage for HeedStorage {
         &self,
         low: u64,
         high: u64,
-        max_size: impl Into<Option<u64>>,
+        max_size: Option<u64>,
         ctx: GetEntriesContext,
     ) -> raft::Result<Vec<Entry>> {
         let store = self.rl();
@@ -709,7 +709,7 @@ mod test {
 
             storage.replace_entries(&ents).unwrap();
 
-            let e = storage.entries(lo, hi, maxsize, GetEntriesContext::empty(false));
+            let e = storage.entries(lo, hi, Some(maxsize), GetEntriesContext::empty(false));
             if e != wentries {
                 panic!("#{}: expect entries {:?}, got {:?}", i, wentries, e);
             }
@@ -785,7 +785,7 @@ mod test {
                 panic!("#{}: want {}, index {}", i, windex, index);
             }
             let term = if let Ok(v) =
-                storage.entries(index, index + 1, 1, GetEntriesContext::empty(false))
+                storage.entries(index, index + 1, Some(1), GetEntriesContext::empty(false))
             {
                 v.first().map_or(0, |e| e.term)
             } else {
@@ -796,7 +796,7 @@ mod test {
             }
             let last = storage.last_index().unwrap();
             let len = storage
-                .entries(index, last + 1, 100, GetEntriesContext::empty(false))
+                .entries(index, last + 1, Some(100), GetEntriesContext::empty(false))
                 .unwrap()
                 .len();
             if len != wlen {
