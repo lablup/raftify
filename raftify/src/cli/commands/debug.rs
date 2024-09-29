@@ -1,6 +1,6 @@
 use core::panic;
 use serde_json::Value;
-use std::{collections::HashMap, fs, sync::Arc};
+use std::{collections::HashMap, fs, path::Path, sync::Arc};
 
 use crate::{
     create_client,
@@ -29,6 +29,13 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
 
     let entries = storage.all_entries()?;
 
+    if !entries.is_empty() {
+        assert!(
+            storage.first_index()? > 0,
+            "First index should be greater than 0"
+        );
+    }
+
     println!("---- Persisted entries ----");
     for entry in entries.iter() {
         println!("Key: {}, {:?}", entry.get_index(), format_entry(entry));
@@ -45,7 +52,14 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
 }
 
 pub fn debug_persitsted_all(path_str: &str, logger: slog::Logger) -> Result<()> {
-    if let Ok(subdirectories) = fs::read_dir(path_str) {
+    let path = match fs::canonicalize(Path::new(&path_str)) {
+        Ok(absolute_path) => absolute_path,
+        Err(e) => {
+            panic!("Invalid path: {}", e);
+        }
+    };
+
+    if let Ok(subdirectories) = fs::read_dir(path.clone()) {
         let mut dir_entries = vec![];
         for dir_entry in subdirectories.filter_map(|e| e.ok()) {
             let path = dir_entry.path();
@@ -61,7 +75,7 @@ pub fn debug_persitsted_all(path_str: &str, logger: slog::Logger) -> Result<()> 
         }
 
         if dir_entries.is_empty() {
-            panic!("No node directory found in {}", path_str);
+            panic!("Raft node log directory not found: \"{}\"", path.display());
         }
 
         dir_entries.sort();
@@ -72,7 +86,7 @@ pub fn debug_persitsted_all(path_str: &str, logger: slog::Logger) -> Result<()> 
             println!();
         }
     } else {
-        panic!("Invalid path: {}", path_str);
+        panic!("Failed to read subdirectory: {}", path.display());
     }
 
     Ok(())
