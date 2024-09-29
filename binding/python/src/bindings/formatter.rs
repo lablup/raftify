@@ -21,34 +21,45 @@ static MESSAGE_CONTEXT_DESERIALIZER_CB: Lazy<Mutex<Option<PyObject>>> =
 static SNAPSHOT_DATA_DESERIALIZER_CB: Lazy<Mutex<Option<PyObject>>> =
     Lazy::new(|| Mutex::new(None));
 
-#[pyfunction]
-pub fn set_entry_context_deserializer(cb: PyObject) {
-    *ENTRY_CONTEXT_DESERIALIZE_CB.lock().unwrap() = Some(cb);
-}
+pub static ENTRY_LOG_ENTRY_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> =
+    Lazy::new(|| Mutex::new(None));
+pub static ENTRY_FSM_DESERIALIZE_CB: Lazy<Mutex<Option<PyObject>>> = Lazy::new(|| Mutex::new(None));
 
 #[pyfunction]
-pub fn set_entry_data_deserializer(cb: PyObject) {
-    *ENTRY_DATA_DESERIALIZE_CB.lock().unwrap() = Some(cb);
-}
-
-#[pyfunction]
-pub fn set_confchangev2_context_deserializer(cb: PyObject) {
-    *CONFCHANGEV2_CONTEXT_DESERIALIZE_CB.lock().unwrap() = Some(cb);
-}
-
-#[pyfunction]
-pub fn set_confchange_context_deserializer(cb: PyObject) {
-    *CONFCHANGE_CONTEXT_DESERIALIZE_CB.lock().unwrap() = Some(cb);
-}
-
-#[pyfunction]
-pub fn set_message_context_deserializer(cb: PyObject) {
-    *MESSAGE_CONTEXT_DESERIALIZER_CB.lock().unwrap() = Some(cb);
-}
-
-#[pyfunction]
-pub fn set_snapshot_data_deserializer(cb: PyObject) {
-    *SNAPSHOT_DATA_DESERIALIZER_CB.lock().unwrap() = Some(cb);
+pub fn set_custom_formatters(
+    entry_context: Option<PyObject>,
+    entry_data: Option<PyObject>,
+    confchangev2_context: Option<PyObject>,
+    confchange_context: Option<PyObject>,
+    message_context: Option<PyObject>,
+    snapshot_data: Option<PyObject>,
+    log_entry: Option<PyObject>,
+    fsm: Option<PyObject>,
+) {
+    if let Some(cb) = entry_context {
+        *ENTRY_CONTEXT_DESERIALIZE_CB.lock().unwrap() = Some(cb);
+    }
+    if let Some(cb) = entry_data {
+        *ENTRY_DATA_DESERIALIZE_CB.lock().unwrap() = Some(cb);
+    }
+    if let Some(cb) = confchangev2_context {
+        *CONFCHANGEV2_CONTEXT_DESERIALIZE_CB.lock().unwrap() = Some(cb);
+    }
+    if let Some(cb) = confchange_context {
+        *CONFCHANGE_CONTEXT_DESERIALIZE_CB.lock().unwrap() = Some(cb);
+    }
+    if let Some(cb) = message_context {
+        *MESSAGE_CONTEXT_DESERIALIZER_CB.lock().unwrap() = Some(cb);
+    }
+    if let Some(cb) = snapshot_data {
+        *SNAPSHOT_DATA_DESERIALIZER_CB.lock().unwrap() = Some(cb);
+    }
+    if let Some(cb) = log_entry {
+        *ENTRY_LOG_ENTRY_DESERIALIZE_CB.lock().unwrap() = Some(cb);
+    }
+    if let Some(cb) = fsm {
+        *ENTRY_FSM_DESERIALIZE_CB.lock().unwrap() = Some(cb);
+    }
 }
 
 impl CustomFormatter for PythonFormatter {

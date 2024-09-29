@@ -341,35 +341,18 @@ class RaftServiceClient:
     async def debug_node(self) -> str:
         """ """
 
-def set_snapshot_data_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
-    """ """
-
-def set_message_context_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
-    """ """
-
-def set_confchange_context_deserializer(
-    cb: Callable[[bytes], str | bytes | None]
+def set_custom_formatters(
+    *,
+    entry_context: Optional[Callable[[bytes], str | bytes | None]] = None,
+    entry_data: Optional[Callable[[bytes], str | bytes | None]] = None,
+    confchangev2_context: Optional[Callable[[bytes], str | bytes | None]] = None,
+    confchange_context: Optional[Callable[[bytes], str | bytes | None]] = None,
+    message_context: Optional[Callable[[bytes], str | bytes | None]] = None,
+    snapshot_data: Optional[Callable[[bytes], str | bytes | None]] = None,
+    log_entry: Optional[Callable[[bytes], str | bytes | None]] = None,
+    fsm: Optional[Callable[[bytes], str | bytes | None]] = None,
 ) -> None:
     """ """
-
-def set_confchangev2_context_deserializer(
-    cb: Callable[[bytes], str | bytes | None]
-) -> None:
-    """ """
-
-def set_entry_data_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
-    """ """
-
-def set_entry_context_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
-    """ """
-
-def set_fsm_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
-    """ """
-    ...
-
-def set_log_entry_deserializer(cb: Callable[[bytes], str | bytes | None]) -> None:
-    """ """
-    ...
 
 class ConfChangeTransition:
     """ """
