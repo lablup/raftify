@@ -28,7 +28,12 @@ async fn get(data: web::Data<(HashStore, Raft)>, path: web::Path<u64>) -> impl R
 #[get("/leader")]
 async fn leader_id(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    let leader_id = raft.1.get_leader_id().await.to_string();
+    let leader_id = raft
+        .1
+        .get_leader_id()
+        .await
+        .expect("Failed to get leader id")
+        .to_string();
     format!("{:?}", leader_id)
 }
 
@@ -68,6 +73,7 @@ async fn snapshot(data: web::Data<(HashStore, Raft)>) -> impl Responder {
             .1
             .storage()
             .await
+            .expect("Failed to get storage")
             .last_index()
             .expect("Failed to get last index");
 
@@ -75,6 +81,7 @@ async fn snapshot(data: web::Data<(HashStore, Raft)>) -> impl Responder {
             .1
             .storage()
             .await
+            .expect("Failed to get storage")
             .hard_state()
             .expect("Failed to get hard state");
 
