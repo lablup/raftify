@@ -7,8 +7,14 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+#[cfg(feature = "inmemory_storage")]
+pub use raftify::MemStorage as StorageType;
+
 #[cfg(feature = "heed_storage")]
 pub use raftify::HeedStorage as StorageType;
+
+#[cfg(feature = "rocksdb_storage")]
+pub use raftify::RocksDBStorage as StorageType;
 
 pub type Raft = Raft_<LogEntry, StorageType, HashStore>;
 

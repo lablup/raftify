@@ -31,4 +31,6 @@ color-backtrace = "0.6.1"
 [features]
 default = ["heed_storage"]
 inmemory_storage = []
-heed_storage =[]
+heed_storage = []
+rocksdb_storage = []
+

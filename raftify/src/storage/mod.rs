@@ -4,6 +4,9 @@ pub mod heed_storage;
 #[cfg(feature = "inmemory_storage")]
 pub mod inmemory_storage;
 
+#[cfg(feature = "rocksdb_storage")]
+pub mod rocksdb_storage;
+
 pub mod utils;
 
 use crate::{
@@ -14,6 +17,7 @@ use crate::{
 pub enum StorageType {
     InMemory,
     Heed,
+    RocksDB,
     Custom,
 }
 

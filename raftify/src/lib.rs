@@ -45,4 +45,7 @@ pub use storage::heed_storage::HeedStorage;
 #[cfg(feature = "inmemory_storage")]
 pub use storage::inmemory_storage::MemStorage;
 
+#[cfg(feature = "rocksdb_storage")]
+pub use storage::rocksdb_storage::RocksDBStorage;
+
 pub(crate) use crate::utils::macros::macro_utils;
