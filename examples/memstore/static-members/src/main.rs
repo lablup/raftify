@@ -32,6 +32,9 @@ use raftify::MemStorage;
 #[cfg(feature = "heed_storage")]
 use raftify::HeedStorage;
 
+#[cfg(feature = "rocksdb_storage")]
+use raftify::RocksDBStorage;
+
 #[derive(Debug, StructOpt)]
 struct Options {
     #[structopt(long)]
@@ -82,6 +85,10 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(feature = "heed_storage")]
     let log_storage = HeedStorage::create(&storage_pth, &cfg.clone(), logger.clone())
+        .expect("Failed to create heed storage");
+
+    #[cfg(feature = "rocksdb_storage")]
+    let log_storage = RocksDBStorage::create(&storage_pth, logger.clone())
         .expect("Failed to create heed storage");
 
     let raft = Raft::bootstrap(

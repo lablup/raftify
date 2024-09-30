@@ -1,181 +1,121 @@
 mod codec;
 mod constant;
 
-use bincode::{deserialize, serialize};
-use constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_KEY};
-use heed::{
-    types::{Bytes as HeedBytes, Str as HeedStr},
-    Database, Env,
+use crate::raft::eraftpb::Entry;
+use crate::raft::logger::Logger;
+use crate::raft::prelude::{ConfState, HardState, Snapshot};
+use crate::raft::{GetEntriesContext, RaftState, Storage};
+use crate::{Result, StableStorage};
+use codec::format_entry_key_string;
+use constant::{
+    CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, LOG_ENTRY_CF_KEY, METADATA_CF_KEY, SNAPSHOT_KEY,
 };
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use prost::Message as PMessage;
-use raft::{logger::Logger, util::limit_size};
-use std::{
-    cmp::max,
-    fs,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use prost::Message;
+use raft::util::limit_size;
+use rocksdb::{ColumnFamilyDescriptor, Options, DB as RocksDB};
+use std::cmp::max;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use self::codec::{format_entry_key_string, HeedEntry, HeedEntryKeyString};
-use super::{utils::append_compacted_logs, StableStorage, StorageType};
-use crate::{
-    config::Config,
-    error::Result,
-    raft::{self, prelude::*, GetEntriesContext},
-};
+use super::StorageType;
 
 #[derive(Clone)]
-pub struct HeedStorage(Arc<RwLock<HeedStorageCore>>);
+pub struct RocksDBStorage(Arc<RwLock<RocksDBStorageCore>>);
 
-impl HeedStorage {
-    pub fn create(log_dir_path: &str, config: &Config, logger: Arc<dyn Logger>) -> Result<Self> {
-        Ok(Self(Arc::new(RwLock::new(HeedStorageCore::create(
+pub struct RocksDBStorageCore {
+    db: RocksDB,
+    logger: Arc<dyn Logger>,
+}
+
+impl RocksDBStorage {
+    pub fn create(log_dir_path: &str, logger: Arc<dyn Logger>) -> Result<Self> {
+        Ok(Self(Arc::new(RwLock::new(RocksDBStorageCore::create(
             Path::new(log_dir_path).to_path_buf(),
-            config,
+            // config,
             logger,
         )?))))
     }
 
-    fn wl(&mut self) -> RwLockWriteGuard<HeedStorageCore> {
+    fn wl(&mut self) -> RwLockWriteGuard<RocksDBStorageCore> {
         self.0.write()
     }
 
-    fn rl(&self) -> RwLockReadGuard<HeedStorageCore> {
+    fn rl(&self) -> RwLockReadGuard<RocksDBStorageCore> {
         self.0.read()
     }
 }
 
-impl StableStorage for HeedStorage {
-    const STORAGE_TYPE: StorageType = StorageType::Heed;
-
-    fn compact(&mut self, index: u64) -> Result<()> {
-        let store = self.wl();
-        let mut writer = store.env.write_txn()?;
-        store.compact(&mut writer, index)?;
-        writer.commit()?;
-        Ok(())
-    }
+impl StableStorage for RocksDBStorage {
+    const STORAGE_TYPE: StorageType = StorageType::RocksDB;
 
     fn append(&mut self, entries: &[Entry]) -> Result<()> {
-        let store = self.wl();
-        let mut writer = store.env.write_txn()?;
-        store.append(&mut writer, entries)?;
-        writer.commit()?;
-        Ok(())
+        let mut store = self.wl();
+        store.append(entries)
     }
 
     fn hard_state(&self) -> Result<HardState> {
         let store = self.rl();
-        let reader = store.env.read_txn()?;
-        let hard_state = store.hard_state(&reader)?;
+        let hard_state = store.hard_state()?;
         Ok(hard_state)
     }
 
     fn set_hard_state(&mut self, hard_state: &HardState) -> Result<()> {
-        let store = self.wl();
-        let mut writer = store.env.write_txn()?;
-        store.set_hard_state(&mut writer, hard_state)?;
-        writer.commit()?;
+        let mut store = self.wl();
+        store.set_hard_state(hard_state)?;
         Ok(())
     }
 
     fn set_hard_state_commit(&mut self, commit: u64) -> Result<()> {
-        let store = self.wl();
-        let reader = store.env.read_txn()?;
-        let mut hard_state = store.hard_state(&reader)?;
+        let mut store = self.wl();
+        let mut hard_state = store.hard_state()?;
         hard_state.set_commit(commit);
-        let mut writer = store.env.write_txn()?;
-        store.set_hard_state(&mut writer, &hard_state)?;
+        store.set_hard_state(&hard_state)?;
         Ok(())
     }
 
     fn conf_state(&self) -> Result<ConfState> {
         let store = self.rl();
-        let reader = store.env.read_txn()?;
-        let conf_state = store.conf_state(&reader)?;
+        let conf_state = store.conf_state()?;
         Ok(conf_state)
     }
 
     fn set_conf_state(&mut self, conf_state: &ConfState) -> Result<()> {
-        let store = self.wl();
-        let mut writer = store.env.write_txn()?;
-        store.set_conf_state(&mut writer, conf_state)?;
-        writer.commit()?;
+        let mut store = self.wl();
+        store.set_conf_state(conf_state)?;
         Ok(())
     }
 
     fn create_snapshot(&mut self, data: Vec<u8>, index: u64, term: u64) -> Result<()> {
-        let store = self.wl();
-        let mut writer = store.env.write_txn()?;
-        let conf_state = store.conf_state(&writer)?;
-
-        let mut snapshot = Snapshot::default();
-        snapshot.set_data(data);
-
-        let meta = snapshot.mut_metadata();
-        meta.set_conf_state(conf_state);
-        meta.index = index;
-        meta.term = term;
-
-        store.set_snapshot(&mut writer, &snapshot)?;
-        writer.commit()?;
+        let mut store = self.wl();
+        store.create_snapshot(data, index, term)?;
         Ok(())
     }
 
     fn apply_snapshot(&mut self, snapshot: Snapshot) -> Result<()> {
-        let store = self.wl();
-        let mut writer = store.env.write_txn()?;
-        let metadata = snapshot.get_metadata();
-        let conf_state = metadata.get_conf_state();
+        let mut store = self.wl();
+        store.apply_snapshot(snapshot)?;
+        Ok(())
+    }
 
-        // TODO: Investigate if this is necessary. It broke the static bootstrap.
-        // let first_index = store.first_index(&writer)?;
-        // if first_index > metadata.index {
-        //     return Err(Error::RaftStorageError(
-        //         raft::StorageError::SnapshotOutOfDate,
-        //     ));
-        // }
-
-        let mut hard_state = store.hard_state(&writer)?;
-        hard_state.set_term(max(hard_state.term, metadata.term));
-        hard_state.set_commit(metadata.index);
-
-        store.set_hard_state(&mut writer, &hard_state)?;
-        store.set_conf_state(&mut writer, conf_state)?;
-        store.set_last_index(&mut writer, metadata.index)?;
-        store.set_snapshot(&mut writer, &snapshot)?;
-        writer.commit()?;
+    fn compact(&mut self, index: u64) -> Result<()> {
+        let mut store = self.wl();
+        store.compact(index)?;
         Ok(())
     }
 
     fn all_entries(&self) -> raft::Result<Vec<Entry>> {
         let store = self.rl();
-        let reader = store.env.read_txn().unwrap();
-
-        let entries = store
-            .all_entries(&reader)
-            .map_err(|e| raft::Error::Store(raft::StorageError::Other(e.into())))?;
+        let entries = store.all_entries()?;
         Ok(entries)
     }
 }
 
-impl Storage for HeedStorage {
-    fn initial_state(&self) -> raft::Result<RaftState> {
+impl Storage for RocksDBStorage {
+    fn initial_state(&self) -> crate::raft::Result<RaftState> {
         let store = self.rl();
-        let reader = store
-            .env
-            .read_txn()
-            .map_err(|e| raft::Error::Store(raft::StorageError::Other(e.into())))?;
-        let raft_state = RaftState {
-            hard_state: store
-                .hard_state(&reader)
-                .map_err(|e| raft::Error::Store(raft::StorageError::Other(e.into())))?,
-            conf_state: store
-                .conf_state(&reader)
-                .map_err(|e| raft::Error::Store(raft::StorageError::Other(e.into())))?,
-        };
-        Ok(raft_state)
+        let state = store.initial_state()?;
+        Ok(state)
     }
 
     fn entries(
@@ -183,298 +123,83 @@ impl Storage for HeedStorage {
         low: u64,
         high: u64,
         max_size: Option<u64>,
-        ctx: GetEntriesContext,
-    ) -> raft::Result<Vec<Entry>> {
+        context: GetEntriesContext,
+    ) -> crate::raft::Result<Vec<Entry>> {
         let store = self.rl();
-        let reader = store.env.read_txn().unwrap();
-
-        if low
-            < store
-                .first_index(&reader)
-                .map_err(|_| raft::Error::Store(raft::StorageError::Unavailable))?
-        {
-            return Err(raft::Error::Store(raft::StorageError::Compacted));
-        }
-
-        let entries = store
-            .entries(&reader, low, high, max_size, ctx)
-            .map_err(|e| raft::Error::Store(raft::StorageError::Other(e.into())))?;
+        let entries = store.entries(low, high, max_size, context)?;
         Ok(entries)
     }
 
-    fn term(&self, idx: u64) -> raft::Result<u64> {
+    fn term(&self, idx: u64) -> crate::raft::Result<u64> {
         let store = self.rl();
-        let reader = store
-            .env
-            .read_txn()
-            .map_err(|_| raft::Error::Store(raft::StorageError::Unavailable))?;
-        let first_index = store
-            .first_index(&reader)
-            .map_err(|_| raft::Error::Store(raft::StorageError::Unavailable))?;
-
-        let snapshot = store.snapshot(&reader, 0, 0).unwrap();
-        if snapshot.get_metadata().get_index() == idx {
-            return Ok(snapshot.get_metadata().get_term());
-        }
-
-        let entry = store
-            .entry(&reader, idx)
-            .map_err(|_| raft::Error::Store(raft::StorageError::Unavailable))?;
-
-        match entry {
-            Some(entry) => Ok(entry.term),
-            None => {
-                if idx < first_index {
-                    Err(raft::Error::Store(raft::StorageError::Compacted))
-                } else {
-                    Err(raft::Error::Store(raft::StorageError::Unavailable))
-                }
-            }
-        }
+        let term = store.term(idx)?;
+        Ok(term)
     }
 
-    fn first_index(&self) -> raft::Result<u64> {
+    fn first_index(&self) -> crate::raft::Result<u64> {
         let store = self.rl();
-        let reader = store.env.read_txn().unwrap();
-        store
-            .first_index(&reader)
-            .map_err(|_| raft::Error::Store(raft::StorageError::Unavailable))
+        let index = store.first_index()?;
+        Ok(index)
     }
 
-    fn last_index(&self) -> raft::Result<u64> {
+    fn last_index(&self) -> crate::raft::Result<u64> {
         let store = self.rl();
-        let reader = store.env.read_txn().unwrap();
-        let last_index = store
-            .last_index(&reader)
-            .map_err(|_| raft::Error::Store(raft::StorageError::Unavailable))?;
-
-        Ok(last_index)
+        let index = store.last_index()?;
+        Ok(index)
     }
 
-    fn snapshot(&self, request_index: u64, to: u64) -> raft::Result<Snapshot> {
+    fn snapshot(&self, _request_index: u64, _to: u64) -> crate::raft::Result<Snapshot> {
         let store = self.rl();
-        let reader = store.env.read_txn().unwrap();
-
-        store
-            .snapshot(&reader, request_index, to)
-            .map_err(|_| raft::Error::Store(raft::StorageError::SnapshotTemporarilyUnavailable))
+        let snapshot = store.snapshot(_request_index, _to)?;
+        Ok(snapshot)
     }
 }
 
-impl HeedStorage {
+impl RocksDBStorageCore {
+    pub fn create(path: PathBuf, logger: Arc<dyn Logger>) -> Result<Self> {
+        let mut db_opts = Options::default();
+        db_opts.create_if_missing(true);
+        db_opts.create_missing_column_families(true);
+
+        let cf_opts = Options::default();
+        let cf_descriptors = vec![
+            ColumnFamilyDescriptor::new(LOG_ENTRY_CF_KEY, cf_opts.clone()),
+            ColumnFamilyDescriptor::new(METADATA_CF_KEY, cf_opts.clone()),
+        ];
+
+        let db = RocksDB::open_cf_descriptors(&db_opts, path, cf_descriptors).unwrap();
+        Ok(RocksDBStorageCore { db, logger })
+    }
+
     #[allow(dead_code)]
-    pub fn replace_entries(&mut self, entries: &[Entry]) -> raft::Result<()> {
-        let store = self.wl();
-        let mut writer = store.env.write_txn().unwrap();
-        store.replace_entries(&mut writer, entries).unwrap();
-        writer.commit().unwrap();
-        Ok(())
-    }
-}
+    fn replace_entries(&self, entries: &[Entry]) -> crate::raft::Result<()> {
+        let cf_handle = self.db.cf_handle(LOG_ENTRY_CF_KEY).unwrap();
 
-pub struct HeedStorageCore {
-    env: Env,
-    entries_db: Database<HeedEntryKeyString, HeedEntry>,
-    metadata_db: Database<HeedStr, HeedBytes>,
-    config: Config,
-    logger: Arc<dyn Logger>,
-}
+        let mut last_index = self.last_index()?;
+        let start = format_entry_key_string(0.to_string().as_str());
+        let end = format_entry_key_string(last_index.to_string().as_str());
 
-impl HeedStorageCore {
-    pub fn create(log_dir_path: PathBuf, config: &Config, logger: Arc<dyn Logger>) -> Result<Self> {
-        let env = unsafe {
-            heed::EnvOpenOptions::new()
-                .map_size(config.lmdb_map_size as usize)
-                .max_dbs(3000)
-                .open(log_dir_path)?
-        };
+        self.db.delete_range_cf(cf_handle, start, end).unwrap();
 
-        let mut writer = env.write_txn()?;
-
-        let entries_db: Database<HeedEntryKeyString, HeedEntry> =
-            env.create_database(&mut writer, Some("entries"))?;
-        let metadata_db: Database<HeedStr, HeedBytes> =
-            env.create_database(&mut writer, Some("meta"))?;
-
-        writer.commit()?;
-
-        let storage = Self {
-            metadata_db,
-            entries_db,
-            env,
-            logger,
-            config: config.clone(),
-        };
-
-        Ok(storage)
-    }
-
-    pub fn compact(&self, writer: &mut heed::RwTxn, index: u64) -> Result<()> {
-        // TODO, check that compaction is legal
-        //let last_index = self.last_index(&writer)?;
-        // there should always be at least one entry in the log
-        //assert!(last_index > index + 1);
-
-        let index = format_entry_key_string(index.to_string().as_str());
-
-        if self.config.save_compacted_logs {
-            let iter = self.entries_db.range(writer, &(..index.clone()))?;
-
-            let entries = iter
-                .filter_map(|e| match e {
-                    Ok((_, e)) => Some(e),
-                    _ => None,
-                })
-                .collect::<Vec<Entry>>();
-
-            self.save_compacted_entries(entries.as_slice())?;
+        for entry in entries {
+            last_index = std::cmp::max(entry.index, last_index);
+            let index = format_entry_key_string(entry.index.to_string().as_str());
+            self.db
+                .put_cf(cf_handle, index, entry.encode_to_vec())
+                .unwrap();
         }
-
-        self.entries_db.delete_range(writer, &(..index.clone()))?;
+        self.set_last_index(last_index).unwrap();
         Ok(())
     }
 
-    fn set_hard_state(&self, writer: &mut heed::RwTxn, hard_state: &HardState) -> Result<()> {
-        self.metadata_db.put(
-            writer,
-            HARD_STATE_KEY,
-            hard_state.encode_to_vec().as_slice(),
-        )?;
+    fn append(&mut self, entries: &[Entry]) -> Result<()> {
+        let cf_handle = self.db.cf_handle(LOG_ENTRY_CF_KEY).unwrap();
 
-        Ok(())
-    }
-
-    fn hard_state(&self, reader: &heed::RoTxn) -> Result<HardState> {
-        let hard_state = self.metadata_db.get(reader, HARD_STATE_KEY)?;
-
-        match hard_state {
-            Some(hard_state) => {
-                let hard_state = HardState::decode(hard_state)?;
-                Ok(hard_state)
-            }
-            None => Ok(HardState::default()),
-        }
-    }
-
-    pub fn set_conf_state(&self, writer: &mut heed::RwTxn, conf_state: &ConfState) -> Result<()> {
-        self.metadata_db.put(
-            writer,
-            CONF_STATE_KEY,
-            conf_state.encode_to_vec().as_slice(),
-        )?;
-        Ok(())
-    }
-
-    pub fn conf_state(&self, reader: &heed::RoTxn) -> Result<ConfState> {
-        let conf_state = self.metadata_db.get(reader, CONF_STATE_KEY)?;
-
-        match conf_state {
-            Some(conf_state) => {
-                let conf_state = ConfState::decode(conf_state)?;
-                Ok(conf_state)
-            }
-            None => Ok(ConfState::default()),
-        }
-    }
-
-    fn set_snapshot(&self, writer: &mut heed::RwTxn, snapshot: &Snapshot) -> Result<()> {
-        self.metadata_db
-            .put(writer, SNAPSHOT_KEY, snapshot.encode_to_vec().as_slice())?;
-        Ok(())
-    }
-
-    pub fn snapshot(
-        &self,
-        reader: &heed::RoTxn,
-        _request_index: u64,
-        _to: u64,
-    ) -> Result<Snapshot> {
-        let snapshot = self.metadata_db.get(reader, SNAPSHOT_KEY)?;
-
-        Ok(match snapshot {
-            Some(snapshot) => Snapshot::decode(snapshot)?,
-            None => Snapshot::default(),
-        })
-    }
-
-    fn last_index(&self, reader: &heed::RoTxn) -> Result<u64> {
-        let last_index = self.metadata_db.get(reader, LAST_INDEX_KEY)?;
-
-        match last_index {
-            Some(last_index) => {
-                let last_index: u64 = deserialize(last_index)?;
-                Ok(last_index)
-            }
-            None => Ok(0),
-        }
-    }
-
-    fn set_last_index(&self, writer: &mut heed::RwTxn, index: u64) -> Result<()> {
-        self.metadata_db
-            .put(writer, LAST_INDEX_KEY, serialize(&index)?.as_slice())?;
-        Ok(())
-    }
-
-    fn first_index(&self, reader: &heed::RoTxn) -> Result<u64> {
-        match self.entries_db.first(reader)? {
-            Some((index, _first_entry)) => Ok(index.parse::<u64>().unwrap()),
-            None => {
-                // TODO: Pass proper arguments after handling snapshot's `request_index` and `to`
-                let snapshot = self.snapshot(reader, 0, 0)?;
-                Ok(snapshot.get_metadata().get_index() + 1)
-            }
-        }
-    }
-
-    fn entry(&self, reader: &heed::RoTxn, index: u64) -> Result<Option<Entry>> {
-        Ok(self.entries_db.get(reader, &index.to_string())?)
-    }
-
-    fn entries(
-        &self,
-        reader: &heed::RoTxn,
-        low: u64,
-        high: u64,
-        max_size: Option<u64>,
-        _ctx: GetEntriesContext,
-    ) -> Result<Vec<Entry>> {
-        self.logger
-            .debug(format!("Entries [{low}, {high}) requested.", low = low, high = high).as_str());
-
-        let low_str = format_entry_key_string(low.to_string().as_str());
-        let high_str = format_entry_key_string(high.to_string().as_str());
-
-        let iter = self.entries_db.range(reader, &(low_str..high_str))?;
-        let max_size: Option<u64> = max_size.into();
-
-        let mut entries = iter
-            .filter_map(|e| match e {
-                Ok((_, e)) => Some(e),
-                _ => None,
-            })
-            .collect();
-
-        limit_size(&mut entries, max_size);
-        Ok(entries)
-    }
-
-    fn all_entries(&self, reader: &heed::RoTxn) -> Result<Vec<Entry>> {
-        let iter = self.entries_db.iter(reader)?;
-        let entries = iter
-            .filter_map(|e| match e {
-                Ok((_, e)) => Some(e),
-                _ => None,
-            })
-            .collect();
-        Ok(entries)
-    }
-
-    fn append(&self, writer: &mut heed::RwTxn, entries: &[Entry]) -> Result<()> {
         if entries.is_empty() {
             return Ok(());
         }
 
-        let mut last_index = self.last_index(writer)?;
+        let mut last_index = self.last_index()?;
 
         if last_index + 1 < entries[0].index {
             self.logger.fatal(&format!(
@@ -484,57 +209,253 @@ impl HeedStorageCore {
         }
 
         for entry in entries {
-            let index = entry.index;
-            last_index = std::cmp::max(index, last_index);
-            // TODO: Handle MDBFullError.
-            self.entries_db.put(writer, &index.to_string(), entry)?;
+            last_index = std::cmp::max(entry.index, last_index);
+            let index = format_entry_key_string(entry.index.to_string().as_str());
+            self.db
+                .put_cf(cf_handle, index, entry.encode_to_vec())
+                .unwrap();
         }
-        self.set_last_index(writer, last_index)?;
+        self.set_last_index(last_index)?;
         Ok(())
     }
 
-    fn save_compacted_entries(&self, entries: &[Entry]) -> Result<()> {
-        let compacted_log_dir_path = Path::new(&self.config.compacted_log_dir);
-        let compacted_log_dir_path = compacted_log_dir_path.to_str().unwrap();
-        let dest_path = format!(
-            "{}/node-{}/compacted.json",
-            compacted_log_dir_path, self.config.raft_config.id
-        );
+    fn hard_state(&self) -> Result<HardState> {
+        let cf_handle = self.db.cf_handle(METADATA_CF_KEY).unwrap();
+        let result = self.db.get_cf(cf_handle, HARD_STATE_KEY).unwrap();
+        match result {
+            Some(data) => Ok(HardState::decode(&*data)?),
+            None => Ok(HardState::default()),
+        }
+    }
 
-        match fs::metadata(&dest_path) {
-            Ok(metadata) if metadata.len() > self.config.compacted_log_size_threshold => {
-                self.logger.debug(
-                    "Compacted log size is over threshold. Removing all previous compacted logs.",
-                );
-                fs::remove_file(&dest_path)?;
+    fn set_hard_state(&mut self, hard_state: &HardState) -> Result<()> {
+        let cf_handle = self.db.cf_handle(METADATA_CF_KEY).unwrap();
+        self.db
+            .put_cf(cf_handle, HARD_STATE_KEY, hard_state.encode_to_vec())
+            .unwrap();
+        Ok(())
+    }
+
+    fn set_hard_state_commit(&mut self, commit: u64) -> Result<()> {
+        let mut hard_state = self.hard_state()?;
+        hard_state.set_commit(commit);
+        self.set_hard_state(&hard_state)
+    }
+
+    fn conf_state(&self) -> Result<ConfState> {
+        let cf_handle = self.db.cf_handle(METADATA_CF_KEY).unwrap();
+        let result = self.db.get_cf(cf_handle, CONF_STATE_KEY).unwrap();
+        match result {
+            Some(data) => Ok(ConfState::decode(&*data)?),
+            None => Ok(ConfState::default()),
+        }
+    }
+
+    fn set_conf_state(&mut self, conf_state: &ConfState) -> Result<()> {
+        let cf_handle = self.db.cf_handle(METADATA_CF_KEY).unwrap();
+        self.db
+            .put_cf(cf_handle, CONF_STATE_KEY, conf_state.encode_to_vec())
+            .unwrap();
+        Ok(())
+    }
+
+    fn set_last_index(&self, index: u64) -> Result<()> {
+        let cf_handle = self.db.cf_handle(METADATA_CF_KEY).unwrap();
+        self.db
+            .put_cf(cf_handle, LAST_INDEX_KEY, index.to_string().as_bytes())
+            .unwrap();
+        Ok(())
+    }
+
+    fn set_snapshot(&self, snapshot: &Snapshot) -> Result<()> {
+        let cf_handle = self.db.cf_handle(METADATA_CF_KEY).unwrap();
+        self.db
+            .put_cf(cf_handle, SNAPSHOT_KEY, snapshot.encode_to_vec())
+            .unwrap();
+        Ok(())
+    }
+
+    fn create_snapshot(&mut self, data: Vec<u8>, index: u64, term: u64) -> Result<()> {
+        let conf_state = self.conf_state().unwrap();
+        let mut snapshot = Snapshot::default();
+        snapshot.set_data(data);
+
+        let meta = snapshot.mut_metadata();
+        meta.set_conf_state(conf_state);
+        meta.index = index;
+        meta.term = term;
+
+        self.set_snapshot(&snapshot)?;
+        Ok(())
+    }
+
+    fn apply_snapshot(&mut self, snapshot: Snapshot) -> Result<()> {
+        let metadata = snapshot.get_metadata();
+        let conf_state = metadata.get_conf_state();
+
+        let mut hard_state = self.hard_state()?;
+        hard_state.set_term(max(hard_state.term, metadata.term));
+        hard_state.set_commit(metadata.index);
+
+        self.set_hard_state(&hard_state)?;
+        self.set_conf_state(conf_state)?;
+        self.set_last_index(metadata.index)?;
+        self.set_snapshot(&snapshot)?;
+        Ok(())
+    }
+
+    fn compact(&mut self, index: u64) -> Result<()> {
+        let cf_handle = self.db.cf_handle(LOG_ENTRY_CF_KEY).unwrap();
+        let start = format_entry_key_string(0.to_string().as_str());
+        let end = format_entry_key_string((index).to_string().as_str());
+        self.db.delete_range_cf(cf_handle, start, end).unwrap();
+        Ok(())
+    }
+
+    fn all_entries(&self) -> crate::raft::Result<Vec<Entry>> {
+        let mut entries = Vec::new();
+        let cf_handle = self.db.cf_handle(LOG_ENTRY_CF_KEY).unwrap();
+
+        let iter = self.db.iterator_cf(cf_handle, rocksdb::IteratorMode::Start);
+
+        for item in iter {
+            match item {
+                Ok((_key, value)) => match Entry::decode(&*value) {
+                    Ok(entry) => entries.push(entry),
+                    Err(e) => {
+                        return Err(crate::raft::Error::Store(crate::raft::StorageError::Other(
+                            Box::new(e),
+                        )))
+                    }
+                },
+                Err(e) => {
+                    return Err(crate::raft::Error::Store(crate::raft::StorageError::Other(
+                        Box::new(e),
+                    )))
+                }
             }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(e.into()),
-            _ => {}
         }
 
-        append_compacted_logs(Path::new(&dest_path), entries)?;
-        Ok(())
+        Ok(entries)
     }
 
-    // Test only
-    #[allow(dead_code)]
-    fn replace_entries(&self, writer: &mut heed::RwTxn, entries: &[Entry]) -> Result<()> {
-        self.entries_db.clear(writer)?;
-        let mut last_index = self.last_index(writer)?;
+    fn initial_state(&self) -> crate::raft::Result<RaftState> {
+        let hard_state = self.hard_state().unwrap();
+        let conf_state = self.conf_state().unwrap();
+        Ok(RaftState {
+            hard_state,
+            conf_state,
+        })
+    }
 
-        for entry in entries {
-            let index = entry.index;
-            last_index = std::cmp::max(index, last_index);
-            // TODO: Handle MDBFullError.
-            self.entries_db.put(writer, &index.to_string(), entry)?;
+    fn entries(
+        &self,
+        low: u64,
+        high: u64,
+        max_size: Option<u64>,
+        _context: GetEntriesContext,
+    ) -> crate::raft::Result<Vec<Entry>> {
+        let cf_handle = self.db.cf_handle(LOG_ENTRY_CF_KEY).unwrap();
+        let mut entries = Vec::new();
+
+        if low
+            < self
+                .first_index()
+                .map_err(|_| raft::Error::Store(raft::StorageError::Unavailable))?
+        {
+            return Err(raft::Error::Store(raft::StorageError::Compacted));
         }
-        self.set_last_index(writer, last_index)?;
-        Ok(())
+
+        for idx in low..high {
+            let index = format_entry_key_string(idx.to_string().as_str());
+            match self.db.get_cf(cf_handle, index).unwrap() {
+                Some(value) => {
+                    let entry = Entry::decode(&*value).unwrap();
+                    entries.push(entry);
+                }
+                None => continue,
+            }
+        }
+
+        let max_size_option = max_size.into();
+        limit_size(&mut entries, max_size_option);
+
+        Ok(entries)
+    }
+
+    fn term(&self, idx: u64) -> crate::raft::Result<u64> {
+        let cf_handle = self.db.cf_handle(LOG_ENTRY_CF_KEY).unwrap();
+        let first_index = self.first_index()?;
+
+        let snapshot = self.snapshot(0, 0)?;
+        if snapshot.get_metadata().get_index() == idx {
+            return Ok(snapshot.get_metadata().get_term());
+        }
+
+        let index = format_entry_key_string(idx.to_string().as_str());
+
+        if let Some(value) = self.db.get_cf(cf_handle, index).unwrap() {
+            match Entry::decode(&*value) {
+                Ok(entry) => Ok(entry.term),
+                Err(e) => Err(crate::raft::Error::Store(
+                    crate::raft::StorageError::Unavailable,
+                )),
+            }
+        } else if idx < first_index {
+            Err(crate::raft::Error::Store(
+                crate::raft::StorageError::Compacted,
+            ))
+        } else {
+            Err(crate::raft::Error::Store(
+                crate::raft::StorageError::Unavailable,
+            ))
+        }
+    }
+
+    fn first_index(&self) -> crate::raft::Result<u64> {
+        let cf_handle = self.db.cf_handle(LOG_ENTRY_CF_KEY).unwrap();
+        let mut iter = self.db.iterator_cf(cf_handle, rocksdb::IteratorMode::Start);
+
+        match iter.next() {
+            Some(first) => {
+                let (_, value) = first.unwrap();
+                let entry = Entry::decode(&*value).unwrap();
+                Ok(entry.index)
+            }
+            None => {
+                let snapshot = self.snapshot(0, 0).unwrap();
+                Ok(snapshot.get_metadata().get_index() + 1)
+            }
+        }
+    }
+
+    fn last_index(&self) -> crate::raft::Result<u64> {
+        let cf_handle = self.db.cf_handle(METADATA_CF_KEY).unwrap();
+        let last_index = self
+            .db
+            .get_cf(cf_handle, LAST_INDEX_KEY)
+            .unwrap()
+            .unwrap_or("0".as_bytes().to_vec());
+        let last_index = String::from_utf8(last_index).expect("Found invalid UTF-8");
+        Ok(last_index.parse().unwrap())
+    }
+
+    fn snapshot(&self, _request_index: u64, _to: u64) -> crate::raft::Result<Snapshot> {
+        let cf_handle = self.db.cf_handle(METADATA_CF_KEY).unwrap();
+
+        match self.db.get_cf(cf_handle, SNAPSHOT_KEY) {
+            Ok(Some(value)) => {
+                let snapshot = Snapshot::decode(&*value).unwrap();
+                Ok(snapshot)
+            }
+            Ok(None) => Ok(Snapshot::default()),
+            Err(_) => Err(crate::raft::Error::Store(
+                crate::raft::StorageError::SnapshotTemporarilyUnavailable,
+            )),
+        }
     }
 }
 
-// Ref: https://github.com/tikv/raft-rs/blob/master/src/storage.rs
 #[cfg(test)]
 mod test {
     use std::fs;
