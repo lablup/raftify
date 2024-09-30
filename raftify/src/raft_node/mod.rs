@@ -533,8 +533,6 @@ impl<
         rx_local: mpsc::Receiver<LocalRequestMsg<LogEntry, LogStorage, FSM>>,
     ) -> Result<Self> {
         assert_eq!(config.raft_config.id, node_id);
-        println!("node_id: {:?}", node_id);
-        println!("config: {:?}", config.raft_config.id);
         config.validate()?;
 
         let mut snapshot = log_storage.snapshot(0, log_storage.last_index()?)?;

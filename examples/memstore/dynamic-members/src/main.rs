@@ -10,7 +10,7 @@ use raftify::{
 };
 use slog::Drain;
 use slog_envlogger::LogBuilder;
-use std::sync::Arc;
+use std::{fs, path::Path, sync::Arc};
 use structopt::StructOpt;
 
 use example_harness::{
@@ -98,16 +98,30 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             )?;
 
             let handle = tokio::spawn(raft.clone().run());
-            raft.add_peers(ticket.peers.clone()).await;
-            raft.join_cluster(vec![ticket]).await;
+            raft.add_peers(ticket.peers.clone())
+                .await
+                .expect("Failed to add peers");
+            raft.join_cluster(vec![ticket])
+                .await
+                .expect("Failed to join cluster");
 
             (raft, handle)
         }
         None => {
             log::info!("Bootstrap a Raft Cluster");
 
-            let cfg: raftify::Config = build_config(1);
-            let storage_pth = get_storage_path(cfg.log_dir.as_str(), 1);
+            // NOTE: Due to the characteristic of dynamic bootstrapping,
+            // it cannot be bootstrapped directly from the WAL log.
+            // Therefore, in this example, we delete the previous logs if they exist and then bootstrap.
+            let log_dir = Path::new("./logs");
+
+            if fs::metadata(log_dir).is_ok() {
+                fs::remove_dir_all(log_dir)?;
+            }
+
+            let leader_node_id = 1;
+            let cfg = build_config(leader_node_id);
+            let storage_pth = get_storage_path(cfg.log_dir.as_str(), leader_node_id);
             ensure_directory_exist(storage_pth.as_str())?;
 
             #[cfg(feature = "inmemory_storage")]
@@ -118,7 +132,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 .expect("Failed to create heed storage");
 
             let raft = Raft::bootstrap(
-                1,
+                leader_node_id,
                 options.raft_addr,
                 log_storage,
                 store.clone(),
