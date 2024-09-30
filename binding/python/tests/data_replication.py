@@ -1,6 +1,10 @@
 import asyncio
 import pytest
-from utils import load_peers, wait_for_until_cluster_size_increase
+from utils import (
+    ensure_directory_exist,
+    load_peers,
+    wait_for_until_cluster_size_increase,
+)
 from constant import THREE_NODE_EXAMPLE
 from harness.raft_server import RAFTS, run_rafts
 from harness.state_machine import SetCommand
@@ -8,6 +12,8 @@ from harness.state_machine import SetCommand
 
 @pytest.mark.asyncio
 async def test_data_replication():
+    ensure_directory_exist("./logs")
+
     peers = load_peers(THREE_NODE_EXAMPLE)
     asyncio.create_task(run_rafts(peers))
     await asyncio.sleep(2)

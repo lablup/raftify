@@ -23,7 +23,7 @@ setup(
     version=VERSION,
     description="Experimental High level Raft framework",
     long_description=README,
-    long_description_content_type='text/markdown',
+    long_description_content_type="text/markdown",
     author="Lablup Inc.",
     maintainer="jopemachine",
     maintainer_email="jopemachine@naver.com",
@@ -35,9 +35,5 @@ setup(
     install_requires=default_requires,
     zip_safe=False,
     include_package_data=True,
-    entry_points={
-        'console_scripts': [
-            'raftify_cli = raftify_cli.cli:main'
-        ]
-    }
+    entry_points={"console_scripts": ["raftify_cli = raftify_cli.cli:main"]},
 )

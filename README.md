@@ -199,13 +199,9 @@ Last index: 3
 
 ## Bootstrapping from WAL
 
-You can bootstrap cluster from WAL (Write Ahead Logs), and WAL's snapshot.
-
-This feature is useful in cases where a failure occurs in more than the number of nodes in the quorum, requiring a restart of the cluster, or when there is a need to reboot the cluster after making a batch change to the cluster members.
-
-Use the `restore_wal_from` and `restore_wal_snapshot_from` options in `RaftConfig`.
-
-See [this example](https://github.com/lablup/raftify/blob/main/examples/memstore/static-members/src/main.rs) for more details.
+If there are previous logs remaining in the log directory, the raft node will automatically apply them after the node is bootstrapped.
+If you intend to bootstrap the cluster from the scratch, please remove the previous log directory.
+To ignore the previous logs and bootstrap the cluster from a snapshot, use the `Config.bootstrap_from_snapshot` option.
 
 ## Support for other languages
 

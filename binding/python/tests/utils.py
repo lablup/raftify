@@ -1,4 +1,5 @@
 from asyncio import sleep
+import os
 import tomli
 from pathlib import Path
 from raftify import InitialRole, Peer, Peers, Raft
@@ -45,3 +46,12 @@ async def wait_for_until_cluster_size_decrease(raft: Raft, target: int):
 
     # Wait for the conf_change reflected to the cluster
     await sleep(0.1)
+
+
+def get_storage_path(log_dir: str, node_id: int) -> str:
+    return f"{log_dir}/node-{node_id}"
+
+
+def ensure_directory_exist(storage_path: str):
+    if not os.path.exists(storage_path):
+        os.makedirs(storage_path)
