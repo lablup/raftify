@@ -1400,7 +1400,6 @@ impl<
         if !ready.entries().is_empty() {
             let entries = &ready.entries()[..];
             let store = self.raw_node.mut_store();
-            println!("Applying entries: {:?}", entries);
             store.append(entries)?;
         }
 
