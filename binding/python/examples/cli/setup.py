@@ -21,7 +21,7 @@ default_requires = get_requirements()
 setup(
     name="raftify_cli",
     version=VERSION,
-    description="Experimental Async Raft framework for Python application",
+    description="Experimental High level Raft framework",
     long_description=README,
     long_description_content_type='text/markdown',
     author="Lablup Inc.",

@@ -100,9 +100,13 @@ First bootstrap the cluster that contains the leader node.
 let raft_addr = "127.0.0.1:60061".to_owned();
 let node_id = 1;
 
+let log_storage = HeedStorage::create(&storage_pth, &raft_config.clone(), logger.clone())
+    .expect("Failed to create heed storage");
+
 let raft = Raft::bootstrap(
     node_id,
     raft_addr,
+    log_storage,
     store.clone(),
     raft_config,
     logger.clone(),
@@ -125,16 +129,20 @@ let raft_addr = "127.0.0.1:60062".to_owned();
 let peer_addr = "127.0.0.1:60061".to_owned();
 let join_ticket = Raft::request_id(raft_addr, peer_addr).await;
 
+let log_storage = HeedStorage::create(&storage_pth, &raft_config.clone(), logger.clone())
+    .expect("Failed to create heed storage");
+
 let raft = Raft::bootstrap(
     join_ticket.reserved_id,
     raft_addr,
+    log_storage,
     store.clone(),
     raft_config,
     logger.clone(),
 )?;
 
 let raft_handle = tokio::spawn(raft.clone().run());
-raft.join_cluster(vec![join_ticket]).await;
+raft.join_cluster(vec![join_ticket]).await?;
 
 // ...
 tokio::try_join!(raft_handle)?;
