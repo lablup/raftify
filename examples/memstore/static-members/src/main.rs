@@ -38,6 +38,7 @@ struct Options {
     raft_addr: String,
     #[structopt(long)]
     web_server: Option<String>,
+    // TODO: Make "bootstrap_from_snapshot" option here
 }
 
 #[actix_rt::main]
@@ -66,12 +67,12 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let store = HashStore::new();
     let initial_peers = load_peers("cluster_config.toml").await?;
 
-    let mut cfg = build_config();
-    cfg.initial_peers = Some(initial_peers.clone());
-
     let node_id = initial_peers
         .get_node_id_by_addr(options.raft_addr.clone())
         .unwrap();
+
+    let mut cfg = build_config(node_id);
+    cfg.initial_peers = Some(initial_peers.clone());
 
     let storage_pth = get_storage_path(cfg.log_dir.as_str(), node_id);
     ensure_directory_exist(storage_pth.as_str())?;

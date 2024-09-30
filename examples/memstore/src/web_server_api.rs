@@ -78,7 +78,10 @@ async fn snapshot(data: web::Data<(HashStore, Raft)>) -> impl Responder {
             .hard_state()
             .expect("Failed to get hard state");
 
-        raft.1.make_snapshot(last_index, hard_state.term).await;
+        raft.1
+            .make_snapshot(last_index, hard_state.term)
+            .await
+            .expect("Failed to make snapshot");
         "OK".to_string()
     }
 }

@@ -34,6 +34,9 @@ pub enum Error {
     #[error("Shut down by Ctrl+C signal")]
     CtrlC,
 
+    #[error("RaftNode LocalRequestMsg Receive error: {0}")]
+    RecvError(#[from] tokio::sync::oneshot::error::RecvError),
+
     #[error("Encoding error")]
     EncodingError(String),
     #[error("Decoding error")]

@@ -66,8 +66,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let options = Options::from_args();
     let store = HashStore::new();
 
-    let mut cfg = build_config();
-
     let (raft, raft_handle) = match options.peer_addr {
         Some(peer_addr) => {
             log::info!("Running in Follower mode");
@@ -76,6 +74,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 .await
                 .unwrap();
             let node_id = ticket.reserved_id;
+            let mut cfg = build_config(node_id);
+
             cfg.initial_peers = Some(ticket.peers.clone().into());
 
             let storage_pth = get_storage_path(cfg.log_dir.as_str(), node_id);
@@ -106,6 +106,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         None => {
             log::info!("Bootstrap a Raft Cluster");
 
+            let cfg: raftify::Config = build_config(1);
             let storage_pth = get_storage_path(cfg.log_dir.as_str(), 1);
             ensure_directory_exist(storage_pth.as_str())?;
 

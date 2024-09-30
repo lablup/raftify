@@ -1,7 +1,8 @@
 use raftify::{Config, RaftConfig};
 
-pub fn build_config() -> Config {
+pub fn build_config(node_id: u64) -> Config {
     let raft_config = RaftConfig {
+        id: node_id,
         election_tick: 10,
         heartbeat_tick: 3,
         ..Default::default()

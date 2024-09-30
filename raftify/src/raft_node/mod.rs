@@ -414,7 +414,7 @@ impl<
         }
     }
 
-    pub async fn make_snapshot(&self, index: u64, term: u64) {
+    pub async fn make_snapshot(&self, index: u64, term: u64) -> Result<()> {
         let (tx, rx) = oneshot::channel();
         self.tx_local
             .send(LocalRequestMsg::MakeSnapshot {
@@ -424,9 +424,9 @@ impl<
             })
             .await
             .unwrap();
-        let resp = rx.await.unwrap();
+        let resp = rx.await?;
         match resp {
-            LocalResponseMsg::MakeSnapshot {} => (),
+            LocalResponseMsg::MakeSnapshot {} => Ok(()),
             _ => unreachable!(),
         }
     }
@@ -516,7 +516,7 @@ impl<
         should_be_leader: bool,
         mut log_storage: LogStorage,
         fsm: FSM,
-        mut config: Config,
+        config: Config,
         raft_addr: SocketAddr,
         logger: Arc<dyn Logger>,
         tx_server: mpsc::Sender<ServerRequestMsg<LogEntry, LogStorage, FSM>>,
@@ -524,7 +524,9 @@ impl<
         tx_local: mpsc::Sender<LocalRequestMsg<LogEntry, LogStorage, FSM>>,
         rx_local: mpsc::Receiver<LocalRequestMsg<LogEntry, LogStorage, FSM>>,
     ) -> Result<Self> {
-        config.raft_config.id = node_id;
+        assert_eq!(config.raft_config.id, node_id);
+        println!("node_id: {:?}", node_id);
+        println!("config: {:?}", config.raft_config.id);
         config.validate()?;
 
         let mut snapshot = log_storage.snapshot(0, log_storage.last_index()?)?;
@@ -559,8 +561,14 @@ impl<
             conf_state.set_learners(learners);
         }
 
-        if last_idx == 0 || config.bootstrap_from_snapshot {
+        if last_idx == 0 {
+            logger.info("Bootstrapping cluster init...");
             log_storage.apply_snapshot(snapshot)?;
+        } else if config.bootstrap_from_snapshot {
+            logger.info("Bootstrapping from snapshot...");
+            log_storage.apply_snapshot(snapshot)?;
+        } else {
+            logger.info("Bootstrapping from existing logs...");
         }
 
         let mut raw_node = RawNode::new(&config.raft_config, log_storage.clone(), logger.clone())?;
@@ -1103,8 +1111,8 @@ impl<
                     })
                     .unwrap();
 
-                #[cfg(feature = "inmemory_storage")]
-                todo!("Implement this for inmemory storage");
+                // #[cfg(feature = "inmemory_storage")]
+                // todo!("Implement LocalRequestMsg::GetStorage request handler for inmemory storage");
             }
             LocalRequestMsg::DebugNode { tx_msg } => {
                 tx_msg
@@ -1174,7 +1182,14 @@ impl<
                 term,
                 tx_msg,
             } => {
+                // println!("Make snapshot!! 2 2");
+                // let r = self.make_snapshot(index, term).await;
+                // println!("Make snapshot!! 2 3 r: {:?}", r);
+                // if let Err(e) = r {
+                //     return Err(e);
+                // }
                 self.make_snapshot(index, term).await?;
+                println!("Make snapshot!! 2 3");
                 tx_msg.send(LocalResponseMsg::MakeSnapshot {}).unwrap();
             }
             LocalRequestMsg::JoinCluster { tickets, tx_msg } => {
