@@ -175,6 +175,16 @@ pub fn kill_process_using_port(port: u16) {
     }
 }
 
+pub fn cleanup_storage(log_dir: &str) {
+    let storage_pth = Path::new(log_dir);
+
+    if fs::metadata(storage_pth).is_ok() {
+        fs::remove_dir_all(storage_pth).expect("Failed to remove storage directory");
+    }
+
+    fs::create_dir_all(storage_pth).expect("Failed to create storage directory");
+}
+
 pub fn kill_previous_raft_processes() {
     RAFT_PORTS.iter().for_each(|port| {
         kill_process_using_port(*port);

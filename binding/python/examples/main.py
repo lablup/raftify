@@ -37,8 +37,9 @@ def load_peers() -> Peers:
     )
 
 
-def build_config(initial_peers: Peers) -> Config:
+def build_config(node_id: int, initial_peers: Peers) -> Config:
     raft_cfg = RaftConfig(
+        id=node_id,
         election_tick=10,
         heartbeat_tick=3,
     )
@@ -106,11 +107,11 @@ async def main():
 
     initial_peers = load_peers()
 
-    cfg = build_config(initial_peers)
+    node_id = initial_peers.get_node_id_by_addr(raft_addr)
+
+    cfg = build_config(node_id, initial_peers)
     logger = Logger(setup_logger())
     store = HashStore()
-
-    node_id = initial_peers.get_node_id_by_addr(raft_addr)
 
     tasks = []
     raft = Raft.bootstrap(node_id, raft_addr, store, cfg, logger)

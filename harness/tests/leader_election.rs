@@ -5,13 +5,14 @@ use harness::{
     constant::{FIVE_NODE_EXAMPLE, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, wait_until_rafts_ready, Raft},
     utils::{
-        kill_previous_raft_processes, load_peers, wait_for_until_cluster_size_decrease,
-        wait_for_until_cluster_size_increase,
+        cleanup_storage, kill_previous_raft_processes, load_peers,
+        wait_for_until_cluster_size_decrease, wait_for_until_cluster_size_increase,
     },
 };
 
 #[tokio::test]
 pub async fn test_leader_election_in_three_node_example() {
+    cleanup_storage("./logs");
     kill_previous_raft_processes();
 
     let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
@@ -28,7 +29,7 @@ pub async fn test_leader_election_in_three_node_example() {
 
     sleep(Duration::from_secs(1)).await;
 
-    raft_1.leave().await;
+    raft_1.leave().await.expect("Failed to leave");
 
     sleep(Duration::from_secs(2)).await;
 
@@ -52,15 +53,16 @@ pub async fn test_leader_election_in_three_node_example() {
         leader_id
     );
 
-    raft_2.quit().await;
+    raft_2.quit().await.expect("Failed to quit");
     let raft_3 = rafts.get_mut(&3).unwrap();
-    raft_3.quit().await;
+    raft_3.quit().await.expect("Failed to quit");
 }
 
 // TODO: Fix this test.
 #[tokio::test]
 #[ignore]
 pub async fn test_leader_election_in_five_node_example() {
+    cleanup_storage("./logs");
     kill_previous_raft_processes();
 
     let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
@@ -77,7 +79,7 @@ pub async fn test_leader_election_in_five_node_example() {
 
     sleep(Duration::from_secs(1)).await;
 
-    raft_1.leave().await;
+    raft_1.leave().await.expect("Failed to leave");
 
     let raft_2 = rafts.get_mut(&2).unwrap();
 
@@ -94,7 +96,7 @@ pub async fn test_leader_election_in_five_node_example() {
     );
 
     let leader_raft = rafts.get_mut(&leader_id).unwrap();
-    leader_raft.leave().await;
+    leader_raft.leave().await.expect("Failed to leave");
 
     let mut remaining_nodes = vec![2, 3, 4, 5];
     if let Some(pos) = remaining_nodes.iter().position(|&x| x == leader_id) {
@@ -115,6 +117,6 @@ pub async fn test_leader_election_in_five_node_example() {
 
     for id in remaining_nodes {
         let raft = rafts.get_mut(&id).unwrap();
-        raft.quit().await;
+        raft.quit().await.expect("Failed to quit the raft node");
     }
 }

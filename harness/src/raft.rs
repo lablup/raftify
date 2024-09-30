@@ -51,7 +51,7 @@ fn run_raft(
     should_be_leader: bool,
 ) -> Result<JoinHandle<Result<()>>> {
     let peer = peers.get(node_id).unwrap();
-    let mut cfg = build_config();
+    let mut cfg = build_config(*node_id);
     cfg.initial_peers = if should_be_leader {
         None
     } else {
@@ -60,7 +60,7 @@ fn run_raft(
 
     let store = HashStore::new();
     let logger = build_logger();
-    let storage_pth = get_storage_path(cfg.log_dir.as_str(), 1);
+    let storage_pth = get_storage_path(cfg.log_dir.as_str(), *node_id);
     ensure_directory_exist(storage_pth.as_str())?;
 
     let storage = HeedStorage::create(
@@ -141,9 +141,9 @@ pub async fn spawn_extra_node(
         slog: build_logger(),
     });
 
-    let cfg = build_config();
+    let cfg = build_config(node_id);
     let store = HashStore::new();
-    let storage_pth = get_storage_path(cfg.log_dir.as_str(), 1);
+    let storage_pth = get_storage_path(cfg.log_dir.as_str(), node_id);
     ensure_directory_exist(storage_pth.as_str())?;
 
     let storage = HeedStorage::create(&storage_pth, &cfg, logger.clone())?;
@@ -172,11 +172,11 @@ pub async fn spawn_and_join_extra_node(
         .unwrap();
 
     let node_id = join_ticket.reserved_id;
-    let mut cfg = build_config();
+    let mut cfg = build_config(node_id);
     cfg.initial_peers = Some(join_ticket.peers.clone().into());
     let store = HashStore::new();
 
-    let storage_pth = get_storage_path(cfg.log_dir.as_str(), 1);
+    let storage_pth = get_storage_path(cfg.log_dir.as_str(), node_id);
     ensure_directory_exist(storage_pth.as_str())?;
 
     let storage = HeedStorage::create(&storage_pth, &cfg, logger.clone())?;
@@ -189,8 +189,12 @@ pub async fn spawn_and_join_extra_node(
 
     let raft_handle = tokio::spawn(raft.clone().run());
 
-    raft.add_peers(join_ticket.peers.clone()).await;
-    raft.join_cluster(vec![join_ticket]).await;
+    raft.add_peers(join_ticket.peers.clone())
+        .await
+        .expect("Failed to add peers");
+    raft.join_cluster(vec![join_ticket])
+        .await
+        .expect("Failed to join cluster");
 
     Ok(raft_handle)
 }
@@ -202,9 +206,14 @@ pub async fn join_nodes(rafts: Vec<&Raft>, raft_addrs: Vec<&str>, peer_addr: &st
             .await
             .unwrap();
 
-        raft.add_peers(join_ticket.peers.clone()).await;
+        raft.add_peers(join_ticket.peers.clone())
+            .await
+            .expect("Failed to add peers");
         tickets.push(join_ticket);
     }
 
-    rafts[0].join_cluster(tickets).await;
+    rafts[0]
+        .join_cluster(tickets)
+        .await
+        .expect("Failed to join cluster");
 }

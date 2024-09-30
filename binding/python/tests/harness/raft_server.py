@@ -6,8 +6,9 @@ from raftify import Config, Peers, Raft, RaftConfig, Slogger
 RAFTS: dict[int, Raft] = {}
 
 
-def build_config(initial_peers: Peers) -> Config:
+def build_config(node_id: int, initial_peers: Peers) -> Config:
     raft_cfg = RaftConfig(
+        id=node_id,
         election_tick=10,
         heartbeat_tick=3,
     )
@@ -23,7 +24,7 @@ def build_config(initial_peers: Peers) -> Config:
 
 async def run_raft(node_id: int, initial_peers: Peers):
     peer = initial_peers.get(node_id)
-    cfg = build_config(initial_peers)
+    cfg = build_config(node_id, initial_peers)
 
     store = HashStore()
     logger = Slogger.default()

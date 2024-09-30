@@ -40,7 +40,7 @@ async fn leader_id(data: web::Data<(HashStore, Raft)>) -> impl Responder {
 #[get("/leave")]
 async fn leave(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    raft.1.leave().await;
+    raft.1.leave().await.unwrap();
     "OK".to_string()
 }
 
@@ -107,14 +107,14 @@ async fn transfer_leader(
 ) -> impl Responder {
     let raft = data.clone();
     let node_id: u64 = path.into_inner();
-    raft.1.transfer_leader(node_id).await;
+    raft.1.transfer_leader(node_id).await.unwrap();
     "OK".to_string()
 }
 
 #[get("/campaign")]
 async fn campaign(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    raft.1.campaign().await;
+    raft.1.campaign().await.unwrap();
     "OK".to_string()
 }
 
@@ -122,6 +122,6 @@ async fn campaign(data: web::Data<(HashStore, Raft)>) -> impl Responder {
 async fn demote(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, u64)>) -> impl Responder {
     let raft = data.clone();
     let (term, leader_id_) = path.into_inner();
-    raft.1.demote(term, leader_id_).await;
+    raft.1.demote(term, leader_id_).await.unwrap();
     "OK".to_string()
 }
