@@ -27,3 +27,8 @@ structopt = "0.3"
 tokio = { version = "1.40", features = ["full"] }
 toml = "0.8.19"
 color-backtrace = "0.6.1"
+
+[features]
+default = ["heed_storage"]
+inmemory_storage = []
+heed_storage =[]

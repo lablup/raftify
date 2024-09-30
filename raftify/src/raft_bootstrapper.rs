@@ -1,6 +1,6 @@
 use crate::{
     raft::logger::Logger, request::server_request_message::ServerRequestMsg, ClusterJoinTicket,
-    InitialRole, Peers,
+    InitialRole, Peers, StableStorage,
 };
 use bincode::deserialize;
 use std::{net::ToSocketAddrs, ops::Deref, sync::Arc};
@@ -22,25 +22,35 @@ use super::{
 /// The bootstrap function returns an instance of the Raft type that deref to RaftNode type,
 /// allowing the use of functions necessary for interaction with the cluster.
 #[derive(Clone)]
-pub struct Raft<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + Clone + 'static> {
-    pub raft_node: RaftNode<LogEntry, FSM>,
-    pub raft_server: RaftServer<LogEntry, FSM>,
-    pub tx_server: mpsc::Sender<ServerRequestMsg<LogEntry, FSM>>,
+pub struct Raft<
+    LogEntry: AbstractLogEntry + 'static,
+    LogStorage: StableStorage + Send + Clone + 'static,
+    FSM: AbstractStateMachine + Clone + 'static,
+> {
+    pub raft_node: RaftNode<LogEntry, LogStorage, FSM>,
+    pub raft_server: RaftServer<LogEntry, LogStorage, FSM>,
+    pub tx_server: mpsc::Sender<ServerRequestMsg<LogEntry, LogStorage, FSM>>,
     pub logger: Arc<dyn Logger>,
 }
 
-impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + Clone + 'static> Deref
-    for Raft<LogEntry, FSM>
+impl<
+        LogEntry: AbstractLogEntry + 'static,
+        LogStorage: StableStorage + Send + Clone + 'static,
+        FSM: AbstractStateMachine + Clone + 'static,
+    > Deref for Raft<LogEntry, LogStorage, FSM>
 {
-    type Target = RaftNode<LogEntry, FSM>;
+    type Target = RaftNode<LogEntry, LogStorage, FSM>;
 
     fn deref(&self) -> &Self::Target {
         &self.raft_node
     }
 }
 
-impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync + 'static>
-    Raft<LogEntry, FSM>
+impl<
+        LogEntry: AbstractLogEntry,
+        LogStorage: StableStorage + Send + Sync + Clone + 'static,
+        FSM: AbstractStateMachine + Send + Sync + Clone + 'static,
+    > Raft<LogEntry, LogStorage, FSM>
 {
     /// Creates a new Raft instance.
     /// Cloning a Raft instance does not bootstrap a new Raft instance.
@@ -48,6 +58,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
     pub fn bootstrap<A: ToSocketAddrs>(
         node_id: u64,
         raft_addr: A,
+        log_storage: LogStorage,
         fsm: FSM,
         config: Config,
         logger: Arc<dyn Logger>,
@@ -76,6 +87,7 @@ impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine + Clone + Send + Sync
         let raft_node = RaftNode::bootstrap(
             node_id,
             should_be_leader,
+            log_storage,
             fsm,
             config.clone(),
             raft_addr,

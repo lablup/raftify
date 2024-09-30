@@ -1,4 +1,9 @@
+#[cfg(feature = "heed_storage")]
 pub mod heed_storage;
+
+#[cfg(feature = "inmemory_storage")]
+pub mod inmemory_storage;
+
 pub mod utils;
 
 use crate::{
@@ -6,7 +11,15 @@ use crate::{
     raft::{self, prelude::*},
 };
 
+pub enum StorageType {
+    InMemory,
+    Heed,
+    Custom,
+}
+
 pub trait StableStorage: Storage {
+    const STORAGE_TYPE: StorageType;
+
     fn append(&mut self, entries: &[Entry]) -> Result<()>;
     fn hard_state(&self) -> Result<HardState>;
     fn set_hard_state(&mut self, hard_state: &HardState) -> Result<()>;

@@ -4,14 +4,18 @@ use tokio::sync::oneshot::Sender;
 
 use crate::{
     raft::eraftpb::Message as RaftMessage, response::server_response_message::ServerResponseMsg,
-    AbstractLogEntry, AbstractStateMachine, Peers,
+    AbstractLogEntry, AbstractStateMachine, Peers, StableStorage,
 };
 
 use super::common::confchange_request::ConfChangeRequest;
 
 /// Request type processed through network calls (gRPC)
 #[derive(Debug)]
-pub enum ServerRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
+pub enum ServerRequestMsg<
+    LogEntry: AbstractLogEntry,
+    LogStorage: StableStorage,
+    FSM: AbstractStateMachine,
+> {
     RequestId {
         raft_addr: String,
         tx_msg: Sender<ServerResponseMsg>,
@@ -45,4 +49,5 @@ pub enum ServerRequestMsg<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine>
     },
     _Phantom(PhantomData<LogEntry>),
     _Phantom2(PhantomData<FSM>),
+    _Phantom3(PhantomData<LogStorage>),
 }

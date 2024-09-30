@@ -31,22 +31,29 @@ use crate::{
     response::server_response_message::{
         ConfChangeResponseResult, RequestIdResponseResult, ResponseResult, ServerResponseMsg,
     },
-    AbstractLogEntry, AbstractStateMachine,
+    AbstractLogEntry, AbstractStateMachine, StableStorage,
 };
 
 #[derive(Clone)]
-pub struct RaftServer<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> {
-    tx: mpsc::Sender<ServerRequestMsg<LogEntry, FSM>>,
+pub struct RaftServer<
+    LogEntry: AbstractLogEntry,
+    LogStorage: StableStorage + 'static,
+    FSM: AbstractStateMachine,
+> {
+    tx: mpsc::Sender<ServerRequestMsg<LogEntry, LogStorage, FSM>>,
     raft_addr: SocketAddr,
     config: Config,
     logger: Arc<dyn Logger>,
 }
 
-impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + 'static>
-    RaftServer<LogEntry, FSM>
+impl<
+        LogEntry: AbstractLogEntry + 'static,
+        LogStorage: StableStorage + Send + Sync + 'static,
+        FSM: AbstractStateMachine + 'static,
+    > RaftServer<LogEntry, LogStorage, FSM>
 {
     pub fn new<A: ToSocketAddrs>(
-        tx: mpsc::Sender<ServerRequestMsg<LogEntry, FSM>>,
+        tx: mpsc::Sender<ServerRequestMsg<LogEntry, LogStorage, FSM>>,
         raft_addr: A,
         config: Config,
         logger: Arc<dyn Logger>,
@@ -81,8 +88,11 @@ impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + 'static>
     }
 }
 
-impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + 'static>
-    RaftServer<LogEntry, FSM>
+impl<
+        LogEntry: AbstractLogEntry + 'static,
+        LogStorage: StableStorage + 'static,
+        FSM: AbstractStateMachine + 'static,
+    > RaftServer<LogEntry, LogStorage, FSM>
 {
     fn print_send_error(&self, function_name: &str) {
         self.logger.error(&format!(
@@ -93,8 +103,11 @@ impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + 'static>
 }
 
 #[tonic::async_trait]
-impl<LogEntry: AbstractLogEntry + 'static, FSM: AbstractStateMachine + 'static> RaftService
-    for RaftServer<LogEntry, FSM>
+impl<
+        LogEntry: AbstractLogEntry + 'static,
+        LogStorage: StableStorage + Sync + Send + 'static,
+        FSM: AbstractStateMachine + 'static,
+    > RaftService for RaftServer<LogEntry, LogStorage, FSM>
 {
     async fn request_id(
         &self,

@@ -37,7 +37,7 @@ pub async fn test_data_replication() {
 
     // Data should be replicated to all nodes.
     for (_, raft) in rafts.iter_mut() {
-        let store = raft.state_machine().await;
+        let store = raft.state_machine().await.unwrap();
         let store_lk = store.0.read().unwrap();
         assert_eq!(store_lk.get(&1).unwrap(), "test");
     }
@@ -59,7 +59,7 @@ pub async fn test_data_replication() {
     wait_for_until_cluster_size_increase(raft_1.clone(), 4).await;
 
     let raft_4 = rafts.get(&4).unwrap();
-    let store = raft_4.state_machine().await;
+    let store = raft_4.state_machine().await.unwrap();
     let store_lk = store.0.read().unwrap();
 
     // Data should be replicated to new joined node.
@@ -80,7 +80,7 @@ pub async fn test_data_replication() {
     // New entry data should be replicated to all nodes including new joined node.
     for (_, raft) in rafts.iter() {
         // stop
-        let store = raft.state_machine().await;
+        let store = raft.state_machine().await.unwrap();
         let store_lk = store.0.read().unwrap();
         assert_eq!(store_lk.get(&2).unwrap(), "test2");
     }

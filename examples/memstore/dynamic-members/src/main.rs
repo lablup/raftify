@@ -6,23 +6,30 @@ extern crate slog_term;
 use actix_web::{web, App, HttpServer};
 use raftify::{
     raft::{formatter::set_custom_formatter, logger::Slogger},
-    CustomFormatter, Raft as Raft_,
+    CustomFormatter,
 };
 use slog::Drain;
 use slog_envlogger::LogBuilder;
-use std::sync::Arc;
+use std::{fs, path::Path, sync::Arc};
 use structopt::StructOpt;
 
-use example_harness::config::build_config;
+use example_harness::{
+    config::build_config,
+    utils::{ensure_directory_exist, get_storage_path},
+};
 use memstore_example_harness::{
-    state_machine::{HashStore, LogEntry},
+    state_machine::{HashStore, LogEntry, Raft},
     web_server_api::{
         campaign, debug, demote, get, leader_id, leave, leave_joint, peers, put, snapshot,
         transfer_leader,
     },
 };
 
-type Raft = Raft_<LogEntry, HashStore>;
+#[cfg(feature = "inmemory_storage")]
+use raftify::MemStorage;
+
+#[cfg(feature = "heed_storage")]
+use raftify::HeedStorage;
 
 #[derive(Debug, StructOpt)]
 struct Options {
@@ -59,8 +66,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let options = Options::from_args();
     let store = HashStore::new();
 
-    let mut cfg = build_config();
-
     let (raft, raft_handle) = match options.peer_addr {
         Some(peer_addr) => {
             log::info!("Running in Follower mode");
@@ -69,25 +74,71 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 .await
                 .unwrap();
             let node_id = ticket.reserved_id;
+            let mut cfg = build_config(node_id);
+
             cfg.initial_peers = Some(ticket.peers.clone().into());
+
+            let storage_pth = get_storage_path(cfg.log_dir.as_str(), node_id);
+            ensure_directory_exist(storage_pth.as_str())?;
+
+            #[cfg(feature = "inmemory_storage")]
+            let log_storage = MemStorage::create();
+
+            #[cfg(feature = "heed_storage")]
+            let log_storage = HeedStorage::create(&storage_pth, &cfg.clone(), logger.clone())
+                .expect("Failed to create heed storage");
 
             let raft = Raft::bootstrap(
                 node_id,
                 options.raft_addr,
+                log_storage,
                 store.clone(),
                 cfg.clone(),
                 logger.clone(),
             )?;
 
             let handle = tokio::spawn(raft.clone().run());
-            raft.add_peers(ticket.peers.clone()).await;
-            raft.join_cluster(vec![ticket]).await;
+            raft.add_peers(ticket.peers.clone())
+                .await
+                .expect("Failed to add peers");
+            raft.join_cluster(vec![ticket])
+                .await
+                .expect("Failed to join cluster");
 
             (raft, handle)
         }
         None => {
             log::info!("Bootstrap a Raft Cluster");
-            let raft = Raft::bootstrap(1, options.raft_addr, store.clone(), cfg, logger.clone())?;
+
+            // NOTE: Due to the characteristic of dynamic bootstrapping,
+            // it cannot be bootstrapped directly from the WAL log.
+            // Therefore, in this example, we delete the previous logs if they exist and then bootstrap.
+            let log_dir = Path::new("./logs");
+
+            if fs::metadata(log_dir).is_ok() {
+                fs::remove_dir_all(log_dir)?;
+            }
+
+            let leader_node_id = 1;
+            let cfg = build_config(leader_node_id);
+            let storage_pth = get_storage_path(cfg.log_dir.as_str(), leader_node_id);
+            ensure_directory_exist(storage_pth.as_str())?;
+
+            #[cfg(feature = "inmemory_storage")]
+            let log_storage = MemStorage::create();
+
+            #[cfg(feature = "heed_storage")]
+            let log_storage = HeedStorage::create(&storage_pth, &cfg.clone(), logger.clone())
+                .expect("Failed to create heed storage");
+
+            let raft = Raft::bootstrap(
+                leader_node_id,
+                options.raft_addr,
+                log_storage,
+                store.clone(),
+                cfg,
+                logger.clone(),
+            )?;
             let handle = tokio::spawn(raft.clone().run());
             (raft, handle)
         }

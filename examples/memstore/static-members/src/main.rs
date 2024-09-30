@@ -6,16 +6,19 @@ extern crate slog_term;
 use actix_web::{web, App, HttpServer};
 use raftify::{
     raft::{formatter::set_custom_formatter, logger::Slogger},
-    CustomFormatter, Raft as Raft_,
+    CustomFormatter,
 };
 use slog::Drain;
 use slog_envlogger::LogBuilder;
 use std::sync::Arc;
 use structopt::StructOpt;
 
-use example_harness::config::build_config;
+use example_harness::{
+    config::build_config,
+    utils::{ensure_directory_exist, get_storage_path},
+};
 use memstore_example_harness::{
-    state_machine::{HashStore, LogEntry},
+    state_machine::{HashStore, LogEntry, Raft},
     web_server_api::{
         campaign, debug, demote, get, leader_id, leave, leave_joint, peers, put, snapshot,
         transfer_leader,
@@ -23,7 +26,11 @@ use memstore_example_harness::{
 };
 use memstore_static_members::utils::load_peers;
 
-type Raft = Raft_<LogEntry, HashStore>;
+#[cfg(feature = "inmemory_storage")]
+use raftify::MemStorage;
+
+#[cfg(feature = "heed_storage")]
+use raftify::HeedStorage;
 
 #[derive(Debug, StructOpt)]
 struct Options {
@@ -31,10 +38,7 @@ struct Options {
     raft_addr: String,
     #[structopt(long)]
     web_server: Option<String>,
-    #[structopt(long)]
-    restore_wal_from: Option<u64>,
-    #[structopt(long)]
-    restore_wal_snapshot_from: Option<u64>,
+    // TODO: Make "bootstrap_from_snapshot" option here
 }
 
 #[actix_rt::main]
@@ -63,18 +67,27 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let store = HashStore::new();
     let initial_peers = load_peers("cluster_config.toml").await?;
 
-    let mut cfg = build_config();
-    cfg.initial_peers = Some(initial_peers.clone());
-    cfg.restore_wal_from = options.restore_wal_from;
-    cfg.restore_wal_snapshot_from = options.restore_wal_snapshot_from;
-
     let node_id = initial_peers
         .get_node_id_by_addr(options.raft_addr.clone())
         .unwrap();
 
+    let mut cfg = build_config(node_id);
+    cfg.initial_peers = Some(initial_peers.clone());
+
+    let storage_pth = get_storage_path(cfg.log_dir.as_str(), node_id);
+    ensure_directory_exist(storage_pth.as_str())?;
+
+    #[cfg(feature = "inmemory_storage")]
+    let log_storage = MemStorage::create();
+
+    #[cfg(feature = "heed_storage")]
+    let log_storage = HeedStorage::create(&storage_pth, &cfg.clone(), logger.clone())
+        .expect("Failed to create heed storage");
+
     let raft = Raft::bootstrap(
         node_id,
         options.raft_addr.clone(),
+        log_storage,
         store.clone(),
         cfg.clone(),
         logger.clone(),

@@ -2,7 +2,7 @@ use core::panic;
 use serde_json::Value;
 use std::{collections::HashMap, fs, path::Path, sync::Arc};
 
-use crate::{
+use raftify::{
     create_client,
     raft::{
         formatter::{format_entry, format_snapshot},
@@ -10,22 +10,31 @@ use crate::{
         Storage,
     },
     raft_node::utils::format_debugging_info,
-    raft_service, Config, HeedStorage, Result, StableStorage,
+    raft_service, Config, Result, StableStorage,
+    HeedStorage, StorageType,
 };
 
-pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
+pub fn debug_persisted<LogStorage: StableStorage>(path: &str, logger: slog::Logger) -> Result<()> {
     let config = Config {
         log_dir: path.to_string(),
         ..Default::default()
     };
 
-    let storage = HeedStorage::create(
-        config.log_dir.as_str(),
-        &config,
-        Arc::new(Slogger {
-            slog: logger.clone(),
-        }),
-    )?;
+    let storage = match LogStorage::STORAGE_TYPE {
+        StorageType::Heed => HeedStorage::create(
+            config.log_dir.as_str(),
+            &config,
+            Arc::new(Slogger {
+                slog: logger.clone(),
+            }),
+        )?,
+        StorageType::InMemory => {
+            panic!("InMemory storage does not support this feature");
+        }
+        _ => {
+            panic!("Unsupported storage type");
+        }
+    };
 
     let entries = storage.all_entries()?;
 
@@ -51,7 +60,7 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
     Ok(())
 }
 
-pub fn debug_persitsted_all(path_str: &str, logger: slog::Logger) -> Result<()> {
+pub fn debug_persitsted_all<LogStorage: StableStorage>(path_str: &str, logger: slog::Logger) -> Result<()> {
     let path = match fs::canonicalize(Path::new(&path_str)) {
         Ok(absolute_path) => absolute_path,
         Err(e) => {
@@ -82,7 +91,7 @@ pub fn debug_persitsted_all(path_str: &str, logger: slog::Logger) -> Result<()> 
 
         for name in dir_entries {
             println!("*----- {name} -----*");
-            debug_persisted(&format!("{}/{}", path_str, name), logger.clone())?;
+            debug_persisted::<LogStorage>(&format!("{}/{}", path_str, name), logger.clone())?;
             println!();
         }
     } else {

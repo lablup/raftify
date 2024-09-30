@@ -1,4 +1,4 @@
-use crate::{AbstractLogEntry, AbstractStateMachine, Error, Peers};
+use crate::{AbstractLogEntry, AbstractStateMachine, Error, Peers, StableStorage};
 
 use super::ResponseMessage;
 
@@ -54,8 +54,8 @@ pub enum ServerResponseMsg {
     RequestId { result: RequestIdResponseResult },
 }
 
-impl<LogEntry: AbstractLogEntry, FSM: AbstractStateMachine> From<ServerResponseMsg>
-    for ResponseMessage<LogEntry, FSM>
+impl<LogEntry: AbstractLogEntry, LogStorage: StableStorage, FSM: AbstractStateMachine>
+    From<ServerResponseMsg> for ResponseMessage<LogEntry, LogStorage, FSM>
 {
     fn from(msg: ServerResponseMsg) -> Self {
         ResponseMessage::Server(msg)

@@ -1,7 +1,7 @@
 use futures::future;
 use raftify::{
     raft::{formatter::set_custom_formatter, logger::Slogger},
-    CustomFormatter, Peers, Raft as Raft_, Result,
+    CustomFormatter, HeedStorage, Peers, Raft as Raft_, Result,
 };
 use std::{
     collections::HashMap,
@@ -13,10 +13,10 @@ use crate::{
     config::build_config,
     logger::get_logger,
     state_machine::{HashStore, LogEntry},
-    utils::build_logger,
+    utils::{build_logger, ensure_directory_exist, get_storage_path},
 };
 
-pub type Raft = Raft_<LogEntry, HashStore>;
+pub type Raft = Raft_<LogEntry, HeedStorage, HashStore>;
 
 pub async fn wait_until_rafts_ready(
     rafts: Option<HashMap<u64, Raft>>,
@@ -60,10 +60,21 @@ fn run_raft(
 
     let store = HashStore::new();
     let logger = build_logger();
+    let storage_pth = get_storage_path(cfg.log_dir.as_str(), 1);
+    ensure_directory_exist(storage_pth.as_str())?;
+
+    let storage = HeedStorage::create(
+        &storage_pth,
+        &cfg,
+        Arc::new(Slogger {
+            slog: logger.clone(),
+        }),
+    )?;
 
     let raft = Raft::bootstrap(
         *node_id,
         peer.addr,
+        storage,
         store,
         cfg,
         Arc::new(Slogger {
@@ -132,7 +143,12 @@ pub async fn spawn_extra_node(
 
     let cfg = build_config();
     let store = HashStore::new();
-    let raft = Raft::bootstrap(node_id, raft_addr, store, cfg, logger).expect("Raft build failed!");
+    let storage_pth = get_storage_path(cfg.log_dir.as_str(), 1);
+    ensure_directory_exist(storage_pth.as_str())?;
+
+    let storage = HeedStorage::create(&storage_pth, &cfg, logger.clone())?;
+    let raft = Raft::bootstrap(node_id, raft_addr, storage, store, cfg, logger)
+        .expect("Raft build failed!");
 
     tx_initialized_raft
         .send((node_id, raft.clone()))
@@ -160,7 +176,12 @@ pub async fn spawn_and_join_extra_node(
     cfg.initial_peers = Some(join_ticket.peers.clone().into());
     let store = HashStore::new();
 
-    let raft = Raft::bootstrap(node_id, raft_addr, store, cfg, logger).expect("Raft build failed!");
+    let storage_pth = get_storage_path(cfg.log_dir.as_str(), 1);
+    ensure_directory_exist(storage_pth.as_str())?;
+
+    let storage = HeedStorage::create(&storage_pth, &cfg, logger.clone())?;
+    let raft = Raft::bootstrap(node_id, raft_addr, storage, store, cfg, logger)
+        .expect("Raft build failed!");
 
     tx_initialized_raft
         .send((node_id, raft.clone()))

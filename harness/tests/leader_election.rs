@@ -36,7 +36,7 @@ pub async fn test_leader_election_in_three_node_example() {
 
     wait_for_until_cluster_size_decrease(raft_2.clone(), 2).await;
 
-    let leader_id = raft_2.get_leader_id().await;
+    let leader_id = raft_2.get_leader_id().await.unwrap();
 
     let timer = timeout(Duration::from_secs(5), async {
         while leader_id == 0 {
@@ -85,7 +85,7 @@ pub async fn test_leader_election_in_five_node_example() {
 
     sleep(Duration::from_secs(2)).await;
 
-    let leader_id = raft_2.get_leader_id().await;
+    let leader_id = raft_2.get_leader_id().await.unwrap();
 
     assert!(
         [2, 3, 4, 5].contains(&leader_id),
@@ -106,10 +106,10 @@ pub async fn test_leader_election_in_five_node_example() {
     wait_for_until_cluster_size_decrease(raft_k.clone(), 3).await;
     sleep(Duration::from_secs(2)).await;
 
-    let leader_id = raft_k.get_leader_id().await;
+    let leader_id = raft_k.get_leader_id().await.unwrap();
 
     assert!(leader_id != 0);
-    assert_eq!(raft_k.get_cluster_size().await, 3);
+    assert_eq!(raft_k.get_cluster_size().await.unwrap(), 3);
 
     sleep(Duration::from_secs(2)).await;
 

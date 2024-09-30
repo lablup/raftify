@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 
 use actix_web::{get, put, web, Responder};
-use raftify::{raft::Storage, AbstractLogEntry, Raft as Raft_, StableStorage};
+use raftify::{raft::Storage, AbstractLogEntry, StableStorage};
 use serde_json::Value;
 
-use super::state_machine::{HashStore, LogEntry};
-
-type Raft = Raft_<LogEntry, HashStore>;
+use crate::state_machine::{HashStore, LogEntry, Raft};
 
 #[put("/store/{id}/{value}")]
 async fn put(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, String)>) -> impl Responder {
@@ -30,7 +28,12 @@ async fn get(data: web::Data<(HashStore, Raft)>, path: web::Path<u64>) -> impl R
 #[get("/leader")]
 async fn leader_id(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    let leader_id = raft.1.get_leader_id().await.to_string();
+    let leader_id = raft
+        .1
+        .get_leader_id()
+        .await
+        .expect("Failed to get leader id")
+        .to_string();
     format!("{:?}", leader_id)
 }
 
@@ -58,23 +61,36 @@ async fn peers(data: web::Data<(HashStore, Raft)>) -> impl Responder {
 
 #[get("/snapshot")]
 async fn snapshot(data: web::Data<(HashStore, Raft)>) -> impl Responder {
-    let raft = data.clone();
-    let last_index = raft
-        .1
-        .storage()
-        .await
-        .last_index()
-        .expect("Failed to get last index");
+    #[cfg(feature = "inmemory_storage")]
+    {
+        return "Snapshot is not supported with inmemory storage".to_string();
+    }
 
-    let hard_state = raft
-        .1
-        .storage()
-        .await
-        .hard_state()
-        .expect("Failed to get hard state");
+    #[cfg(not(feature = "inmemory_storage"))]
+    {
+        let raft = data.clone();
+        let last_index = raft
+            .1
+            .storage()
+            .await
+            .expect("Failed to get storage")
+            .last_index()
+            .expect("Failed to get last index");
 
-    raft.1.make_snapshot(last_index, hard_state.term).await;
-    "OK".to_string()
+        let hard_state = raft
+            .1
+            .storage()
+            .await
+            .expect("Failed to get storage")
+            .hard_state()
+            .expect("Failed to get hard state");
+
+        raft.1
+            .make_snapshot(last_index, hard_state.term)
+            .await
+            .expect("Failed to make snapshot");
+        "OK".to_string()
+    }
 }
 
 #[get("/leave_joint")]
