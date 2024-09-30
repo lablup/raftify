@@ -34,7 +34,8 @@ impl PyRaftFacade {
             &config.log_dir.clone(),
             &config.clone().into(),
             Arc::new(PyLogger::new(logger.clone())),
-        ).expect("Failed to create heed storage");
+        )
+        .expect("Failed to create heed storage");
 
         let raft = Raft::bootstrap(
             node_id,
@@ -56,12 +57,10 @@ impl PyRaftFacade {
         py: Python<'a>,
     ) -> PyResult<&'a PyAny> {
         future_into_py(py, async move {
-            let ticket = Raft::<PyLogEntry, HeedStorage, PyFSM>::request_id(
-                raft_addr,
-                peer_addr.to_owned(),
-            )
-            .await
-            .unwrap();
+            let ticket =
+                Raft::<PyLogEntry, HeedStorage, PyFSM>::request_id(raft_addr, peer_addr.to_owned())
+                    .await
+                    .unwrap();
             Ok(PyClusterJoinTicket { inner: ticket })
         })
     }

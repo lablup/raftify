@@ -2,13 +2,7 @@ use async_trait::async_trait;
 use once_cell::sync::Lazy;
 use pyo3::{prelude::*, types::PyBytes};
 use pyo3_asyncio::TaskLocals;
-use raftify::{
-    raft::{
-        prelude::{ConfState, Entry, HardState, Snapshot},
-        GetEntriesContext, RaftState, Storage,
-    },
-    AbstractLogEntry, AbstractStateMachine, Error, Result,
-};
+use raftify::{AbstractLogEntry, AbstractStateMachine, Error, Result};
 use std::{fmt, sync::Mutex};
 
 use super::{

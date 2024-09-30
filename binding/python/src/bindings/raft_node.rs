@@ -5,9 +5,9 @@ use raftify::{HeedStorage, RaftNode};
 use super::{
     abstract_types::{PyFSM, PyLogEntry},
     cluster_join_ticket::PyClusterJoinTicket,
+    initial_role::PyInitialRole,
     peers::PyPeers,
     raft_rs::eraftpb::{conf_change_v2::PyConfChangeV2, message::PyMessage},
-    initial_role::PyInitialRole,
 };
 
 #[derive(Clone)]
