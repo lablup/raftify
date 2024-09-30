@@ -44,6 +44,7 @@ def build_config(node_id: int, initial_peers: Peers) -> Config:
         election_tick=10,
         heartbeat_tick=3,
     )
+    print(raft_cfg)
     cfg = Config(
         raft_cfg,
         log_dir="./logs",
