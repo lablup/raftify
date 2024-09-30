@@ -23,7 +23,8 @@ fn format_config<T: Into<Config>>(cfg: T) -> String {
             batch_append: {:?}, \
             priority: {:?}, \
             max_uncommitted_size: {:?}, \
-            max_committed_size_per_ready: {:?} \
+            max_committed_size_per_ready: {:?}, \
+            omit_heartbeat_log: {:?} \
         }}",
         cfg.id,
         cfg.election_tick,
@@ -41,6 +42,7 @@ fn format_config<T: Into<Config>>(cfg: T) -> String {
         cfg.priority,
         cfg.max_uncommitted_size,
         cfg.max_committed_size_per_ready,
+        cfg.omit_heartbeat_log,
     )
 }
 
@@ -71,6 +73,7 @@ impl PyRaftConfig {
         priority: Option<i64>,
         max_uncommitted_size: Option<u64>,
         max_committed_size_per_ready: Option<u64>,
+        omit_heartbeat_log: Option<bool>,
     ) -> Self {
         let mut config = Config::default();
 
@@ -91,6 +94,7 @@ impl PyRaftConfig {
         config.priority = priority.unwrap_or(config.priority);
         config.skip_bcast_commit = skip_bcast_commit.unwrap_or(config.skip_bcast_commit);
         config.read_only_option = read_only_option.map_or(config.read_only_option, |opt| opt.0);
+        config.omit_heartbeat_log = omit_heartbeat_log.unwrap_or(config.omit_heartbeat_log);
 
         PyRaftConfig { inner: config }
     }
@@ -229,5 +233,13 @@ impl PyRaftConfig {
 
     pub fn set_max_committed_size_per_ready(&mut self, max_committed_size_per_ready: u64) {
         self.inner.max_committed_size_per_ready = max_committed_size_per_ready;
+    }
+
+    pub fn get_omit_heartbeat_log(&self) -> bool {
+        self.inner.omit_heartbeat_log
+    }
+
+    pub fn set_omit_heartbeat_log(&mut self, omit_heartbeat_log: bool) {
+        self.inner.omit_heartbeat_log = omit_heartbeat_log;
     }
 }

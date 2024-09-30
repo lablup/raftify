@@ -234,6 +234,7 @@ class RaftConfig:
         priority: Optional[int] = None,
         max_uncommitted_size: Optional[int] = None,
         max_committed_size_per_ready: Optional[int] = None,
+        omit_heartbeat_log: Optional[bool] = None,
     ) -> None:
         """
         :param id: The identity of the local raft. It cannot be 0, and must be unique in the group.
@@ -292,6 +293,8 @@ class RaftConfig:
         When this limit is reached, all proposals to append new log will be dropped
 
         :param max_committed_size_per_ready: Max size for committed entries in a `Ready`.
+
+        :param omit_heartbeat_log: If `true`, omit logs related to heartbeat.
         """
 
 class Config:
