@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use actix_web::{get, put, web, Responder};
+use actix_web::{get, put, web, HttpResponse, Responder};
 use raftify::{raft::Storage, AbstractLogEntry, StableStorage};
 use serde_json::Value;
 
 use crate::state_machine::{HashStore, LogEntry, Raft};
 
-#[put("/store/{id}/{value}")]
+#[put("/store/{key}/{value}")]
 async fn put(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, String)>) -> impl Responder {
     let log_entry = LogEntry::Insert {
         key: path.0,
@@ -17,12 +17,14 @@ async fn put(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, String)>)
     "OK".to_string()
 }
 
-#[get("/store/{id}")]
+#[get("/store/{key}")]
 async fn get(data: web::Data<(HashStore, Raft)>, path: web::Path<u64>) -> impl Responder {
-    let id = path.into_inner();
+    let key = path.into_inner();
 
-    let response = data.0.get(id);
-    format!("{:?}", response)
+    match data.0.get(key) {
+        Some(value) => HttpResponse::Ok().body(value),
+        None => HttpResponse::BadRequest().body("Bad Request: Item not found"),
+    }
 }
 
 #[get("/leader")]
