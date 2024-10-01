@@ -30,7 +30,7 @@ impl PyRaftFacade {
         let fsm = PyFSM::new(fsm);
         let addr = addr.to_string();
 
-        let storage = HeedStorage::create(
+        let log_storage = HeedStorage::create(
             &config.log_dir.clone(),
             &config.clone().into(),
             Arc::new(PyLogger::new(logger.clone())),
@@ -40,7 +40,7 @@ impl PyRaftFacade {
         let raft = Raft::bootstrap(
             node_id,
             addr,
-            storage,
+            log_storage,
             fsm,
             config.into(),
             Arc::new(PyLogger::new(logger)),

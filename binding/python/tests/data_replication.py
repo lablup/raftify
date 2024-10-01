@@ -1,7 +1,7 @@
 import asyncio
 import pytest
 from utils import (
-    ensure_directory_exist,
+    cleanup_storage,
     load_peers,
     wait_for_until_cluster_size_increase,
 )
@@ -12,7 +12,7 @@ from harness.state_machine import SetCommand
 
 @pytest.mark.asyncio
 async def test_data_replication():
-    ensure_directory_exist("./logs")
+    cleanup_storage("./logs")
 
     peers = load_peers(THREE_NODE_EXAMPLE)
     asyncio.create_task(run_rafts(peers))

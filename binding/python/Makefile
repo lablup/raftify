@@ -6,25 +6,25 @@ build-release:
 
 install:
 	maturin build
-	pip install .
+	pip install . --break-system-packages
 
 uninstall:
-	pip uninstall -y raftify_cli
+	pip uninstall -y raftify_cli --break-system-packages
 
 install-cli:
 	cd examples/cli
-	pip install .
+	pip install . --break-system-packages
 	cd ../..
 
 reinstall-cli:
-	pip uninstall -y raftify_cli
+	pip uninstall -y raftify_cli --break-system-packages
 	cd examples/cli
-	pip install .
+	pip install . --break-system-packages
 	cd ../..
 
 install-release:
 	make build-release
-	pip install .
+	pip install . --break-system-packages
 
 clean:
 	cargo clean

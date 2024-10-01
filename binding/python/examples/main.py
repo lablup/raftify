@@ -44,10 +44,14 @@ def build_config(node_id: int, initial_peers: Peers) -> Config:
         election_tick=10,
         heartbeat_tick=3,
     )
+
+    storage_path = get_storage_path("./logs", node_id)
+    ensure_directory_exist(storage_path)
+
     cfg = Config(
         raft_cfg,
-        log_dir="./logs",
-        compacted_log_dir="./logs",
+        log_dir=storage_path,
+        compacted_log_dir=storage_path,
         initial_peers=initial_peers,
     )
 
@@ -113,9 +117,6 @@ async def main():
     cfg = build_config(node_id, initial_peers)
     logger = Logger(setup_logger())
     store = HashStore()
-
-    storage_path = get_storage_path(cfg.log_dir, node_id)
-    ensure_directory_exist(storage_path)
 
     tasks = []
     raft = Raft.bootstrap(node_id, raft_addr, store, cfg, logger)

@@ -1,8 +1,10 @@
 import asyncio
 from harness.state_machine import HashStore
 from raftify import Config, Peers, Raft, RaftConfig, Slogger
+from .utils import ensure_directory_exist, get_storage_path
 
 
+# All Raft objects per node ID.
 RAFTS: dict[int, Raft] = {}
 
 
@@ -12,10 +14,14 @@ def build_config(node_id: int, initial_peers: Peers) -> Config:
         election_tick=10,
         heartbeat_tick=3,
     )
+
+    storage_path = get_storage_path("./logs", node_id)
+    ensure_directory_exist(storage_path)
+
     cfg = Config(
         raft_cfg,
-        log_dir="./logs",
-        compacted_log_dir="./logs",
+        log_dir=storage_path,
+        compacted_log_dir=storage_path,
         initial_peers=initial_peers,
     )
 

@@ -13,10 +13,7 @@ use slog_envlogger::LogBuilder;
 use std::{fs, path::Path, sync::Arc};
 use structopt::StructOpt;
 
-use example_harness::{
-    config::build_config,
-    utils::{ensure_directory_exist, get_storage_path},
-};
+use example_harness::config::build_config;
 use memstore_example_harness::{
     state_machine::{HashStore, LogEntry, Raft},
     web_server_api::{
@@ -81,18 +78,15 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
             cfg.initial_peers = Some(ticket.peers.clone().into());
 
-            let storage_pth = get_storage_path(cfg.log_dir.as_str(), node_id);
-            ensure_directory_exist(storage_pth.as_str())?;
-
             #[cfg(feature = "inmemory_storage")]
             let log_storage = MemStorage::create();
 
             #[cfg(feature = "heed_storage")]
-            let log_storage = HeedStorage::create(&storage_pth, &cfg.clone(), logger.clone())
+            let log_storage = HeedStorage::create(&cfg.log_dir, &cfg.clone(), logger.clone())
                 .expect("Failed to create heed storage");
 
             #[cfg(feature = "rocksdb_storage")]
-            let log_storage = RocksDBStorage::create(&storage_pth, logger.clone())
+            let log_storage = RocksDBStorage::create(&cfg.log_dir, logger.clone())
                 .expect("Failed to create heed storage");
 
             let raft = Raft::bootstrap(
@@ -128,14 +122,12 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
             let leader_node_id = 1;
             let cfg = build_config(leader_node_id);
-            let storage_pth = get_storage_path(cfg.log_dir.as_str(), leader_node_id);
-            ensure_directory_exist(storage_pth.as_str())?;
 
             #[cfg(feature = "inmemory_storage")]
             let log_storage = MemStorage::create();
 
             #[cfg(feature = "heed_storage")]
-            let log_storage = HeedStorage::create(&storage_pth, &cfg.clone(), logger.clone())
+            let log_storage = HeedStorage::create(&cfg.log_dir, &cfg.clone(), logger.clone())
                 .expect("Failed to create heed storage");
 
             #[cfg(feature = "rocksdb_storage")]
