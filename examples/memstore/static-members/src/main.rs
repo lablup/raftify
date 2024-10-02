@@ -17,7 +17,7 @@ use example_harness::config::build_config;
 use memstore_example_harness::{
     state_machine::{HashStore, LogEntry, Raft},
     web_server_api::{
-        campaign, debug, demote, get, leader_id, leave, leave_joint, peers, put, snapshot,
+        campaign, debug, demote, get, leader, leave, leave_joint, peers, put, snapshot,
         transfer_leader,
     },
 };
@@ -79,11 +79,11 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(feature = "heed_storage")]
     let log_storage = HeedStorage::create(&cfg.log_dir, &cfg.clone(), logger.clone())
-        .expect("Failed to create heed storage");
+        .expect("Failed to create storage");
 
     #[cfg(feature = "rocksdb_storage")]
-    let log_storage = RocksDBStorage::create(&cfg.log_dir, logger.clone())
-        .expect("Failed to create heed storage");
+    let log_storage =
+        RocksDBStorage::create(&cfg.log_dir, logger.clone()).expect("Failed to create storage");
 
     let raft = Raft::bootstrap(
         node_id,
@@ -107,7 +107,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .service(debug)
                     .service(peers)
                     .service(snapshot)
-                    .service(leader_id)
+                    .service(leader)
                     .service(leave_joint)
                     .service(transfer_leader)
                     .service(campaign)

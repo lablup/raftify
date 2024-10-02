@@ -28,7 +28,7 @@ async fn get(data: web::Data<(HashStore, Raft)>, path: web::Path<u64>) -> impl R
 }
 
 #[get("/leader")]
-async fn leader_id(data: web::Data<(HashStore, Raft)>) -> impl Responder {
+async fn leader(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
     let leader_id = raft
         .1
@@ -123,7 +123,7 @@ async fn campaign(data: web::Data<(HashStore, Raft)>) -> impl Responder {
 #[get("/demote/{term}/{leader_id}")]
 async fn demote(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, u64)>) -> impl Responder {
     let raft = data.clone();
-    let (term, leader_id_) = path.into_inner();
-    raft.1.demote(term, leader_id_).await.unwrap();
+    let (term, leader_id) = path.into_inner();
+    raft.1.demote(term, leader_id).await.unwrap();
     "OK".to_string()
 }
