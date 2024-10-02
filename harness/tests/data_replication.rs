@@ -6,10 +6,7 @@ use harness::{
     constant::{RAFT_ADDRS, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, spawn_and_join_extra_node, wait_until_rafts_ready, Raft},
     state_machine::LogEntry,
-    utils::{
-        cleanup_storage, kill_previous_raft_processes, load_peers,
-        wait_for_until_cluster_size_increase,
-    },
+    utils::{cleanup_storage, kill_previous_raft_processes, load_peers},
 };
 
 #[tokio::test]
@@ -26,7 +23,6 @@ pub async fn test_data_replication() {
     let mut rafts = wait_until_rafts_ready(None, rx_raft, 3).await;
 
     let raft_1 = rafts.get(&1).unwrap();
-    wait_for_until_cluster_size_increase(raft_1.clone(), 3).await;
 
     let entry = LogEntry::Insert {
         key: 1,
@@ -58,9 +54,6 @@ pub async fn test_data_replication() {
 
     let mut rafts = wait_until_rafts_ready(Some(rafts), rx_raft, 4).await;
     sleep(Duration::from_secs(1)).await;
-
-    let raft_1 = rafts.get(&1).unwrap();
-    wait_for_until_cluster_size_increase(raft_1.clone(), 4).await;
 
     let raft_4 = rafts.get(&4).unwrap();
     let store = raft_4.state_machine().await.unwrap();

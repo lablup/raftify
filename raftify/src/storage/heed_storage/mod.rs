@@ -444,7 +444,7 @@ impl HeedStorageCore {
         let high_str = format_entry_key_string(high.to_string().as_str());
 
         let iter = self.entries_db.range(reader, &(low_str..high_str))?;
-        let max_size: Option<u64> = max_size.into();
+        let max_size: Option<u64> = max_size;
 
         let mut entries = iter
             .filter_map(|e| match e {

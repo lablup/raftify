@@ -1,15 +1,16 @@
-use raftify::{Error, InitialRole, Peers};
+use raftify::raft::StateRole;
+use raftify::{Error, InitialRole, Peers, StableStorage};
 use serde::Deserialize;
 use slog::{o, Drain};
 use slog_envlogger::LogBuilder;
+use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::process::Command;
 use std::str;
 use std::str::FromStr;
-use std::{fs, time::Duration};
-use tokio::time::sleep;
 use toml;
 
 use crate::constant::RAFT_PORTS;
@@ -82,42 +83,6 @@ pub async fn load_peers(example_filename: &str) -> Result<Peers, Box<dyn std::er
     Ok(peers)
 }
 
-pub async fn wait_for_until_cluster_size_increase(raft: Raft, target: usize) {
-    raft.logger.debug(&format!(
-        "Waiting for cluster size to increase to... {}",
-        target
-    ));
-
-    loop {
-        let size = raft.get_cluster_size().await.unwrap();
-        if size >= target {
-            break;
-        }
-        sleep(Duration::from_secs_f32(0.1)).await;
-    }
-
-    // Wait for the conf_change reflected to the cluster
-    sleep(Duration::from_secs_f32(1.0)).await;
-}
-
-pub async fn wait_for_until_cluster_size_decrease(raft: Raft, target: usize) {
-    raft.logger.debug(&format!(
-        "Waiting for cluster size to decrease to {}...",
-        target
-    ));
-
-    loop {
-        let size = raft.get_cluster_size().await.unwrap();
-        if size <= target {
-            break;
-        }
-        sleep(Duration::from_secs_f32(0.1)).await;
-    }
-
-    // Wait for the conf_change reflected to the cluster
-    sleep(Duration::from_secs_f32(1.0)).await;
-}
-
 pub fn kill_process_using_port(port: u16) {
     let port_str = port.to_string();
     #[cfg(target_os = "windows")]
@@ -185,6 +150,65 @@ pub fn cleanup_storage(log_dir: &str) {
     fs::create_dir_all(storage_pth).expect("Failed to create storage directory");
 }
 
+/// Collects the IDs of Raft nodes that match the target role during the latest term.
+/// This function continuously checks the nodes until a Leader is found or the term changes.
+///
+/// # Note
+///
+/// It may potentially hang if a leader does not emerge due to lack of quorum.
+///
+/// # Examples
+/// ```rust
+/// let rafts = wait_until_rafts_ready(None, rx_raft, 5).await;
+/// let leader_id = rafts.get(&1).unwrap().get_leader_id().await;
+/// let leader_set =
+///     collect_state_matching_rafts_until_leader_emerge(&rafts, StateRole::Leader).await;
+/// let follower_set =
+///     collect_state_matching_rafts_until_leader_emerge(&rafts, StateRole::Follower).await;
+///
+/// assert_eq!(1, leader_set.len());
+/// assert!(leader_set.get(&leader_id).is_some());
+/// assert_eq!(4, follower_set.len());
+/// assert!(follower_set.get(&leader_id).is_none());
+/// ```
+pub async fn collect_state_matching_rafts_until_leader_emerge(
+    rafts: &HashMap<u64, Raft>,
+    target_role: StateRole,
+) -> HashSet<u64> {
+    let mut result = HashSet::with_capacity(rafts.len());
+    let mut current_term = 1;
+    let mut leader_emerged = false;
+    while !leader_emerged {
+        for (id, raft) in rafts.iter() {
+            let (term, state_role) = (
+                raft.raft_node
+                    .storage()
+                    .await
+                    .unwrap()
+                    .hard_state()
+                    .unwrap()
+                    .get_term(),
+                unsafe { raft.get_raw_node().await.unwrap().lock().await.raft.state },
+            );
+
+            if current_term > term {
+                continue;
+            }
+            if current_term < term {
+                result.clear();
+                current_term = term;
+            }
+            if state_role == target_role {
+                result.insert(*id);
+            }
+            if state_role == StateRole::Leader {
+                leader_emerged = true;
+            }
+        }
+    }
+    result
+}
+
 pub fn kill_previous_raft_processes() {
     RAFT_PORTS.iter().for_each(|port| {
         kill_process_using_port(*port);
@@ -206,4 +230,40 @@ pub fn ensure_directory_exist(dir_pth: &str) -> Result<(), Error> {
         fs::create_dir_all(dir_pth)?;
     }
     Ok(())
+}
+
+#[tokio::test]
+async fn test_collect_candidate_rafts_until_leader_emerge() {
+    use crate::constant::FIVE_NODE_EXAMPLE;
+    use crate::raft::{build_raft_cluster, wait_until_rafts_ready};
+    use std::sync::mpsc;
+
+    cleanup_storage("./logs");
+    kill_previous_raft_processes();
+    let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
+    let peers = load_peers(FIVE_NODE_EXAMPLE).await.unwrap();
+    let _raft_tasks = tokio::spawn(build_raft_cluster(tx_raft, peers.clone()));
+
+    let rafts = wait_until_rafts_ready(None, rx_raft, 5).await;
+    let leader_id = rafts.get(&1).unwrap().get_leader_id().await.unwrap();
+    let leader_set =
+        collect_state_matching_rafts_until_leader_emerge(&rafts, StateRole::Leader).await;
+    let follower_set =
+        collect_state_matching_rafts_until_leader_emerge(&rafts, StateRole::Follower).await;
+
+    assert_eq!(1, leader_set.len());
+    assert!(leader_set.get(&leader_id).is_some());
+    assert_eq!(4, follower_set.len());
+    assert!(follower_set.get(&leader_id).is_none());
+
+    assert!(
+        collect_state_matching_rafts_until_leader_emerge(&rafts, StateRole::Candidate)
+            .await
+            .is_empty()
+    );
+    assert!(
+        collect_state_matching_rafts_until_leader_emerge(&rafts, StateRole::PreCandidate)
+            .await
+            .is_empty()
+    );
 }

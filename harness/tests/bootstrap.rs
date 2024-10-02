@@ -4,10 +4,7 @@ use tokio::time::sleep;
 use harness::{
     constant::{ONE_NODE_EXAMPLE, RAFT_ADDRS, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, spawn_and_join_extra_node, wait_until_rafts_ready, Raft},
-    utils::{
-        cleanup_storage, kill_previous_raft_processes, load_peers,
-        wait_for_until_cluster_size_increase,
-    },
+    utils::{cleanup_storage, kill_previous_raft_processes, load_peers},
 };
 
 #[tokio::test]
@@ -21,10 +18,6 @@ pub async fn test_static_bootstrap() {
     let mut rafts = wait_until_rafts_ready(None, rx_raft, 3).await;
 
     sleep(Duration::from_secs(1)).await;
-
-    let raft_1 = rafts.get(&1).unwrap();
-
-    wait_for_until_cluster_size_increase(raft_1.clone(), 3).await;
 
     for (_, raft) in rafts.iter_mut() {
         raft.quit().await.expect("Failed to quit raft node");
@@ -63,10 +56,6 @@ pub async fn test_dynamic_bootstrap() {
     .unwrap();
 
     let mut rafts = wait_until_rafts_ready(None, rx_raft, 3).await;
-
-    let raft_1 = rafts.get(&1).unwrap();
-
-    wait_for_until_cluster_size_increase(raft_1.clone(), 3).await;
 
     for (_, raft) in rafts.iter_mut() {
         raft.quit().await.expect("Failed to quit raft node");

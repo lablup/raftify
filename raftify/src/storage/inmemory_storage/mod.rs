@@ -111,7 +111,7 @@ impl Storage for MemStorage {
         max_size: Option<u64>,
         context: raft::GetEntriesContext,
     ) -> raft::Result<Vec<Entry>> {
-        let entries = self.core.entries(low, high, max_size.into(), context)?;
+        let entries = self.core.entries(low, high, max_size, context)?;
         Ok(entries)
     }
 

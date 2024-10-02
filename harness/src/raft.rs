@@ -1,11 +1,12 @@
 use futures::future;
 use raftify::{
     raft::{formatter::set_custom_formatter, logger::Slogger},
-    CustomFormatter, HeedStorage, Peers, Raft as Raft_, Result,
+    CustomFormatter, HeedStorage, Peers, Raft as Raft_, Result, StableStorage,
 };
 use std::{
     collections::HashMap,
     sync::{mpsc, Arc},
+    time::Duration,
 };
 use tokio::task::JoinHandle;
 
@@ -21,7 +22,7 @@ pub type Raft = Raft_<LogEntry, HeedStorage, HashStore>;
 pub async fn wait_until_rafts_ready(
     rafts: Option<HashMap<u64, Raft>>,
     rx_initialized_raft: mpsc::Receiver<(u64, Raft)>,
-    size: u64,
+    size: usize,
 ) -> HashMap<u64, Raft> {
     let logger = get_logger();
     let mut rafts = rafts.unwrap_or_default();
@@ -33,14 +34,22 @@ pub async fn wait_until_rafts_ready(
         let (node_id, raft) = rx_initialized_raft
             .recv()
             .expect("All tx dropped before receiving all raft instances");
-
-        rafts.insert(node_id, raft);
-
-        if rafts.len() >= size as usize {
+        let term = raft
+            .raft_node
+            .storage()
+            .await
+            .unwrap()
+            .hard_state()
+            .unwrap()
+            .get_term();
+        if term >= 1 {
+            rafts.insert(node_id, raft);
+        }
+        if rafts.len() >= size {
             break;
         }
+        tokio::time::sleep(Duration::from_secs_f32(0.5)).await;
     }
-
     rafts
 }
 
