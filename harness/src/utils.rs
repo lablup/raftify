@@ -160,7 +160,7 @@ pub fn cleanup_storage(log_dir: &str) {
 /// # Examples
 /// ```rust, ignore
 /// let rafts = wait_until_rafts_ready(None, rx_raft, 5).await;
-/// let leader_id = rafts.get(&1).unwrap().get_leader_id().await;
+/// let leader_id = rafts.get(&1).unwrap().get_leader_id().await.unwrap();
 /// let leader_set =
 ///     collect_state_matching_rafts_until_leader_emerge(&rafts, StateRole::Leader).await;
 /// let follower_set =
