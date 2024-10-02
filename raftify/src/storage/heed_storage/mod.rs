@@ -496,10 +496,7 @@ impl HeedStorageCore {
     fn save_compacted_entries(&self, entries: &[Entry]) -> Result<()> {
         let compacted_log_dir_path = Path::new(&self.config.compacted_log_dir);
         let compacted_log_dir_path = compacted_log_dir_path.to_str().unwrap();
-        let dest_path = format!(
-            "{}/node-{}/compacted.json",
-            compacted_log_dir_path, self.config.raft_config.id
-        );
+        let dest_path = format!("{}/compacted_logs.json", compacted_log_dir_path);
 
         match fs::metadata(&dest_path) {
             Ok(metadata) if metadata.len() > self.config.compacted_log_size_threshold => {

@@ -1115,9 +1115,6 @@ impl<
                         storage: self.raw_node.store().clone(),
                     })
                     .unwrap();
-
-                // #[cfg(feature = "inmemory_storage")]
-                // todo!("Implement LocalRequestMsg::GetStorage request handler for inmemory storage");
             }
             LocalRequestMsg::DebugNode { tx_msg } => {
                 tx_msg

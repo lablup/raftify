@@ -15,6 +15,7 @@ pub fn build_config(node_id: u64) -> Config {
     ensure_directory_exist(&storage_pth).expect("Failed to create storage directory");
 
     Config {
+        bootstrap_from_snapshot: false,
         tick_interval: 0.2,
         log_dir: storage_pth.clone(),
         save_compacted_logs: true,
