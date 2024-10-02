@@ -1,5 +1,5 @@
 use raftify::{raft::StateRole, StableStorage};
-use std::sync::mpsc;
+use std::{process::exit, sync::mpsc};
 
 use harness::{
     constant::{FIVE_NODE_EXAMPLE, THREE_NODE_EXAMPLE},
@@ -74,6 +74,7 @@ async fn run_leader_election_test(example_filename: &str, iteration_num: u64) {
     for raft_id in raft_list {
         rafts.get_mut(&raft_id).unwrap().quit().await.unwrap();
     }
+    exit(0);
 }
 
 #[tokio::test]

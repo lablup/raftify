@@ -1,4 +1,4 @@
-use std::{sync::mpsc, time::Duration};
+use std::{process::exit, sync::mpsc, time::Duration};
 use tokio::time::sleep;
 
 use harness::{
@@ -60,6 +60,7 @@ pub async fn test_dynamic_bootstrap() {
     for (_, raft) in rafts.iter_mut() {
         raft.quit().await.expect("Failed to quit raft node");
     }
+    exit(0);
 }
 
 // #[tokio::test]

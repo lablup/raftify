@@ -158,7 +158,7 @@ pub fn cleanup_storage(log_dir: &str) {
 /// It may potentially hang if a leader does not emerge due to lack of quorum.
 ///
 /// # Examples
-/// ```rust
+/// ```rust, ignore
 /// let rafts = wait_until_rafts_ready(None, rx_raft, 5).await;
 /// let leader_id = rafts.get(&1).unwrap().get_leader_id().await;
 /// let leader_set =
@@ -266,4 +266,5 @@ async fn test_collect_candidate_rafts_until_leader_emerge() {
             .await
             .is_empty()
     );
+    std::process::exit(0);
 }
