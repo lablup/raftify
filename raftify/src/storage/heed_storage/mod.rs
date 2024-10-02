@@ -473,7 +473,7 @@ impl HeedStorageCore {
             return Ok(());
         }
 
-        let mut first_index = self.first_index(writer)?;
+        let first_index = self.first_index(writer)?;
 
         if first_index > entries[0].index {
             self.logger.fatal(&format!(
@@ -895,7 +895,7 @@ mod test {
                 vec![new_entry(2, 3), new_entry(3, 3), new_entry(4, 5)],
                 None,
             ),
-            // // truncate the existing entries and append
+            // truncate the existing entries and append
             // (
             //     vec![new_entry(4, 5)],
             //     Some(vec![new_entry(3, 3), new_entry(4, 5)]),
