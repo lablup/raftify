@@ -8,7 +8,6 @@ use crate::config::TlsConfig;
 
 use super::RaftServiceClient;
 
-// TODO: Support https schema
 pub async fn create_client<A: ToSocketAddrs>(
     addr: A,
     client_tls_config: Option<TlsConfig>,
