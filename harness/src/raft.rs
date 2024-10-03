@@ -1,7 +1,7 @@
 use futures::future;
 use raftify::{
     raft::{formatter::set_custom_formatter, logger::Slogger},
-    CustomFormatter, Peers, Raft as Raft_, Result,
+    CustomFormatter, HeedStorage, Peers, Raft as Raft_, Result,
 };
 use std::{
     collections::HashMap,
@@ -13,10 +13,10 @@ use crate::{
     config::build_config,
     logger::get_logger,
     state_machine::{HashStore, LogEntry},
-    utils::build_logger,
+    utils::{build_logger, ensure_directory_exist, get_storage_path},
 };
 
-pub type Raft = Raft_<LogEntry, HashStore>;
+pub type Raft = Raft_<LogEntry, HeedStorage, HashStore>;
 
 pub async fn wait_until_rafts_ready(
     rafts: Option<HashMap<u64, Raft>>,
@@ -51,19 +51,32 @@ fn run_raft(
     should_be_leader: bool,
 ) -> Result<JoinHandle<Result<()>>> {
     let peer = peers.get(node_id).unwrap();
-    let mut cfg = build_config();
-    cfg.initial_peers = if should_be_leader {
-        None
-    } else {
-        Some(peers.clone())
-    };
+    let cfg = build_config(
+        *node_id,
+        if should_be_leader {
+            None
+        } else {
+            Some(peers.clone())
+        },
+    );
 
     let store = HashStore::new();
     let logger = build_logger();
+    let storage_pth = get_storage_path(cfg.get_log_dir(), *node_id);
+    ensure_directory_exist(storage_pth.as_str())?;
+
+    let storage = HeedStorage::create(
+        &storage_pth,
+        &cfg,
+        Arc::new(Slogger {
+            slog: logger.clone(),
+        }),
+    )?;
 
     let raft = Raft::bootstrap(
         *node_id,
         peer.addr,
+        storage,
         store,
         cfg,
         Arc::new(Slogger {
@@ -130,9 +143,14 @@ pub async fn spawn_extra_node(
         slog: build_logger(),
     });
 
-    let cfg = build_config();
+    let cfg = build_config(node_id, None);
     let store = HashStore::new();
-    let raft = Raft::bootstrap(node_id, raft_addr, store, cfg, logger).expect("Raft build failed!");
+    let storage_pth = get_storage_path(cfg.get_log_dir(), node_id);
+    ensure_directory_exist(storage_pth.as_str())?;
+
+    let storage = HeedStorage::create(&storage_pth, &cfg, logger.clone())?;
+    let raft = Raft::bootstrap(node_id, raft_addr, storage, store, cfg, logger)
+        .expect("Raft build failed!");
 
     tx_initialized_raft
         .send((node_id, raft.clone()))
@@ -151,16 +169,21 @@ pub async fn spawn_and_join_extra_node(
     let logger = Arc::new(Slogger {
         slog: build_logger(),
     });
-    let join_ticket = Raft::request_id(raft_addr.to_owned(), peer_addr.to_owned())
+    let join_ticket = Raft::request_id(raft_addr.to_owned(), peer_addr.to_owned(), None)
         .await
         .unwrap();
 
     let node_id = join_ticket.reserved_id;
-    let mut cfg = build_config();
-    cfg.initial_peers = Some(join_ticket.peers.clone().into());
+    let cfg = build_config(node_id, Some(join_ticket.peers.clone().into()));
+
     let store = HashStore::new();
 
-    let raft = Raft::bootstrap(node_id, raft_addr, store, cfg, logger).expect("Raft build failed!");
+    let storage_pth = get_storage_path(cfg.get_log_dir(), node_id);
+    ensure_directory_exist(storage_pth.as_str())?;
+
+    let storage = HeedStorage::create(&storage_pth, &cfg, logger.clone())?;
+    let raft = Raft::bootstrap(node_id, raft_addr, storage, store, cfg, logger)
+        .expect("Raft build failed!");
 
     tx_initialized_raft
         .send((node_id, raft.clone()))
@@ -168,8 +191,12 @@ pub async fn spawn_and_join_extra_node(
 
     let raft_handle = tokio::spawn(raft.clone().run());
 
-    raft.add_peers(join_ticket.peers.clone()).await;
-    raft.join_cluster(vec![join_ticket]).await;
+    raft.add_peers(join_ticket.peers.clone())
+        .await
+        .expect("Failed to add peers");
+    raft.join_cluster(vec![join_ticket])
+        .await
+        .expect("Failed to join cluster");
 
     Ok(raft_handle)
 }
@@ -177,13 +204,18 @@ pub async fn spawn_and_join_extra_node(
 pub async fn join_nodes(rafts: Vec<&Raft>, raft_addrs: Vec<&str>, peer_addr: &str) {
     let mut tickets = vec![];
     for (raft, raft_addr) in rafts.iter().zip(raft_addrs.into_iter()) {
-        let join_ticket = Raft::request_id(raft_addr.to_owned(), peer_addr.to_owned())
+        let join_ticket = Raft::request_id(raft_addr.to_owned(), peer_addr.to_owned(), None)
             .await
             .unwrap();
 
-        raft.add_peers(join_ticket.peers.clone()).await;
+        raft.add_peers(join_ticket.peers.clone())
+            .await
+            .expect("Failed to add peers");
         tickets.push(join_ticket);
     }
 
-    rafts[0].join_cluster(tickets).await;
+    rafts[0]
+        .join_cluster(tickets)
+        .await
+        .expect("Failed to join cluster");
 }

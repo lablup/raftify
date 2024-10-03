@@ -35,18 +35,23 @@ APIs of the web servers to interact with the RaftServers.
 """
 
 
-@routes.get("/store/{id}")
+@routes.get("/store/{key}")
 async def get(request: web.Request) -> web.Response:
     store: HashStore = request.app["state"]["store"]
-    id = request.match_info["id"]
-    return web.Response(text=store.get(id))
+    key = request.match_info["key"]
+    value = store.get(key)
+
+    if value is None:
+        return web.Response(status=400, text="Bad Request: Item not found")
+
+    return web.Response(text=value)
 
 
-@routes.put("/store/{id}/{value}")
+@routes.put("/store/{key}/{value}")
 async def put(request: web.Request) -> web.Response:
     raft: Raft = request.app["state"]["raft"]
-    id, value = request.match_info["id"], request.match_info["value"]
-    message = SetCommand(id, value)
+    key, value = request.match_info["key"], request.match_info["value"]
+    message = SetCommand(key, value)
 
     raft_node = raft.get_raft_node()
     await raft_node.propose(message.encode())

@@ -1,20 +1,20 @@
 use pyo3::{exceptions::PyException, prelude::*, types::PyString};
 use pyo3_asyncio::tokio::future_into_py;
-use raftify::Raft;
+use raftify::{HeedStorage, Raft};
 use std::sync::Arc;
 
 use super::{
+    abstract_types::{PyFSM, PyLogEntry},
     cluster_join_ticket::PyClusterJoinTicket,
     config::PyConfig,
     logger::PyLogger,
     raft_node::PyRaftNode,
-    state_machine::{PyFSM, PyLogEntry},
 };
 
 #[derive(Clone)]
 #[pyclass(name = "Raft")]
 pub struct PyRaftFacade {
-    inner: Raft<PyLogEntry, PyFSM>,
+    inner: Raft<PyLogEntry, HeedStorage, PyFSM>,
 }
 
 #[pymethods]
@@ -30,9 +30,17 @@ impl PyRaftFacade {
         let fsm = PyFSM::new(fsm);
         let addr = addr.to_string();
 
+        let log_storage = HeedStorage::create(
+            &config.log_dir.clone(),
+            &config.clone().into(),
+            Arc::new(PyLogger::new(logger.clone())),
+        )
+        .expect("Failed to create heed storage");
+
         let raft = Raft::bootstrap(
             node_id,
             addr,
+            log_storage,
             fsm,
             config.into(),
             Arc::new(PyLogger::new(logger)),
@@ -49,9 +57,10 @@ impl PyRaftFacade {
         py: Python<'a>,
     ) -> PyResult<&'a PyAny> {
         future_into_py(py, async move {
-            let ticket = Raft::<PyLogEntry, PyFSM>::request_id(raft_addr, peer_addr.to_owned())
-                .await
-                .unwrap();
+            let ticket =
+                Raft::<PyLogEntry, HeedStorage, PyFSM>::request_id(raft_addr, peer_addr.to_owned())
+                    .await
+                    .unwrap();
             Ok(PyClusterJoinTicket { inner: ticket })
         })
     }

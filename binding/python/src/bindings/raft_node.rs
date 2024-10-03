@@ -1,23 +1,23 @@
 use pyo3::{prelude::*, types::PyString};
 use pyo3_asyncio::tokio::future_into_py;
-use raftify::RaftNode;
+use raftify::{HeedStorage, RaftNode};
 
 use super::{
+    abstract_types::{PyFSM, PyLogEntry},
     cluster_join_ticket::PyClusterJoinTicket,
+    initial_role::PyInitialRole,
     peers::PyPeers,
     raft_rs::eraftpb::{conf_change_v2::PyConfChangeV2, message::PyMessage},
-    role::PyInitialRole,
-    state_machine::{PyFSM, PyLogEntry},
 };
 
 #[derive(Clone)]
 #[pyclass(name = "RaftNode")]
 pub struct PyRaftNode {
-    pub inner: RaftNode<PyLogEntry, PyFSM>,
+    pub inner: RaftNode<PyLogEntry, HeedStorage, PyFSM>,
 }
 
 impl PyRaftNode {
-    pub fn new(inner: RaftNode<PyLogEntry, PyFSM>) -> Self {
+    pub fn new(inner: RaftNode<PyLogEntry, HeedStorage, PyFSM>) -> Self {
         PyRaftNode { inner }
     }
 }

@@ -5,11 +5,12 @@ use std::{
 };
 
 use super::Peer;
-use crate::{error::Result, raft_service, InitialRole};
+use crate::{config::TlsConfig, error::Result, raft_service, InitialRole};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Peers {
     pub inner: HashMap<u64, Peer>,
+    pub client_tls_config: Option<TlsConfig>,
 }
 
 impl Default for Peers {
@@ -53,22 +54,37 @@ impl From<HashMap<u64, SocketAddr>> for Peers {
     fn from(map: HashMap<u64, SocketAddr>) -> Self {
         let inner = map
             .into_iter()
-            .map(|(k, addr)| (k, Peer::new(addr, InitialRole::Voter)))
+            .map(|(k, addr)| (k, Peer::new(addr, InitialRole::Voter, None)))
             .collect();
-        Peers { inner }
+        // TODO: Support TLS config here
+        Peers {
+            inner,
+            client_tls_config: None,
+        }
     }
 }
 
 impl Peers {
-    pub fn new<A: ToSocketAddrs>(self_id: u64, self_addr: A) -> Self {
+    pub fn new<A: ToSocketAddrs>(
+        self_id: u64,
+        self_addr: A,
+        client_tls_config: Option<TlsConfig>,
+    ) -> Self {
         let mut inner = HashMap::new();
-        inner.insert(self_id, Peer::new(self_addr, InitialRole::Voter));
-        Self { inner }
+        inner.insert(
+            self_id,
+            Peer::new(self_addr, InitialRole::Voter, client_tls_config.clone()),
+        );
+        Self {
+            inner,
+            client_tls_config,
+        }
     }
 
     pub fn with_empty() -> Self {
         Self {
             inner: HashMap::new(),
+            client_tls_config: None,
         }
     }
 
@@ -119,7 +135,7 @@ impl Peers {
     ) {
         let addr = addr.to_socket_addrs().unwrap().next().unwrap();
         let initial_role = initial_role.unwrap_or(InitialRole::Voter);
-        let peer = Peer::new(addr, initial_role);
+        let peer = Peer::new(addr, initial_role, self.client_tls_config.clone());
         self.inner.insert(id, peer);
     }
 
@@ -177,7 +193,7 @@ mod tests {
 
     #[test]
     fn test_peers_serial_reserve_peer() {
-        let mut peers = Peers::new(1, "127.0.0.1:8081");
+        let mut peers = Peers::new(1, "127.0.0.1:8081", None);
         let next_id = peers.reserve_id();
         peers.add_peer(next_id, "127.0.0.1:8082", None);
         assert_eq!(next_id, 2);

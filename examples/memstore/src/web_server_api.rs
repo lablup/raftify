@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 
-use actix_web::{get, put, web, Responder};
-use raftify::{raft::Storage, AbstractLogEntry, Raft as Raft_, StableStorage};
+use actix_web::{get, put, web, HttpResponse, Responder};
+use raftify::{raft::Storage, AbstractLogEntry, StableStorage};
 use serde_json::Value;
 
-use super::state_machine::{HashStore, LogEntry};
+use crate::state_machine::{HashStore, LogEntry, Raft};
 
-type Raft = Raft_<LogEntry, HashStore>;
-
-#[put("/store/{id}/{value}")]
+#[put("/store/{key}/{value}")]
 async fn put(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, String)>) -> impl Responder {
     let log_entry = LogEntry::Insert {
         key: path.0,
@@ -19,25 +17,32 @@ async fn put(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, String)>)
     "OK".to_string()
 }
 
-#[get("/store/{id}")]
+#[get("/store/{key}")]
 async fn get(data: web::Data<(HashStore, Raft)>, path: web::Path<u64>) -> impl Responder {
-    let id = path.into_inner();
+    let key = path.into_inner();
 
-    let response = data.0.get(id);
-    format!("{:?}", response)
+    match data.0.get(key) {
+        Some(value) => HttpResponse::Ok().body(value),
+        None => HttpResponse::BadRequest().body("Bad Request: Item not found"),
+    }
 }
 
 #[get("/leader")]
-async fn leader_id(data: web::Data<(HashStore, Raft)>) -> impl Responder {
+async fn leader(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    let leader_id = raft.1.get_leader_id().await.to_string();
+    let leader_id = raft
+        .1
+        .get_leader_id()
+        .await
+        .expect("Failed to get leader id")
+        .to_string();
     format!("{:?}", leader_id)
 }
 
 #[get("/leave")]
 async fn leave(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    raft.1.leave().await;
+    raft.1.leave().await.unwrap();
     "OK".to_string()
 }
 
@@ -58,23 +63,36 @@ async fn peers(data: web::Data<(HashStore, Raft)>) -> impl Responder {
 
 #[get("/snapshot")]
 async fn snapshot(data: web::Data<(HashStore, Raft)>) -> impl Responder {
-    let raft = data.clone();
-    let last_index = raft
-        .1
-        .storage()
-        .await
-        .last_index()
-        .expect("Failed to get last index");
+    #[cfg(feature = "inmemory_storage")]
+    {
+        return "Snapshot is not supported with inmemory storage".to_string();
+    }
 
-    let hard_state = raft
-        .1
-        .storage()
-        .await
-        .hard_state()
-        .expect("Failed to get hard state");
+    #[cfg(not(feature = "inmemory_storage"))]
+    {
+        let raft = data.clone();
+        let last_index = raft
+            .1
+            .storage()
+            .await
+            .expect("Failed to get storage")
+            .last_index()
+            .expect("Failed to get last index");
 
-    raft.1.make_snapshot(last_index, hard_state.term).await;
-    "OK".to_string()
+        let hard_state = raft
+            .1
+            .storage()
+            .await
+            .expect("Failed to get storage")
+            .hard_state()
+            .expect("Failed to get hard state");
+
+        raft.1
+            .make_snapshot(last_index, hard_state.term)
+            .await
+            .expect("Failed to make snapshot");
+        "OK".to_string()
+    }
 }
 
 #[get("/leave_joint")]
@@ -91,21 +109,21 @@ async fn transfer_leader(
 ) -> impl Responder {
     let raft = data.clone();
     let node_id: u64 = path.into_inner();
-    raft.1.transfer_leader(node_id).await;
+    raft.1.transfer_leader(node_id).await.unwrap();
     "OK".to_string()
 }
 
 #[get("/campaign")]
 async fn campaign(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
-    raft.1.campaign().await;
+    raft.1.campaign().await.unwrap();
     "OK".to_string()
 }
 
 #[get("/demote/{term}/{leader_id}")]
 async fn demote(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, u64)>) -> impl Responder {
     let raft = data.clone();
-    let (term, leader_id_) = path.into_inner();
-    raft.1.demote(term, leader_id_).await;
+    let (term, leader_id) = path.into_inner();
+    raft.1.demote(term, leader_id).await.unwrap();
     "OK".to_string()
 }

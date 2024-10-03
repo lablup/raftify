@@ -1,33 +1,44 @@
 use core::panic;
 use serde_json::Value;
-use std::{collections::HashMap, fs, sync::Arc};
+use std::{collections::HashMap, fs, path::Path, sync::Arc};
 
-use crate::{
-    create_client,
-    raft::{
+use raftify::{
+    create_client, raft::{
         formatter::{format_entry, format_snapshot},
         logger::Slogger,
         Storage,
-    },
-    raft_node::utils::format_debugging_info,
-    raft_service, Config, HeedStorage, Result, StableStorage,
+    }, raft_node::utils::format_debugging_info, raft_service, Config, ConfigBuilder, HeedStorage, Result, StableStorage, StorageType
 };
 
-pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
-    let config = Config {
-        log_dir: path.to_string(),
-        ..Default::default()
+pub fn debug_persisted<LogStorage: StableStorage>(path: &str, logger: slog::Logger) -> Result<()> {
+    let config = ConfigBuilder::new()
+        .log_dir(path.to_string())
+        .build();
+
+    let storage = match LogStorage::STORAGE_TYPE {
+        StorageType::Heed => HeedStorage::create(
+            config.get_log_dir(),
+            &config,
+            Arc::new(Slogger {
+                slog: logger.clone(),
+            }),
+        )?,
+        StorageType::InMemory => {
+            panic!("InMemory storage does not support this feature");
+        }
+        _ => {
+            panic!("Unsupported storage type");
+        }
     };
 
-    let storage = HeedStorage::create(
-        config.log_dir.as_str(),
-        &config,
-        Arc::new(Slogger {
-            slog: logger.clone(),
-        }),
-    )?;
-
     let entries = storage.all_entries()?;
+
+    if !entries.is_empty() {
+        assert!(
+            storage.first_index()? > 0,
+            "First index should be greater than 0"
+        );
+    }
 
     println!("---- Persisted entries ----");
     for entry in entries.iter() {
@@ -44,8 +55,15 @@ pub fn debug_persisted(path: &str, logger: slog::Logger) -> Result<()> {
     Ok(())
 }
 
-pub fn debug_persitsted_all(path_str: &str, logger: slog::Logger) -> Result<()> {
-    if let Ok(subdirectories) = fs::read_dir(path_str) {
+pub fn debug_persisted_all<LogStorage: StableStorage>(path_str: &str, logger: slog::Logger) -> Result<()> {
+    let path = match fs::canonicalize(Path::new(&path_str)) {
+        Ok(absolute_path) => absolute_path,
+        Err(e) => {
+            panic!("Invalid path: {}", e);
+        }
+    };
+
+    if let Ok(subdirectories) = fs::read_dir(path.clone()) {
         let mut dir_entries = vec![];
         for dir_entry in subdirectories.filter_map(|e| e.ok()) {
             let path = dir_entry.path();
@@ -61,25 +79,26 @@ pub fn debug_persitsted_all(path_str: &str, logger: slog::Logger) -> Result<()> 
         }
 
         if dir_entries.is_empty() {
-            panic!("No node directory found in {}", path_str);
+            panic!("Raft node log directory not found: \"{}\"", path.display());
         }
 
         dir_entries.sort();
 
         for name in dir_entries {
             println!("*----- {name} -----*");
-            debug_persisted(&format!("{}/{}", path_str, name), logger.clone())?;
+            debug_persisted::<LogStorage>(&format!("{}/{}", path_str, name), logger.clone())?;
             println!();
         }
     } else {
-        panic!("Invalid path: {}", path_str);
+        panic!("Failed to read subdirectory: {}", path.display());
     }
 
     Ok(())
 }
 
 pub async fn debug_node(addr: &str) -> Result<()> {
-    let mut client = create_client(&addr).await?;
+    // TODO: Support TLS configuration
+    let mut client = create_client(&addr, None).await?;
     let response = client.debug_node(raft_service::Empty {}).await?;
     let json = response.into_inner().result_json;
     let parsed: HashMap<String, Value> = serde_json::from_str(&json).unwrap();

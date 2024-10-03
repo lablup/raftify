@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use pyo3_asyncio::tokio::future_into_py;
 use raftify::Peer;
 
-use super::role::PyInitialRole;
+use super::initial_role::PyInitialRole;
 
 #[derive(Clone)]
 #[pyclass(name = "Peer")]

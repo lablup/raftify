@@ -6,11 +6,15 @@ use harness::{
     constant::{RAFT_ADDRS, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, spawn_and_join_extra_node, wait_until_rafts_ready, Raft},
     state_machine::LogEntry,
-    utils::{kill_previous_raft_processes, load_peers, wait_for_until_cluster_size_increase},
+    utils::{
+        cleanup_storage, kill_previous_raft_processes, load_peers,
+        wait_for_until_cluster_size_increase,
+    },
 };
 
 #[tokio::test]
 pub async fn test_data_replication() {
+    cleanup_storage("./logs");
     kill_previous_raft_processes();
 
     let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
@@ -33,11 +37,11 @@ pub async fn test_data_replication() {
 
     raft_1.propose(entry).await.unwrap();
 
-    sleep(Duration::from_secs(1)).await;
+    sleep(Duration::from_secs(3)).await;
 
     // Data should be replicated to all nodes.
     for (_, raft) in rafts.iter_mut() {
-        let store = raft.state_machine().await;
+        let store = raft.state_machine().await.unwrap();
         let store_lk = store.0.read().unwrap();
         assert_eq!(store_lk.get(&1).unwrap(), "test");
     }
@@ -59,10 +63,10 @@ pub async fn test_data_replication() {
     wait_for_until_cluster_size_increase(raft_1.clone(), 4).await;
 
     let raft_4 = rafts.get(&4).unwrap();
-    let store = raft_4.state_machine().await;
+    let store = raft_4.state_machine().await.unwrap();
     let store_lk = store.0.read().unwrap();
 
-    // Data should be replicated to new joined node.
+    // Data should be replicated to new member.
     assert_eq!(store_lk.get(&1).unwrap(), "test");
     std::mem::drop(store_lk);
 
@@ -77,15 +81,14 @@ pub async fn test_data_replication() {
 
     raft_1.propose(new_entry).await.unwrap();
 
-    // New entry data should be replicated to all nodes including new joined node.
+    // New entry data should be replicated to all nodes including new member.
     for (_, raft) in rafts.iter() {
-        // stop
-        let store = raft.state_machine().await;
+        let store = raft.state_machine().await.unwrap();
         let store_lk = store.0.read().unwrap();
         assert_eq!(store_lk.get(&2).unwrap(), "test2");
     }
 
     for (_, raft) in rafts.iter_mut() {
-        raft.quit().await;
+        raft.quit().await.expect("Failed to quit the raft node");
     }
 }

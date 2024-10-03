@@ -1,4 +1,4 @@
-use raftify::{InitialRole, Peers};
+use raftify::{Error, InitialRole, Peers};
 use serde::Deserialize;
 use slog::{o, Drain};
 use slog_envlogger::LogBuilder;
@@ -89,7 +89,7 @@ pub async fn wait_for_until_cluster_size_increase(raft: Raft, target: usize) {
     ));
 
     loop {
-        let size = raft.get_cluster_size().await;
+        let size = raft.get_cluster_size().await.unwrap();
         if size >= target {
             break;
         }
@@ -107,7 +107,7 @@ pub async fn wait_for_until_cluster_size_decrease(raft: Raft, target: usize) {
     ));
 
     loop {
-        let size = raft.get_cluster_size().await;
+        let size = raft.get_cluster_size().await.unwrap();
         if size <= target {
             break;
         }
@@ -175,8 +175,35 @@ pub fn kill_process_using_port(port: u16) {
     }
 }
 
+pub fn cleanup_storage(log_dir: &str) {
+    let storage_pth = Path::new(log_dir);
+
+    if fs::metadata(storage_pth).is_ok() {
+        fs::remove_dir_all(storage_pth).expect("Failed to remove storage directory");
+    }
+
+    fs::create_dir_all(storage_pth).expect("Failed to create storage directory");
+}
+
 pub fn kill_previous_raft_processes() {
     RAFT_PORTS.iter().for_each(|port| {
         kill_process_using_port(*port);
     });
+}
+
+pub fn get_storage_path(log_dir: &str, node_id: u64) -> String {
+    format!("{}/node-{}", log_dir, node_id)
+}
+
+pub fn get_data_mdb_path(log_dir: &str, node_id: u64) -> String {
+    format!("{}/data.mdb", get_storage_path(log_dir, node_id))
+}
+
+pub fn ensure_directory_exist(dir_pth: &str) -> Result<(), Error> {
+    let dir_pth: &Path = Path::new(&dir_pth);
+
+    if fs::metadata(dir_pth).is_err() {
+        fs::create_dir_all(dir_pth)?;
+    }
+    Ok(())
 }

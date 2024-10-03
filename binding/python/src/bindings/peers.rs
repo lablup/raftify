@@ -7,7 +7,7 @@ use raftify::Peers;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, hash::BuildHasherDefault};
 
-use super::{peer::PyPeer, role::PyInitialRole};
+use super::{initial_role::PyInitialRole, peer::PyPeer};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[pyclass(dict, name = "Peers")]

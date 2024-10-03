@@ -29,6 +29,8 @@ kill
 exec
 .envrc
 
+.idea
+
 tests/fixtures
 tests/tests/fixtures
 logs

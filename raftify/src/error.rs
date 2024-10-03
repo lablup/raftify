@@ -34,6 +34,9 @@ pub enum Error {
     #[error("Shut down by Ctrl+C signal")]
     CtrlC,
 
+    #[error("RaftNode LocalRequestMsg Receive error: {0}")]
+    RecvError(#[from] tokio::sync::oneshot::error::RecvError),
+
     #[error("Encoding error")]
     EncodingError(String),
     #[error("Decoding error")]
@@ -42,11 +45,11 @@ pub enum Error {
 
 #[derive(Debug, ThisError)]
 pub enum SendMessageError {
-    #[error("Failed to connect to node {0}")]
+    #[error("Failed to connect to node. {0}")]
     ConnectionError(String),
     #[error("Node {0} not found from the peers")]
     PeerNotFound(String),
-    #[error("Failed to send message to node {0}")]
+    #[error("Failed to send message. {0}")]
     TransmissionError(String),
 }
 

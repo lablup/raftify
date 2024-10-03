@@ -1,6 +1,13 @@
 mod codec;
 mod constant;
 
+use self::codec::{format_entry_key_string, HeedEntry, HeedEntryKeyString};
+use super::{utils::append_compacted_logs, StableStorage, StorageType};
+use crate::{
+    config::Config,
+    error::Result,
+    raft::{self, prelude::*, GetEntriesContext},
+};
 use bincode::{deserialize, serialize};
 use constant::{CONF_STATE_KEY, HARD_STATE_KEY, LAST_INDEX_KEY, SNAPSHOT_KEY};
 use heed::{
@@ -15,14 +22,6 @@ use std::{
     fs,
     path::{Path, PathBuf},
     sync::Arc,
-};
-
-use self::codec::{format_entry_key_string, HeedEntry, HeedEntryKeyString};
-use super::{utils::append_compacted_logs, StableStorage};
-use crate::{
-    config::Config,
-    error::Result,
-    raft::{self, prelude::*, GetEntriesContext},
 };
 
 #[derive(Clone)]
@@ -47,6 +46,8 @@ impl HeedStorage {
 }
 
 impl StableStorage for HeedStorage {
+    const STORAGE_TYPE: StorageType = StorageType::Heed;
+
     fn compact(&mut self, index: u64) -> Result<()> {
         let store = self.wl();
         let mut writer = store.env.write_txn()?;
@@ -180,7 +181,7 @@ impl Storage for HeedStorage {
         &self,
         low: u64,
         high: u64,
-        max_size: impl Into<Option<u64>>,
+        max_size: Option<u64>,
         ctx: GetEntriesContext,
     ) -> raft::Result<Vec<Entry>> {
         let store = self.rl();
@@ -261,7 +262,7 @@ impl Storage for HeedStorage {
 
 impl HeedStorage {
     #[allow(dead_code)]
-    fn replace_entries(&mut self, entries: &[Entry]) -> raft::Result<()> {
+    pub fn replace_entries(&mut self, entries: &[Entry]) -> raft::Result<()> {
         let store = self.wl();
         let mut writer = store.env.write_txn().unwrap();
         store.replace_entries(&mut writer, entries).unwrap();
@@ -433,7 +434,7 @@ impl HeedStorageCore {
         reader: &heed::RoTxn,
         low: u64,
         high: u64,
-        max_size: impl Into<Option<u64>>,
+        max_size: Option<u64>,
         _ctx: GetEntriesContext,
     ) -> Result<Vec<Entry>> {
         self.logger
@@ -472,6 +473,16 @@ impl HeedStorageCore {
             return Ok(());
         }
 
+        let first_index = self.first_index(writer)?;
+
+        if first_index > entries[0].index {
+            self.logger.fatal(&format!(
+                "overwrite compacted raft logs, compacted: {}, append: {}",
+                first_index - 1,
+                entries[0].index,
+            ));
+        }
+
         let mut last_index = self.last_index(writer)?;
 
         if last_index + 1 < entries[0].index {
@@ -494,10 +505,7 @@ impl HeedStorageCore {
     fn save_compacted_entries(&self, entries: &[Entry]) -> Result<()> {
         let compacted_log_dir_path = Path::new(&self.config.compacted_log_dir);
         let compacted_log_dir_path = compacted_log_dir_path.to_str().unwrap();
-        let dest_path = format!(
-            "{}/node-{}/compacted.json",
-            compacted_log_dir_path, self.config.raft_config.id
-        );
+        let dest_path = format!("{}/compacted_logs.json", compacted_log_dir_path);
 
         match fs::metadata(&dest_path) {
             Ok(metadata) if metadata.len() > self.config.compacted_log_size_threshold => {
@@ -545,7 +553,7 @@ mod test {
         logger::Slogger,
         Config as RaftConfig, Error as RaftError, GetEntriesContext, Storage, StorageError,
     };
-    use crate::{Config, HeedStorage, StableStorage};
+    use crate::{Config, ConfigBuilder, HeedStorage, StableStorage};
     use prost::Message;
 
     fn new_entry(index: u64, term: u64) -> Entry {
@@ -574,14 +582,13 @@ mod test {
             ..Default::default()
         };
 
-        Config {
-            log_dir: test_dir_pth.to_owned(),
-            save_compacted_logs: false,
-            compacted_log_dir: test_dir_pth.to_owned(),
-            compacted_log_size_threshold: 1024 * 1024 * 1024,
-            raft_config,
-            ..Default::default()
-        }
+        ConfigBuilder::new()
+            .log_dir(test_dir_pth.to_owned())
+            .save_compacted_logs(false)
+            .compacted_log_dir(test_dir_pth.to_owned())
+            .compacted_log_size_threshold(1024 * 1024 * 1024)
+            .raft_config(raft_config)
+            .build()
     }
 
     pub fn build_logger() -> slog::Logger {
@@ -709,7 +716,7 @@ mod test {
 
             storage.replace_entries(&ents).unwrap();
 
-            let e = storage.entries(lo, hi, maxsize, GetEntriesContext::empty(false));
+            let e = storage.entries(lo, hi, Some(maxsize), GetEntriesContext::empty(false));
             if e != wentries {
                 panic!("#{}: expect entries {:?}, got {:?}", i, wentries, e);
             }
@@ -785,7 +792,7 @@ mod test {
                 panic!("#{}: want {}, index {}", i, windex, index);
             }
             let term = if let Ok(v) =
-                storage.entries(index, index + 1, 1, GetEntriesContext::empty(false))
+                storage.entries(index, index + 1, Some(1), GetEntriesContext::empty(false))
             {
                 v.first().map_or(0, |e| e.term)
             } else {
@@ -796,7 +803,7 @@ mod test {
             }
             let last = storage.last_index().unwrap();
             let len = storage
-                .entries(index, last + 1, 100, GetEntriesContext::empty(false))
+                .entries(index, last + 1, Some(100), GetEntriesContext::empty(false))
                 .unwrap()
                 .len();
             if len != wlen {
@@ -883,10 +890,10 @@ mod test {
             ),
             // TODO: Support the below test cases
             // overwrite compacted raft logs is not allowed
-            // (
-            //     vec![new_entry(2, 3), new_entry(3, 3), new_entry(4, 5)],
-            //     None,
-            // ),
+            (
+                vec![new_entry(2, 3), new_entry(3, 3), new_entry(4, 5)],
+                None,
+            ),
             // truncate the existing entries and append
             // (
             //     vec![new_entry(4, 5)],

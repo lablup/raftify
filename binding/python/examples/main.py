@@ -20,6 +20,7 @@ from raftify import (
 from .deserializer import register_custom_deserializer
 from .web_server_api import routes, WebServer
 from .state_machine import HashStore
+from .utils import ensure_directory_exist, get_storage_path
 
 
 def load_peers() -> Peers:
@@ -37,15 +38,20 @@ def load_peers() -> Peers:
     )
 
 
-def build_config(initial_peers: Peers) -> Config:
+def build_config(node_id: int, initial_peers: Peers) -> Config:
     raft_cfg = RaftConfig(
+        id=node_id,
         election_tick=10,
         heartbeat_tick=3,
     )
+
+    storage_path = get_storage_path("./logs", node_id)
+    ensure_directory_exist(storage_path)
+
     cfg = Config(
         raft_cfg,
-        log_dir="./logs",
-        compacted_log_dir="./logs",
+        log_dir=storage_path,
+        compacted_log_dir=storage_path,
         initial_peers=initial_peers,
     )
 
@@ -106,11 +112,11 @@ async def main():
 
     initial_peers = load_peers()
 
-    cfg = build_config(initial_peers)
+    node_id = initial_peers.get_node_id_by_addr(raft_addr)
+
+    cfg = build_config(node_id, initial_peers)
     logger = Logger(setup_logger())
     store = HashStore()
-
-    node_id = initial_peers.get_node_id_by_addr(raft_addr)
 
     tasks = []
     raft = Raft.bootstrap(node_id, raft_addr, store, cfg, logger)
