@@ -121,6 +121,8 @@ impl ConfigBuilder {
             if let Some(self_peer) = initial_peers.get_mut(&self.config.raft_config.id) {
                 if self_peer.client_tls_config.is_none() {
                     self_peer.client_tls_config = self.global_client_tls_config.clone();
+                } else {
+                    self.config.client_tls_config = self_peer.client_tls_config.clone();
                 }
             }
             self.config.initial_peers = Some(initial_peers);

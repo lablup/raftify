@@ -33,7 +33,7 @@ pub async fn create_client<A: ToSocketAddrs>(
 
         let domain_name = tls_cfg
             .domain_name
-            .unwrap_or_else(|| "localhost".to_string());
+            .expect("Domain name is required for TLS");
 
         let mut client_tls_config = ClientTlsConfig::new()
             .ca_certificate(ca_cert)

@@ -51,7 +51,7 @@ use crate::{
     },
     utils::{membership::to_confchange_v2, oneshot_mutex::OneShotMutex},
     AbstractLogEntry, AbstractStateMachine, ClusterJoinTicket, Config, Error, InitialRole, Peers,
-    RaftServiceClient, StableStorage,
+    StableStorage,
 };
 
 #[derive(Clone)]
@@ -770,8 +770,9 @@ impl<
         let cc_v2: ConfChangeRequest = cc_v2.clone().into();
         let cc_v2: raft_service::ChangeConfigArgs = cc_v2.into();
 
-        // TODO: Apply TLS
-        let mut leader_client = RaftServiceClient::connect(format!("http://{}", peer_addr)).await?;
+        let mut leader_client =
+            create_client(peer_addr, self.config.client_tls_config.clone()).await?;
+
         let response = leader_client
             .change_config(cc_v2.clone())
             .await?
