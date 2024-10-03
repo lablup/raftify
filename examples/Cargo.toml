@@ -10,3 +10,7 @@ keywords.workspace = true
 
 [dependencies]
 raftify.workspace = true
+
+[features]
+default = []
+tls = []

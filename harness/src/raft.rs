@@ -51,16 +51,18 @@ fn run_raft(
     should_be_leader: bool,
 ) -> Result<JoinHandle<Result<()>>> {
     let peer = peers.get(node_id).unwrap();
-    let mut cfg = build_config(*node_id);
-    cfg.initial_peers = if should_be_leader {
-        None
-    } else {
-        Some(peers.clone())
-    };
+    let cfg = build_config(
+        *node_id,
+        if should_be_leader {
+            None
+        } else {
+            Some(peers.clone())
+        },
+    );
 
     let store = HashStore::new();
     let logger = build_logger();
-    let storage_pth = get_storage_path(cfg.log_dir.as_str(), *node_id);
+    let storage_pth = get_storage_path(cfg.get_log_dir(), *node_id);
     ensure_directory_exist(storage_pth.as_str())?;
 
     let storage = HeedStorage::create(
@@ -141,9 +143,9 @@ pub async fn spawn_extra_node(
         slog: build_logger(),
     });
 
-    let cfg = build_config(node_id);
+    let cfg = build_config(node_id, None);
     let store = HashStore::new();
-    let storage_pth = get_storage_path(cfg.log_dir.as_str(), node_id);
+    let storage_pth = get_storage_path(cfg.get_log_dir(), node_id);
     ensure_directory_exist(storage_pth.as_str())?;
 
     let storage = HeedStorage::create(&storage_pth, &cfg, logger.clone())?;
@@ -167,16 +169,16 @@ pub async fn spawn_and_join_extra_node(
     let logger = Arc::new(Slogger {
         slog: build_logger(),
     });
-    let join_ticket = Raft::request_id(raft_addr.to_owned(), peer_addr.to_owned())
+    let join_ticket = Raft::request_id(raft_addr.to_owned(), peer_addr.to_owned(), None)
         .await
         .unwrap();
 
     let node_id = join_ticket.reserved_id;
-    let mut cfg = build_config(node_id);
-    cfg.initial_peers = Some(join_ticket.peers.clone().into());
+    let cfg = build_config(node_id, Some(join_ticket.peers.clone().into()));
+
     let store = HashStore::new();
 
-    let storage_pth = get_storage_path(cfg.log_dir.as_str(), node_id);
+    let storage_pth = get_storage_path(cfg.get_log_dir(), node_id);
     ensure_directory_exist(storage_pth.as_str())?;
 
     let storage = HeedStorage::create(&storage_pth, &cfg, logger.clone())?;
@@ -202,7 +204,7 @@ pub async fn spawn_and_join_extra_node(
 pub async fn join_nodes(rafts: Vec<&Raft>, raft_addrs: Vec<&str>, peer_addr: &str) {
     let mut tickets = vec![];
     for (raft, raft_addr) in rafts.iter().zip(raft_addrs.into_iter()) {
-        let join_ticket = Raft::request_id(raft_addr.to_owned(), peer_addr.to_owned())
+        let join_ticket = Raft::request_id(raft_addr.to_owned(), peer_addr.to_owned(), None)
             .await
             .unwrap();
 

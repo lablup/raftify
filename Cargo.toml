@@ -19,7 +19,7 @@ default-members = [
 exclude = ["raft-rs", "raftify-cli"]
 
 [workspace.package]
-version = "0.1.78"
+version = "0.1.80"
 authors = ["Lablup Inc."]
 edition = "2021"
 description = "Experimental High level Raft framework"

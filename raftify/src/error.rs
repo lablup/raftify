@@ -45,11 +45,11 @@ pub enum Error {
 
 #[derive(Debug, ThisError)]
 pub enum SendMessageError {
-    #[error("Failed to connect to node {0}")]
+    #[error("Failed to connect to node. {0}")]
     ConnectionError(String),
     #[error("Node {0} not found from the peers")]
     PeerNotFound(String),
-    #[error("Failed to send message to node {0}")]
+    #[error("Failed to send message. {0}")]
     TransmissionError(String),
 }
 

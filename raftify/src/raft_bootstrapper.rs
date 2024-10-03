@@ -1,6 +1,6 @@
 use crate::{
-    raft::logger::Logger, request::server_request_message::ServerRequestMsg, ClusterJoinTicket,
-    InitialRole, Peers, StableStorage,
+    config::TlsConfig, raft::logger::Logger, request::server_request_message::ServerRequestMsg,
+    ClusterJoinTicket, InitialRole, Peers, StableStorage,
 };
 use bincode::deserialize;
 use std::{net::ToSocketAddrs, ops::Deref, sync::Arc};
@@ -75,7 +75,7 @@ impl<
                 .unwrap()
                 .inner
                 .into_iter()
-                .filter(|(_, peer)| peer.role == InitialRole::Leader)
+                .filter(|(_, peer)| peer.initial_role == InitialRole::Leader)
                 .map(|(key, _)| key)
                 .collect::<Vec<_>>();
 
@@ -171,6 +171,7 @@ impl<
     pub async fn request_id<A: ToSocketAddrs>(
         raft_addr: A,
         peer_addr: String,
+        tls_config: Option<TlsConfig>,
     ) -> Result<ClusterJoinTicket> {
         let raft_addr = raft_addr
             .to_socket_addrs()
@@ -179,7 +180,7 @@ impl<
             .unwrap()
             .to_string();
 
-        let mut client = create_client(&peer_addr).await?;
+        let mut client = create_client(&peer_addr, tls_config).await?;
         let response = client
             .request_id(raft_service::RequestIdArgs {
                 raft_addr: raft_addr.to_string(),

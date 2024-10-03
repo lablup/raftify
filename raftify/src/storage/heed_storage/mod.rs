@@ -553,7 +553,7 @@ mod test {
         logger::Slogger,
         Config as RaftConfig, Error as RaftError, GetEntriesContext, Storage, StorageError,
     };
-    use crate::{Config, HeedStorage, StableStorage};
+    use crate::{Config, ConfigBuilder, HeedStorage, StableStorage};
     use prost::Message;
 
     fn new_entry(index: u64, term: u64) -> Entry {
@@ -582,14 +582,13 @@ mod test {
             ..Default::default()
         };
 
-        Config {
-            log_dir: test_dir_pth.to_owned(),
-            save_compacted_logs: false,
-            compacted_log_dir: test_dir_pth.to_owned(),
-            compacted_log_size_threshold: 1024 * 1024 * 1024,
-            raft_config,
-            ..Default::default()
-        }
+        ConfigBuilder::new()
+            .log_dir(test_dir_pth.to_owned())
+            .save_compacted_logs(false)
+            .compacted_log_dir(test_dir_pth.to_owned())
+            .compacted_log_size_threshold(1024 * 1024 * 1024)
+            .raft_config(raft_config)
+            .build()
     }
 
     pub fn build_logger() -> slog::Logger {

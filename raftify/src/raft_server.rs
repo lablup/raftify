@@ -13,6 +13,9 @@ use tokio::{
 };
 use tonic::{transport::Server, Request, Response, Status};
 
+#[cfg(feature = "tls")]
+use tonic::transport::{Certificate, Identity, ServerTlsConfig};
+
 use super::{
     macro_utils::function_name,
     raft_service::{
@@ -79,7 +82,33 @@ impl<
             rx_quit_signal.await.ok();
         };
 
-        Server::builder()
+        let mut server_builder = Server::builder();
+
+        #[cfg(feature = "tls")]
+        if let Some(tls_cfg) = &self.config.server_tls_config {
+            logger.debug("TLS enabled.");
+            let cert_path = tls_cfg
+                .cert_path
+                .as_ref()
+                .expect("Server requires cert_path");
+            let cert = tokio::fs::read(cert_path).await?;
+            let key_path = tls_cfg.key_path.as_ref().expect("Server requires key_path");
+            let key = tokio::fs::read(key_path).await?;
+            let identity = Identity::from_pem(cert, key);
+
+            let mut tls_config = ServerTlsConfig::new().identity(identity);
+
+            // mTLS
+            if let Some(ca_cert_path) = &tls_cfg.ca_cert_path {
+                let ca_cert = tokio::fs::read(ca_cert_path).await?;
+                let ca_cert = Certificate::from_pem(ca_cert);
+                tls_config = tls_config.client_ca_root(ca_cert);
+            }
+
+            server_builder = server_builder.tls_config(tls_config)?;
+        }
+
+        server_builder
             .add_service(RaftServiceServer::new(self))
             .serve_with_shutdown(raft_addr, quit_signal)
             .await?;
@@ -147,7 +176,10 @@ impl<
                     }))
                 }
                 RequestIdResponseResult::WrongLeader { leader_addr, .. } => {
-                    let mut client = create_client(leader_addr).await.unwrap();
+                    let mut client =
+                        create_client(leader_addr, self.config.client_tls_config.clone())
+                            .await
+                            .unwrap();
                     let reply = client.request_id(request_args).await?.into_inner();
 
                     Ok(Response::new(reply))
@@ -215,7 +247,10 @@ impl<
                                 raft_service::ChangeConfigResultType::ChangeConfigWrongLeader
                                     as i32;
 
-                            let mut client = create_client(leader_addr).await.unwrap();
+                            let mut client =
+                                create_client(leader_addr, self.config.client_tls_config.clone())
+                                    .await
+                                    .unwrap();
                             reply = client.change_config(request_args).await?.into_inner();
                         }
                     },
@@ -295,7 +330,10 @@ impl<
                     }
                     ResponseResult::WrongLeader { leader_addr, .. } => {
                         // TODO: Handle this kind of errors
-                        let mut client = create_client(leader_addr).await.unwrap();
+                        let mut client =
+                            create_client(leader_addr, self.config.client_tls_config.clone())
+                                .await
+                                .unwrap();
                         let _ = client
                             .propose(ProposeArgs {
                                 msg: request_args.msg,

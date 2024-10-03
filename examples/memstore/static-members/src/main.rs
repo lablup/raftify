@@ -71,14 +71,13 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         .get_node_id_by_addr(options.raft_addr.clone())
         .unwrap();
 
-    let mut cfg = build_config(node_id);
-    cfg.initial_peers = Some(initial_peers.clone());
+    let cfg = build_config(node_id, Some(initial_peers.clone()));
 
     #[cfg(feature = "inmemory_storage")]
     let log_storage = MemStorage::create();
 
     #[cfg(feature = "heed_storage")]
-    let log_storage = HeedStorage::create(&cfg.log_dir, &cfg.clone(), logger.clone())
+    let log_storage = HeedStorage::create(cfg.get_log_dir(), &cfg.clone(), logger.clone())
         .expect("Failed to create storage");
 
     #[cfg(feature = "rocksdb_storage")]

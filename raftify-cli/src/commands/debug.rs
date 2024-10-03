@@ -3,26 +3,21 @@ use serde_json::Value;
 use std::{collections::HashMap, fs, path::Path, sync::Arc};
 
 use raftify::{
-    create_client,
-    raft::{
+    create_client, raft::{
         formatter::{format_entry, format_snapshot},
         logger::Slogger,
         Storage,
-    },
-    raft_node::utils::format_debugging_info,
-    raft_service, Config, Result, StableStorage,
-    HeedStorage, StorageType,
+    }, raft_node::utils::format_debugging_info, raft_service, Config, ConfigBuilder, HeedStorage, Result, StableStorage, StorageType
 };
 
 pub fn debug_persisted<LogStorage: StableStorage>(path: &str, logger: slog::Logger) -> Result<()> {
-    let config = Config {
-        log_dir: path.to_string(),
-        ..Default::default()
-    };
+    let config = ConfigBuilder::new()
+        .log_dir(path.to_string())
+        .build();
 
     let storage = match LogStorage::STORAGE_TYPE {
         StorageType::Heed => HeedStorage::create(
-            config.log_dir.as_str(),
+            config.get_log_dir(),
             &config,
             Arc::new(Slogger {
                 slog: logger.clone(),
@@ -60,7 +55,7 @@ pub fn debug_persisted<LogStorage: StableStorage>(path: &str, logger: slog::Logg
     Ok(())
 }
 
-pub fn debug_persitsted_all<LogStorage: StableStorage>(path_str: &str, logger: slog::Logger) -> Result<()> {
+pub fn debug_persisted_all<LogStorage: StableStorage>(path_str: &str, logger: slog::Logger) -> Result<()> {
     let path = match fs::canonicalize(Path::new(&path_str)) {
         Ok(absolute_path) => absolute_path,
         Err(e) => {
@@ -102,7 +97,8 @@ pub fn debug_persitsted_all<LogStorage: StableStorage>(path_str: &str, logger: s
 }
 
 pub async fn debug_node(addr: &str) -> Result<()> {
-    let mut client = create_client(&addr).await?;
+    // TODO: Support TLS configuration
+    let mut client = create_client(&addr, None).await?;
     let response = client.debug_node(raft_service::Empty {}).await?;
     let json = response.into_inner().result_json;
     let parsed: HashMap<String, Value> = serde_json::from_str(&json).unwrap();
