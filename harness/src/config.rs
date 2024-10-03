@@ -15,12 +15,11 @@ pub fn build_config(node_id: u64, initial_peers: Option<Peers>) -> Config {
     ensure_directory_exist(&storage_path).expect("Failed to create storage directory");
 
     let config_builder = ConfigBuilder::new()
-        .log_dir("./logs".to_owned())
+        .log_dir(storage_path.clone())
         .save_compacted_logs(true)
-        .compacted_log_dir("./logs".to_owned())
+        .compacted_log_dir(storage_path)
         .compacted_log_size_threshold(1024 * 1024 * 1024)
-        .raft_config(raft_config)
-        .tick_interval(0.2);
+        .raft_config(raft_config);
 
     let config_builder = if let Some(peers) = initial_peers {
         config_builder.initial_peers(peers)
