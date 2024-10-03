@@ -1,6 +1,6 @@
 [package]
 name = "raftify_cli"
-version = "0.1.1"
+version = "0.1.80"
 edition = "2021"
 description = "Raftify CLI tool"
 license = "MIT/Apache-2.0"
@@ -12,7 +12,7 @@ serde_json = "1.0"
 slog = "2"
 built = "0.5"
 clap = { version = "4.5.18", features = ["derive"] }
-raftify = { version = "0.1.78", features = ["heed_storage", "inmemory_storage", "rocksdb_storage"] }
+raftify = { version = "=0.1.80", features = ["heed_storage", "inmemory_storage", "rocksdb_storage"] }
 rocksdb = "0.19.0"
 
 [lib]
