@@ -30,7 +30,7 @@ raftify = { version = "0.1.80" }
 raftify_cli = { version = "0.1.80" }
 
 [features]
-default = ["heed_storage", "tls"]
+default = ["heed_storage"]
 inmemory_storage = []
 heed_storage = []
 rocksdb_storage = []

@@ -12,5 +12,5 @@ keywords.workspace = true
 raftify.workspace = true
 
 [features]
-default = ["tls"]
+default = []
 tls = []

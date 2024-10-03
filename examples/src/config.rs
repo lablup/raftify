@@ -17,6 +17,7 @@ pub fn build_config(node_id: u64, initial_peers: Option<Peers>) -> Config {
     let storage_pth = get_storage_path("./logs", node_id);
     ensure_directory_exist(&storage_pth).expect("Failed to create storage directory");
 
+    #[allow(unused_mut)]
     let mut config_builder = ConfigBuilder::new()
         .log_dir("./logs".to_owned())
         .save_compacted_logs(true)
