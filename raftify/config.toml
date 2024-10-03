@@ -1,0 +1,36 @@
+[node]
+id = 1
+
+[raft]
+election_tick = 10
+heartbeat_tick = 3
+omit_heartbeat_log = true
+applied = 0
+max_size_per_msg = 1048576
+max_inflight_msgs = 256
+check_quorum = true
+pre_vote = false
+min_election_tick = 5
+max_election_tick = 15
+read_only_option = "Safe"
+skip_bcast_commit = false
+batch_append = true
+priority = 0
+max_uncommitted_size = 100
+max_committed_size_per_ready = 256
+
+[storage]
+log_dir = "./logs"
+compacted_log_size_threshold = 1073741824
+
+[cluster]
+cluster_id = "default"
+tick_interval = 0.1
+lmdb_map_size = 1073741824
+conf_change_request_timeout = 2.0
+
+[tls]
+cert_path = "/path/cert"
+key_path = "/path/key"
+ca_cert_path = "/path/ca"
+domain_name = "example.com"
