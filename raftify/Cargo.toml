@@ -23,7 +23,7 @@ slog = "2"
 slog-stdlog = "4"
 thiserror = "1.0"
 tokio = { version = "1.40", features = ["full"] }
-tonic = "0.9.2"
+tonic = { version = "0.9.2" }
 built = "0.5"
 chrono = "0.4.38"
 heed = { version = "0.20.5", optional = true }
@@ -31,10 +31,11 @@ heed-traits = { version = "0.20", optional = true }
 rocksdb = { version = "0.19.0", optional = true }
 
 [features]
-default = ["heed_storage"]
+default = ["heed_storage", "tls"]
 inmemory_storage = []
 heed_storage =["heed", "heed-traits"]
 rocksdb_storage = ["rocksdb"]
+tls = ["tonic/tls"]
 
 [dev-dependencies]
 tempfile = "3"

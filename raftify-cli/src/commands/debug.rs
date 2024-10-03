@@ -102,7 +102,8 @@ pub fn debug_persitsted_all<LogStorage: StableStorage>(path_str: &str, logger: s
 }
 
 pub async fn debug_node(addr: &str) -> Result<()> {
-    let mut client = create_client(&addr).await?;
+    // TODO: Support TLS configuration
+    let mut client = create_client(&addr, None).await?;
     let response = client.debug_node(raft_service::Empty {}).await?;
     let json = response.into_inner().result_json;
     let parsed: HashMap<String, Value> = serde_json::from_str(&json).unwrap();

@@ -65,6 +65,7 @@ pub struct RaftNode<
     inner: Arc<OneShotMutex<RaftNodeCore<LogEntry, LogStorage, FSM>>>,
     // RaftNode.(method_call) >>> RaftNodeCore.run
     tx_local: mpsc::Sender<LocalRequestMsg<LogEntry, LogStorage, FSM>>,
+    config: Config,
 }
 
 impl<
@@ -92,7 +93,7 @@ impl<
             should_be_leader,
             log_storage,
             fsm,
-            config,
+            config.clone(),
             raft_addr,
             logger,
             tx_server,
@@ -103,6 +104,7 @@ impl<
         .map(|core| Self {
             inner: Arc::new(OneShotMutex::new(core)),
             tx_local: tx_local.clone(),
+            config,
         })
     }
 
@@ -259,7 +261,8 @@ impl<
                 ResponseResult::Success => (),
                 ResponseResult::Error(e) => return Err(e),
                 ResponseResult::WrongLeader { leader_addr, .. } => {
-                    let mut client = create_client(leader_addr).await?;
+                    let mut client =
+                        create_client(leader_addr, self.config.client_tls_config.clone()).await?;
                     client
                         .propose(Request::new(ProposeArgs { msg: proposal }))
                         .await?;
@@ -288,7 +291,10 @@ impl<
         match resp {
             LocalResponseMsg::ConfigChange { result } => match result {
                 ConfChangeResponseResult::WrongLeader { leader_addr, .. } => {
-                    let mut client = create_client(leader_addr).await.unwrap();
+                    let mut client =
+                        create_client(leader_addr, self.config.client_tls_config.clone())
+                            .await
+                            .unwrap();
 
                     let conf_change: ConfChangeRequest = conf_change;
                     let conf_change: raft_service::ChangeConfigArgs = conf_change.into();
@@ -541,16 +547,19 @@ impl<
 
         let conf_state = snapshot.mut_metadata().mut_conf_state();
 
-        let peers = config
-            .initial_peers
-            .clone()
-            .unwrap_or(Peers::new(node_id, raft_addr));
+        let peers = config.initial_peers.clone().unwrap_or(Peers::new(
+            node_id,
+            raft_addr,
+            config.client_tls_config.clone(),
+        ));
 
         let voters = peers
             .clone()
             .inner
             .into_iter()
-            .filter(|(_, peer)| peer.role == InitialRole::Voter || peer.role == InitialRole::Leader)
+            .filter(|(_, peer)| {
+                peer.initial_role == InitialRole::Voter || peer.initial_role == InitialRole::Leader
+            })
             .map(|(key, _)| key)
             .collect::<Vec<_>>();
 
@@ -558,7 +567,7 @@ impl<
             .clone()
             .inner
             .into_iter()
-            .filter(|(_, peer)| peer.role == InitialRole::Learner)
+            .filter(|(_, peer)| peer.initial_role == InitialRole::Learner)
             .map(|(key, _)| key)
             .collect::<Vec<_>>();
 
@@ -665,15 +674,17 @@ impl<
         logger: Arc<dyn Logger>,
     ) {
         let node_id = message.get_to();
-
         let mut ok = std::result::Result::<(), SendMessageError>::Ok(());
 
         let client = match peers.lock().await.get_mut(&node_id) {
             Some(peer) => {
                 if peer.client.is_none() {
                     if let Err(e) = peer.connect().await {
-                        logger.debug(format!("Connection error: {:?}", e).as_str());
-                        ok = Err(SendMessageError::ConnectionError(node_id.to_string()));
+                        ok = Err(SendMessageError::ConnectionError(format!(
+                            "(to node {}). Error: {:?}",
+                            node_id,
+                            e.to_string()
+                        )));
                     }
                 }
                 peer.client.clone()
@@ -687,8 +698,11 @@ impl<
         if let Some(mut client) = client {
             let message = Request::new(message.clone());
             if let Err(e) = client.send_message(message).await {
-                logger.trace(&format!("Message transmission error: {:?}", e));
-                ok = Err(SendMessageError::TransmissionError(node_id.to_string()));
+                ok = Err(SendMessageError::TransmissionError(format!(
+                    "(to node {}). Error: {}",
+                    node_id,
+                    e.to_string()
+                )));
             }
         }
 
@@ -756,6 +770,7 @@ impl<
         let cc_v2: ConfChangeRequest = cc_v2.clone().into();
         let cc_v2: raft_service::ChangeConfigArgs = cc_v2.into();
 
+        // TODO: Apply TLS
         let mut leader_client = RaftServiceClient::connect(format!("http://{}", peer_addr)).await?;
         let response = leader_client
             .change_config(cc_v2.clone())

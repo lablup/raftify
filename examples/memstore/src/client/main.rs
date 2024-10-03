@@ -7,7 +7,7 @@ use memstore_example_harness::state_machine::LogEntry;
 #[actix_rt::main]
 async fn main() {
     println!("---Message propose---");
-    let mut leader_client = create_client(&"127.0.0.1:60061").await.unwrap();
+    let mut leader_client = create_client(&"127.0.0.1:60061", None).await.unwrap();
 
     leader_client
         .propose(raft_service::ProposeArgs {

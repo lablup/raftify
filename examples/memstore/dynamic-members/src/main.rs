@@ -70,19 +70,17 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         Some(peer_addr) => {
             log::info!("Running in Follower mode");
 
-            let ticket = Raft::request_id(options.raft_addr.clone(), peer_addr.clone())
+            let ticket = Raft::request_id(options.raft_addr.clone(), peer_addr.clone(), None)
                 .await
                 .unwrap();
             let node_id = ticket.reserved_id;
-            let mut cfg = build_config(node_id);
-
-            cfg.initial_peers = Some(ticket.peers.clone().into());
+            let cfg = build_config(node_id, Some(ticket.peers.clone().into()));
 
             #[cfg(feature = "inmemory_storage")]
             let log_storage = MemStorage::create();
 
             #[cfg(feature = "heed_storage")]
-            let log_storage = HeedStorage::create(&cfg.log_dir, &cfg.clone(), logger.clone())
+            let log_storage = HeedStorage::create(cfg.get_log_dir(), &cfg.clone(), logger.clone())
                 .expect("Failed to create storage");
 
             #[cfg(feature = "rocksdb_storage")]
@@ -121,13 +119,13 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             }
 
             let leader_node_id = 1;
-            let cfg = build_config(leader_node_id);
+            let cfg = build_config(leader_node_id, None);
 
             #[cfg(feature = "inmemory_storage")]
             let log_storage = MemStorage::create();
 
             #[cfg(feature = "heed_storage")]
-            let log_storage = HeedStorage::create(&cfg.log_dir, &cfg.clone(), logger.clone())
+            let log_storage = HeedStorage::create(cfg.get_log_dir(), &cfg.clone(), logger.clone())
                 .expect("Failed to create storage");
 
             #[cfg(feature = "rocksdb_storage")]
