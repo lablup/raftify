@@ -25,7 +25,7 @@ pub use {
 
 pub use crate::{
     cluster_join_ticket::ClusterJoinTicket,
-    config::{Config, ConfigBuilder, TlsConfig},
+    config::{config_builder::ConfigBuilder, load_configs, Config, TlsConfig},
     error::{Error, Result},
     log_entry::AbstractLogEntry,
     peer::Peer,

@@ -3,17 +3,18 @@ use serde_json::Value;
 use std::{collections::HashMap, fs, path::Path, sync::Arc};
 
 use raftify::{
-    create_client, raft::{
+    create_client,
+    raft::{
         formatter::{format_entry, format_snapshot},
         logger::Slogger,
         Storage,
-    }, raft_node::utils::format_debugging_info, raft_service, Config, ConfigBuilder, HeedStorage, Result, StableStorage, StorageType
+    },
+    raft_node::utils::format_debugging_info,
+    raft_service, ConfigBuilder, HeedStorage, Result, StableStorage, StorageType,
 };
 
 pub fn debug_persisted<LogStorage: StableStorage>(path: &str, logger: slog::Logger) -> Result<()> {
-    let config = ConfigBuilder::new()
-        .log_dir(path.to_string())
-        .build();
+    let config = ConfigBuilder::new().log_dir(path.to_string()).build();
 
     let storage = match LogStorage::STORAGE_TYPE {
         StorageType::Heed => HeedStorage::create(
@@ -55,7 +56,10 @@ pub fn debug_persisted<LogStorage: StableStorage>(path: &str, logger: slog::Logg
     Ok(())
 }
 
-pub fn debug_persisted_all<LogStorage: StableStorage>(path_str: &str, logger: slog::Logger) -> Result<()> {
+pub fn debug_persisted_all<LogStorage: StableStorage>(
+    path_str: &str,
+    logger: slog::Logger,
+) -> Result<()> {
     let path = match fs::canonicalize(Path::new(&path_str)) {
         Ok(absolute_path) => absolute_path,
         Err(e) => {
