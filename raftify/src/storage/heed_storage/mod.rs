@@ -547,13 +547,14 @@ mod test {
     use std::panic::{self, AssertUnwindSafe};
     use std::sync::Arc;
 
+    use crate::config::config_builder::ConfigBuilder;
     use crate::raft::{
         default_logger,
         eraftpb::{Entry, Snapshot},
         logger::Slogger,
         Config as RaftConfig, Error as RaftError, GetEntriesContext, Storage, StorageError,
     };
-    use crate::{Config, ConfigBuilder, HeedStorage, StableStorage};
+    use crate::{Config, HeedStorage, StableStorage};
     use prost::Message;
 
     fn new_entry(index: u64, term: u64) -> Entry {

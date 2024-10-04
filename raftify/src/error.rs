@@ -1,3 +1,4 @@
+use config::ConfigError;
 use thiserror::Error as ThisError;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -41,6 +42,9 @@ pub enum Error {
     EncodingError(String),
     #[error("Decoding error")]
     DecodingError(String),
+
+    #[error("Config file format invalid")]
+    ConfigFileParsingError(#[from] ConfigError),
 }
 
 #[derive(Debug, ThisError)]

@@ -1,6 +1,5 @@
-use raftify::{Config, ConfigBuilder, Peers, RaftConfig};
-
 use crate::utils::{ensure_directory_exist, get_storage_path};
+use raftify::{Config, ConfigBuilder, Peers, RaftConfig};
 
 pub fn build_config(node_id: u64, initial_peers: Option<Peers>) -> Config {
     let raft_config = RaftConfig {
