@@ -37,3 +37,4 @@ memstore-example-harness = { path = "examples/memstore" }
 [patch.crates-io]
 jopemachine-raft = { path = "./raft-rs" }
 raftify = { path = "./raftify" }
+raftify_cli = { path = "./raftify-cli" }
