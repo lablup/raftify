@@ -150,35 +150,28 @@ pub fn cleanup_storage(log_dir: &str) {
     fs::create_dir_all(storage_pth).expect("Failed to create storage directory");
 }
 
-/// Collects the IDs of Raft nodes that match the target role during the latest term.
-/// This function continuously checks the nodes until a Leader is found or the term changes.
+/// Collects the IDs and roles of all Raft nodes during the latest term.
+/// This function continuously checks the nodes until a leader is elected or the term changes.
+/// It then returns a set containing each node's ID and its current role.
 ///
 /// # Note
 ///
 /// It may potentially hang if a leader does not emerge due to lack of quorum.
-///
-/// # Examples
-/// ```rust, ignore
-/// let rafts = wait_until_rafts_ready(None, rx_raft, 5).await;
-/// let leader_id = rafts.get(&1).unwrap().get_leader_id().await.unwrap();
-/// let leader_set =
-///     collect_state_matching_rafts_until_leader_emerge(&rafts, StateRole::Leader).await;
-/// let follower_set =
-///     collect_state_matching_rafts_until_leader_emerge(&rafts, StateRole::Follower).await;
-///
-/// assert_eq!(1, leader_set.len());
-/// assert!(leader_set.get(&leader_id).is_some());
-/// assert_eq!(4, follower_set.len());
-/// assert!(follower_set.get(&leader_id).is_none());
 /// ```
-pub async fn collect_state_matching_rafts_until_leader_emerge(
+pub async fn gather_rafts_when_leader_elected(
     rafts: &HashMap<u64, Raft>,
-    target_role: StateRole,
-) -> HashSet<u64> {
-    let mut result = HashSet::with_capacity(rafts.len());
+) -> HashMap<StateRole, HashSet<u64>> {
+    let mut result: HashMap<StateRole, HashSet<u64>> = HashMap::from([
+        (StateRole::Follower, HashSet::new()),
+        (StateRole::Candidate, HashSet::new()),
+        (StateRole::Leader, HashSet::new()),
+        (StateRole::PreCandidate, HashSet::new()),
+    ]);
+
     let mut current_term = 1;
-    let mut leader_emerged = false;
-    while !leader_emerged {
+    let mut leader_elected = false;
+
+    while !leader_elected {
         for (id, raft) in rafts.iter() {
             let (term, state_role) = (
                 raft.raft_node
@@ -195,14 +188,14 @@ pub async fn collect_state_matching_rafts_until_leader_emerge(
                 continue;
             }
             if current_term < term {
-                result.clear();
+                result.values_mut().for_each(|v| v.clear());
                 current_term = term;
             }
-            if state_role == target_role {
-                result.insert(*id);
-            }
+
+            result.get_mut(&state_role).unwrap().insert(*id);
+
             if state_role == StateRole::Leader {
-                leader_emerged = true;
+                leader_elected = true;
             }
         }
     }
@@ -232,39 +225,46 @@ pub fn ensure_directory_exist(dir_pth: &str) -> Result<(), Error> {
     Ok(())
 }
 
-#[tokio::test]
-async fn test_collect_candidate_rafts_until_leader_emerge() {
-    use crate::constant::FIVE_NODE_EXAMPLE;
-    use crate::raft::{build_raft_cluster, wait_until_rafts_ready};
-    use std::sync::mpsc;
+#[cfg(test)]
+mod tests {
+    use raftify::{raft::StateRole, HeedStorage, Raft as Raft_};
 
-    cleanup_storage("./logs");
-    kill_previous_raft_processes();
-    let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
-    let peers = load_peers(FIVE_NODE_EXAMPLE).await.unwrap();
-    let _raft_tasks = tokio::spawn(build_raft_cluster(tx_raft, peers.clone()));
+    use crate::{
+        state_machine::{HashStore, LogEntry},
+        utils::{
+            cleanup_storage, gather_rafts_when_leader_elected, kill_previous_raft_processes,
+            load_peers,
+        },
+    };
 
-    let rafts = wait_until_rafts_ready(None, rx_raft, 5).await;
-    let leader_id = rafts.get(&1).unwrap().get_leader_id().await.unwrap();
-    let leader_set =
-        collect_state_matching_rafts_until_leader_emerge(&rafts, StateRole::Leader).await;
-    let follower_set =
-        collect_state_matching_rafts_until_leader_emerge(&rafts, StateRole::Follower).await;
+    pub type Raft = Raft_<LogEntry, HeedStorage, HashStore>;
 
-    assert_eq!(1, leader_set.len());
-    assert!(leader_set.get(&leader_id).is_some());
-    assert_eq!(4, follower_set.len());
-    assert!(follower_set.get(&leader_id).is_none());
+    #[tokio::test]
+    async fn test_gather_rafts_when_leader_elected() {
+        use crate::constant::FIVE_NODE_EXAMPLE;
+        use crate::raft::{build_raft_cluster, wait_until_rafts_ready};
+        use std::sync::mpsc;
 
-    assert!(
-        collect_state_matching_rafts_until_leader_emerge(&rafts, StateRole::Candidate)
-            .await
-            .is_empty()
-    );
-    assert!(
-        collect_state_matching_rafts_until_leader_emerge(&rafts, StateRole::PreCandidate)
-            .await
-            .is_empty()
-    );
-    std::process::exit(0);
+        cleanup_storage("./logs");
+        kill_previous_raft_processes();
+        let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
+        let peers = load_peers(FIVE_NODE_EXAMPLE).await.unwrap();
+        let _raft_tasks = tokio::spawn(build_raft_cluster(tx_raft, peers.clone()));
+
+        let rafts = wait_until_rafts_ready(None, rx_raft, 5).await;
+
+        let all_rafts = gather_rafts_when_leader_elected(&rafts).await;
+
+        let leaders = all_rafts.get(&StateRole::Leader).unwrap();
+        let followers = all_rafts.get(&StateRole::Follower).unwrap();
+        let candidates = all_rafts.get(&StateRole::Candidate).unwrap();
+        let precandidates = all_rafts.get(&StateRole::PreCandidate).unwrap();
+
+        assert_eq!(1, leaders.len());
+        assert_eq!(4, followers.len());
+        assert_eq!(0, candidates.len());
+        assert_eq!(0, precandidates.len());
+
+        std::process::exit(0);
+    }
 }

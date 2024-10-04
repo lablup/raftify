@@ -42,6 +42,8 @@ pub async fn wait_until_rafts_ready(
             .hard_state()
             .unwrap()
             .get_term();
+
+        // Wait until the cluster is initialized, so term is greater than or equal to 1.
         if term >= 1 {
             rafts.insert(node_id, raft);
         }
