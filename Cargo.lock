@@ -963,7 +963,7 @@ dependencies = [
 
 [[package]]
 name = "example-harness"
-version = "0.1.80"
+version = "0.1.81"
 dependencies = [
  "raftify",
 ]
@@ -1169,7 +1169,7 @@ dependencies = [
 
 [[package]]
 name = "harness"
-version = "0.1.80"
+version = "0.1.81"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1644,7 +1644,7 @@ checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 
 [[package]]
 name = "memstore-dynamic-members"
-version = "0.1.80"
+version = "0.1.81"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1668,7 +1668,7 @@ dependencies = [
 
 [[package]]
 name = "memstore-example-harness"
-version = "0.1.80"
+version = "0.1.81"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1685,7 +1685,7 @@ dependencies = [
 
 [[package]]
 name = "memstore-static-members"
-version = "0.1.80"
+version = "0.1.81"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -2182,7 +2182,7 @@ dependencies = [
 
 [[package]]
 name = "raftify"
-version = "0.1.80"
+version = "0.1.81"
 dependencies = [
  "async-trait",
  "bincode",
@@ -2210,9 +2210,9 @@ dependencies = [
 
 [[package]]
 name = "raftify_cli"
-version = "0.1.80"
+version = "0.1.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d90e7b2a6ada58910273956addaad5100d76a3e888f55e3831d3d20bd8f3cb40"
+checksum = "f088629dbcf6bdb88eba2f43d79acce10fdc571b270596229d8d6195c0cad9e9"
 dependencies = [
  "built",
  "clap 4.5.19",

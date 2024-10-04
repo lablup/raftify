@@ -26,8 +26,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.40", features = ["full"] }
 color-backtrace = "0.6.1"
-raftify = { version = "0.1.80" }
-raftify_cli = { version = "0.1.80" }
+raftify = { version = "0.1.81" }
+raftify_cli = { version = "0.1.81" }
 
 [features]
 default = ["heed_storage"]
