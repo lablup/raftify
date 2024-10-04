@@ -236,6 +236,7 @@ impl RocksDBStorageCore {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn set_hard_state_commit(&mut self, commit: u64) -> Result<()> {
         let mut hard_state = self.hard_state()?;
         hard_state.set_commit(commit);
@@ -377,8 +378,7 @@ impl RocksDBStorageCore {
             }
         }
 
-        let max_size_option = max_size.into();
-        limit_size(&mut entries, max_size_option);
+        limit_size(&mut entries, max_size);
 
         Ok(entries)
     }
@@ -397,7 +397,7 @@ impl RocksDBStorageCore {
         if let Some(value) = self.db.get_cf(cf_handle, index).unwrap() {
             match Entry::decode(&*value) {
                 Ok(entry) => Ok(entry.term),
-                Err(e) => Err(crate::raft::Error::Store(
+                Err(_e) => Err(crate::raft::Error::Store(
                     crate::raft::StorageError::Unavailable,
                 )),
             }

@@ -700,8 +700,7 @@ impl<
             if let Err(e) = client.send_message(message).await {
                 ok = Err(SendMessageError::TransmissionError(format!(
                     "(to node {}). Error: {}",
-                    node_id,
-                    e.to_string()
+                    node_id, e
                 )));
             }
         }
