@@ -5,7 +5,7 @@ use crate::Peers;
 
 use super::{Config, TlsConfig};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct ConfigBuilder {
     pub(crate) config: Config,
     global_client_tls_config: Option<TlsConfig>,

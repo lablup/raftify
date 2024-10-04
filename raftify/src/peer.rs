@@ -11,7 +11,7 @@ pub struct Peer {
     pub addr: SocketAddr,
     pub initial_role: InitialRole,
     pub client_tls_config: Option<TlsConfig>,
-    #[serde(skip_serializing, skip_deserializing)]
+    #[serde(skip)]
     pub client: Option<RaftServiceClient<Channel>>,
 }
 
