@@ -5,7 +5,7 @@ services:
       context: ../../../
       dockerfile: ./Dockerfile
     container_name: node1
-    command: ["./target/debug/memstore-dynamic-members", "--raft-addr=node1:60061", "--web-server=0.0.0.0:8001"]
+    command: ["./memstore-dynamic-members", "--raft-addr=node1:60061", "--web-server=0.0.0.0:8001"]
     ports:
       - "8001:8001"
     expose:
@@ -16,7 +16,7 @@ services:
       context: ../../../
       dockerfile: ./Dockerfile
     container_name: node2
-    command: ["./target/debug/memstore-dynamic-members", "--raft-addr=node2:60062", "--web-server=0.0.0.0:8002", "--peer-addr=node1:60061"]
+    command: ["./memstore-dynamic-members", "--raft-addr=node2:60062", "--web-server=0.0.0.0:8002", "--peer-addr=node1:60061"]
     ports:
       - "8002:8002"
     expose:
@@ -29,7 +29,7 @@ services:
       context: ../../../
       dockerfile: ./Dockerfile
     container_name: node3
-    command: ["./target/debug/memstore-dynamic-members", "--raft-addr=node3:60063", "--web-server=0.0.0.0:8003", "--peer-addr=node1:60061"]
+    command: ["./memstore-dynamic-members", "--raft-addr=node3:60063", "--web-server=0.0.0.0:8003", "--peer-addr=node1:60061"]
     ports:
       - "8003:8003"
     expose:
