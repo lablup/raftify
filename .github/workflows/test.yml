@@ -11,6 +11,34 @@ permissions:
   contents: read
 
 jobs:
+  test-lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Run Rust code lint
+      run: cargo clippy --manifest-path=raftify/Cargo.toml -- -D warnings
+
+  test-formatting:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Run Rust code fomatter
+      run: cargo fmt --check
+
   test-linux:
     runs-on: ubuntu-latest
     steps:
@@ -47,14 +75,6 @@ jobs:
         pip3 install -r requirements.txt
         make test
         cd ../../
-
-    - name: Run Rust code fomatter
-      run: cargo fmt --check
-
-    - name: Lint Rust codes
-      run: |
-        cargo clippy --manifest-path=raftify/Cargo.toml -- -D warnings
-
 
   test-windows:
     runs-on: windows-latest
