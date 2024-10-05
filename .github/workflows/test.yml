@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  test-linux:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -26,7 +26,7 @@ jobs:
         toolchain: stable
         override: true
 
-    - name: Build and Check Rust unit tests and harness tests all pass
+    - name: Build and Check Rust unit tests and integration tests all pass
       run: |
         git submodule update --init
         make build
@@ -38,7 +38,7 @@ jobs:
       with:
         python-version: "3.11.4"
 
-    - name: Build and Check Python harness tests all pass
+    - name: Build and Check Python integration tests all pass
       run: |
         cd ./binding/python
         pip3 install -r requirements.txt
@@ -48,6 +48,20 @@ jobs:
         make test
         cd ../../
 
-    - name: Lint Rust codes
-      run: |
-        cargo clippy
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies on Windows
+        run: |
+          choco install protoc
+          rustup install stable
+          rustup default stable
+
+      - name: Build and Check Rust unit tests and integration tests all pass on Windows
+        run: |
+          git submodule update --init
+          make build
+          make unit-test
+          make integration-test

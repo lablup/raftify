@@ -18,14 +18,14 @@ pub fn build_config(node_id: u64, initial_peers: Option<Peers>) -> Config {
         .unwrap()
         .join("memstore/common_raftnode_config.toml");
 
-    let config_builder = ConfigBuilder::from_config(
+    #[allow(unused_mut)]
+    let mut config_builder = ConfigBuilder::from_config(
         load_configs(path.to_str().unwrap()).expect("Failed to load common config"),
     )
     .log_dir(storage_pth.clone())
     .compacted_log_dir(storage_pth)
     .set_node_id(node_id);
 
-    #[allow(unused_mut)]
     #[cfg(feature = "tls")]
     {
         let client_tls_config = TlsConfig {
