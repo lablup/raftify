@@ -48,6 +48,14 @@ jobs:
         make test
         cd ../../
 
+    - name: Run Rust code fomatter
+      run: cargo fmt --check
+
+    - name: Lint Rust codes
+      run: |
+        cargo clippy
+
+
   test-windows:
     runs-on: windows-latest
     steps:
