@@ -23,7 +23,9 @@ jobs:
         override: true
 
     - name: Run Rust code lint
-      run: cargo clippy --manifest-path=raftify/Cargo.toml -- -D warnings
+      run: |
+        git submodule update --init
+        cargo clippy --manifest-path=raftify/Cargo.toml -- -D warnings
 
   test-formatting:
     runs-on: ubuntu-latest
@@ -37,7 +39,9 @@ jobs:
         override: true
 
     - name: Run Rust code fomatter
-      run: cargo fmt --check
+      run: |
+        git submodule update --init
+        cargo fmt --check
 
   test-linux:
     runs-on: ubuntu-latest
