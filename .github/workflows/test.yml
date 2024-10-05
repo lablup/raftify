@@ -26,6 +26,14 @@ jobs:
         toolchain: stable
         override: true
 
+    - name: Build Test for feature
+      run: |
+        git submodule update --init
+        cargo build --features "heed_storage"
+        cargo build --features "heed_storage, tls"
+        cargo build --features "rocksdb_storage, tls"
+        cargo build --features "inmemory_storage, tls"
+
     - name: Build and Check Rust unit tests and harness tests all pass
       run: |
         git submodule update --init
