@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use actix_web::{get, put, web, HttpResponse, Responder};
+use actix_web::{get, post, put, web, HttpResponse, Responder};
 use raftify::{raft::Storage, AbstractLogEntry, StableStorage};
 use serde_json::Value;
 
@@ -39,7 +39,7 @@ async fn leader(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     format!("{:?}", leader_id)
 }
 
-#[get("/leave")]
+#[post("/leave")]
 async fn leave(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
     raft.1.leave().await.unwrap();
@@ -61,7 +61,7 @@ async fn peers(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     format!("{:?}", peers)
 }
 
-#[get("/snapshot")]
+#[post("/snapshot")]
 async fn snapshot(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     #[cfg(feature = "inmemory_storage")]
     {
@@ -95,14 +95,14 @@ async fn snapshot(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     }
 }
 
-#[get("/leave_joint")]
+#[post("/leave_joint")]
 async fn leave_joint(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
     raft.1.leave_joint().await;
     "OK".to_string()
 }
 
-#[get("/transfer_leader/{id}")]
+#[post("/transfer_leader/{id}")]
 async fn transfer_leader(
     data: web::Data<(HashStore, Raft)>,
     path: web::Path<u64>,
@@ -113,14 +113,14 @@ async fn transfer_leader(
     "OK".to_string()
 }
 
-#[get("/campaign")]
+#[post("/campaign")]
 async fn campaign(data: web::Data<(HashStore, Raft)>) -> impl Responder {
     let raft = data.clone();
     raft.1.campaign().await.unwrap();
     "OK".to_string()
 }
 
-#[get("/demote/{term}/{leader_id}")]
+#[post("/demote/{term}/{leader_id}")]
 async fn demote(data: web::Data<(HashStore, Raft)>, path: web::Path<(u64, u64)>) -> impl Responder {
     let raft = data.clone();
     let (term, leader_id) = path.into_inner();
