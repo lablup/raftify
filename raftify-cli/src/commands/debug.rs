@@ -1,11 +1,12 @@
 use core::panic;
+use prettytable::*;
 use serde_json::Value;
 use std::{collections::HashMap, fs, path::Path, sync::Arc};
 
 use raftify::{
     create_client,
     raft::{
-        formatter::{format_entry, format_snapshot},
+        formatter::{format_entry, format_snapshot, CUSTOM_FORMATTER},
         logger::Slogger,
         Storage,
     },
@@ -42,9 +43,22 @@ pub fn debug_persisted<LogStorage: StableStorage>(path: &str, logger: slog::Logg
     }
 
     println!("---- Persisted entries ----");
+    let mut table = Table::new();
+    let formatter = CUSTOM_FORMATTER.read().unwrap();
+
+    table.add_row(row!["index", "type", "context", "data", "term"]);
+
     for entry in entries.iter() {
         println!("Key: {}, {:?}", entry.get_index(), format_entry(entry));
+        table.add_row(row![
+            entry.get_index(),
+            format!("{:?}", entry.get_entry_type()).replace("Entry", ""),
+            formatter.format_entry_context(&entry.context.clone().into()),
+            formatter.format_entry_data(&entry.data.clone().into()),
+            entry.get_term()
+        ]);
     }
+    table.printstd();
 
     println!();
 
