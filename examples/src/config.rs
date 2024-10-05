@@ -18,6 +18,7 @@ pub fn build_config(node_id: u64, initial_peers: Option<Peers>) -> Config {
         .unwrap()
         .join("memstore/common_raftnode_config.toml");
 
+    #[allow(unused_mut)]
     let mut config_builder = ConfigBuilder::from_config(
         load_configs(path.to_str().unwrap()).expect("Failed to load common config"),
     )

@@ -29,7 +29,7 @@ toml = "0.8.19"
 color-backtrace = "0.6.1"
 
 [features]
-default = ["heed_storage"]
+default = []
 inmemory_storage = []
 heed_storage = []
 rocksdb_storage = []

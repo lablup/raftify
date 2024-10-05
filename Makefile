@@ -1,5 +1,5 @@
 build:
-	cargo build --workspace
+	cargo build --workspace --features "heed_storage, tls"
 
 clean:
 	rm -rf ./logs/node-*
