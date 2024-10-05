@@ -16,7 +16,5 @@ WORKDIR /raftify
 
 COPY --from=builder /raftify/target/debug/memstore-dynamic-members .
 COPY --from=builder /raftify/target/debug/memstore-static-members .
-COPY --from=builder /raftify/examples .
+COPY --from=builder /raftify/examples /raftify/examples
 COPY --from=builder /raftify/misc/generate-static-cluster-config.sh .
-
-CMD ["ls"]
