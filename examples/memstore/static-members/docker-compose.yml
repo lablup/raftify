@@ -8,8 +8,8 @@ services:
     entrypoint: ["/bin/sh","-c"]
     command:
       - |
-        ./misc/generate-static-cluster-config.sh node1 node2 node3 > ./examples/memstore/static-members/cluster_config.toml
-        ./target/debug/memstore-static-members --raft-addr=node1:60061 --web-server=0.0.0.0:8001
+        ./generate-static-cluster-config.sh node1 node2 node3 > ./examples/memstore/static-members/cluster_config.toml
+        ./memstore-static-members --raft-addr=node1:60061 --web-server=0.0.0.0:8001
     ports:
       - "8001:8001"
     expose:
@@ -23,8 +23,8 @@ services:
     entrypoint: ["/bin/sh","-c"]
     command:
       - |
-        ./misc/generate-static-cluster-config.sh node1 node2 node3 > ./examples/memstore/static-members/cluster_config.toml
-        ./target/debug/memstore-static-members --raft-addr=node2:60062 --web-server=0.0.0.0:8002
+        ./generate-static-cluster-config.sh node1 node2 node3 > ./examples/memstore/static-members/cluster_config.toml
+        ./memstore-static-members --raft-addr=node2:60062 --web-server=0.0.0.0:8002
     ports:
       - "8002:8002"
     expose:
@@ -38,8 +38,8 @@ services:
     entrypoint: ["/bin/sh","-c"]
     command:
       - |
-        ./misc/generate-static-cluster-config.sh node1 node2 node3 > ./examples/memstore/static-members/cluster_config.toml
-        ./target/debug/memstore-static-members --raft-addr=node3:60063 --web-server=0.0.0.0:8003
+        ./generate-static-cluster-config.sh node1 node2 node3 > ./examples/memstore/static-members/cluster_config.toml
+        ./memstore-static-members --raft-addr=node3:60063 --web-server=0.0.0.0:8003
     ports:
       - "8003:8003"
     expose:
