@@ -53,7 +53,7 @@ jobs:
 
     - name: Lint Rust codes
       run: |
-        cargo clippy
+        cargo clippy --manifest-path=raftify/Cargo.toml -- -D warnings
 
 
   test-windows:
