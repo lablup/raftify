@@ -4,7 +4,7 @@ FROM rust:latest AS builder
 WORKDIR /raftify
 
 COPY . .
-RUN apt-get update && apt-get install -y protobuf-compiler
+RUN apt-get update && apt-get install -y protobuf-compiler && apt-get install -y llvm clang
 RUN cargo clean
 RUN cargo build --workspace
 
@@ -17,4 +17,6 @@ WORKDIR /raftify
 COPY --from=builder /raftify/target/debug/memstore-dynamic-members .
 COPY --from=builder /raftify/target/debug/memstore-static-members .
 COPY --from=builder /raftify/examples .
-COPY --from=builder /misc/generate-static-cluster-config.sh .
+COPY --from=builder /raftify/misc/generate-static-cluster-config.sh .
+
+CMD ["ls"]
