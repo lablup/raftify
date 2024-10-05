@@ -67,7 +67,8 @@ jobs:
         run: |
           git submodule update --init
           make build
-          make test
+          make unit-test
+          make integration-test
 
       - name: Set up Python on Windows
         uses: actions/setup-python@v3
