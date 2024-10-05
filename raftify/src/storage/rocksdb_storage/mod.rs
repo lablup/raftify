@@ -30,20 +30,16 @@ pub struct RocksDBStorageCore {
 
 impl RocksDBStorage {
     pub fn create(log_dir_path: &str, logger: Arc<dyn Logger>) -> Result<Self> {
+        logger.trace("Used RocksDBStorage");
         Ok(Self(Arc::new(RwLock::new(RocksDBStorageCore::create(
             Path::new(log_dir_path).to_path_buf(),
-            // config,
             logger,
         )?))))
     }
 
     pub fn open_readonly(log_dir_path: &str, logger: Arc<dyn Logger>) -> Result<Self> {
         Ok(Self(Arc::new(RwLock::new(
-            RocksDBStorageCore::open_readonly(
-                Path::new(log_dir_path).to_path_buf(),
-                // config,
-                logger,
-            )?,
+            RocksDBStorageCore::open_readonly(Path::new(log_dir_path).to_path_buf(), logger)?,
         ))))
     }
 

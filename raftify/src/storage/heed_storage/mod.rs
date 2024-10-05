@@ -29,6 +29,7 @@ pub struct HeedStorage(Arc<RwLock<HeedStorageCore>>);
 
 impl HeedStorage {
     pub fn create(log_dir_path: &str, config: &Config, logger: Arc<dyn Logger>) -> Result<Self> {
+        logger.trace("Used HeedStorage");
         Ok(Self(Arc::new(RwLock::new(HeedStorageCore::create(
             Path::new(log_dir_path).to_path_buf(),
             config,
