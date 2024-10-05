@@ -1,4 +1,5 @@
 use pyo3::{prelude::*, types::PyString};
+use pyo3_stub_gen::{define_stub_info_gatherer, derive::*};
 use raftify::raft::{default_logger, logger::Logger};
 use slog::{crit, debug, error, info, o, trace, warn, Logger as Slogger};
 use slog_async::OverflowStrategy;
@@ -32,6 +33,7 @@ impl From<PySeverity> for Severity {
     }
 }
 
+#[gen_stub_pyclass]
 #[pyclass(name = "OverflowStrategy")]
 pub struct PyOverflowStrategy(pub OverflowStrategy);
 
@@ -46,6 +48,7 @@ impl From<OverflowStrategy> for PyOverflowStrategy {
     }
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl PyOverflowStrategy {
     pub fn __hash__(&self) -> u64 {
@@ -77,6 +80,7 @@ impl PyOverflowStrategy {
     }
 }
 
+#[gen_stub_pyclass]
 #[derive(Clone, Debug)]
 #[pyclass(name = "Slogger")]
 pub struct PySlogger {
@@ -109,6 +113,7 @@ impl Logger for PySlogger {
     }
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl PySlogger {
     #[new]

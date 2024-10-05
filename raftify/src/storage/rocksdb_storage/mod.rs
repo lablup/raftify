@@ -38,11 +38,13 @@ impl RocksDBStorage {
     }
 
     pub fn open_readonly(log_dir_path: &str, logger: Arc<dyn Logger>) -> Result<Self> {
-        Ok(Self(Arc::new(RwLock::new(RocksDBStorageCore::open_readonly(
-            Path::new(log_dir_path).to_path_buf(),
-            // config,
-            logger,
-        )?))))
+        Ok(Self(Arc::new(RwLock::new(
+            RocksDBStorageCore::open_readonly(
+                Path::new(log_dir_path).to_path_buf(),
+                // config,
+                logger,
+            )?,
+        ))))
     }
 
     fn wl(&mut self) -> RwLockWriteGuard<RocksDBStorageCore> {
@@ -190,7 +192,8 @@ impl RocksDBStorageCore {
             ColumnFamilyDescriptor::new(METADATA_CF_KEY, cf_opts.clone()),
         ];
 
-        let db = RocksDB::open_cf_descriptors_read_only(&db_opts, path, cf_descriptors, false).unwrap();
+        let db =
+            RocksDB::open_cf_descriptors_read_only(&db_opts, path, cf_descriptors, false).unwrap();
         Ok(RocksDBStorageCore { db, logger })
     }
 
