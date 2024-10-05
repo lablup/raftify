@@ -4,7 +4,7 @@ FROM rust:latest AS builder
 WORKDIR /raftify
 
 COPY . .
-RUN apt-get update && apt-get install -y protobuf-compiler && apt-get install -y llvm clang
+RUN apt-get update && apt-get install -y protobuf-compiler && apt-get install -y llvm clang libclang-dev
 RUN cargo clean
 RUN cargo build --workspace
 
