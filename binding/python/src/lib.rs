@@ -2,6 +2,7 @@
 use ::raftify::raft::formatter::set_custom_formatter;
 use bindings::formatter::PythonFormatter;
 use pyo3::prelude::*;
+use pyo3_stub_gen::define_stub_info_gatherer;
 
 mod bindings;
 
@@ -102,3 +103,5 @@ fn raftify(py: Python, m: &PyModule) -> PyResult<()> {
 
     Ok(())
 }
+
+define_stub_info_gatherer!(stub_info);
