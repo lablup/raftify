@@ -37,6 +37,14 @@ impl RocksDBStorage {
         )?))))
     }
 
+    pub fn open_readonly(log_dir_path: &str, logger: Arc<dyn Logger>) -> Result<Self> {
+        Ok(Self(Arc::new(RwLock::new(RocksDBStorageCore::open_readonly(
+            Path::new(log_dir_path).to_path_buf(),
+            // config,
+            logger,
+        )?))))
+    }
+
     fn wl(&mut self) -> RwLockWriteGuard<RocksDBStorageCore> {
         self.0.write()
     }
@@ -168,6 +176,21 @@ impl RocksDBStorageCore {
         ];
 
         let db = RocksDB::open_cf_descriptors(&db_opts, path, cf_descriptors).unwrap();
+        Ok(RocksDBStorageCore { db, logger })
+    }
+
+    pub fn open_readonly(path: PathBuf, logger: Arc<dyn Logger>) -> Result<Self> {
+        let mut db_opts = Options::default();
+        db_opts.create_if_missing(true);
+        db_opts.create_missing_column_families(true);
+
+        let cf_opts = Options::default();
+        let cf_descriptors = vec![
+            ColumnFamilyDescriptor::new(LOG_ENTRY_CF_KEY, cf_opts.clone()),
+            ColumnFamilyDescriptor::new(METADATA_CF_KEY, cf_opts.clone()),
+        ];
+
+        let db = RocksDB::open_cf_descriptors_read_only(&db_opts, path, cf_descriptors, false).unwrap();
         Ok(RocksDBStorageCore { db, logger })
     }
 

@@ -81,8 +81,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         .expect("Failed to create storage");
 
     #[cfg(feature = "rocksdb_storage")]
-    let log_storage =
-        RocksDBStorage::create(&cfg.log_dir, logger.clone()).expect("Failed to create storage");
+    let log_storage = RocksDBStorage::create(cfg.get_log_dir(), logger.clone())
+        .expect("Failed to create storage");
 
     let raft = Raft::bootstrap(
         node_id,

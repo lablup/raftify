@@ -2211,8 +2211,6 @@ dependencies = [
 [[package]]
 name = "raftify_cli"
 version = "0.1.81"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f088629dbcf6bdb88eba2f43d79acce10fdc571b270596229d8d6195c0cad9e9"
 dependencies = [
  "built",
  "clap 4.5.19",
