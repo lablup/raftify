@@ -1,4 +1,4 @@
-name: Integration Test
+name: CI
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  test-lint:
+  check-lint:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -31,7 +31,7 @@ jobs:
         git submodule update --init
         cargo clippy --manifest-path=raftify/Cargo.toml -- -D warnings
 
-  test-formatting:
+  check-fmt:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
