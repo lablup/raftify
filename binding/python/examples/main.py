@@ -1,6 +1,6 @@
 import argparse
 import asyncio
-import uvloop
+import sys
 import logging
 from contextlib import suppress
 from pathlib import Path
@@ -100,7 +100,10 @@ def setup_logger() -> logging.Logger:
 
 
 async def main():
-    uvloop.install()
+    if sys.platform != "win32":
+        import uvloop
+        uvloop.install()
+
     register_custom_deserializer()
     parser = argparse.ArgumentParser()
     parser.add_argument("--raft-addr", default=None)
