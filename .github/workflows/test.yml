@@ -66,8 +66,8 @@ jobs:
       - name: Build and Check Rust unit tests and harness tests all pass on Windows
         run: |
           git submodule update --init
-          cargo build
-          cargo test --all
+          make build
+          make test
 
       - name: Set up Python on Windows
         uses: actions/setup-python@v3
