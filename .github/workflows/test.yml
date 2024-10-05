@@ -1,4 +1,4 @@
-name: Integration Test
+name: CI
 
 on:
   push:
@@ -11,6 +11,42 @@ permissions:
   contents: read
 
 jobs:
+  check-lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Install protobuf compiler
+      run: |
+          sudo apt install -y protobuf-compiler
+
+    - name: Run Rust code lint
+      run: |
+        git submodule update --init
+        cargo clippy --manifest-path=raftify/Cargo.toml -- -D warnings
+
+  check-fmt:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Run Rust code fomatter
+      run: |
+        git submodule update --init
+        cargo fmt --check
+
   test-linux:
     runs-on: ubuntu-latest
     steps:
