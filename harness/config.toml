@@ -1,0 +1,11 @@
+[node]
+id = 1
+
+[raft]
+election_tick = 10
+heartbeat_tick = 3
+omit_heartbeat_log = true
+
+[storage]
+log_dir = "./logs"
+compacted_log_size_threshold = 1073741824

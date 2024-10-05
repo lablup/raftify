@@ -1,5 +1,5 @@
 build:
-	cargo build --features "heed_storage, tls"
+	cargo build
 
 # Test on CI
 test:
