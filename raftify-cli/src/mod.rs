@@ -34,11 +34,17 @@ enum DebugSubcommands {
     Persisted {
         /// The log directory path
         path: String,
+        /// Print the output in a table format
+        #[arg(long, default_value_t = false)]
+        table: bool,
     },
     /// List persisted log entries and metadata for all local nodes
     PersistedAll {
         /// The log directory path
         path: String,
+        /// Print the output in a table format
+        #[arg(long, default_value_t = false)]
+        table: bool,
     },
     /// List all log entries
     Entries {
@@ -50,14 +56,6 @@ enum DebugSubcommands {
         /// The address of the RaftNode
         address: String,
     },
-}
-
-#[derive(Args)]
-struct Dump {
-    /// The log directory path
-    path: String,
-    /// The peers to dump
-    peers: String,
 }
 
 pub async fn cli_handler<
@@ -76,11 +74,11 @@ pub async fn cli_handler<
 
     match app.command {
         Commands::Debug(x) => match x {
-            DebugSubcommands::Persisted { path } => {
-                debug_persisted::<LogStorage>(path.as_str(), logger.clone())?;
+            DebugSubcommands::Persisted { path, table } => {
+                debug_persisted::<LogStorage>(path.as_str(), logger.clone(), table)?;
             }
-            DebugSubcommands::PersistedAll { path } => {
-                debug_persisted_all::<LogStorage>(path.as_str(), logger.clone())?;
+            DebugSubcommands::PersistedAll { path, table } => {
+                debug_persisted_all::<LogStorage>(path.as_str(), logger.clone(), table)?;
             }
             DebugSubcommands::Entries { address } => {
                 debug_entries(address.as_str()).await?;
