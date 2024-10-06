@@ -1152,6 +1152,7 @@ impl<
                 tx_msg
                     .send(LocalResponseMsg::GetRawNode {
                         raw_node: Arc::new(Mutex::new(unsafe {
+                            #[allow(clippy::missing_transmute_annotations)]
                             std::mem::transmute(&self.raw_node)
                         })),
                     })
