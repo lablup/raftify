@@ -2,7 +2,7 @@ include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
 mod commands;
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use commands::debug::{debug_entries, debug_node, debug_persisted, debug_persisted_all};
 use std::fmt::Debug;
 

@@ -29,3 +29,6 @@ publish-rs:
 
 publish-py:
 	cd binding/python && make publish && cd ../../
+
+build-intergration-tester:
+	DOCKER_BUILDKIT=1 docker build -t raftify .

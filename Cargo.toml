@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "raftify",
     "harness",
+    "harness/integration-test-runner",
     "examples",
     "examples/memstore",
     "examples/memstore/dynamic-members",
@@ -11,6 +12,7 @@ members = [
 default-members = [
     "raftify",
     "harness",
+    "harness/integration-test-runner",
     "examples",
     "examples/memstore",
     "examples/memstore/dynamic-members",

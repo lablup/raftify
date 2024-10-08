@@ -1,20 +1,50 @@
-use raftify::raft::StateRole;
-use raftify::{Error, InitialRole, Peers, StableStorage};
+use raftify::{Error, InitialRole, Peers};
 use serde::Deserialize;
 use slog::{o, Drain};
 use slog_envlogger::LogBuilder;
-use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::path::Path;
+use std::pin::Pin;
 use std::process::Command;
 use std::str;
 use std::str::FromStr;
+use tokio::io::{AsyncBufRead, AsyncBufReadExt};
 use toml;
 
 use crate::constant::RAFT_PORTS;
-use crate::{constant::ZERO_NODE_EXAMPLE, raft::Raft};
+use crate::constant::ZERO_NODE_EXAMPLE;
+
+pub async fn read_stdout(stdout: Pin<Box<dyn AsyncBufRead + Send>>) {
+    let mut reader = stdout;
+    let mut buffer = String::new();
+
+    while let Ok(bytes_read) = reader.read_line(&mut buffer).await {
+        if bytes_read == 0 {
+            break;
+        }
+        print!("{}", buffer);
+        buffer.clear();
+    }
+}
+
+pub fn get_exit_code(container_id: &str) -> Result<i32, Box<dyn std::error::Error>> {
+    let output = Command::new("docker")
+        .arg("inspect")
+        .arg(container_id)
+        .arg("--format={{.State.ExitCode}}")
+        .output()?;
+
+    if !output.status.success() {
+        return Err("Failed to execute docker inspect!".into());
+    }
+
+    let exit_code_str = str::from_utf8(&output.stdout)?.trim();
+    let exit_code: i32 = exit_code_str.parse()?;
+
+    Ok(exit_code)
+}
 
 pub fn build_logger() -> slog::Logger {
     let decorator = slog_term::TermDecorator::new().build();
@@ -48,6 +78,10 @@ pub struct TomlRaftConfig {
 #[derive(Deserialize, Debug)]
 pub struct TomlInnerRaftConfig {
     pub peers: Vec<TomlRaftPeer>,
+}
+
+pub fn is_running_in_container() -> bool {
+    Path::new("/.dockerenv").exists()
 }
 
 pub async fn load_peers(example_filename: &str) -> Result<Peers, Box<dyn std::error::Error>> {
@@ -150,58 +184,6 @@ pub fn cleanup_storage(log_dir: &str) {
     fs::create_dir_all(storage_pth).expect("Failed to create storage directory");
 }
 
-/// Collects the IDs and roles of all Raft nodes during the latest term.
-/// This function continuously checks the nodes until a leader is elected or the term changes.
-/// It then returns a set containing each node's ID and its current role.
-///
-/// # Note
-///
-/// It may potentially hang if a leader does not emerge due to lack of quorum.
-/// ```
-pub async fn gather_rafts_when_leader_elected(
-    rafts: &HashMap<u64, Raft>,
-) -> HashMap<StateRole, HashSet<u64>> {
-    let mut result: HashMap<StateRole, HashSet<u64>> = HashMap::from([
-        (StateRole::Follower, HashSet::new()),
-        (StateRole::Candidate, HashSet::new()),
-        (StateRole::Leader, HashSet::new()),
-        (StateRole::PreCandidate, HashSet::new()),
-    ]);
-
-    let mut current_term = 1;
-    let mut leader_elected = false;
-
-    while !leader_elected {
-        for (id, raft) in rafts.iter() {
-            let (term, state_role) = (
-                raft.raft_node
-                    .storage()
-                    .await
-                    .unwrap()
-                    .hard_state()
-                    .unwrap()
-                    .get_term(),
-                unsafe { raft.get_raw_node().await.unwrap().lock().await.raft.state },
-            );
-
-            if current_term > term {
-                continue;
-            }
-            if current_term < term {
-                result.values_mut().for_each(|v| v.clear());
-                current_term = term;
-            }
-
-            result.get_mut(&state_role).unwrap().insert(*id);
-
-            if state_role == StateRole::Leader {
-                leader_elected = true;
-            }
-        }
-    }
-    result
-}
-
 pub fn kill_previous_raft_processes() {
     RAFT_PORTS.iter().for_each(|port| {
         kill_process_using_port(*port);
@@ -223,48 +205,4 @@ pub fn ensure_directory_exist(dir_pth: &str) -> Result<(), Error> {
         fs::create_dir_all(dir_pth)?;
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use raftify::{raft::StateRole, HeedStorage, Raft as Raft_};
-
-    use crate::{
-        state_machine::{HashStore, LogEntry},
-        utils::{
-            cleanup_storage, gather_rafts_when_leader_elected, kill_previous_raft_processes,
-            load_peers,
-        },
-    };
-
-    pub type Raft = Raft_<LogEntry, HeedStorage, HashStore>;
-
-    #[tokio::test]
-    async fn test_gather_rafts_when_leader_elected() {
-        use crate::constant::FIVE_NODE_EXAMPLE;
-        use crate::raft::{build_raft_cluster, wait_until_rafts_ready};
-        use std::sync::mpsc;
-
-        cleanup_storage("./logs");
-        kill_previous_raft_processes();
-        let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
-        let peers = load_peers(FIVE_NODE_EXAMPLE).await.unwrap();
-        let _raft_tasks = tokio::spawn(build_raft_cluster(tx_raft, peers.clone()));
-
-        let rafts = wait_until_rafts_ready(None, rx_raft, 5).await;
-
-        let all_rafts = gather_rafts_when_leader_elected(&rafts).await;
-
-        let leaders = all_rafts.get(&StateRole::Leader).unwrap();
-        let followers = all_rafts.get(&StateRole::Follower).unwrap();
-        let candidates = all_rafts.get(&StateRole::Candidate).unwrap();
-        let precandidates = all_rafts.get(&StateRole::PreCandidate).unwrap();
-
-        assert_eq!(1, leaders.len());
-        assert_eq!(4, followers.len());
-        assert_eq!(0, candidates.len());
-        assert_eq!(0, precandidates.len());
-
-        std::process::exit(0);
-    }
 }

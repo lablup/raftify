@@ -1,3 +1,4 @@
+use integration_test_runner::run_in_;
 use raftify::AbstractLogEntry;
 use std::{sync::mpsc, time::Duration};
 use tokio::time::sleep;
@@ -6,13 +7,14 @@ use harness::{
     constant::{RAFT_ADDRS, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, spawn_and_join_extra_node, wait_until_rafts_ready, Raft},
     state_machine::LogEntry,
-    utils::{cleanup_storage, kill_previous_raft_processes, load_peers},
+    utils::load_peers,
 };
 
-#[tokio::test]
+#[run_in_(container)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
 pub async fn test_data_replication() {
-    cleanup_storage("./logs");
-    kill_previous_raft_processes();
+    // cleanup_storage("./logs");
+    // kill_previous_raft_processes();
 
     let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
     let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
