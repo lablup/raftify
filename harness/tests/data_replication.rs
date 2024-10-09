@@ -6,13 +6,13 @@ use harness::{
     constant::{RAFT_PORTS, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, spawn_and_join_extra_node, wait_until_rafts_ready, Raft},
     state_machine::LogEntry,
-    test_environment::get_test_environment,
+    test_environment::prepare_test_environment,
     utils::load_peers,
 };
 
 #[tokio::test]
 pub async fn test_data_replication() {
-    let test_environment = get_test_environment(stringify!(test_data_replication));
+    let test_environment = prepare_test_environment(stringify!(test_data_replication));
 
     let peers = load_peers(&test_environment.loopback_address, THREE_NODE_EXAMPLE)
         .await

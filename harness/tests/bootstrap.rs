@@ -2,7 +2,7 @@ use harness::constant::RAFT_PORTS;
 use std::{process::exit, sync::mpsc, time::Duration};
 use tokio::time::sleep;
 
-use harness::test_environment::get_test_environment;
+use harness::test_environment::prepare_test_environment;
 use harness::{
     constant::{ONE_NODE_EXAMPLE, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, spawn_and_join_extra_node, wait_until_rafts_ready, Raft},
@@ -11,7 +11,7 @@ use harness::{
 
 #[tokio::test]
 pub async fn test_static_bootstrap() {
-    let test_environment = get_test_environment(stringify!(test_static_bootstrap));
+    let test_environment = prepare_test_environment(stringify!(test_static_bootstrap));
 
     let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
 
@@ -34,7 +34,7 @@ pub async fn test_static_bootstrap() {
 
 #[tokio::test]
 pub async fn test_dynamic_bootstrap() {
-    let test_environment = get_test_environment(stringify!(test_dynamic_bootstrap));
+    let test_environment = prepare_test_environment(stringify!(test_dynamic_bootstrap));
 
     let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
 

@@ -140,7 +140,7 @@ mod tests {
 
     use crate::{
         state_machine::{HashStore, LogEntry},
-        test_environment::get_test_environment,
+        test_environment::prepare_test_environment,
         utils::{gather_rafts_when_leader_elected, load_peers},
     };
 
@@ -153,7 +153,7 @@ mod tests {
         use std::sync::mpsc;
 
         let test_environment =
-            get_test_environment(stringify!(test_gather_rafts_when_leader_elected));
+            prepare_test_environment(stringify!(test_gather_rafts_when_leader_elected));
 
         let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
         let peers = load_peers(&test_environment.loopback_address, FIVE_NODE_EXAMPLE)

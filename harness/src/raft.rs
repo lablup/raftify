@@ -73,11 +73,9 @@ fn run_raft(
 
     let store = HashStore::new();
     let logger = build_file_logger(base_storage_path);
-    let storage_pth = get_storage_path(cfg.get_log_dir(), *node_id);
-    ensure_directory_exist(storage_pth.as_str())?;
 
     let storage = HeedStorage::create(
-        &storage_pth,
+        &cfg.get_log_dir(),
         &cfg,
         Arc::new(Slogger {
             slog: logger.clone(),

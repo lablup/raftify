@@ -8,7 +8,7 @@ use std::{
 };
 
 lazy_static! {
-    pub static ref COUNTER: AtomicUsize = AtomicUsize::new(1);
+    static ref IP_COUNTER: AtomicUsize = AtomicUsize::new(1);
 }
 
 const COUNTER_FILE: &str = ".ip_counter";
@@ -21,23 +21,26 @@ pub struct TestEnvironment {
     pub base_storage_path: String,
 }
 
-pub fn get_test_environment(test_name: &str) -> TestEnvironment {
+pub fn prepare_test_environment(test_name: &str) -> TestEnvironment {
     let test_environment_path = format!("logs/{}", test_name);
     let test_environment_path = Path::new(&test_environment_path);
 
     // Remove if the previous test environment exists
     if test_environment_path.exists() {
         fs::remove_dir_all(test_environment_path)
-            .expect("Failed to remove previous logs directory");
+            .expect("Failed to remove previous test environment");
     }
 
     // Caution: Storing ip_counter in the tempdir result in different test binaries using duplicate loopback IP addresses,
     // so we store the ip_counter file in the harness/logs directory.
-    get_test_environment_with_counter_file(test_name, COUNTER_FILE)
+    prepare_test_environment_with_counter_file(test_name, COUNTER_FILE)
 }
 
 // Function with adjustable counter file path for testing
-fn get_test_environment_with_counter_file(test_name: &str, counter_file: &str) -> TestEnvironment {
+fn prepare_test_environment_with_counter_file(
+    test_name: &str,
+    counter_file: &str,
+) -> TestEnvironment {
     let path = Path::new(counter_file);
 
     let mut file = OpenOptions::new()
@@ -123,11 +126,11 @@ mod tests {
         write!(file, "{}", MAX_COUNTER - 1).expect("Failed to write to counter file");
 
         // First call: should return last IP address 127.255.255.254
-        let env = get_test_environment_with_counter_file(test_name, counter_file_str);
+        let env = prepare_test_environment_with_counter_file(test_name, counter_file_str);
         assert_eq!(env.loopback_address, "127.255.255.254");
 
         // Second call: counter wraps around, should return first IP address 127.0.0.1
-        let env = get_test_environment_with_counter_file(test_name, counter_file_str);
+        let env = prepare_test_environment_with_counter_file(test_name, counter_file_str);
         assert_eq!(env.loopback_address, "127.0.0.1");
     }
 
@@ -140,16 +143,16 @@ mod tests {
         let counter_file_str = counter_file_path.to_str().unwrap();
 
         // First allocation
-        let env = get_test_environment_with_counter_file(test_name, counter_file_str);
+        let env = prepare_test_environment_with_counter_file(test_name, counter_file_str);
         assert_eq!(env.loopback_address, "127.0.0.1");
         assert_eq!(env.base_storage_path, "./logs/test_basic");
 
         // Second allocation
-        let env = get_test_environment_with_counter_file(test_name, counter_file_str);
+        let env = prepare_test_environment_with_counter_file(test_name, counter_file_str);
         assert_eq!(env.loopback_address, "127.0.0.2");
 
         // Third allocation
-        let env = get_test_environment_with_counter_file(test_name, counter_file_str);
+        let env = prepare_test_environment_with_counter_file(test_name, counter_file_str);
         assert_eq!(env.loopback_address, "127.0.0.3");
     }
 
@@ -167,7 +170,7 @@ mod tests {
         write!(file, "{}", counter_value).expect("Failed to write to counter file");
 
         // First call: should return IP address 127.1.1.1
-        let env = get_test_environment_with_counter_file(test_name, counter_file_str);
+        let env = prepare_test_environment_with_counter_file(test_name, counter_file_str);
         assert_eq!(env.loopback_address, "127.1.1.1");
     }
 
@@ -184,6 +187,6 @@ mod tests {
         let counter_file_str = counter_file_path.to_str().unwrap();
 
         // Function call should panic
-        get_test_environment_with_counter_file(test_name, counter_file_str);
+        prepare_test_environment_with_counter_file(test_name, counter_file_str);
     }
 }

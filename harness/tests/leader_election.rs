@@ -4,7 +4,7 @@ use std::{process::exit, sync::mpsc};
 use harness::{
     constant::{FIVE_NODE_EXAMPLE, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, wait_until_rafts_ready, Raft},
-    test_environment::{get_test_environment, TestEnvironment},
+    test_environment::{prepare_test_environment, TestEnvironment},
     utils::{gather_rafts_when_leader_elected, load_peers},
 };
 
@@ -94,7 +94,7 @@ async fn run_leader_election_test(
 #[tokio::test]
 pub async fn test_leader_election_in_five_node_cluster() {
     run_leader_election_test(
-        get_test_environment(stringify!(test_leader_election_in_five_node_cluster)),
+        prepare_test_environment(stringify!(test_leader_election_in_five_node_cluster)),
         FIVE_NODE_EXAMPLE,
         2,
     )
@@ -104,7 +104,7 @@ pub async fn test_leader_election_in_five_node_cluster() {
 #[tokio::test]
 pub async fn test_leader_election_in_three_node_cluster() {
     run_leader_election_test(
-        get_test_environment(stringify!(test_leader_election_in_three_node_cluster)),
+        prepare_test_environment(stringify!(test_leader_election_in_three_node_cluster)),
         THREE_NODE_EXAMPLE,
         1,
     )
