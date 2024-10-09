@@ -12,7 +12,7 @@ use tokio::task::JoinHandle;
 
 use crate::{
     config::build_config,
-    logger::get_logger,
+    logger::build_file_logger,
     state_machine::{HashStore, LogEntry},
     utils::{ensure_directory_exist, get_storage_path},
 };
@@ -72,7 +72,7 @@ fn run_raft(
     );
 
     let store = HashStore::new();
-    let logger = get_logger(base_storage_path);
+    let logger = build_file_logger(base_storage_path);
     let storage_pth = get_storage_path(cfg.get_log_dir(), *node_id);
     ensure_directory_exist(storage_pth.as_str())?;
 
@@ -110,7 +110,7 @@ pub async fn build_raft_cluster(
     base_storage_path: String,
     peers: Peers,
 ) -> Result<()> {
-    let logger = get_logger(&base_storage_path);
+    let logger = build_file_logger(&base_storage_path);
 
     set_custom_formatter(CustomFormatter::<LogEntry, HashStore>::new());
 
@@ -154,7 +154,7 @@ pub async fn spawn_extra_node(
     raft_addr: &str,
 ) -> Result<JoinHandle<Result<()>>> {
     let logger = Arc::new(Slogger {
-        slog: get_logger(base_storage_path),
+        slog: build_file_logger(base_storage_path),
     });
 
     let cfg = build_config(node_id, base_storage_path, None);
@@ -182,7 +182,7 @@ pub async fn spawn_and_join_extra_node(
     base_storage_path: String,
 ) -> Result<JoinHandle<Result<()>>> {
     let logger = Arc::new(Slogger {
-        slog: get_logger(&base_storage_path),
+        slog: build_file_logger(&base_storage_path),
     });
     let join_ticket = Raft::request_id(raft_addr.to_owned(), peer_addr.to_owned(), None)
         .await

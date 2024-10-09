@@ -1,5 +1,3 @@
-pub const CLUSTER_INFO_PATH: &str = "./fixtures";
-
 pub const RAFT_PORTS: [u16; 5] = [60061, 60062, 60063, 60064, 60065];
 
 pub const ZERO_NODE_EXAMPLE: &str = "0-node-example.toml";

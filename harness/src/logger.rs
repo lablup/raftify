@@ -5,8 +5,8 @@ use sloggers::{
     Build,
 };
 
-pub fn get_logger(basedir: &str) -> Logger {
-    FileLoggerBuilder::new(basedir.to_owned() + "/log")
+pub fn build_file_logger(basedir: &str) -> Logger {
+    FileLoggerBuilder::new(basedir.to_owned() + "/cluster_log.txt")
         .level(Severity::Trace)
         .source_location(SourceLocation::LocalFileAndLine)
         .build()

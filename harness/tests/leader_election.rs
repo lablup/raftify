@@ -4,7 +4,7 @@ use std::{process::exit, sync::mpsc};
 use harness::{
     constant::{FIVE_NODE_EXAMPLE, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, wait_until_rafts_ready, Raft},
-    test_enviorment_utils::{get_test_environment, TestEnvironment},
+    test_enviorment::{get_test_environment, TestEnvironment},
     utils::{gather_rafts_when_leader_elected, load_peers},
 };
 

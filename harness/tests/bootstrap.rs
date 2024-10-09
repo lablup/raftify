@@ -2,7 +2,7 @@ use harness::constant::RAFT_PORTS;
 use std::{process::exit, sync::mpsc, time::Duration};
 use tokio::time::sleep;
 
-use harness::test_enviorment_utils::get_test_environment;
+use harness::test_enviorment::get_test_environment;
 use harness::{
     constant::{ONE_NODE_EXAMPLE, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, spawn_and_join_extra_node, wait_until_rafts_ready, Raft},

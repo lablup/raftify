@@ -15,14 +15,7 @@ open-doc:
 	cargo doc --no-deps --open
 
 test:
-	make unit-test
-	make integration-test
-
-unit-test:
-	cd raftify && cargo test && cd ../
-
-integration-test:
-	cd harness && make test && cd ../
+	cargo nextest run
 
 publish-rs:
 	cargo publish -p raftify --allow-dirty --no-verify
