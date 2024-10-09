@@ -65,9 +65,9 @@ jobs:
     - name: Build and Check Rust unit tests and integration tests all pass
       run: |
         git submodule update --init
+        cargo install cargo-nextest
         make build
-        make unit-test
-        make integration-test
+        make test
 
     - name: Set up Python
       uses: actions/setup-python@v3
@@ -98,6 +98,6 @@ jobs:
       - name: Build and Check Rust unit tests and integration tests all pass on Windows
         run: |
           git submodule update --init
+          cargo install cargo-nextest
           make build
-          make unit-test
-          make integration-test
+          make test
