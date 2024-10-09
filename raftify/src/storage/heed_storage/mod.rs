@@ -610,7 +610,10 @@ mod test {
     }
 
     fn teardown(tempdir: String) {
-        fs::remove_dir_all(tempdir).expect("Failed to delete test directory");
+        #[cfg(not(target_os = "windows"))]
+        {
+            std::fs::remove_dir_all(tempdir).expect("Failed to delete test directory");
+        }
     }
 
     #[test]
