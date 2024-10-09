@@ -2,7 +2,7 @@ build:
 	cargo build --workspace
 
 clean:
-	rm -rf ./logs/node-*
+	rm -rf ./logs/node-* && rm -rf ./harness/logs && rm -rf ./harness/.ip_counter
 
 fmt:
 	cargo fmt

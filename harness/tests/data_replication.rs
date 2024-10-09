@@ -3,21 +3,27 @@ use std::{sync::mpsc, time::Duration};
 use tokio::time::sleep;
 
 use harness::{
-    constant::{RAFT_ADDRS, THREE_NODE_EXAMPLE},
+    constant::{RAFT_PORTS, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, spawn_and_join_extra_node, wait_until_rafts_ready, Raft},
     state_machine::LogEntry,
-    utils::{cleanup_storage, kill_previous_raft_processes, load_peers},
+    test_enviorment_utils::get_test_environment,
+    utils::load_peers,
 };
 
 #[tokio::test]
 pub async fn test_data_replication() {
-    cleanup_storage("./logs");
-    kill_previous_raft_processes();
+    let test_environment = get_test_environment(stringify!(test_data_replication));
 
-    let peers = load_peers(THREE_NODE_EXAMPLE).await.unwrap();
+    let peers = load_peers(&test_environment.loopback_address, THREE_NODE_EXAMPLE)
+        .await
+        .unwrap();
     let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
 
-    let _raft_tasks = tokio::spawn(build_raft_cluster(tx_raft, peers.clone()));
+    let _raft_tasks = tokio::spawn(build_raft_cluster(
+        tx_raft,
+        test_environment.base_storage_path.clone(),
+        peers.clone(),
+    ));
     sleep(Duration::from_secs(1)).await;
 
     let mut rafts = wait_until_rafts_ready(None, rx_raft, 3).await;
@@ -47,8 +53,9 @@ pub async fn test_data_replication() {
     let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
     tokio::spawn(spawn_and_join_extra_node(
         tx_raft,
-        "127.0.0.1:60064",
-        RAFT_ADDRS[0],
+        test_environment.loopback_address.clone() + ":60064",
+        test_environment.loopback_address.clone() + ":" + &RAFT_PORTS[0].to_string(),
+        test_environment.base_storage_path.clone(),
     ));
     sleep(Duration::from_secs(1)).await;
 

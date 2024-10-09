@@ -4,17 +4,17 @@ use std::{process::exit, sync::mpsc};
 use harness::{
     constant::{FIVE_NODE_EXAMPLE, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, wait_until_rafts_ready, Raft},
-    utils::{
-        cleanup_storage, gather_rafts_when_leader_elected, kill_previous_raft_processes, load_peers,
-    },
+    test_enviorment_utils::{get_test_environment, TestEnvironment},
+    utils::{gather_rafts_when_leader_elected, load_peers},
 };
 
 // Forcefully terminate the leader process as many times as the value of `election_iteration_cnt` and,
 // Check if the leader election is properly performed.
-async fn run_leader_election_test(example: &str, election_iteration_cnt: u64) {
-    cleanup_storage("./logs");
-    kill_previous_raft_processes();
-
+async fn run_leader_election_test(
+    test_environment: TestEnvironment,
+    example: &str,
+    election_iteration_cnt: u64,
+) {
     let mut raft_list: Vec<u64> = match example {
         FIVE_NODE_EXAMPLE => vec![1, 2, 3, 4, 5],
         THREE_NODE_EXAMPLE => vec![1, 2, 3],
@@ -22,8 +22,15 @@ async fn run_leader_election_test(example: &str, election_iteration_cnt: u64) {
     };
 
     let (tx_raft, rx_raft) = mpsc::channel::<(u64, Raft)>();
-    let peers = load_peers(example).await.unwrap();
-    let _raft_tasks = tokio::spawn(build_raft_cluster(tx_raft, peers.clone()));
+    let peers = load_peers(&test_environment.loopback_address, example)
+        .await
+        .unwrap();
+    let _raft_tasks: tokio::task::JoinHandle<Result<(), raftify::Error>> =
+        tokio::spawn(build_raft_cluster(
+            tx_raft,
+            test_environment.base_storage_path.clone(),
+            peers.clone(),
+        ));
 
     let mut rafts = wait_until_rafts_ready(None, rx_raft, raft_list.len()).await;
     let mut ex_term = 1;
@@ -86,10 +93,20 @@ async fn run_leader_election_test(example: &str, election_iteration_cnt: u64) {
 
 #[tokio::test]
 pub async fn test_leader_election_in_five_node_cluster() {
-    run_leader_election_test(FIVE_NODE_EXAMPLE, 2).await;
+    run_leader_election_test(
+        get_test_environment(stringify!(test_leader_election_in_five_node_cluster)),
+        FIVE_NODE_EXAMPLE,
+        2,
+    )
+    .await;
 }
 
 #[tokio::test]
 pub async fn test_leader_election_in_three_node_cluster() {
-    run_leader_election_test(THREE_NODE_EXAMPLE, 1).await;
+    run_leader_election_test(
+        get_test_environment(stringify!(test_leader_election_in_three_node_cluster)),
+        THREE_NODE_EXAMPLE,
+        1,
+    )
+    .await;
 }
