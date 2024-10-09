@@ -140,7 +140,7 @@ mod tests {
 
     use crate::{
         state_machine::{HashStore, LogEntry},
-        test_enviorment::get_test_environment,
+        test_environment::get_test_environment,
         utils::{gather_rafts_when_leader_elected, load_peers},
     };
 

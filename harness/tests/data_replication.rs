@@ -6,7 +6,7 @@ use harness::{
     constant::{RAFT_PORTS, THREE_NODE_EXAMPLE},
     raft::{build_raft_cluster, spawn_and_join_extra_node, wait_until_rafts_ready, Raft},
     state_machine::LogEntry,
-    test_enviorment::get_test_environment,
+    test_environment::get_test_environment,
     utils::load_peers,
 };
 
