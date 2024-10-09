@@ -31,6 +31,8 @@ pub fn get_test_environment(test_name: &str) -> TestEnvironment {
             .expect("Failed to remove previous logs directory");
     }
 
+    // Caution: Storing ip_counter in the tempdir result in different test binaries using duplicate loopback IP addresses,
+    // so we store the ip_counter file in the harness/logs directory.
     get_test_environment_with_counter_file(test_name, COUNTER_FILE)
 }
 
