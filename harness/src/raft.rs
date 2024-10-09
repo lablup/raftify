@@ -12,9 +12,9 @@ use tokio::task::JoinHandle;
 
 use crate::{
     config::build_config,
-    logger::get_logger,
+    logger::build_file_logger,
     state_machine::{HashStore, LogEntry},
-    utils::{build_logger, ensure_directory_exist, get_storage_path},
+    utils::{ensure_directory_exist, get_storage_path},
 };
 
 pub type Raft = Raft_<LogEntry, HeedStorage, HashStore>;
@@ -24,11 +24,9 @@ pub async fn wait_until_rafts_ready(
     rx_initialized_raft: mpsc::Receiver<(u64, Raft)>,
     size: usize,
 ) -> HashMap<u64, Raft> {
-    let logger = get_logger();
     let mut rafts = rafts.unwrap_or_default();
 
     loop {
-        slog::info!(logger, "Waiting for all raft instances to be ready...");
         tokio::task::yield_now().await;
 
         let (node_id, raft) = rx_initialized_raft
@@ -58,12 +56,14 @@ pub async fn wait_until_rafts_ready(
 fn run_raft(
     tx_initialized_raft: mpsc::Sender<(u64, Raft)>,
     node_id: &u64,
+    base_storage_path: &str,
     peers: Peers,
     should_be_leader: bool,
 ) -> Result<JoinHandle<Result<()>>> {
     let peer = peers.get(node_id).unwrap();
     let cfg = build_config(
         *node_id,
+        base_storage_path,
         if should_be_leader {
             None
         } else {
@@ -72,7 +72,7 @@ fn run_raft(
     );
 
     let store = HashStore::new();
-    let logger = build_logger();
+    let logger = build_file_logger(base_storage_path);
     let storage_pth = get_storage_path(cfg.get_log_dir(), *node_id);
     ensure_directory_exist(storage_pth.as_str())?;
 
@@ -107,9 +107,10 @@ fn run_raft(
 
 pub async fn build_raft_cluster(
     tx_initialized_raft: mpsc::Sender<(u64, Raft)>,
+    base_storage_path: String,
     peers: Peers,
 ) -> Result<()> {
-    let logger = get_logger();
+    let logger = build_file_logger(&base_storage_path);
 
     set_custom_formatter(CustomFormatter::<LogEntry, HashStore>::new());
 
@@ -120,6 +121,7 @@ pub async fn build_raft_cluster(
         let raft_handle = run_raft(
             tx_initialized_raft.clone(),
             &node_id,
+            &base_storage_path,
             peers.clone(),
             should_be_leader,
         )?;
@@ -148,13 +150,14 @@ pub async fn build_raft_cluster(
 pub async fn spawn_extra_node(
     tx_initialized_raft: mpsc::Sender<(u64, Raft)>,
     node_id: u64,
+    base_storage_path: &str,
     raft_addr: &str,
 ) -> Result<JoinHandle<Result<()>>> {
     let logger = Arc::new(Slogger {
-        slog: build_logger(),
+        slog: build_file_logger(base_storage_path),
     });
 
-    let cfg = build_config(node_id, None);
+    let cfg = build_config(node_id, base_storage_path, None);
     let store = HashStore::new();
     let storage_pth = get_storage_path(cfg.get_log_dir(), node_id);
     ensure_directory_exist(storage_pth.as_str())?;
@@ -174,18 +177,23 @@ pub async fn spawn_extra_node(
 
 pub async fn spawn_and_join_extra_node(
     tx_initialized_raft: mpsc::Sender<(u64, Raft)>,
-    raft_addr: &str,
-    peer_addr: &str,
+    raft_addr: String,
+    peer_addr: String,
+    base_storage_path: String,
 ) -> Result<JoinHandle<Result<()>>> {
     let logger = Arc::new(Slogger {
-        slog: build_logger(),
+        slog: build_file_logger(&base_storage_path),
     });
     let join_ticket = Raft::request_id(raft_addr.to_owned(), peer_addr.to_owned(), None)
         .await
         .unwrap();
 
     let node_id = join_ticket.reserved_id;
-    let cfg = build_config(node_id, Some(join_ticket.peers.clone().into()));
+    let cfg = build_config(
+        node_id,
+        &base_storage_path,
+        Some(join_ticket.peers.clone().into()),
+    );
 
     let store = HashStore::new();
 

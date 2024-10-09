@@ -1,7 +1,7 @@
 use crate::utils::{ensure_directory_exist, get_storage_path};
 use raftify::{Config, ConfigBuilder, Peers, RaftConfig};
 
-pub fn build_config(node_id: u64, initial_peers: Option<Peers>) -> Config {
+pub fn build_config(node_id: u64, base_storage_path: &str, initial_peers: Option<Peers>) -> Config {
     let raft_config = RaftConfig {
         id: node_id,
         election_tick: 10,
@@ -10,7 +10,7 @@ pub fn build_config(node_id: u64, initial_peers: Option<Peers>) -> Config {
         ..Default::default()
     };
 
-    let storage_path = get_storage_path("./logs", node_id);
+    let storage_path = get_storage_path(base_storage_path, node_id);
     ensure_directory_exist(&storage_path).expect("Failed to create storage directory");
 
     let config_builder = ConfigBuilder::new()

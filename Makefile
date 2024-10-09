@@ -2,7 +2,7 @@ build:
 	cargo build --workspace
 
 clean:
-	rm -rf ./logs/node-*
+	rm -rf ./logs/node-* && rm -rf ./harness/logs && rm -rf ./harness/.ip_counter
 
 fmt:
 	cargo fmt
@@ -15,14 +15,7 @@ open-doc:
 	cargo doc --no-deps --open
 
 test:
-	make unit-test
-	make integration-test
-
-unit-test:
-	cd raftify && cargo test && cd ../
-
-integration-test:
-	cd harness && make test && cd ../
+	cargo nextest run
 
 publish-rs:
 	cargo publish -p raftify --allow-dirty --no-verify

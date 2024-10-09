@@ -34,3 +34,5 @@ exec
 tests/fixtures
 tests/tests/fixtures
 logs
+
+.ip_counter
