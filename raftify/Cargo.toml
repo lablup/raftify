@@ -28,7 +28,7 @@ built = "0.5"
 chrono = "0.4.38"
 heed = { version = "0.20.5", optional = true }
 heed-traits = { version = "0.20", optional = true }
-rocksdb = { version = "0.19.0", optional = true }
+rocksdb = { version = "0.22.0", optional = true }
 config = "0.14.0"
 
 [features]
