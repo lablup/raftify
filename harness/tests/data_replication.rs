@@ -1,6 +1,7 @@
 use raftify::AbstractLogEntry;
 use std::{sync::mpsc, time::Duration};
 use tokio::time::sleep;
+use pretty_assertions::assert_eq;
 
 use harness::{
     constant::{RAFT_PORTS, THREE_NODE_EXAMPLE},

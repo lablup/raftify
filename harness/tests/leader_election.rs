@@ -1,5 +1,6 @@
 use raftify::{raft::StateRole, StableStorage};
 use std::{process::exit, sync::mpsc};
+use pretty_assertions::assert_eq;
 
 use harness::{
     constant::{FIVE_NODE_EXAMPLE, THREE_NODE_EXAMPLE},
