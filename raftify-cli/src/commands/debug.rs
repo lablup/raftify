@@ -1,5 +1,5 @@
 use comfy_table::{
-    presets::UTF8_FULL, Cell, CellAlignment, ContentArrangement, Table, TableComponent,
+    presets::UTF8_FULL, Cell, CellAlignment, ContentArrangement, Table,
 };
 use core::panic;
 use serde_json::Value;

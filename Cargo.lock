@@ -2313,7 +2313,6 @@ dependencies = [
  "comfy-table",
  "log",
  "raftify",
- "rocksdb",
  "serde",
  "serde_json",
  "slog",
