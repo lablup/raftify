@@ -11,9 +11,16 @@ use raftify::{
     AbstractLogEntry, AbstractStateMachine, CustomFormatter, Result, StableStorage,
 };
 
+use cfmt::formatcp;
+
+const RAFTIFY_VERSION:&str = env!("RAFTIFY_VERSION");
+const VERSION_TEXT:&'static str = formatcp!("{PKG_VERSION}
+raftify {}", RAFTIFY_VERSION);
+
 #[derive(Parser)]
-#[command(name = "raftify")]
+#[command(name = PKG_NAME)]
 #[command(version = PKG_VERSION)]
+#[command(long_version = VERSION_TEXT)]
 #[command(author = PKG_AUTHORS)]
 #[command(about = PKG_DESCRIPTION)]
 struct App {

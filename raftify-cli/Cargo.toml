@@ -1,9 +1,10 @@
 [package]
 name = "raftify_cli"
-version = "0.1.81"
+version = "0.1.82"
 edition = "2021"
 description = "Raftify CLI tool"
 license = "MIT/Apache-2.0"
+build = "build.rs"
 
 [dependencies]
 log = { version = "0.4", features = ["std"] }
@@ -15,6 +16,7 @@ clap = { version = "4.5.18", features = ["derive"] }
 raftify = { version = "=0.1.81", features = ["heed_storage", "inmemory_storage", "rocksdb_storage"] }
 rocksdb = "0.19.0"
 comfy-table = "7.1.1"
+cfmt = {version = "0.*", package = "const_format"}
 
 [lib]
 name = "raftify_cli"
@@ -23,3 +25,4 @@ path = "src/mod.rs"
 [build-dependencies]
 tonic-build = "0.9.2"
 built = "0.5"
+toml = "*"
