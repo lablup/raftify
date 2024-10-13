@@ -460,6 +460,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "const_format"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbc3a6725e090f416f3c12d12605d90d6be4fde8bd762d236535ab02b388c70d"
+dependencies = [
+ "const_format_proc_macros",
+]
+
+[[package]]
+name = "const_format_proc_macros"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e029ee8893eaad89abcb0885453d9555b8cb7982ac456ad044884725215bce42"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1629,17 +1649,19 @@ dependencies = [
 
 [[package]]
 name = "raftify_cli"
-version = "0.1.81"
+version = "0.1.82"
 dependencies = [
  "built",
  "clap",
  "comfy-table",
+ "const_format",
  "log",
  "raftify",
  "rocksdb",
  "serde",
  "serde_json",
  "slog",
+ "toml 0.8.19",
  "tonic-build",
 ]
 

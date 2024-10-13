@@ -13,16 +13,17 @@ use raftify::{
 
 use cfmt::formatcp;
 
-const RAFTIFY_VERSION:&str = env!("RAFTIFY_VERSION");
-const VERSION_TEXT:&'static str = formatcp!("{PKG_VERSION}
-raftify {}", RAFTIFY_VERSION);
+const RAFTIFY_VERSION: &str = env!("RAFTIFY_VERSION");
+const RAFTIFY_FEATURES: &str = env!("RAFTIFY_FEATURES");
+const VERSION_TEXT: &'static str = formatcp!("{PKG_VERSION}
+(Built with raftify {}, Enabled features: {})", RAFTIFY_VERSION, RAFTIFY_FEATURES);
 
 #[derive(Parser)]
 #[command(name = PKG_NAME)]
-#[command(version = PKG_VERSION)]
-#[command(long_version = VERSION_TEXT)]
 #[command(author = PKG_AUTHORS)]
 #[command(about = PKG_DESCRIPTION)]
+#[command(version = VERSION_TEXT)]
+#[command(long_version = VERSION_TEXT)]
 struct App {
     #[command(subcommand)]
     command: Commands,
