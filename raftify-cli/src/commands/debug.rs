@@ -1,7 +1,14 @@
-use comfy_table::{Cell, CellAlignment, ContentArrangement, Table};
+use comfy_table::{
+    presets::UTF8_FULL, Cell, CellAlignment, ContentArrangement, Table, TableComponent,
+};
 use core::panic;
 use serde_json::Value;
-use std::{collections::HashMap, fs, path::Path, sync::Arc};
+use std::{
+    collections::{BTreeSet, HashMap},
+    fs,
+    path::Path,
+    sync::Arc,
+};
 
 use raftify::{
     create_client,
@@ -50,6 +57,10 @@ pub fn debug_persisted<LogStorage: StableStorage>(
 
     if print_as_table {
         let mut table = Table::new();
+        table
+            .load_preset(UTF8_FULL)
+            .set_content_arrangement(ContentArrangement::Dynamic);
+
         let formatter = CUSTOM_FORMATTER.read().unwrap();
 
         table
@@ -85,10 +96,150 @@ pub fn debug_persisted<LogStorage: StableStorage>(
     println!();
 
     println!("---- Metadata ----");
-    println!("{:?}", storage.hard_state()?);
-    println!("{:?}", storage.conf_state()?);
-    println!("{:?}", format_snapshot(&storage.snapshot(0, 0)?));
-    println!("Last index: {}", storage.last_index()?);
+    let hard_state = storage.hard_state()?;
+    let conf_state = storage.conf_state()?;
+    let snapshot = storage.snapshot(0, 0)?;
+    let last_index = storage.last_index()?;
+
+    if print_as_table {
+        let mut table = Table::new();
+        table
+            .load_preset(UTF8_FULL)
+            .set_content_arrangement(ContentArrangement::Dynamic);
+
+        table.set_header(vec![
+            Cell::new("Category"),
+            Cell::new("Field"),
+            Cell::new("Value"),
+        ]);
+
+        table.add_row(vec![
+            Cell::new("HardState"),
+            Cell::new("term"),
+            Cell::new(hard_state.term.to_string()),
+        ]);
+        table.add_row(vec![
+            Cell::new(""),
+            Cell::new("vote"),
+            Cell::new(hard_state.vote.to_string()),
+        ]);
+        table.add_row(vec![
+            Cell::new(""),
+            Cell::new("commit"),
+            Cell::new(hard_state.commit.to_string()),
+        ]);
+
+        table.add_row(vec![
+            Cell::new("ConfState"),
+            Cell::new("voters"),
+            Cell::new(format!(
+                "{:?}",
+                BTreeSet::from_iter(conf_state.voters.iter().cloned())
+            )),
+        ]);
+        table.add_row(vec![
+            Cell::new(""),
+            Cell::new("learners"),
+            Cell::new(format!(
+                "{:?}",
+                BTreeSet::from_iter(conf_state.learners.iter().cloned())
+            )),
+        ]);
+        table.add_row(vec![
+            Cell::new(""),
+            Cell::new("voters_outgoing"),
+            Cell::new(format!(
+                "{:?}",
+                BTreeSet::from_iter(conf_state.voters_outgoing.iter().cloned())
+            )),
+        ]);
+        table.add_row(vec![
+            Cell::new(""),
+            Cell::new("learners_next"),
+            Cell::new(format!(
+                "{:?}",
+                BTreeSet::from_iter(conf_state.learners_next.iter().cloned())
+            )),
+        ]);
+        table.add_row(vec![
+            Cell::new(""),
+            Cell::new("auto_leave"),
+            Cell::new(conf_state.auto_leave.to_string()),
+        ]);
+
+        table.add_row(vec![
+            Cell::new("Snapshot"),
+            Cell::new("data"),
+            Cell::new(format!("{:?}", snapshot.data)),
+        ]);
+
+        if let Some(metadata) = &snapshot.metadata {
+            table.add_row(vec![
+                Cell::new(""),
+                Cell::new("metadata.index"),
+                Cell::new(metadata.index.to_string()),
+            ]);
+            table.add_row(vec![
+                Cell::new(""),
+                Cell::new("metadata.term"),
+                Cell::new(metadata.term.to_string()),
+            ]);
+
+            if let Some(conf_state) = &metadata.conf_state {
+                table.add_row(vec![
+                    Cell::new(""),
+                    Cell::new("metadata.conf_state.voters"),
+                    Cell::new(format!(
+                        "{:?}",
+                        BTreeSet::from_iter(conf_state.voters.iter().cloned())
+                    )),
+                ]);
+                table.add_row(vec![
+                    Cell::new(""),
+                    Cell::new("metadata.conf_state.learners"),
+                    Cell::new(format!(
+                        "{:?}",
+                        BTreeSet::from_iter(conf_state.learners.iter().cloned())
+                    )),
+                ]);
+                table.add_row(vec![
+                    Cell::new(""),
+                    Cell::new("metadata.conf_state.voters_outgoing"),
+                    Cell::new(format!(
+                        "{:?}",
+                        BTreeSet::from_iter(conf_state.voters_outgoing.iter().cloned())
+                    )),
+                ]);
+                table.add_row(vec![
+                    Cell::new(""),
+                    Cell::new("metadata.conf_state.learners_next"),
+                    Cell::new(format!(
+                        "{:?}",
+                        BTreeSet::from_iter(conf_state.learners_next.iter().cloned())
+                    )),
+                ]);
+                table.add_row(vec![
+                    Cell::new(""),
+                    Cell::new("metadata.conf_state.auto_leave"),
+                    Cell::new(conf_state.auto_leave.to_string()),
+                ]);
+            }
+        }
+
+        table.add_row(vec![
+            Cell::new("LastIndex"),
+            Cell::new("last index"),
+            Cell::new(last_index.to_string()),
+        ]);
+
+        println!("{}", table);
+    } else {
+        println!("{:?}", storage.hard_state()?);
+        println!("{:?}", storage.conf_state()?);
+        println!("{:?}", format_snapshot(&storage.snapshot(0, 0)?));
+        println!("Last index: {}", storage.last_index()?);
+    }
+
     Ok(())
 }
 
