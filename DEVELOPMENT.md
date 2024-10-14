@@ -2,7 +2,7 @@
 
 You can build the Raftify source code on macOS, Windows, and Linux.
 
-Use this command to clone the repository,
+Use following command to clone this repository,
 
 ```
 ❯ git clone --recursive https://github.com/lablup/raftify.git
@@ -32,6 +32,8 @@ And run the tests by the following command.
 ❯ cargo nextest run
 ```
 
+> ⚠️ Note this [following issue](https://github.com/lablup/raftify/issues/165) on macOS.
+
 ## `precommit` hook setup
 
 You can use pre-commit hooks with the following configuration.
@@ -49,6 +51,6 @@ You can build Raftify with the following features.
 By enabling or disabling the features below, you can include only the essential dependencies and source code in the build.
 
 - `inmemory_storage`: In-memory log storage.
-- `heed_storage`: [Heed](`https://github.com/meilisearch/heed`) log storage.
+- `heed_storage`: [Heed](https://github.com/meilisearch/heed) log storage.
 - `rocksdb_storage`: [RocksDB](https://github.com/rust-rocksdb/rust-rocksdb) log storage.
 - `tls`: Enable TLS encryption for Raft server and client.
