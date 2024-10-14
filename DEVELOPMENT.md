@@ -37,7 +37,7 @@ And run the tests by the following command.
 ## `precommit` hook setup
 
 You can use pre-commit hooks with the following configuration.
-This commit hook performs checks like `cargo fmt` and `cargo clippy` before committing.
+By installing this hook, you can perform code formatting and lint automatically before creating commits.
 
 ```
 ❯ pip install pre-commit --break-system-packages
@@ -48,7 +48,7 @@ This commit hook performs checks like `cargo fmt` and `cargo clippy` before comm
 
 You can build Raftify with the following features.
 
-By enabling or disabling the features below, you can include only the essential dependencies and source code in the build.
+By enabling or disabling the features below, you can include only the necessary dependencies and source code in the build.
 
 - `inmemory_storage`: In-memory log storage.
 - `heed_storage`: [Heed](https://github.com/meilisearch/heed) log storage.
