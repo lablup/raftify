@@ -1,8 +1,8 @@
-# raftify
+# Raftify
 
 ⚠️ WARNING: This library is in a very experimental stage. The API could be broken.
 
-raftify is a *high-level* implementation of [Raft](https://raft.github.io/), developed with the goal of making it easy and straightforward to integrate the Raft algorithm.
+Raftify is a *high-level* implementation of [Raft](https://raft.github.io/), developed with the goal of making it easy and straightforward to integrate the Raft algorithm.
 
 It uses [tikv/raft-rs](https://github.com/tikv/raft-rs) and gRPC for the network layer and [heed](https://github.com/meilisearch/heed) (LMDB wrapper) for the storage layer.
 
@@ -205,19 +205,19 @@ To ignore the previous logs and bootstrap the cluster from a snapshot, use the `
 
 ## Support for other languages
 
-raftify provides bindings for the following languages.
+Raftify provides bindings for the following languages.
 
 - [Python](https://github.com/lablup/raftify/tree/main/binding/python)
 
 ## Building from Source
 
-If you want to build raftify from the source code or set up a development environment, please refer to the [DEVELOPMENT.md](https://github.com/lablup/raftify/blob/main/DEVELOPMENT.md).
+If you want to build Raftify from the source code or set up a development environment, please refer to the [DEVELOPMENT.md](https://github.com/lablup/raftify/blob/main/DEVELOPMENT.md).
 
 ## References
 
-raftify was inspired by a wide variety of previous Raft implementations.
+Raftify was inspired by a wide variety of previous Raft implementations.
 
 Great thanks to all the relevant developers.
 
 - [tikv/raft-rs](https://github.com/tikv/raft-rs) - Raft distributed consensus algorithm implemented using in this lib under the hood.
-- [ritelabs/riteraft](https://github.com/ritelabs/riteraft) - A raft framework, for regular people. raftify was forked from this lib.
+- [ritelabs/riteraft](https://github.com/ritelabs/riteraft) - A raft framework, for regular people. Raftify was forked from this lib.
