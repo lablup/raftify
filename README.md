@@ -209,6 +209,10 @@ raftify provides bindings for the following languages.
 
 - [Python](https://github.com/lablup/raftify/tree/main/binding/python)
 
+## Building from Source
+
+If you want to build raftify from the source code or set up a development environment, please refer to the [DEVELOPMENT.md](https://github.com/lablup/raftify/blob/main/DEVELOPMENT.md).
+
 ## References
 
 raftify was inspired by a wide variety of previous Raft implementations.
