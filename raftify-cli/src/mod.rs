@@ -3,7 +3,7 @@ include!(concat!(env!("OUT_DIR"), "/built.rs"));
 mod commands;
 
 use clap::{Parser, Subcommand};
-use commands::debug::{debug_entries, debug_node, debug_persisted, debug_persisted_all};
+use commands::describe::{describe_entries, describe_metadata, describe_node};
 use std::fmt::Debug;
 
 use raftify::{
@@ -15,8 +15,12 @@ use cfmt::formatcp;
 
 const RAFTIFY_VERSION: &str = env!("RAFTIFY_VERSION");
 const RAFTIFY_FEATURES: &str = env!("RAFTIFY_FEATURES");
-const VERSION_TEXT: &'static str = formatcp!("{PKG_VERSION}
-(Built with raftify {}, Enabled features: {})", RAFTIFY_VERSION, RAFTIFY_FEATURES);
+const VERSION_TEXT: &'static str = formatcp!(
+    "{PKG_VERSION}
+(Built with raftify {}, Enabled features: {})",
+    RAFTIFY_VERSION,
+    RAFTIFY_FEATURES
+);
 
 #[derive(Parser)]
 #[command(name = PKG_NAME)]
@@ -31,33 +35,28 @@ struct App {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Debug tools
+    /// Describe logs, metadata, and raft node information
     #[command(subcommand)]
-    Debug(DebugSubcommands),
+    Describe(DescribeSubcommands),
 }
 
 #[derive(Subcommand)]
-enum DebugSubcommands {
-    /// List persisted log entries and metadata
-    Persisted {
+enum DescribeSubcommands {
+    /// List persisted log entries
+    Logs {
         /// The log directory path
         path: String,
-        /// Print the output in a table format
+        /// Print the output in raw format
         #[arg(long, default_value_t = false)]
-        table: bool,
+        raw: bool,
     },
-    /// List persisted log entries and metadata for all local nodes
-    PersistedAll {
+    /// List persisted metadata
+    Metadata {
         /// The log directory path
         path: String,
-        /// Print the output in a table format
+        /// Print the output in raw format
         #[arg(long, default_value_t = false)]
-        table: bool,
-    },
-    /// List all log entries
-    Entries {
-        /// The address of the RaftNode
-        address: String,
+        raw: bool,
     },
     /// Inspect RaftNode
     Node {
@@ -81,18 +80,21 @@ pub async fn cli_handler<
     set_custom_formatter(CustomFormatter::<LogEntry, FSM>::new());
 
     match app.command {
-        Commands::Debug(x) => match x {
-            DebugSubcommands::Persisted { path, table } => {
-                debug_persisted::<LogStorage>(path.as_str(), logger.clone(), table)?;
+        Commands::Describe(x) => match x {
+            DescribeSubcommands::Logs {
+                path,
+                raw: print_raw_format,
+            } => {
+                describe_entries::<LogStorage>(path.as_str(), logger.clone(), print_raw_format)?;
             }
-            DebugSubcommands::PersistedAll { path, table } => {
-                debug_persisted_all::<LogStorage>(path.as_str(), logger.clone(), table)?;
+            DescribeSubcommands::Metadata {
+                path,
+                raw: print_raw_format,
+            } => {
+                describe_metadata::<LogStorage>(path.as_str(), logger.clone(), print_raw_format)?;
             }
-            DebugSubcommands::Entries { address } => {
-                debug_entries(address.as_str()).await?;
-            }
-            DebugSubcommands::Node { address } => {
-                debug_node(address.as_str()).await?;
+            DescribeSubcommands::Node { address } => {
+                describe_node(address.as_str()).await?;
             }
         },
     }

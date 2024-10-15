@@ -13,7 +13,7 @@ serde_json = "1.0"
 slog = "2"
 built = "0.5"
 clap = { version = "4.5.18", features = ["derive"] }
-raftify = { version = "=0.1.81", features = ["heed_storage", "inmemory_storage", "rocksdb_storage"] }
+raftify = { version = "=0.1.82", features = ["heed_storage", "inmemory_storage", "rocksdb_storage"] }
 comfy-table = "7.1.1"
 cfmt = { version = "0.1.0", package = "const_format" }
 
