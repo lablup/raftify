@@ -1024,7 +1024,7 @@ dependencies = [
 
 [[package]]
 name = "example-harness"
-version = "0.1.81"
+version = "0.1.82"
 dependencies = [
  "raftify",
 ]
@@ -1250,7 +1250,7 @@ dependencies = [
 
 [[package]]
 name = "harness"
-version = "0.1.81"
+version = "0.1.82"
 dependencies = [
  "bincode",
  "fs2",
@@ -1780,7 +1780,7 @@ dependencies = [
 
 [[package]]
 name = "memstore-dynamic-members"
-version = "0.1.81"
+version = "0.1.82"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1804,7 +1804,7 @@ dependencies = [
 
 [[package]]
 name = "memstore-example-harness"
-version = "0.1.81"
+version = "0.1.82"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -1821,7 +1821,7 @@ dependencies = [
 
 [[package]]
 name = "memstore-static-members"
-version = "0.1.81"
+version = "0.1.82"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -2303,7 +2303,7 @@ dependencies = [
 
 [[package]]
 name = "raftify"
-version = "0.1.81"
+version = "0.1.82"
 dependencies = [
  "async-trait",
  "bincode",
